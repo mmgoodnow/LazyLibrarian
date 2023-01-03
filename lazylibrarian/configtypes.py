@@ -3,7 +3,7 @@
 # Purpose:
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
-
+import logging
 import os
 import sys
 from collections import Counter, OrderedDict
@@ -12,8 +12,6 @@ from enum import Enum
 from re import match, compile, IGNORECASE
 from typing import Dict, List, Callable
 from typing import Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
-
-from lazylibrarian import logger
 
 # Type aliases to distinguish types of string
 ValidIntTypes = Union[int, bool]
@@ -87,6 +85,7 @@ class ConfigItem:
 
     def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
         if tmpsection != self.section:
+            logger = logging.getLogger('special.configread')
             logger.debug(f'Loading section {tmpsection} into section {self.section}')
         return self.set_str(parser.get(tmpsection, name))
 
@@ -152,22 +151,21 @@ class ConfigItem:
         """ Return True if the ConfigItem is one that needs to be saved """
         return self.persist
 
-    def set_onchange(self, onchange: Optional[OnChangeCallback]=None):
+    def set_onchange(self, onchange: Optional[OnChangeCallback] = None):
         self.onchange = onchange
 
     def _on_read(self, ok: bool) -> bool:
-        from lazylibrarian.logger import lazylibrarian_log
         if ok:
             self.accesses[Access.READ_OK] += 1
-            if lazylibrarian_log.LOGLEVEL & logger.log_configread:
-                logger.debug(f"Read config[{self.key}]={self.value}")
+            logger = logging.getLogger('special.configread')
+            logger.debug(f"Read config[{self.key}]={self.value}")
         else:
             self.accesses[Access.READ_ERR] += 1
-            logger.warn(f"Type error reading config[{self.key}] ({self.value})")
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Type error reading config[{self.key}] ({self.value})")
         return ok
 
     def _on_set(self, value: ValidTypes) -> bool:
-        from lazylibrarian.logger import lazylibrarian_log
         if self.is_valid_value(value):
             if self.is_new:
                 self.accesses[Access.CREATE_OK] += 1
@@ -175,20 +173,22 @@ class ConfigItem:
             elif self.value != value:
                 # Don't count a write if the value does not change
                 self.accesses[Access.WRITE_OK] += 1
-                if lazylibrarian_log.LOGLEVEL & logger.log_configwrite:
-                    logger.debug(f"Set config[{self.key}]={value}")
+                logger = logging.getLogger('special.configwrite')
+                logger.debug(f"Set config[{self.key}]={value}")
             self.value = value
             if self.onchange:
                 self.onchange(self.get_str())
             return True
         else:
             self.accesses[Access.WRITE_ERR] += 1
-            logger.warn(f"Cannot set config[{self.key}] to {value}")
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Cannot set config[{self.key}] to {value}")
             return False
 
     def _on_type_mismatch(self, value) -> bool:
         self.accesses[Access.WRITE_ERR] += 1
-        logger.warn(f"Cannot set config[{self.key}] to {value}: incorrect type")
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Cannot set config[{self.key}] to {value}: incorrect type")
         return False
 
     def get_accesses(self):
@@ -263,6 +263,7 @@ class ConfigInt(ConfigItem):
 
     def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
         if tmpsection != self.section:
+            logger = logging.getLogger('special.configread')
             logger.debug(f'Loading int {name} from section {tmpsection} into section {self.section}')
         try:
             value = parser.getint(tmpsection, name, fallback=0)
@@ -420,6 +421,7 @@ class ConfigBool(ConfigInt):
 
     def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
         if tmpsection != self.section:
+            logger = logging.getLogger(__name__)
             logger.debug(f'Loading bool {name} from section {tmpsection} into section {self.section}')
         return self.set_bool(parser.getboolean(tmpsection, name, fallback=False))
 
@@ -531,6 +533,7 @@ class ConfigFolder(ConfigStr):
     def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
         """ For Folders, save the config as-is to be able to preserve relative paths """
         if tmpsection != self.section:
+            logger = logging.getLogger(__name__)
             logger.debug(f'Loading folder {name} from section {tmpsection} into section {self.section}')
         self.asLoaded = parser.get(tmpsection, name)
         return self.set_str(self.asLoaded)
@@ -799,6 +802,7 @@ class ConfigDict:
         if name not in self.errors:
             self.errors[name] = Counter()
         self.errors[name][status] += 1
+        logger = logging.getLogger(__name__)
         logger.error(f"Config[{name}]: {status.value}")
 
     def get_error_counters(self) -> Dict[str, Counter]:

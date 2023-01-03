@@ -13,12 +13,12 @@
 import re
 import time
 import traceback
+import logging
 import unicodedata
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, isbn_from_words, thinglang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter

@@ -15,11 +15,11 @@ from __future__ import with_statement
 
 import os
 import subprocess
+import logging
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian import database
 from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import calibre_prg, zip_audio
@@ -30,6 +30,8 @@ from PyPDF3 import PdfFileWriter, PdfFileReader
 
 
 def preprocess_ebook(bookfolder):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     logger.debug("Preprocess ebook %s" % bookfolder)
     ebook_convert = calibre_prg('ebook-convert')
     if not ebook_convert:
@@ -64,8 +66,7 @@ def preprocess_ebook(bookfolder):
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                logger.debug(str(params))
+            loggerpostprocess.debug(str(params))
             try:
                 if os.name != 'nt':
                     _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
@@ -100,6 +101,8 @@ def preprocess_ebook(bookfolder):
 
 
 def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     if merge is None:
         merge = CONFIG.get_bool('CREATE_SINGLEAUDIO')
     if tag is None:
@@ -187,8 +190,8 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     if out_type in ['.m4b', '.m4a', '.aac', '.mp4']:
         force_mp4 = True
         if 'D' not in ff_aac or 'E' not in ff_aac:
-            logger.warn("Your version of ffmpeg does not report supporting read/write aac (%s) trying anyway" %
-                        ff_aac)
+            logger.warning("Your version of ffmpeg does not report supporting read/write aac (%s) trying anyway" %
+                           ff_aac)
     # else:  # should we force mp4 if input is mp4 but output is mp3?
     #     for part in parts:
     #         if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
@@ -219,7 +222,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                               '-metadata', "artist=%s" % authorname,
                               '-metadata', "track=%s" % part[0],
                               os.path.join(bookfolder, "tempaudio%s" % extn)]
-                    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
+                    if loggerpostprocess.isEnabledFor(logging.DEBUG):
                         params.append('-report')
                         logger.debug(str(params))
                         ffmpeg_env = os.environ.copy()
@@ -257,7 +260,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             # read metadata from first file
             params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                       '-f', 'ffmetadata', '-y', metadata]
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
+            if loggerpostprocess.isEnabledFor(logging.DEBUG):
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
@@ -283,7 +286,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             for part in parts:
                 params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
                           '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
-                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
+                if loggerpostprocess.isEnabledFor(logging.DEBUG):
                     params.append('-report')
                     logger.debug(str(params))
                     ffmpeg_env = os.environ.copy()
@@ -343,7 +346,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             params.extend(get_list(ffmpeg_options))
             params.append('-y')
             params.append(os.path.join(bookfolder, outfile))
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
+            if loggerpostprocess.isEnabledFor(logging.DEBUG):
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
@@ -440,7 +443,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 b2a = False
 
             params.append(tempfile)
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
+            if loggerpostprocess.isEnabledFor(logging.DEBUG):
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
@@ -478,6 +481,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
 
 def preprocess_magazine(bookfolder, cover=0):
+    logger = logging.getLogger(__name__)
     logger.debug("Preprocess magazine %s cover=%s" % (bookfolder, cover))
     try:
         sourcefile = None
@@ -541,7 +545,7 @@ def preprocess_magazine(bookfolder, cover=0):
                     sz = os.stat(srcfile + 'new').st_size
                 except Exception as e:
                     sz = 0
-                    logger.warn("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
+                    logger.warning("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
                 if sz:
                     remove_file(srcfile)
                     newcopy = safe_move(srcfile + 'new', original + 'new')

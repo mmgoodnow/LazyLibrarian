@@ -4,11 +4,11 @@
 #   Handle blocking behaviour, keep track of blocked providers, etc
 
 import time
+import logging
 from typing import Dict, Optional
 
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, plural, pretty_approx_time
-from lazylibrarian import logger
 
 
 class BlockHandler:
@@ -66,6 +66,7 @@ class BlockHandler:
 
     def block_provider(self, who: str, why: str, delay: Optional[int] = None) -> int:
         """ Block provider 'who' for reason 'why'. Returns number of seconds block will last """
+        logger = logging.getLogger(__name__)
         if delay is None:
             delay = self._config.get_int('BLOCKLIST_TIMER') if self._config is not None else 3600
 

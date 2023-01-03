@@ -7,6 +7,7 @@ import json
 import pytest
 import pytest_order  # Needed to force unit test order
 import mock
+import logging
 
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian import telemetry, configdefs
@@ -28,7 +29,7 @@ class TelemetryTest(LLTestCase):
         return super().tearDownClass()
 
     def _do_ids_match(self):
-        self.set_loglevel(1)
+        self.set_loglevel(logging.INFO)
         t = telemetry.LazyTelemetry()
         loaded_id = CONFIG['SERVER_ID']
         serverid = t.ensure_server_id(CONFIG)
@@ -38,14 +39,14 @@ class TelemetryTest(LLTestCase):
         return serverid
 
     def test_getTelemetryObject(self):
-        self.set_loglevel(1)
+        self.set_loglevel(logging.INFO)
         t = telemetry.LazyTelemetry()
         self.assertIsNotNone(t, 'Telemetry object must exist')
         t2 = telemetry.LazyTelemetry()
         self.assertEqual(t, t2, 'Telemetry object not acting as singleton')
 
     def test_ensure_server_id_generation(self):
-        self.set_loglevel(1)
+        self.set_loglevel(logging.INFO)
         saved_id = self._do_ids_match()
         # Pretend we don't have an ID to ensure generation works
         telemetry.LazyTelemetry().clear_id(CONFIG)
@@ -62,11 +63,12 @@ class TelemetryTest(LLTestCase):
 
     @pytest.mark.order(after="test_ensure_server_id_generation")
     def test_ensure_server_id_persistence(self):
-        self.set_loglevel(1)
+        self.set_loglevel(logging.INFO)
         my_id = self._do_ids_match()
 
         # Check we can read the new ID and test again
-        CONFIG.save_config_and_backup_old(section='Telemetry')
+        with self.assertLogs('root', logging.INFO):
+            CONFIG.save_config_and_backup_old(section='Telemetry')
 
         # Test that writing went right
         cfg = LLConfigHandler(configdefs.BASE_DEFAULTS, CONFIG.configfilename)
@@ -163,10 +165,11 @@ class TelemetryTest(LLTestCase):
         t = telemetry.LazyTelemetry()
 
         # Pretend to submit data and experience a timeout
-        mock.side_effect = requests.exceptions.Timeout
-        msg, status = t.submit_data('http://testserver', False, False)
-        mock_requests.get.assert_called_once()
-        self.assertFalse(status)
+        with self.assertLogs('root', logging.INFO):
+            mock.side_effect = requests.exceptions.Timeout
+            msg, status = t.submit_data('http://testserver', False, False)
+            mock_requests.get.assert_called_once()
+            self.assertFalse(status)
 
         # Pretend to submit data to the server successfully
         mock_requests.get.return_value.status_code = 200

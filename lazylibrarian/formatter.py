@@ -18,11 +18,10 @@ import os
 import re
 import unicodedata
 import threading
+import logging
 from typing import List
 
 import lazylibrarian
-from lazylibrarian import logger
-from lazylibrarian.logger import lazylibrarian_log
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
@@ -273,6 +272,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
     if datestr.isdigit():  # just issue number or year
         return datestr
 
+    logger = logging.getLogger(__name__)
     dateparts = datestr.split(' +')[0].split(';')[0].replace(
         '-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
     if len(dateparts) == 1:  # one "word" might need splitting
@@ -332,7 +332,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
         msg = f"Unrecognised datestr {datestr}"
         if context:
             msg = f'{msg} for {context}'
-        lazylibrarian.logger.warn(msg)
+        logger.warning(msg)
         return datestr
 
     try:
@@ -356,7 +356,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
             '$B', lazylibrarian.MONTHNAMES[int(datestr[5:7])][0].title()).replace(
             '$b', lazylibrarian.MONTHNAMES[int(datestr[5:7])][1].title())
     except Exception:
-        lazylibrarian.logger.error("Invalid datestr [%s]" % datestr)
+        logger.error("Invalid datestr [%s]" % datestr)
         return datestr
 
 
@@ -562,7 +562,8 @@ def make_unicode(txt) -> str:
             return txt.decode(encoding)
         except (UnicodeError, LookupError):
             pass
-    lazylibrarian.logger.debug("Unable to decode name [%s]" % repr(txt))
+    logger = logging.getLogger(__name__)
+    logger.debug("Unable to decode name [%s]" % repr(txt))
     return txt
 
 
@@ -585,7 +586,8 @@ def make_bytestr(txt):
             return txt.encode(encoding)
         except UnicodeError:
             pass
-    lazylibrarian.logger.debug("Unable to encode name [%s]" % repr(txt))
+    logger = logging.getLogger(__name__)
+    logger.debug("Unable to encode name [%s]" % repr(txt))
     return txt
 
 
@@ -650,8 +652,8 @@ def split_title(author, book):
     Strips the author name from book title and
     returns the book name part split into (name, subtitle and series)
     """
-    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-        lazylibrarian.logger.debug("%s [%s]" % (author, book))
+    matchlogger = logging.getLogger('special.matching')
+    matchlogger.debug("%s [%s]" % (author, book))
     bookseries = ''
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
@@ -677,8 +679,7 @@ def split_title(author, book):
                 for item in ImportPrefs.SPLIT_LIST:
                     if f"({item})" == booksub.lower():
                         booksub = ""
-            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
+            matchlogger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
             return bookname, booksub, bookseries
 
     # if not (words in braces at end of string)
@@ -697,13 +698,15 @@ def split_title(author, book):
                 bookname = book
                 booksub = ''
                 break
-    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-        lazylibrarian.logger.debug("Name[%s] Sub[%s] Series[%s]" % (bookname, booksub, bookseries))
+
+    logger = logging.getLogger(__name__)
+    logger.debug("Name[%s] Sub[%s] Series[%s]" % (bookname, booksub, bookseries))
     return bookname, booksub, bookseries
 
 
 def format_author_name(author: str, postfix: List[str]) -> str:
     """ get authorname in a consistent format """
+    fuzzlogger = logging.getLogger('special.fuzz')
     author = make_unicode(author)
     # if multiple authors assume the first one is primary
     if '& ' in author:
@@ -721,9 +724,7 @@ def format_author_name(author: str, postfix: List[str]) -> str:
                 forename = words[1].strip()
                 surname = words[0].strip()
             if author != forename + ' ' + surname:
-                if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                    lazylibrarian.logger.debug('Formatted authorname [%s] to [%s %s]' %
-                                               (author, forename, surname))
+                fuzzlogger.debug('Formatted authorname [%s] to [%s %s]' % (author, forename, surname))
                 author = forename + ' ' + surname
     # reformat any initials, we want to end up with L.E. Modesitt Jr
     if len(author) > 2 and author[1] in '. ':
@@ -733,9 +734,7 @@ def format_author_name(author: str, postfix: List[str]) -> str:
             forename = forename + surname[0] + '.'
             surname = surname[2:].strip()
         if author != forename + ' ' + surname:
-            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                lazylibrarian.logger.debug('Stripped authorname [%s] to [%s %s]' %
-                                           (author, forename, surname))
+            fuzzlogger.debug('Stripped authorname [%s] to [%s %s]' % (author, forename, surname))
             author = forename + ' ' + surname
 
     res = ' '.join(author.split())  # ensure no extra whitespace

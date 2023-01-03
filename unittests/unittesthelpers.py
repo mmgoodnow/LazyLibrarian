@@ -8,10 +8,10 @@ from collections import Counter
 from os import remove
 from shutil import rmtree
 from typing import List
+import logging
 
 import lazylibrarian
 from lazylibrarian import dbupgrade, startup, config2
-from lazylibrarian import logger
 from lazylibrarian.configtypes import Access
 from lazylibrarian.filesystem import DIRS, path_isdir
 
@@ -20,30 +20,34 @@ from lazylibrarian.filesystem import DIRS, path_isdir
 class LLTestCase(unittest.TestCase):
     ALLSETUP = None
     CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
+    starter = startup.StartupLazyLibrarian()
+    logger = logging.getLogger('unittest')  # For logging unittest
 
     @classmethod
     def setUpClass(cls) -> None:
-        options, configfile = startup.startup_parsecommandline(__file__, args=[''], testing=True)
-        startup.load_config(cls.CONFIGFILE, options)
-        startup.init_misc(config2.CONFIG)
+        options, configfile = cls.starter.startup_parsecommandline(__file__, args=[''], testing=True)
+        cls.starter.load_config(cls.CONFIGFILE, options)
+        cls.starter.init_logs()
+        # Only log errors during the rest of startup
+        logging.getLogger('root').setLevel(logging.ERROR)
+        cls.starter.init_misc(config2.CONFIG)
         if cls.ALLSETUP:
             LLTestCase.disableHTTPSWarnings()
-            startup.init_caches(config2.CONFIG)
-            startup.init_database(config2.CONFIG)
+            cls.starter.init_caches(config2.CONFIG)
+            cls.starter.init_database(config2.CONFIG)
             cls.prepareTestDB()
-        startup.init_build_lists(config2.CONFIG)
+        cls.starter.init_build_lists(config2.CONFIG)
         return super().setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
         config2.CONFIG.create_access_summary()
 
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
+        cls.starter.shutdown(restart=False, update=False, exit=False, testing=True)
         if cls.ALLSETUP:
             cls.removetestDB()
             cls.removetestCache()
             cls.ALLSETUP = None
-        logger.lazylibrarian_log.stop_logger()
         cls.delete_test_logs()
         cls.clearGlobals()
         cls.CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
@@ -61,7 +65,7 @@ class LLTestCase(unittest.TestCase):
     def removetestDB(cls):
         # Delete the database that was created for unit testing
         if len(DIRS.get_dbfile()):
-            logger.debug("Deleting unit test database")
+            cls.logger.debug("Deleting unit test database")
             try:
                 remove(DIRS.get_dbfile())
                 remove(DIRS.get_dbfile() + "-shm")
@@ -73,7 +77,7 @@ class LLTestCase(unittest.TestCase):
     def removetestCache(cls):
         # Delete the database that was created for unit testing
         if len(DIRS.CACHEDIR):
-            logger.debug("Deleting unit test cache directory")
+            cls.logger.debug("Deleting unit test cache directory")
             try:
                 rmtree(DIRS.CACHEDIR)
             except Exception:
@@ -83,14 +87,14 @@ class LLTestCase(unittest.TestCase):
     def delete_test_logs(cls):
         if path_isdir(config2.CONFIG['LOGDIR']) and len(config2.CONFIG['LOGDIR']) > 3:
             try:  # Do not delete if there is a risk that it's the root of somewhere important
-                #                logger.debug("Deleting Logs")
                 rmtree(config2.CONFIG['LOGDIR'], ignore_errors=False)
             except Exception as e:
                 print(str(e))
 
-    @classmethod
-    def set_loglevel(cls, level: int):
-        logger.lazylibrarian_log.update_loglevel(override=level)
+    def set_loglevel(self, level):
+        """ Set the root log level per request; the calling test function depends on it to test log messages """
+        logging.getLogger('root').setLevel(level)
+        self.logger.setLevel(level)
 
     @classmethod
     def clearGlobals(cls):
@@ -98,8 +102,6 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.DAEMON = False
         lazylibrarian.SIGNAL = None
         lazylibrarian.SYS_ENCODING = ''
-        logger.lazylibrarian_log.update_loglevel(1)
-        logger.lazylibrarian_log.LOGLEVEL_OVERRIDE = False
         lazylibrarian.LOGINUSER = None
         lazylibrarian.COMMIT_LIST = None
         lazylibrarian.STOPTHREADS = False

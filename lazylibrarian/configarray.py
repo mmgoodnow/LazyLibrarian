@@ -3,10 +3,10 @@
 # Purpose:
 #   Handle array-configs, such as providers and notifiers
 
+import logging
 from collections import OrderedDict
 from typing import Dict, List
 
-from lazylibrarian import logger
 from lazylibrarian.configdefs import DefaultArrayDef, configitem_from_default
 from lazylibrarian.configtypes import ConfigItem, ConfigDict
 
@@ -95,6 +95,7 @@ class ArrayConfig:
             renum += 1
 
         # Validate that this worked, it's a bit iffy
+        logger = logging.getLogger(__name__)
         if keepcount != len(self):
             logger.error(f'Internal error cleaning up {self._name}')
         for index in range(0, len(self)):

@@ -4,7 +4,6 @@
 #   Testing the startup sequence
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.notifiers import APPRISE_VER
 from unittests.unittesthelpers import LLTestCase
 
@@ -19,7 +18,6 @@ class SetupTest(LLTestCase):
 
     def testConfig(self):
         # Validate that basic global objects and configs have run
-        self.assertEqual(lazylibrarian_log.LOGLEVEL, 1)  # From config.ini
         self.assertIsNotNone(CONFIG)
         self.assertIsInstance(CONFIG.get_int('LOGLIMIT'), int)
 

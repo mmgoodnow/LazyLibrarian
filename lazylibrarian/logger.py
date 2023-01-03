@@ -127,7 +127,7 @@ class RotatingLogger(object):
     def log(message, level):
         from lazylibrarian.formatter import thread_name, unaccented, now
 
-        logger = logging.getLogger(__name__)
+        obsoletelogger = logging.getLogger(__name__)
         threadname = thread_name()
 
         # Get the frame data of the method that made the original logger call
@@ -172,28 +172,28 @@ class RotatingLogger(object):
         self.log(message, level='ERROR')
 
 
-lazylibrarian_log = RotatingLogger('lazylibrarian.log', config=None)
+lazylibrarian_legacylog = RotatingLogger('lazylibrarian.log', config=None)
 
 
-def debug(message):
+def nodebug(message):
     if lazylibrarian_log.LOGLEVEL > 1:
         lazylibrarian_log.log(message, level='DEBUG')
 
 
-def info(message):
+def noinfo(message):
     if lazylibrarian_log.LOGLEVEL > 0:
         lazylibrarian_log.log(message, level='INFO')
 
 
-def warn(message):
+def nowarn(message):
     lazylibrarian_log.log(message, level='WARNING')
 
 
-def error(message):
+def noerror(message):
     lazylibrarian_log.log(message, level='ERROR')
 
 
-def logmessage(message, level):
+def nologmessage(message, level):
     if level == "DEBUG" and lazylibrarian_log.LOGLEVEL <= 1:
         return
 

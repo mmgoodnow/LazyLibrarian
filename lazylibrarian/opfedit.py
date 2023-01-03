@@ -13,9 +13,7 @@
 #  basic opf editor, only edit "our" fields, leave everything else unchanged
 
 import os
-
-from lazylibrarian import logger
-from lazylibrarian.logger import lazylibrarian_log
+import logging
 
 try:
     from html import escape  # python 3.x
@@ -24,6 +22,8 @@ except ImportError:
 
 
 def opf_read(filename):
+    logger = logging.getLogger(__name__)
+    matchlogger = logging.getLogger('special.matching')
     if not os.path.exists(filename):
         return '', []
     keys = ['<dc:title>', '<dc:language>', '<dc:publisher>', '<dc:date>']
@@ -94,11 +94,10 @@ def opf_read(filename):
                 if not new_lyne:
                     new_lyne = lyne
                 f.write(new_lyne)
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            items = []
-            for item in replaces:
-                items.append(item[0])
-            logger.debug(','.join(items))
+        items = []
+        for item in replaces:
+            items.append(item[0])
+        matchlogger.debug(','.join(items))
     except Exception as e:
         logger.debug(str(e))
     finally:

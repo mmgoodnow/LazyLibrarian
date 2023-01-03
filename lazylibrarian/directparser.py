@@ -12,14 +12,14 @@
 from __future__ import print_function
 
 import time
+import logging
 import traceback
 from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian import database
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes, seconds_to_midnight
@@ -32,6 +32,7 @@ def redirect_url(genhost, url):
         libgen might send us a book url that still contains http://libgen.io/  or /libgen.io/
         so we might need to redirect it to users genhost setting """
 
+    logger = logging.getLogger(__name__)
     myurl = urlparse(url)
     if myurl.netloc.lower() != 'libgen.io':
         return url
@@ -54,6 +55,7 @@ def redirect_url(genhost, url):
 
 
 def bok_sleep():
+    cachelogger = logging.getLogger('special.cache')
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_BOK']
     limit = CONFIG.get_int('SEARCH_RATELIMIT')
@@ -63,13 +65,13 @@ def bok_sleep():
     if delay < limit:
         sleep_time = limit - delay
         lazylibrarian.TIMERS['SLEEP_BOK'] += sleep_time
-        if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-            logger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
+        cachelogger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_BOK'] = time_now
 
 
 def direct_bok(book=None, prov=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "zlibrary"
     if not prov:
@@ -198,11 +200,11 @@ def direct_bok(book=None, prov=None, test=False):
                                         else:
                                             delay = seconds_to_midnight()
                                         BLOCKHANDLER.block_provider(provider, msg, delay=delay)
-                                        logger.warn(msg)
+                                        logger.warning(msg)
                                         url = None
                                     elif 'Too many requests' in res:
                                         BLOCKHANDLER.block_provider(provider, res)
-                                        logger.warn(res)
+                                        logger.warning(res)
                                         url = None
                                 else:
                                     link = a.get('href')
@@ -246,7 +248,7 @@ def direct_bok(book=None, prov=None, test=False):
 
         page += 1
         if 0 < CONFIG.get_int('MAX_PAGES') < page:
-            logger.warn('Maximum results page search reached, still more results available')
+            logger.warning('Maximum results page search reached, still more results available')
             next_page = False
         else:
             bok_sleep()
@@ -260,6 +262,7 @@ def direct_bok(book=None, prov=None, test=False):
 
 
 def direct_bfi(book=None, prov=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "BookFi"
     if not prov:
@@ -371,6 +374,7 @@ def direct_bfi(book=None, prov=None, test=False):
 
 
 def direct_gen(book=None, prov=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     host = ''
     search = ''
@@ -674,7 +678,7 @@ def direct_gen(book=None, prov=None, test=False):
 
         page += 1
         if 0 < CONFIG.get_int('MAX_PAGES') < page:
-            logger.warn('Maximum results page search reached, still more results available')
+            logger.warning('Maximum results page search reached, still more results available')
             next_page = False
 
         # try to detect libgen mirrors not honouring "page="
@@ -687,10 +691,10 @@ def direct_gen(book=None, prov=None, test=False):
                 if cnt > 1:
                     break
             if cnt > 1:
-                logger.warn('Duplicate results page found from provider')
+                logger.warning('Duplicate results page found from provider')
                 next_page = False
         else:
-            logger.warn('No results found from provider')
+            logger.warning('No results found from provider')
             next_page = False
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))

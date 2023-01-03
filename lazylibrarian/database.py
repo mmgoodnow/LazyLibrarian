@@ -20,12 +20,10 @@ import sqlite3
 import threading
 import time
 import traceback
+import logging
 
-from lazylibrarian import logger
-from lazylibrarian.logger import lazylibrarian_log
 # DO NOT import from common in this module, circular import
 from lazylibrarian.filesystem import DIRS, syspath
-from lazylibrarian.processcontrol import get_info_on_caller
 
 db_lock = threading.Lock()
 
@@ -45,26 +43,21 @@ class DBConnection:
             self.connection.execute("PRAGMA temp_store = 2")  # memory
             self.connection.row_factory = sqlite3.Row
             self.dblog = syspath(DIRS.get_logfile('database.log'))
+            self.logger = logging.getLogger(__name__)
+            self.dbcommslogger = logging.getLogger('special.dbcomms')
+            self.dbtiminglogger = logging.getLogger('special.dbcomms.dbtiming')
         except Exception as e:
-            logger.debug(str(e))
-            logger.debug(DIRS.get_dbfile())
-            logger.debug(str(os.stat(DIRS.get_dbfile())))
+            self.logger.debug(str(e))
+            self.logger.debug(DIRS.get_dbfile())
+            self.logger.debug(str(os.stat(DIRS.get_dbfile())))
 
     def close(self):
-        if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-            program, method, lineno = get_info_on_caller(filenamewithoutpath=True, filenamewithoutext=False)
-            with open(self.dblog, 'a', encoding='utf-8') as f:
-                f.write("%s close %s %s %s\n" % (time.asctime(), program, lineno, method))
-
+        self.dbcommslogger.debug('close')
         with db_lock:
             self.connection.close()
 
     def commit(self):
-        if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-            program, method, lineno = get_info_on_caller(filenamewithoutpath=True, filenamewithoutext=False)
-            with open(self.dblog, 'a', encoding='utf-8') as f:
-                f.write("%s commit %s %s %s\n" % (time.asctime(), program, lineno, method))
-
+        self.dbcommslogger.debug('commit')
         with db_lock:
             self.connection.commit()
 
@@ -79,16 +72,7 @@ class DBConnection:
     def _action(self, query: str, args=None, suppress=None):
         sql_result = None
         attempt = 0
-        start = 0
-        program = ""
-        method = ""
-        lineno = ""
-        if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-            # Get the frame data of the method that made the original database call
-            program, method, lineno = get_info_on_caller(depth=3, filenamewithoutpath=True, filenamewithoutext=False)
-            if program == '_cpdispatch.py':  # Grab one lower in the call stack to be useful
-                program, method, lineno = get_info_on_caller(depth=2, filenamewithoutpath=True, filenamewithoutext=False)
-            start = time.time()
+        start = time.time()
         while attempt < 5:
             try:
                 if not args:
@@ -99,87 +83,63 @@ class DBConnection:
                     with self.connection:
                         sql_result = self.connection.execute(query, args)
 
-                if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-                    elapsed = time.time() - start
-                    with open(self.dblog, 'a', encoding='utf-8') as f:
-                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                   program, lineno, method, query, args))
+                elapsed = time.time() - start
+                self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                 break
 
             except sqlite3.OperationalError as e:
                 if "unable to open database file" in str(e) or "database is locked" in str(e):
-                    if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-                        elapsed = time.time() - start
-                        with open(self.dblog, 'a', encoding='utf-8') as f:
-                            f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                       program, lineno, method, query, args))
-                            f.write("%s Database Error: %s\n" % (time.asctime(), e))
+                    elapsed = time.time() - start
+                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'Database Error {str(e)}')
 
-                    logger.warn('Database Error: %s' % e)
-                    logger.error("Failed db query: [%s]" % query)
+                    self.logger.warning('Database Error: %s' % e)
+                    self.logger.error("Failed db query: [%s]" % query)
                     time.sleep(1)
                 else:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-                        elapsed = time.time() - start
-                        with open(self.dblog, 'a', encoding='utf-8') as f:
-                            f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                       program, lineno, method, query, args))
-                            f.write("%s Database OperationalError: %s\n" % (time.asctime(), e))
+                    elapsed = time.time() - start
+                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'Database OperationalError {str(e)}')
 
-                    logger.error('Database OperationalError: %s' % e)
-                    logger.error("Failed query: [%s]" % query)
+                    self.logger.error('Database OperationalError: %s' % e)
+                    self.logger.error("Failed query: [%s]" % query)
                     raise
 
             except sqlite3.IntegrityError as e:
                 # we could ignore unique errors in sqlite by using "insert or ignore into" statements
                 # but this would also ignore null values as we can't specify which errors to ignore :-(
                 # Also the python interface to sqlite only returns english text messages, not error codes
+                elapsed = time.time() - start
                 msg = str(e).lower()
                 if suppress and 'UNIQUE' in suppress and ('not unique' in msg or 'unique constraint failed' in msg):
-                    if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-                        elapsed = time.time() - start
-                        with open(self.dblog, 'a', encoding='utf-8') as f:
-                            f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                          suppress, program, lineno, method,
-                                                                          query, args))
-                            f.write("%s Suppressed: %s\n" % (time.asctime(), msg))
+                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'Suppressed {msg}')
                     self.connection.commit()
                     break
                 else:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-                        elapsed = time.time() - start
-                        with open(self.dblog, 'a', encoding='utf-8') as f:
-                            f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                          suppress, program, lineno, method,
-                                                                          query, args))
-                            f.write("%s IntegrityError: %s\n" % (time.asctime(), msg))
+                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'IntegrityError: {msg}')
 
-                    logger.error('Database IntegrityError: %s' % e)
-                    logger.error("Failed query: [%s]" % query)
-                    logger.error("Failed args: [%s]" % str(args))
+                    self.logger.error('Database IntegrityError: %s' % e)
+                    self.logger.error("Failed query: [%s]" % query)
+                    self.logger.error("Failed args: [%s]" % str(args))
                     raise
 
             except sqlite3.DatabaseError as e:
-                if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-                    elapsed = time.time() - start
-                    with open(self.dblog, 'a', encoding='utf-8') as f:
-                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                   program, lineno, method, query, args))
-                        f.write("%s DatabaseError: %s\n" % (time.asctime(), e))
+                elapsed = time.time() - start
+                self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                self.dbcommslogger.debug(f'DatabaseError: {str(e)}')
 
-                logger.error('Fatal error executing %s :%s: %s' % (query, args, e))
-                logger.error("%s" % traceback.format_exc())
+                self.logger.error('Fatal error executing %s :%s: %s' % (query, args, e))
+                self.logger.error("%s" % traceback.format_exc())
                 raise
 
             except Exception as e:
-                if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-                    elapsed = time.time() - start
-                    with open(self.dblog, 'a', encoding='utf-8') as f:
-                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                   program, lineno, method, query, args))
-                        f.write("%s CatchallError: %s\n" % (time.asctime(), e))
+                elapsed = time.time() - start
+                self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                self.dbcommslogger.debug(f'CatchallError: {str(e)}')
 
-                logger.error('Exception executing %s :: %s' % (query, e))
+                self.logger.error('Exception executing %s :: %s' % (query, e))
                 raise
 
             finally:

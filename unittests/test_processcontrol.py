@@ -4,8 +4,8 @@
 #   Testing the processcontrol.py module
 import os
 import time
+import logging
 
-from lazylibrarian import logger
 from lazylibrarian.processcontrol import get_info_on_caller, get_process_memory, track_resource_usage, get_cpu_use, PSUTIL
 from unittests.unittesthelpers import LLTestCase
 
@@ -19,7 +19,6 @@ class TestProcessControl(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setDoAll(False)
-        logger.RotatingLogger.SHOW_LINE_NO = False
         return super().setUpClass()
 
     def some_method(self, depth: int, path: bool, ext: bool) -> (str, str, int):
@@ -109,8 +108,8 @@ class TestProcessControl(LLTestCase):
         return x
 
     def test_track_resource_usage(self):
-        self.set_loglevel(2)  # Need debug logging
-        with self.assertLogs('lazylibrarian.logger', 'DEBUG') as cm:
+        self.set_loglevel(logging.DEBUG)  # Need debug logging
+        with self.assertLogs('root', 'DEBUG') as cm:
             _ = self.use_some_resource()
 
         if PSUTIL:
@@ -118,8 +117,8 @@ class TestProcessControl(LLTestCase):
             # Sample output:
             # 'DEBUG:lazylibrarian.logger:MainThread : processcontrol.py:wrapper : use_some_resource: memory before: 87,011,328, after: 88,526,848, consumed: 1,515,520; exec time: 0:00:00.103080'
             logparts = cm.output[0].split(' ')
-            self.assertNotEqual('0', logparts[11])  # Memory consumed
-            self.assertNotEqual('0:00:00.000000', logparts[14])  # Time taken > 0
+            self.assertNotEqual('0', logparts[7])  # Memory consumed
+            self.assertNotEqual('0:00:00.000000', logparts[10])  # Time taken > 0
         else:
             self.assertEqual(cm.output, [
-                'DEBUG:lazylibrarian.logger:MainThread : processcontrol.py:wrapper : psutil is not installed'])
+                'DEBUG:lazylibrarian.processcontrol:psutil is not installed'])

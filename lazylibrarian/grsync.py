@@ -14,6 +14,7 @@
 
 import threading
 import time
+import logging
 import traceback
 # noinspection PyUnresolvedReferences
 import xml.dom.minidom
@@ -23,7 +24,6 @@ from urllib.parse import urlencode, parse_qsl
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import gr_api_sleep
 from lazylibrarian.formatter import plural, get_list, check_int, thread_name
 from lazylibrarian.gr import GoodReads

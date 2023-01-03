@@ -22,12 +22,13 @@ import json
 import os
 import sys
 import time
+import logging
 from collections import defaultdict
 from typing import Optional
 
 import requests
 
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.config2 import LLConfigHandler
@@ -205,7 +206,7 @@ class LazyTelemetry(object):
     @staticmethod
     def _send_url(url: str):
         """ Sends url to the telemetry server, returns result """
-
+        logger = logging.getLogger(__name__)
         proxies = proxy_list()
         timeout = 5
         headers = {'User-Agent': 'LazyLibrarian'}
@@ -235,6 +236,7 @@ class LazyTelemetry(object):
         """ Submits LL telemetry data
         Returns status message and true/false depending on whether it was successful"""
 
+        logger = logging.getLogger(__name__)
         url = self.get_data_url(server, send_config, send_usage)
         logger.info(f"Sending telemetry data ({len(url)} bytes)")
         return self._send_url(url)
@@ -270,6 +272,7 @@ def telemetry_send() -> str:
     threadname = thread_name()
     if "Thread-" in threadname:
         thread_name("TELEMETRYSEND")
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
     try:

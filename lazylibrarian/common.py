@@ -36,10 +36,10 @@ import requests
 import webencodings
 import bs4
 import html5lib
+import logging
 
 import lazylibrarian
-from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configdefs import CONFIG_GIT
 from lazylibrarian.formatter import get_list, make_unicode
@@ -176,6 +176,7 @@ def module_available(module_name):
 
 
 def get_calibre_id(data):
+    logger = logging.getLogger(__name__)
     logger.debug(str(data))
     fname = data.get('BookFile', '')
     if fname:  # it's a book
@@ -214,6 +215,8 @@ def clear_log():
     if os.name == 'nt':
         return "Screen log cleared"
 
+    # TODO P1: clear_log() needs some thought
+    logger = logging.getLogger(__name__)
     logger.lazylibrarian_log.stop_logger()
     for f in glob.glob(CONFIG['LOGDIR'] + "/*.log*"):
         try:
@@ -227,12 +230,13 @@ def clear_log():
     if error:
         return 'Failed to clear logfiles: %s' % error
     else:
-        return "Log cleared, level set to [%s]- Log Directory is [%s]" % (
-            lazylibrarian_log.LOGLEVEL, CONFIG['LOGDIR'])
+        return "Log cleared, level set to  Log Directory is [%s]" % (
+            CONFIG['LOGDIR'])
 
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
 def log_header(online=True):
+    logger = logging.getLogger(__name__)
     popen_list = [sys.executable, DIRS.FULL_PATH]
     popen_list += DIRS.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
@@ -411,6 +415,7 @@ def log_header(online=True):
 
 
 def save_log():
+    # TODO: What to do about save_log()?
     if not path_exists(CONFIG['LOGDIR']):
         return 'LOGDIR does not exist'
 
@@ -490,6 +495,7 @@ def zip_audio(source, zipname, bookid):
         including any .jpg etc.
         Return full path to zipfile
     """
+    logger = logging.getLogger(__name__)
     zip_file = os.path.join(source, zipname + '.zip')
     if not path_exists(zip_file):
         logger.debug('Zipping up %s' % zipname)
@@ -513,6 +519,7 @@ def zip_audio(source, zipname, bookid):
 
 
 def run_script(params):
+    logger = logging.getLogger(__name__)
     if os.name == 'nt' and params[0].endswith('.py'):
         params.insert(0, sys.executable)
     logger.debug(str(params))
@@ -523,9 +530,9 @@ def run_script(params):
         else:
             p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug(make_unicode(res))
-            logger.debug(make_unicode(err))
+        dlcommslogger = logging.getLogger('special.dlcomms')
+        dlcommslogger.debug(make_unicode(res))
+        dlcommslogger.debug(make_unicode(err))
         return p.returncode, make_unicode(res), make_unicode(err)
     except Exception as er:
         err = "run_script exception: %s %s" % (type(er).__name__, str(er))
@@ -537,6 +544,7 @@ def calibre_prg(prgname):
     # Try to locate a calibre ancilliary program
     # Try explicit path or in the calibredb location
     # or in current path or system path
+    logger = logging.getLogger(__name__)
     target = ''
     if prgname == 'ebook-convert':
         target = CONFIG['EBOOK_CONVERT']

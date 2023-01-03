@@ -4,8 +4,9 @@
 #   Testing the configtypes module
 
 from collections import Counter
+import logging
 
-from lazylibrarian import configtypes, logger
+from lazylibrarian import configtypes
 from lazylibrarian.configtypes import Access, TimeUnit
 from unittests.unittesthelpers import LLTestCase
 
@@ -16,7 +17,6 @@ class Config2Test(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setDoAll(False)
-        logger.RotatingLogger.SHOW_LINE_NO = False  # type: ignore # Hack used to make tests more robust
         return super().setUpClass()
 
     def test_ConfigItem(self):
@@ -52,7 +52,7 @@ class Config2Test(LLTestCase):
 
     def test_ConfigStr(self):
         """ Tests for ConfigStr class """
-        self.set_loglevel(2)
+        self.set_loglevel(logging.DEBUG)
         ci = configtypes.ConfigStr('Section', 'StrValue', 'Default')
         self.assertEqual(ci.get_str(), 'Default')
         self.assertEqual(str(ci), 'Default')
@@ -62,16 +62,16 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_default(), 'Default')
         self.assertFalse(ci.get_force_lower())
 
-        with self.assertLogs('lazylibrarian.logger', level='WARN') as cm:
+        with self.assertLogs('root', level=logging.WARNING) as cm:
             ci.set_int(2)  # Write Error
             self.assertEqual(ci.get_int(), 0)  # Read Error
             ci.set_bool(True)  # Write Error
             self.assertEqual(ci.get_bool(), False)  # Read Error
         self.assertListEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[STRVALUE] to 2: incorrect type',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[STRVALUE] (Override)',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[STRVALUE] to True: incorrect type',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[STRVALUE] (Override)',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[STRVALUE] to 2: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Type error reading config[STRVALUE] (Override)',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[STRVALUE] to True: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Type error reading config[STRVALUE] (Override)'
         ])
 
         expected = Counter({Access.READ_OK: 3, Access.WRITE_OK: 1, Access.WRITE_ERR: 2, Access.READ_ERR: 2})
@@ -86,8 +86,8 @@ class Config2Test(LLTestCase):
     def test_ConfigInt(self):
         """ Tests for ConfigInt class """
         ci = configtypes.ConfigInt('Section', 'IntValue', 42)
-        self.set_loglevel(2)
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+        self.set_loglevel(logging.DEBUG)
+        with self.assertLogs('root', level='INFO') as cm:
             self.assertEqual(ci.get_int(), 42)
             self.assertEqual(ci.get_str(), '42')
             self.assertEqual(ci.get_bool(), False)  # Read Error
@@ -109,10 +109,10 @@ class Config2Test(LLTestCase):
             self.assertEqual(ci.get_int(), 42)
 
         self.assertListEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[INTVALUE] (42)',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[INTVALUE] to Override: incorrect type',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[INTVALUE] to True: incorrect type',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[INTVALUE] (2)',
+            'WARNING:lazylibrarian.configtypes:Type error reading config[INTVALUE] (42)',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[INTVALUE] to Override: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[INTVALUE] to True: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Type error reading config[INTVALUE] (2)'
         ])
         expected = Counter({Access.READ_OK: 8, Access.WRITE_OK: 3, Access.WRITE_ERR: 2, Access.READ_ERR: 2})
         self.single_access_compare(ci.accesses, expected, [], 'Basic Int Config not working as expected')
@@ -120,8 +120,8 @@ class Config2Test(LLTestCase):
     def test_ConfigRangedInt(self):
         """ Tests for ConfigRangedInt class """
         ci = configtypes.ConfigRangedInt('Section', 'RangedIntValue', 42, 10, 1000)
-        self.set_loglevel(2)
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+        self.set_loglevel(logging.DEBUG)
+        with self.assertLogs('root', level='INFO') as cm:
             self.assertEqual(int(ci), 42)
             ci.set_int(5)  # Write Error
             self.assertEqual(ci.get_int(), 42)
@@ -131,8 +131,8 @@ class Config2Test(LLTestCase):
             self.assertEqual(int(ci), 100)
 
         self.assertListEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[RANGEDINTVALUE] to 5',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[RANGEDINTVALUE] to 1100',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[RANGEDINTVALUE] to 5',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[RANGEDINTVALUE] to 1100'
         ])
         expected = Counter({Access.READ_OK: 4, Access.WRITE_OK: 1, Access.WRITE_ERR: 2})
         self.single_access_compare(ci.accesses, expected, [], 'Ranged Int Config not working as expected')
@@ -143,8 +143,8 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_int(), 0o777)
         self.assertEqual(str(ci), '0o777')
 
-        self.set_loglevel(2)
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+        self.set_loglevel(logging.DEBUG)
+        with self.assertLogs('root', level='INFO') as cm:
             ci.set_int(1000000)  # Write Error
             self.assertEqual(int(ci), 0o777)
             ci.set_int(-8)  # Write Error
@@ -155,8 +155,8 @@ class Config2Test(LLTestCase):
             self.assertEqual(int(ci), 0o321)
 
         self.assertListEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PERMISSIONVALUE] to 0o3641100',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PERMISSIONVALUE] to -0o10',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[PERMISSIONVALUE] to 0o3641100',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[PERMISSIONVALUE] to -0o10'
         ])
         expected = Counter({Access.READ_OK: 6, Access.WRITE_OK: 2, Access.WRITE_ERR: 2})
         self.single_access_compare(ci.accesses, expected, [], 'Permission config not working as expected')
@@ -164,8 +164,8 @@ class Config2Test(LLTestCase):
     def test_ConfigBool(self):
         """ Tests for ConfigBool class """
         ci = configtypes.ConfigBool('Section', 'BoolValue', True)
-        self.set_loglevel(2)
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+        self.set_loglevel(logging.DEBUG)
+        with self.assertLogs('root', level='INFO') as cm:
             self.assertEqual(ci.get_int(), 1)  # We can read bools as int
             self.assertEqual(ci.get_str(), '1')
             self.assertEqual(ci.get_bool(), True)
@@ -185,7 +185,7 @@ class Config2Test(LLTestCase):
             self.assertEqual(ci.get_save_str(), 'False')
             self.assertFalse(ci.is_enabled())
         self.assertListEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[BOOLVALUE] to Override: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[BOOLVALUE] to Override: incorrect type'
         ])
         expected = Counter({Access.READ_OK: 13, Access.WRITE_OK: 1, Access.WRITE_ERR: 1})
         self.single_access_compare(ci.accesses, expected, [], 'Basic Bool Config not working as expected')
@@ -252,10 +252,10 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_schedule_name(), 'Test', 'Schedule name not stored correctly')
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
         self.assertIsNotNone(ci.get_method(), 'Cannot find schedule method to run')
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+        with self.assertLogs('root', level='INFO') as cm:
             ci.set_int(10000000)  # Value too large, should have no effect
         self.assertEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[] to 10000000'])
+            'WARNING:lazylibrarian.configtypes:Cannot set config[] to 10000000'])
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
         self.assertEqual((0, 10), ci.get_hour_min_interval())
 
@@ -292,16 +292,16 @@ class Config2Test(LLTestCase):
 
     def test_ConfigDownloadTypes(self):
         """ Test the ConfigDownloadTypes, which can only be A,C,E,M or combinations """
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+        with self.assertLogs('root', level='INFO') as cm:
             cdt = configtypes.ConfigDownloadTypes('', '', 'E')
             self.assertEqual(cdt.get_csv(), 'E')
             cdt.set_str('M,A')
             self.assertEqual(cdt.get_csv(), 'M,A')
 
             cdt.set_str('M,A,X')  # Write error, value doesn't change
-        self.assertEqual(cm.output,
-                         [
-                             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[] to M,A,X'])
+        self.assertEqual(cm.output, [
+            'WARNING:lazylibrarian.configtypes:Cannot set config[] to M,A,X'
+        ])
         self.assertEqual(cdt.get_csv(), 'M,A')
 
     def test_ConfigEmail(self):

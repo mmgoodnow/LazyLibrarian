@@ -9,12 +9,13 @@ import os
 import re
 import shutil
 import sys
+import logging
 from collections import Counter
 from configparser import ConfigParser
 from os import path, sep
 from typing import Dict, List, Optional, Generator, Tuple
 
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.configdefs import BASE_DEFAULTS, ARRAY_DEFS, configitem_from_default
@@ -22,7 +23,6 @@ from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsens
     ConfigScheduler, ConfigDictListIterator, ErrorListIterator
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 from lazylibrarian.formatter import thread_name, plural
-from lazylibrarian.logger import lazylibrarian_log
 
 
 class LLConfigHandler(ConfigDict):
@@ -30,14 +30,19 @@ class LLConfigHandler(ConfigDict):
     arrays: Dict[str, ArrayConfig]  # (section, array)
     configfilename: str
     REDACTLIST: List[str]
+    logger: logging.Logger
 
     def __init__(self, defaults: Optional[List[ConfigItem]] = None, configfile: Optional[str] = None):
         super().__init__()
+        self.initialize_logger()
         self.arrays = dict()
         self.defaults = defaults
         self._copydefaults(defaults)
         self.configfilename = ''
         self.load_configfile(configfile)
+
+    def initialize_logger(self):
+        self.logger = logging.getLogger(__name__)
 
     def load_configfile(self, configfile: Optional[str] = None):
         if self.configfilename:
@@ -71,16 +76,15 @@ class LLConfigHandler(ConfigDict):
                 if item.onchange:
                     item.onchange(item.get_str())
 
-    @staticmethod
-    def _load_section(section: str, parser: ConfigParser, config: ConfigDict):
+    def _load_section(self, section: str, parser: ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
         for option in parser.options(section):
             if option in config:
                 config_item = config.get_item(option)
                 if not config_item or not config_item.update_from_parser(parser, section, option):
-                    logger.warn(f"Error loading {section}.{option} as {parser.get(section, option)}")
+                    self.logger.warning(f"Error loading {section}.{option} as {parser.get(section, option)}")
             else:
-                logger.warn(f"Unknown option {section}.{option} in config")
+                self.logger.warning(f"Unknown option {section}.{option} in config")
 
     def _load_array_section(self, section: str, parser: ConfigParser):
         """ Load a section of an ini file, where that section is part of an array """
@@ -91,7 +95,7 @@ class LLConfigHandler(ConfigDict):
         index = int(index)
         defaults = ARRAY_DEFS[arrayname] if arrayname in ARRAY_DEFS else None
         if defaults:
-            logger.debug(f"Loading array {arrayname} index {index}")
+            self.logger.debug(f"Loading array {arrayname} index {index}")
             if arrayname not in self.arrays:
                 self.arrays[arrayname] = ArrayConfig(arrayname, defaults)
 
@@ -99,7 +103,7 @@ class LLConfigHandler(ConfigDict):
             array = self.arrays[arrayname][index]
             self._load_section(section, parser, array)
         else:
-            logger.warn(f"Cannot load array {section}: Undefined")
+            self.logger.warning(f"Cannot load array {section}: Undefined")
 
     def ensure_arrays_have_empty_item(self):
         """ Make sure every array has an empty item for users to configure """
@@ -220,7 +224,7 @@ class LLConfigHandler(ConfigDict):
             if item:
                 item.reset_to_default()
             else:
-                logger.warn(f'Cannot reset value of {key} as it does not exist')
+                self.logger.warning(f'Cannot reset value of {key} as it does not exist')
 
     def scheduler_can_run(self, scheduler: ConfigScheduler) -> bool:
         """ Return True if the scheduler's requirements are satisfied """
@@ -271,7 +275,7 @@ class LLConfigHandler(ConfigDict):
                     parser.write(configfile)
                 return count
             except Exception as e:
-                logger.warn(f'Error saving config file {filename}: {type(e).__name__} {str(e)}')
+                self.logger.warning(f'Error saving config file {filename}: {type(e).__name__} {str(e)}')
                 return -1
         finally:
             for _, array in self.arrays.items():
@@ -285,13 +289,13 @@ class LLConfigHandler(ConfigDict):
         """
 
         if not self.configfilename:
-            logger.error('Cannot save and backup config without a filename')
+            self.logger.error('Cannot save and backup config without a filename')
             return -1
 
         currentname = thread_name()
         thread_name("CONFIG2_WRITE")
         try:
-            logger.debug(f'Saving configuration to {self.configfilename}')
+            self.logger.debug(f'Saving configuration to {self.configfilename}')
             savecount = self.save_config(syspath(self.configfilename + '.new'), save_all)
             if savecount == 0:
                 return 0
@@ -305,27 +309,27 @@ class LLConfigHandler(ConfigDict):
                     if e.errno != 2:  # doesn't exist is ok
                         msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', self.configfilename,
                                                      '.bak', e.strerror)
-                        logger.warn(msg)
+                        self.logger.warning(msg)
                 try:
                     os.rename(syspath(self.configfilename), syspath(self.configfilename + '.bak'))
                 except OSError as e:
                     if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
                         msg = '{} {} {} {}'.format('Unable to backup config file:', self.configfilename,
                                                    type(e).__name__, e.strerror)
-                        logger.warn(msg)
+                        self.logger.warning(msg)
                 try:
                     os.rename(syspath(self.configfilename + '.new'), syspath(self.configfilename))
                 except OSError as e:
                     msg = '{} {} {} {}'.format('Unable to rename new config file:', self.configfilename,
                                                type(e).__name__, e.strerror)
-                    logger.warn(msg)
+                    self.logger.warning(msg)
 
                 if not msg:
                     if section:
                         msg = f'Config file {self.configfilename} has been saved with {savecount} items (Triggered by {section})'
                     else:
                         msg = f'Config file {self.configfilename} has been saved with {savecount} items'
-                    logger.info(msg)
+                    self.logger.info(msg)
                     return savecount
                 else:
                     return -1
@@ -343,7 +347,7 @@ class LLConfigHandler(ConfigDict):
         Returns 0 if ok, otherwise number of warnings
         """
         warnings = 0
-        logger.debug('Performing post-load fixup on config')
+        self.logger.debug('Performing post-load fixup on config')
         DIRS.set_config(self)
         DIRS.ensure_log_dir()
 
@@ -352,18 +356,18 @@ class LLConfigHandler(ConfigDict):
 
         for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
             if sep in self.config[fname].get_str():
-                logger.warn('Please check your %s setting, contains "%s"' % (fname, sep))
+                self.logger.warning('Please check your %s setting, contains "%s"' % (fname, sep))
                 warnings += 1
 
         if str(self.config['HTTP_LOOK']) in ['legacy', 'default']:
-            logger.warn('configured interface is deprecated, new features are in bookstrap')
+            self.logger.warning('configured interface is deprecated, new features are in bookstrap')
             self.config['HTTP_LOOK'].set_str('bookstrap')
             warnings += 1
 
         self.ensure_valid_homepage()
 
         if self.config['SSL_CERTS'].get_str() != '' and not path_exists(str(self.config['SSL_CERTS'])):
-            logger.warn("SSL_CERTS [%s] not found" % str(self.config['SSL_CERTS']))
+            self.logger.warning("SSL_CERTS [%s] not found" % str(self.config['SSL_CERTS']))
             self.config['SSL_CERTS'].set_str('')
             warnings += 1
 
@@ -384,12 +388,15 @@ class LLConfigHandler(ConfigDict):
 
     def post_save_actions(self, restart_jobs: bool = True, clear_counters: bool = False):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
-        lazylibrarian_log.update_loglevel()
+        # TODO: Re-initialize all cached loggers
+        self.initialize_logger()
+        DIRS.initialize_logger()
+
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
         if interface.get_write_count() > 0:  # It's changed
             mako_dir = DIRS.get_mako_cachedir()
-            logger.debug("Clearing mako cache")
+            self.logger.debug("Clearing mako cache")
             shutil.rmtree(mako_dir)
             os.makedirs(mako_dir)
             version_file = self.get_mako_versionfile()
@@ -403,15 +410,15 @@ class LLConfigHandler(ConfigDict):
                 schedule = item.get_schedule_name()
                 if schedule and isinstance(item, ConfigScheduler):
                     if self.scheduler_can_run(item):
-                        logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
+                        self.logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
                         schedule_job(SchedulerCommand.RESTART, schedule)
                     else:
-                        logger.debug(f"Stopping job {schedule}")
+                        self.logger.debug(f"Stopping job {schedule}")
                         schedule_job(SchedulerCommand.STOP, schedule)
 
         # Clean up the database if needed (Does this really belong here?)
         if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():
-            logger.debug("Deleting single-book series from database")
+            self.logger.debug("Deleting single-book series from database")
             db = database.DBConnection()
             db.action('DELETE from series where total=1')
             db.close()
@@ -430,12 +437,12 @@ class LLConfigHandler(ConfigDict):
             accesses = value.get_accesses()
             for aname, count in accesses.items():
                 if aname in [Access.READ_ERR, Access.WRITE_ERR, Access.FORMAT_ERR]:
-                    logger.error(f'Config {aname.name}: {value.get_full_name()}, {count} times')
+                    self.logger.error(f'Config {aname.name}: {value.get_full_name()}, {count} times')
 
         for errorlist in self.all_error_lists():
             for key, counter in errorlist.items():
                 for ename, count in counter.items():
-                    logger.error(f'Config {ename.name}: {key}, {count} times')
+                    self.logger.error(f'Config {ename.name}: {key}, {count} times')
 
     def create_access_summary(self, saveto: str = '') -> Dict:
         """ For debugging: Create a summary of all accesses, potentially
@@ -505,7 +512,7 @@ class LLConfigHandler(ConfigDict):
                         if config['API']:
                             self.REDACTLIST.append(f"{config['API']}")
 
-        logger.debug("Redact list has %d %s" % (len(self.REDACTLIST),
+        self.logger.debug("Redact list has %d %s" % (len(self.REDACTLIST),
                                                 plural(len(self.REDACTLIST), "entry")))
 
     def get_all_types_list(self) -> List[str]:
@@ -611,35 +618,36 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
 
     def are_configdicts_equivalent(checkcd1: ConfigDict, checkcd2: ConfigDict) -> bool:
         if not checkcd1 or not checkcd2:
-            logger.warn(f"Arrays don't exist {not checkcd1}, {not checkcd2}")
+            logger.warning(f"Arrays don't exist {not checkcd1}, {not checkcd2}")
             return False
         if len(checkcd1) != len(checkcd2):
-            logger.warn(f"Array lengths differ: {len(checkcd1)} != {len(checkcd2)}")
+            logger.warning(f"Array lengths differ: {len(checkcd1)} != {len(checkcd2)}")
             return False
         for key, item1 in checkcd1.items():
             if key in checkcd2.keys():
                 item2 = checkcd2.get_item(key)
                 if not item2:
-                    logger.warn(f"Array values for [{key}]: {item1.value}: key does not exist")
+                    logger.warning(f"Array values for [{key}]: {item1.value}: key does not exist")
                 elif item2.value != item1.value:
-                    logger.warn(f"Array values for [{key}]: {item1.value} != {item2.value}")
+                    logger.warning(f"Array values for [{key}]: {item1.value} != {item2.value}")
                     return False
             else:
-                logger.warn(f"Array key [{key}] missing in array 2")
+                logger.warning(f"Array key [{key}] missing in array 2")
                 return False
         return True
 
     if not cfg1 or not cfg2:  # Both need to exist
         return False
 
+    logger = logging.getLogger(__name__)
     # Compare base configs
     if not are_configdicts_equivalent(cfg1, cfg2):
-        logger.warn(f"Base configs differ")
+        logger.warning(f"Base configs differ")
         return False
 
     # Compare array configs
     if len(cfg1.arrays) != len(cfg2.arrays):
-        logger.warn(f"Number of array configs differ")
+        logger.warning(f"Number of array configs differ")
         return False
 
     for name, array in cfg1.arrays.items():
@@ -648,10 +656,10 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
             try:
                 cd2 = cfg2.arrays[name][inx]
             except Exception:
-                logger.warn(f"Error retrieving array config {name}.{inx}")
+                logger.warning(f"Error retrieving array config {name}.{inx}")
                 return False
             if not are_configdicts_equivalent(cd1, cd2):
-                logger.warn(f"Array configs differ in {name}.{inx}")
+                logger.warning(f"Array configs differ in {name}.{inx}")
                 return False
 
     return True

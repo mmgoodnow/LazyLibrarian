@@ -10,16 +10,15 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import inspect
-import os
 import threading
 import time
 import traceback
+import logging
 from operator import itemgetter
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.cache import cache_img
 from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, \
     unaccented_bytes, get_list, check_int, thread_name
@@ -49,6 +48,7 @@ def is_valid_authorid(authorid: str) -> bool:
 def get_preferred_author_name(author: str) -> (str, bool):
     # Look up an authorname in the database, if not found try fuzzy match
     # Return possibly changed authorname and whether found in library
+    logger = logging.getLogger(__name__)
     author = format_author_name(author, postfix=CONFIG.get_list('NAME_POSTFIX'))
     match = False
     db = database.DBConnection()
@@ -83,6 +83,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     # if not in database, try to import them.
     # return authorname,authorid,new where new=False if author already in db, new=True if added
     # authorname returned is our preferred name, or empty string if not found or unable to add
+    logger = logging.getLogger(__name__)
     if not reason:
         program, method, lineno = get_info_on_caller(depth=1)
         if lineno > 0:
@@ -117,14 +118,14 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             try:
                 author_info = ol.find_author_id()
             except Exception as e:
-                logger.warn("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
+                logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
                 return "", "", False
         else:
             gr = GoodReads(author)
             try:
                 author_info = gr.find_author_id()
             except Exception as e:
-                logger.warn("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
+                logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
                 return "", "", False
 
         # only try to add if data matches found author data
@@ -195,6 +196,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     If author already exists in database, refresh their details and optionally booklist
     Returns the author ID
     """
+    logger = logging.getLogger(__name__)
     if not reason:
         program, method, lineno = get_info_on_caller(depth=1)
         if lineno > 0:
@@ -218,7 +220,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             if not dbauthor and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
                 dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
-                    logger.warn("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
+                    logger.warning("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
                                 (authorname, authorid, dbauthor['AuthorID']))
                     db.action("PRAGMA foreign_keys = OFF")
                     db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
@@ -315,11 +317,11 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     if author.get('AKA'):
                         akas = get_list(author.get('AKA', ''), ',')
                     if authorname != gr_name and gr_name not in akas:
-                        logger.warn("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
+                        logger.warning("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
                                     (authorid, authorname, gr_name))
                         akas.append(gr_name)
                     if authorname != ol_name and ol_name not in akas:
-                        logger.warn("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
+                        logger.warning("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
                                     (authorid, authorname, ol_name))
                         akas.append(ol_name)
                     author['AKA'] = ', '.join(akas)
@@ -329,7 +331,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
                     if dbauthor['AuthorID'] != authorid:
-                        logger.warn("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
+                        logger.warning("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
                                     (authorname, authorid, dbauthor['AuthorID']))
                         db.action("PRAGMA foreign_keys = OFF")
                         db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
@@ -376,7 +378,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     if 'unknown' not in dbauthor['authorname'] and 'anonymous' not in dbauthor['authorname']:
                         if unaccented_bytes(dbauthor['authorname']) != unaccented_bytes(authorname):
                             authorname = dbauthor['authorname']
-                            logger.warn("Authorname mismatch for %s [%s][%s]" %
+                            logger.warning("Authorname mismatch for %s [%s][%s]" %
                                         (authorid, dbauthor['authorname'], author['authorname']))
 
                 new_value_dict["AuthorName"] = authorname
@@ -384,7 +386,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 db.upsert("authors", new_value_dict, control_value_dict)
                 match = True
             else:
-                logger.warn("No author info for %s:%s" % (authorid, authorname))
+                logger.warning("No author info for %s:%s" % (authorid, authorname))
                 # goodreads sometimes changes authorid
                 # maybe change of provider or no reply from provider
 
@@ -460,14 +462,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     if author['authorname'] != dbauthor['authorname']:
                         akas = get_list(dbauthor['AKA'], ',')
                         if author['authorname'] not in akas:
-                            logger.warn("Conflicting authorname for %s [%s][%s] setting AKA" %
+                            logger.warning("Conflicting authorname for %s [%s][%s] setting AKA" %
                                         (authorid, author['authorname'], dbauthor['authorname']))
                             akas.append(author['authorname'])
                             db.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), authorid))
                         authorname = dbauthor['authorname']
                     if author['authorid'] != authorid:
                         # GoodReads may have altered authorid?
-                        logger.warn("Conflicting authorid for %s (%s:%s) Moving to new authorid" %
+                        logger.warning("Conflicting authorid for %s (%s:%s) Moving to new authorid" %
                                     (authorname, author['authorid'], authorid))
                         db.action("PRAGMA foreign_keys = OFF")
                         db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
@@ -590,7 +592,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             if new_author and CONFIG['GR_FOLLOWNEW']:
                 res = grfollow(authorid, True)
                 if res.startswith('Unable'):
-                    logger.warn(res)
+                    logger.warning(res)
                 try:
                     followid = res.split("followid=")[1]
                     logger.debug('%s marked followed' % authorname)
@@ -611,7 +613,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             return authorid
         else:
             msg = "Authorid %s (%s) not found in database" % (authorid, authorname)
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
 
     except Exception:
@@ -621,6 +623,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
 
 def update_totals(authorid):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # author totals needs to be updated every time a book is marked differently
     match = db.select('SELECT AuthorID from authors WHERE AuthorID=?', (authorid,))
@@ -674,6 +677,7 @@ def update_totals(authorid):
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
     """ search goodreads or googlebooks for a bookid and import the book
         ebook/audio=None makes find_book use configured default """
+    logger = logging.getLogger(__name__)
     if CONFIG['BOOK_API'] == "GoogleBooks":
         gb = GoogleBooks(bookid)
         if not wait:

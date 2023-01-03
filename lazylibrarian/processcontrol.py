@@ -19,9 +19,8 @@
 import inspect
 import os
 import time
+import logging
 from datetime import timedelta
-
-from lazylibrarian import logger
 
 try:
     # noinspection PyUnresolvedReferences
@@ -72,6 +71,7 @@ def track_resource_usage(func):
     # @track_resource_usage
     # def search_book():
     def wrapper(*args, **kwargs):
+        logger = logging.getLogger(__name__)
         ok, mem_before = get_process_memory()
         if ok:
             start = time.perf_counter()

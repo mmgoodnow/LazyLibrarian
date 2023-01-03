@@ -20,9 +20,10 @@ from __future__ import print_function
 
 import sys
 import time
+import logging
 
 import lazylibrarian
-from lazylibrarian import startup, webStart, logger, notifiers
+from lazylibrarian import startup, webStart, notifiers
 from lazylibrarian.formatter import thread_name
 
 # The following should probably be made configurable at the settings level
@@ -48,19 +49,22 @@ if sys.version[0] != '3':
 def main():
     # rename this thread
     thread_name("MAIN")
+    
+    starter = startup.StartupLazyLibrarian()
 
-    options, configfile = startup.startup_parsecommandline(__file__, args=sys.argv[1:])
-    startup.load_config(configfile, options)
+    options, configfile = starter.startup_parsecommandline(__file__, args=sys.argv[1:])
+    starter.init_logs()
+    starter.load_config(configfile, options)
     # Run initialization that needs CONFIG to be loaded
-    startup.init_logs(lazylibrarian.config2.CONFIG)
-    startup.init_misc(lazylibrarian.config2.CONFIG)
-    startup.init_caches(lazylibrarian.config2.CONFIG)
-    startup.init_database(lazylibrarian.config2.CONFIG)
-    startup.init_build_debug_header(online=True)
-    startup.init_build_lists(lazylibrarian.config2.CONFIG)
+    starter.init_misc(lazylibrarian.config2.CONFIG)
+    starter.init_caches(lazylibrarian.config2.CONFIG)
+    starter.init_database(lazylibrarian.config2.CONFIG)
+    starter.init_build_debug_header(online=True)
+    starter.init_build_lists(lazylibrarian.config2.CONFIG)
+    logger = logging.getLogger(__name__)
 
-    version_file = startup.create_version_file('version.txt')
-    startup.init_version_checks(version_file)
+    version_file = starter.create_version_file('version.txt')
+    starter.init_version_checks(version_file)
 
     if lazylibrarian.DAEMON:
         lazylibrarian.daemonize()
@@ -98,25 +102,25 @@ def main():
         lazylibrarian.LOGINUSER = None
 
     if lazylibrarian.config2.CONFIG.get_bool('LAUNCH_BROWSER') and not options.nolaunch:
-        startup.launch_browser(lazylibrarian.config2.CONFIG['HTTP_HOST'],
+        starter.launch_browser(lazylibrarian.config2.CONFIG['HTTP_HOST'],
                                lazylibrarian.config2.CONFIG['HTTP_PORT'],
                                lazylibrarian.config2.CONFIG['HTTP_ROOT'])
 
-    startup.start_schedulers()
+    starter.start_schedulers()
 
     while True:
         if not lazylibrarian.SIGNAL:
             try:
                 time.sleep(1)
             except KeyboardInterrupt:
-                startup.shutdown(exit=True)
+                starter.shutdown(exit=True)
         else:
             if lazylibrarian.SIGNAL == 'shutdown':
-                startup.shutdown(exit=True)
+                starter.shutdown(exit=True)
             elif lazylibrarian.SIGNAL == 'restart':
-                startup.shutdown(restart=True)
+                starter.shutdown(restart=True)
             elif lazylibrarian.SIGNAL == 'update':
-                startup.shutdown(update=True)
+                starter.shutdown(update=True)
             lazylibrarian.SIGNAL = None
 
 

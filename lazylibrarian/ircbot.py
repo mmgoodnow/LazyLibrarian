@@ -18,16 +18,16 @@ import time
 import struct
 import os
 import zipfile
+import logging
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
 from lazylibrarian.common import remove_file
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
-from lazylibrarian.logger import lazylibrarian_log
 
 
 def ip_numstr_to_quad(num):
@@ -58,12 +58,13 @@ def valid_ip(s):
 
 
 class IRC:
-
     irc = socket.socket()
 
     def __init__(self):
         self.email = "https://gitlab.com/LazyLibrarian/LazyLibrarian"
         self.name = 'eBook ircBot'
+        self.logger = logging.getLogger(__name__)
+        self.dlcommslogger = logging.getLogger('special.dlcomms')
         db = database.DBConnection()
         res = db.match('SELECT name,email from users where username="Admin" COLLATE NOCASE')
         if res:
@@ -71,13 +72,13 @@ class IRC:
             if not self.email:
                 self.email = CONFIG['ADMIN_EMAIL']
             if not self.email:
-                logger.warn("No admin email, using default")
+                self.logger.warning("No admin email, using default")
             if res['name']:
                 self.name = res['name']
             else:
-                logger.warn("No admin name, using default")
+                self.logger.warning("No admin name, using default")
         else:
-            logger.warn("No admin user, expect problems")
+            self.logger.warning("No admin user, expect problems")
 
         self.ver = "eBook ircBot version 2022-05-15 (" + self.email + ")"
         self.server = ""
@@ -92,39 +93,39 @@ class IRC:
             if msg.startswith(':'):
                 msg = msg[1:]
             send_string = 'PRIVMSG %s :%s\n' % (channel, msg)
-            logger.debug(send_string)
+            self.logger.debug(send_string)
             self.irc.send(make_bytestr(send_string))
         except Exception as e:
-            logger.debug("Exception sending %s" % msg)
-            logger.debug(str(e))
+            self.logger.debug("Exception sending %s" % msg)
+            self.logger.debug(str(e))
             BLOCKHANDLER.block_provider(server, msg, 600)
 
     def ison(self, msg):
         try:
             self.irc.send(make_bytestr("ISON " + msg + "\n"))
         except Exception as e:
-            logger.debug("Exception sending %s" % msg)
-            logger.debug(str(e))
+            self.logger.debug("Exception sending %s" % msg)
+            self.logger.debug(str(e))
             BLOCKHANDLER.block_provider(self.server, msg, 600)
 
     def pong(self, msg):
         reply = msg.replace('PING', 'PONG')
-        logger.debug(reply)
+        self.logger.debug(reply)
         try:
             self.irc.send(make_bytestr(reply + "\n"))
         except Exception as e:
-            logger.debug("Exception sending %s" % msg)
-            logger.debug(str(e))
+            self.logger.debug("Exception sending %s" % msg)
+            self.logger.debug(str(e))
             BLOCKHANDLER.block_provider(self.server, msg, 600)
 
     def version(self):
         reply = "VERSION " + self.ver
-        logger.debug(reply)
+        self.logger.debug(reply)
         try:
             self.irc.send(make_bytestr(reply + "\n"))
         except Exception as e:
-            logger.debug("Exception sending %s" % reply)
-            logger.debug(str(e))
+            self.logger.debug("Exception sending %s" % reply)
+            self.logger.debug(str(e))
             BLOCKHANDLER.block_provider(self.server, reply, 600)
 
     def join(self, channel):
@@ -132,8 +133,8 @@ class IRC:
             self.irc.send(make_bytestr("JOIN " + channel + "\n"))
         except Exception as e:
             msg = "Exception sending JOIN %s" % channel
-            logger.debug(msg)
-            logger.debug(str(e))
+            self.logger.debug(msg)
+            self.logger.debug(str(e))
             BLOCKHANDLER.block_provider(self.server, msg, 600)
 
     def leave(self, provider: ConfigDict):
@@ -147,19 +148,19 @@ class IRC:
 
     def connect(self, server, port, botnick="", botpass=""):
         # Connect to the server
-        logger.debug("Connecting to: " + server)
-        logger.debug(self.ver)
+        self.logger.debug("Connecting to: " + server)
+        self.logger.debug(self.ver)
         try:
             self.irc.connect((server, port))
             self.server = server
             self.nick = botnick
             if botnick:
-                logger.debug("Sending auth for %s" % botnick)
+                self.logger.debug("Sending auth for %s" % botnick)
                 # Perform user authentication, username, hostname, servername, realname
                 self.irc.send(make_bytestr("USER " + botnick + " " + botnick + " " + botnick + " :%s\n" % self.name))
                 self.irc.send(make_bytestr("NICK " + botnick + "\n"))
                 if botpass and self.email:
-                    logger.debug("Sending nickserv")
+                    self.logger.debug("Sending nickserv")
                     self.irc.send(make_bytestr("NICKSERV REGISTER " + botpass + " " + self.email + "\n"))
                     time.sleep(2)
                     self.irc.send(make_bytestr("NICKSERV IDENTIFY " + botpass + "\n"))
@@ -172,7 +173,7 @@ class IRC:
         try:
             reply = self.irc.recv(2040)
         except socket.timeout:
-            logger.debug("response timeout %s" % why)
+            self.logger.debug("response timeout %s" % why)
             reply = ''
         # should really put the data in a queue/buffer so we can handle split lines
         # for now we'll just split on newline and ignore the last line not being complete
@@ -183,27 +184,26 @@ class IRC:
         except AttributeError:
             resp = reply
         lynes = resp.split('\n')
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            if len(lynes) == 1 and not lynes[0]:
-                logger.warn("Empty response %s" % why)
+        if len(lynes) == 1 and not lynes[0]:
+            self.dlcommslogger.warning("Empty response %s" % why)
         for lyne in lynes:
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                if lyne:
-                    logger.debug(lyne)
+            if lyne:
+                self.dlcommslogger.debug(lyne)
             elif "NOTICE" in lyne:
-                logger.debug(lyne)
+                self.logger.debug(lyne)
             if lyne.startswith('PING '):
                 self.pong(lyne)
             elif lyne.startswith('VERSION '):
                 self.version()
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug("%s line response to %s" % (len(lynes), why))
+        self.dlcommslogger.debug("%s line response to %s" % (len(lynes), why))
         return lynes
 
 
 def irc_connect(provider: ConfigDict, retries=10):
+    logger = logging.getLogger(__name__)
+    dlcommslogger = logging.getLogger('special.dlcomms')
     if BLOCKHANDLER.is_blocked(provider['SERVER']):
-        logger.warn("%s is blocked" % provider['SERVER'])
+        logger.warning("%s is blocked" % provider['SERVER'])
         return None
 
     irc = provider.get_connection()
@@ -214,8 +214,7 @@ def irc_connect(provider: ConfigDict, retries=10):
             if res:
                 irc.join(provider['CHANNEL'])
                 _ = irc.get_response("join")
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug("Sent JOIN %s" % provider['CHANNEL'])
+                dlcommslogger.debug("Sent JOIN %s" % provider['CHANNEL'])
                 return irc
         except Exception as e:
             logger.debug("Existing connection failed: %s" % str(e))
@@ -237,10 +236,10 @@ def irc_connect(provider: ConfigDict, retries=10):
             try:
                 lynes = irc.get_response("connect, retried=%s" % retried)
                 for lyne in lynes:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms and lyne:
-                        logger.debug(lyne)
+                    if lyne:
+                        dlcommslogger.debug(lyne)
                     if "All connections in use" in lyne:
-                        logger.warn(lyne)
+                        logger.warning(lyne)
                         return None
 
                     if botnick in lyne:
@@ -261,7 +260,7 @@ def irc_connect(provider: ConfigDict, retries=10):
                             return irc
                 retried += 1  # welcome not found yet
             except socket.timeout:
-                logger.warn("Reply timed out")
+                logger.warning("Reply timed out")
                 retried += 1
             except Exception as e:
                 logger.error(str(e))
@@ -271,9 +270,12 @@ def irc_connect(provider: ConfigDict, retries=10):
 
 
 def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=10):
+    logger = logging.getLogger(__name__)
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    cachelogger = logging.getLogger('special.cache')
     if BLOCKHANDLER.is_blocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
-        logger.warn(msg)
+        logger.warning(msg)
         return '', msg
 
     if not cmd:
@@ -297,16 +299,14 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
             time_now = time.time()
             if cache_modified_time < time_now - expiry:
                 # Cache entry is too old, delete it
-                if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-                    logger.debug("Expiring %s" % myhash)
+                cachelogger.debug("Expiring %s" % myhash)
                 remove_file(hashfilename)
             else:
                 valid_cache = True
 
         if valid_cache:
             lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-            if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-                logger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
+            cachelogger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
                                                                                     searchstring))
             with open(syspath(hashfilename), "rb") as cachefile:
                 data = cachefile.read()
@@ -339,7 +339,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
         try:
             lynes = irc.get_response("irc_search %s" % status)
         except socket.timeout:
-            logger.warn("Timed out, status [%s]" % status)
+            logger.warning("Timed out, status [%s]" % status)
             retried += 1
             lynes = ''
             if status == "":
@@ -458,9 +458,9 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
                     except IndexError:
                         msg = lyne
                     if 'Request Denied' in lyne:
-                        logger.warn("Request Denied by %s" % cmd)
+                        logger.warning("Request Denied by %s" % cmd)
                     else:
-                        logger.warn("Search Denied by %s" % cmd)
+                        logger.warning("Search Denied by %s" % cmd)
                     logger.debug(msg)
                     irc.leave(provider)
                     if 'you already have' not in msg.lower():
@@ -499,7 +499,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
                     status = "connected"
                     logger.debug("Connected to %s" % peeraddress)
                 except socket.error as x:
-                    logger.warn("Couldn't connect to socket: %s" % x)
+                    logger.warning("Couldn't connect to socket: %s" % x)
 
                 if status == "connected":
                     while len(received_data) < filesize:
@@ -507,13 +507,13 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
                             new_data = peersocket.recv(2 ** 14)
                         except socket.error:
                             # The server hung up.
-                            logger.warn("Connection reset by peer")
+                            logger.warning("Connection reset by peer")
                             new_data = ''
                             status = ""
                             retried += 1
                         if not new_data:
                             # Read nothing: connection must be down.
-                            logger.warn("Connection reset by peer")
+                            logger.warning("Connection reset by peer")
                             status = ""
                             retried += 1
                         else:
@@ -523,13 +523,12 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
                                 logger.debug("Completed, got %s" % len(received_data))
                                 status = "finished"
                             else:
-                                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                                    logger.debug("Got %s of %s" % (len(received_data), filesize))
+                                dlcommslogger.debug("Got %s of %s" % (len(received_data), filesize))
                                 peersocket.send(struct.pack("!I", len(received_data)))
                         if status != "finished":
                             if retried > retries:
                                 msg = "Aborting download, too many retries"
-                                logger.warn(msg)
+                                logger.warning(msg)
                                 irc.leave(provider)
                                 return '', msg
 
@@ -539,13 +538,13 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
                                     # read and handle any PING, discard anything else
                                     _ = irc.get_response("pingcheck")
                                 except socket.timeout:
-                                    logger.warn("Timed out on main channel")
+                                    logger.warning("Timed out on main channel")
                                 pingcheck = time.time()
 
         if status != "finished":
             if time.time() - cmd_sent > abortafter:
                 msg = "No response in %ssec from %s" % (abortafter, last_cmd)
-                logger.warn(msg)
+                logger.warning(msg)
                 irc.leave(provider)
                 return '', msg
 
@@ -571,6 +570,8 @@ def irc_results(provider: ConfigDict, fname, retries=5):
     # filename is rest up to ::INFO:: or "\r"
     # if ::INFO:: in line, following word is size including unit
     # if \r- in line last two words are size/unit
+    logger = logging.getLogger(__name__)
+    dlcommslogger = logging.getLogger('special.dlcomms')
     results = []
     tor_date = today()
     logger.debug("Checking results in %s" % fname)
@@ -635,15 +636,14 @@ def irc_results(provider: ConfigDict, fname, retries=5):
                 userlist.append(item['tor_url'].lstrip('!'))
             userlist = set(userlist)
             users = ' '.join(userlist)
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Checking for %s online" % len(userlist))
+            dlcommslogger.debug("Checking for %s online" % len(userlist))
             irc.ison(users)
             online = ''
             while not online:
                 try:
                     lynes = irc.get_response("ison")
                 except socket.timeout:
-                    logger.warn("Timed out waiting for ison response")
+                    logger.warning("Timed out waiting for ison response")
                     lynes = []
 
                 for lyne in lynes:
@@ -652,10 +652,9 @@ def irc_results(provider: ConfigDict, fname, retries=5):
                         if ':' in res:
                             res = res.rsplit(':')[1]
                         else:
-                            logger.warn("Unexpected ISON reply: [%s]" % lyne)
+                            logger.warning("Unexpected ISON reply: [%s]" % lyne)
                         online = res.split()
-                        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                            logger.debug("Found %s online" % len(online))
+                        dlcommslogger.debug("Found %s online" % len(online))
                         if len(userlist) == len(online):
                             return results
                         elif not len(online):
@@ -664,22 +663,20 @@ def irc_results(provider: ConfigDict, fname, retries=5):
                 retried += 1
                 if retried >= retries:
                     msg = "Ignoring ison, too many retries"
-                    logger.warn(msg)
+                    logger.warning(msg)
                     return results
 
             oldresults = results
             results = []
             stripped = 0
             offline = userlist.difference(online)
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Offline: %s" % ' '.join(offline))
+            dlcommslogger.debug("Offline: %s" % ' '.join(offline))
             for entry in oldresults:
                 if entry['tor_url'].lstrip('!') in offline:
                     stripped += 1
                 else:
                     results.append(entry)
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Stripped %s results from %s users not online" %
+            dlcommslogger.debug("Stripped %s results from %s users not online" %
                              (stripped, len(offline)))
         else:
             logger.debug("Not checking online status for results")

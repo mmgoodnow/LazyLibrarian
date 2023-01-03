@@ -17,10 +17,11 @@
 import re
 import traceback
 import time
+import logging
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, thinglang, google_book_dict
 from lazylibrarian.images import get_book_cover

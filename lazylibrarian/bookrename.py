@@ -13,14 +13,14 @@
 
 import os
 import re
+import logging
 import traceback
 
-from  lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation
 from lazylibrarian.filesystem import path_isdir, syspath, remove_file, listdir, safe_move, opf_file, get_directory
 from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, sanitize
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.opfedit import opf_read
 
 try:
@@ -30,19 +30,21 @@ except ImportError:
 
 
 def id3read(filename):
+    logger = logging.getLogger(__name__)
+    loggerlibsync = logging.getLogger('special.libsync')
     mydict = {}
     if not TinyTag:
-        logger.warn("TinyTag library not available")
+        logger.warning("TinyTag library not available")
         return mydict
 
     filename = syspath(filename)
-    # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
     try:
         res = TinyTag.is_supported(filename)
     except Exception:
         res = False
     if not res:
-        logger.warn("TinyTag:unsupported [%s]" % filename)
+        logger.warning("TinyTag:unsupported [%s]" % filename)
         return mydict
 
     # noinspection PyBroadException
@@ -74,10 +76,10 @@ def id3read(filename):
         else:
             albumartist = ''
 
-        if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
+        if loggerlibsync.isEnabledFor(logging.DEBUG):
             for tag in ['filename', 'artist', 'albumartist', 'composer', 'album', 'title', 'track',
                         'track_total', 'comment']:
-                logger.debug("id3r.%s [%s]" % (tag, eval(tag)))
+                loggerlibsync.debug("id3r.%s [%s]" % (tag, eval(tag)))
 
         if artist == 'None':
             artist = ''
@@ -158,6 +160,7 @@ def id3read(filename):
 
 
 def audio_parts(folder, bookname, authorname):
+    logger = logging.getLogger(__name__)
     parts = []
     cnt = 0
     audio_file = ''
@@ -231,11 +234,11 @@ def audio_parts(folder, bookname, authorname):
     failed = False
     try:
         if cnt != len(parts):
-            logger.warn("%s: Incorrect number of parts (found %i from %i)" % (bookname, len(parts), cnt))
+            logger.warning("%s: Incorrect number of parts (found %i from %i)" % (bookname, len(parts), cnt))
             failed = True
 
         if total and total != cnt:
-            logger.warn("%s: Reported %i parts, got %i" % (bookname, total, cnt))
+            logger.warning("%s: Reported %i parts, got %i" % (bookname, total, cnt))
             failed = True
 
         # check all parts have the same author and title
@@ -244,11 +247,11 @@ def audio_parts(folder, bookname, authorname):
             author = parts[0][2]
             for part in parts:
                 if part[1] != book:
-                    logger.warn("%s: Inconsistent title: [%s][%s]" % (bookname, part[1], book))
+                    logger.warning("%s: Inconsistent title: [%s][%s]" % (bookname, part[1], book))
                     failed = True
 
                 if part[2] != author:
-                    logger.warn("%s: Inconsistent author: [%s][%s]" % (bookname, part[2], author))
+                    logger.warning("%s: Inconsistent author: [%s][%s]" % (bookname, part[2], author))
                     failed = True
 
         # do we have any track info from id3 tags
@@ -308,7 +311,7 @@ def audio_parts(folder, bookname, authorname):
             failed = True
             break
         if parts[cnt][0] != cnt + 1:
-            logger.warn('%s: No part %i found, "%s" for token "%s" %s' % (bookname, cnt + 1, parts[cnt][0],
+            logger.warning('%s: No part %i found, "%s" for token "%s" %s' % (bookname, cnt + 1, parts[cnt][0],
                                                                           tokmatch, parts[cnt][3]))
             failed = True
             break
@@ -323,6 +326,7 @@ def audio_rename(bookid, rename=False, playlist=False):
     :param playlist: generate a playlist for popup
     :return: filename of part 01 of the audiobook
     """
+    logger = logging.getLogger(__name__)
     if rename:
         if '$Part' not in CONFIG['AUDIOBOOK_DEST_FILE']:
             logger.error("Unable to rename, no $Part in AUDIOBOOK_DEST_FILE")
@@ -347,7 +351,7 @@ def audio_rename(bookid, rename=False, playlist=False):
         return ''
 
     if not TinyTag:
-        logger.warn("TinyTag library not available")
+        logger.warning("TinyTag library not available")
         return ''
 
     parts, failed, _, abridged = audio_parts(r, exists['BookName'], exists['AuthorName'])
@@ -459,6 +463,7 @@ def stripspaces(pathname):
 
 
 def book_rename(bookid):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     cmd = 'select AuthorName,BookName,BookFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
     exists = db.match(cmd, (bookid,))
@@ -510,7 +515,7 @@ def book_rename(bookid):
     new_basename = namevars['BookFile']
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
         msg = "book_rename [%s] looks like an omnibus? Not renaming" % new_basename
-        logger.warn(msg)
+        logger.warning(msg)
         return f, msg
 
     if oldpath != dest_path:

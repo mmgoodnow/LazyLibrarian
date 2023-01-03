@@ -18,13 +18,14 @@
 import datetime
 import time
 import traceback
+import logging
 from enum import Enum
 from typing import Optional, List
 
 from lib.apscheduler.scheduler import Scheduler
 
 import lazylibrarian
-from lazylibrarian import database, logger
+from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookwork import add_series_members
 from lazylibrarian.config2 import CONFIG
@@ -75,13 +76,14 @@ def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
     Returns a readable approximation of how long until a job will be run,
     given a string representing the last time it was run
     """
+    logger = logging.getLogger(__name__)
     try:
         when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S')
         timenow = datetime.datetime.now() if not test_now else test_now
         td = when_run - timenow
         diff = td.total_seconds()  # time difference in seconds
     except ValueError as e:
-        lazylibrarian.logger.error("Error getting next run for [%s] %s" % (when_run, str(e)))
+        logger.error("Error getting next run for [%s] %s" % (when_run, str(e)))
         diff = 0
         td = ''
 
@@ -120,6 +122,7 @@ def get_next_run_time(target=None, minutes=0, action=SchedulerCommand.NONE):
     if target is None:
         return ''
 
+    logger = logging.getLogger(__name__)
     if action == SchedulerCommand.STARTNOW:
         lazylibrarian.STOPTHREADS = False
         minutes = 0
@@ -175,6 +178,7 @@ def adjust_schedule(scheduler: ConfigScheduler):
     """ This method makes any adjustments to the scheduler that need to happen,
     but where the code does not belong in the configtypes module """
 
+    logger = logging.getLogger(__name__)
     name = scheduler.get_schedule_name()
     if name in ['cache_update']:
         # Override the interval with the value from CACHE_AGE
@@ -215,6 +219,7 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
     if target == '':
         return
 
+    logger = logging.getLogger(__name__)
     if action in [SchedulerCommand.STOP, SchedulerCommand.RESTART]:
         for job in SCHED.get_jobs():
             if target in str(job):
@@ -249,6 +254,7 @@ def author_update(restart=True, only_overdue=True):
     if threadname and "Thread-" in threadname:
         thread_name("AUTHORUPDATE")
 
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     msg = ''
 
@@ -283,6 +289,7 @@ def series_update(restart=True, only_overdue=True):
     if threadname and "Thread-" in threadname:
         thread_name("SERIESUPDATE")
 
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     msg = ''
 
@@ -313,6 +320,7 @@ def series_update(restart=True, only_overdue=True):
 
 
 def all_author_update(refresh=False):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:

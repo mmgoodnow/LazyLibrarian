@@ -17,11 +17,12 @@ import os
 import time
 import traceback
 import uuid
+import logging
 from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.bookwork import set_genres
 from lazylibrarian.common import pwd_generator
 from lazylibrarian.filesystem import DIRS, syspath, setperm
@@ -154,6 +155,7 @@ def has_column(db, table, column):
 
 
 def db_upgrade(current_version):
+    logger = logging.getLogger(__name__)
     with open(syspath(DIRS.get_logfile('dbupgrade.log')), 'a') as upgradelog:
         # noinspection PyBroadException
         try:
@@ -304,6 +306,7 @@ def db_upgrade(current_version):
 
 
 def check_db(upgradelog=None):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     cnt = 0
 
@@ -327,7 +330,7 @@ def check_db(upgradelog=None):
     if not unique:
         res = db.match('select count(distinct authorid) as d,count(authorid) as c from authors')
         if res['d'] == res['c']:
-            logger.warn("Adding unique index to AuthorID")
+            logger.warning("Adding unique index to AuthorID")
             db.action("CREATE UNIQUE INDEX unique_authorid ON authors('AuthorID')")
         else:
             msg = 'Unable to create unique index on AuthorID: %i vs %i' % (res['d'], res['c'])
@@ -360,7 +363,7 @@ def check_db(upgradelog=None):
         if tot:
             cnt += tot
             msg = 'Updating %s %s with invalid/unpadded bookdate' % (tot, plural(tot, "book"))
-            logger.warn(msg)
+            logger.warning(msg)
             for item in res:
                 parts = item['BookDate'].split('-')
                 if len(parts) == 3:
@@ -370,9 +373,9 @@ def check_db(upgradelog=None):
                         bookdate = "%s-%02d-%02d" % (parts[0], mn, dy)
                         db.action("UPDATE books SET BookDate=? WHERE BookID=?", (bookdate, item['BookID']))
                     else:
-                        logger.warn("Invalid Month/Day (%s) for %s" % (item['BookDate'], item['BookID']))
+                        logger.warning("Invalid Month/Day (%s) for %s" % (item['BookDate'], item['BookID']))
                 else:
-                    logger.warn("Invalid BookDate (%s) for %s" % (item['BookDate'], item['BookID']))
+                    logger.warning("Invalid BookDate (%s) for %s" % (item['BookDate'], item['BookID']))
                     db.action("UPDATE books SET BookDate=? WHERE BookID=?", ("0000", item['BookID']))
 
         # update any series "Skipped" to series "Paused"
@@ -380,7 +383,7 @@ def check_db(upgradelog=None):
         tot = res['counter']
         if tot:
             cnt += tot
-            logger.warn("Found %s series marked Skipped, updating to Paused" % tot)
+            logger.warning("Found %s series marked Skipped, updating to Paused" % tot)
             db.action('UPDATE series SET Status="Paused" WHERE Status="Skipped"')
 
         # Extract any librarything workids from workpage url
@@ -389,7 +392,7 @@ def check_db(upgradelog=None):
         tot = len(res)
         if tot:
             cnt += tot
-            logger.warn("Found %s workpage links with no workid" % tot)
+            logger.warning("Found %s workpage links with no workid" % tot)
             for bk in res:
                 workid = bk[0]
                 workid = workid.split('librarything.com/work/')[1]
@@ -404,7 +407,7 @@ def check_db(upgradelog=None):
         if tot:
             cnt += tot
             msg = 'Updating %s %s with no language to "Unknown"' % (tot, plural(tot, "book"))
-            logger.warn(msg)
+            logger.warning(msg)
             db.action('UPDATE books SET BookLang="Unknown" WHERE ' + filt)
 
         cmd = 'SELECT BookID,BookLang from books WHERE BookLang LIKE "%,%"'
@@ -413,7 +416,7 @@ def check_db(upgradelog=None):
         if tot:
             cnt += tot
             msg = 'Updating %s %s with multiple language' % (tot, plural(tot, "book"))
-            logger.warn(msg)
+            logger.warning(msg)
             wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
             for bk in res:
                 lang = 'Unknown'
@@ -432,7 +435,7 @@ def check_db(upgradelog=None):
         if tot:
             cnt += tot
             msg = 'Updating %s %s with bad data' % (tot, plural(tot, "language"))
-            logger.warn(msg)
+            logger.warning(msg)
             cmd = 'DELETE from languages WHERE ' + filt
             db.action(cmd)
 
@@ -445,7 +448,7 @@ def check_db(upgradelog=None):
         if tot:
             cnt += tot
             msg = 'Deleting %s duplicate %s' % (tot, plural(tot, "language"))
-            logger.warn(msg)
+            logger.warning(msg)
             cmd = 'DELETE from languages WHERE ' + filt
             db.action(cmd)
 
@@ -455,7 +458,7 @@ def check_db(upgradelog=None):
         if books:
             cnt += len(books)
             msg = 'Removing %s %s with no bookid' % (len(books), plural(len(books), "book"))
-            logger.warn(msg)
+            logger.warning(msg)
             db.action('DELETE from books WHERE BookID is NULL or BookID=""')
 
         #  remove books with no authorid
@@ -464,7 +467,7 @@ def check_db(upgradelog=None):
         if books:
             cnt += len(books)
             msg = 'Removing %s %s with no authorid' % (len(books), plural(len(books), "book"))
-            logger.warn(msg)
+            logger.warning(msg)
             for book in books:
                 db.action('DELETE from books WHERE BookID=?', (book["BookID"],))
 
@@ -474,7 +477,7 @@ def check_db(upgradelog=None):
         if authors:
             cnt += len(authors)
             msg = 'Removing %s %s with no authorid' % (len(authors), plural(len(authors), "author"))
-            logger.warn(msg)
+            logger.warning(msg)
             db.action('DELETE from authors WHERE AuthorID is NULL or AuthorID=""')
 
         # remove authors with no name
@@ -483,7 +486,7 @@ def check_db(upgradelog=None):
         if authors:
             cnt += len(authors)
             msg = 'Removing %s %s with no name' % (len(authors), plural(len(authors), "author"))
-            logger.warn(msg)
+            logger.warning(msg)
             for author in authors:
                 db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
@@ -493,7 +496,7 @@ def check_db(upgradelog=None):
         if authors:
             cnt += len(authors)
             msg = 'Removing %s %s partially initialized authors' % (len(authors), plural(len(authors), "author"))
-            logger.warn(msg)
+            logger.warning(msg)
             for author in authors:
                 db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
@@ -503,7 +506,7 @@ def check_db(upgradelog=None):
         if mags:
             cnt += len(mags)
             msg = 'Removing %s %s with no name' % (len(mags), plural(len(mags), "magazine"))
-            logger.warn(msg)
+            logger.warning(msg)
             db.action('DELETE from magazines WHERE Title IS NULL or Title = ""')
 
         # remove authors with no books
@@ -516,7 +519,7 @@ def check_db(upgradelog=None):
             if authors:
                 cnt += len(authors)
                 msg = 'Removing %s %s with no books' % (len(authors), plural(len(authors), "author"))
-                logger.warn(msg)
+                logger.warning(msg)
                 for author in authors:
                     db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
@@ -534,9 +537,9 @@ def check_db(upgradelog=None):
             if series:
                 cnt += len(series)
                 msg = 'Removing %s series with no members' % len(series)
-                logger.warn(msg)
+                logger.warning(msg)
                 for item in series:
-                    logger.warn("Removing series %s:%s" % (item['SeriesID'], item['SeriesName']))
+                    logger.warning("Removing series %s:%s" % (item['SeriesID'], item['SeriesName']))
                     db.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
 
         # check if genre exclusions/translations have altered
@@ -547,7 +550,7 @@ def check_db(upgradelog=None):
                 if match:
                     cnt += 1
                     msg = 'Removing excluded genre [%s]' % item
-                    logger.warn(msg)
+                    logger.warning(msg)
                     db.action('DELETE from genrebooks WHERE GenreID=?', (match['GenreID'],))
                     db.action('DELETE from genres WHERE GenreID=?', (match['GenreID'],))
             for item in lazylibrarian.GRGENRES.get('genreExcludeParts', []):
@@ -557,7 +560,7 @@ def check_db(upgradelog=None):
                     cnt += len(matches)
                     for itm in matches:
                         msg = 'Removing excluded genre [%s]' % itm['GenreName']
-                        logger.warn(msg)
+                        logger.warning(msg)
                         db.action('DELETE from genrebooks WHERE GenreID=?', (itm['GenreID'],))
                         db.action('DELETE from genres WHERE GenreID=?', (itm['GenreID'],))
             for item in lazylibrarian.GRGENRES.get('genreReplace', {}):
@@ -567,7 +570,7 @@ def check_db(upgradelog=None):
                     newmatch = db.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (newitem,))
                     cnt += 1
                     msg = 'Replacing genre [%s] with [%s]' % (item, newitem)
-                    logger.warn(msg)
+                    logger.warning(msg)
                     if not newmatch:
                         db.action('INSERT into genres (GenreName) VALUES (?)', (newitem,))
                     res = db.select('SELECT bookid from genrebooks where genreid=?', (match['GenreID'],))
@@ -591,7 +594,7 @@ def check_db(upgradelog=None):
         if genres:
             cnt += len(genres)
             msg = 'Removing %s empty %s' % (len(genres), plural(len(genres), "genre"))
-            logger.warn(msg)
+            logger.warning(msg)
             for item in genres:
                 db.action('DELETE from genres WHERE GenreID=?', (item["GenreID"],))
 
@@ -613,7 +616,7 @@ def check_db(upgradelog=None):
             if orphans:
                 cnt += len(orphans)
                 msg = 'Found %s orphan %s in %s' % (len(orphans), entry[0], entry[1])
-                logger.warn(msg)
+                logger.warning(msg)
                 for orphan in orphans:
                     db.action('DELETE from %s WHERE %s="%s"' % (entry[1], entry[0], orphan[0]))
 
@@ -625,7 +628,7 @@ def check_db(upgradelog=None):
         if snatches:
             cnt += len(snatches)
             msg = 'Found %s snatched ebook not snatched in wanted' % len(snatches)
-            logger.warn(msg)
+            logger.warning(msg)
             for orphan in snatches:
                 db.action('UPDATE books SET status="Skipped" WHERE bookid=?', (orphan[0],))
 
@@ -635,7 +638,7 @@ def check_db(upgradelog=None):
         if snatches:
             cnt += len(snatches)
             msg = 'Found %s snatched audiobook not snatched in wanted' % len(snatches)
-            logger.warn(msg)
+            logger.warning(msg)
             for orphan in snatches:
                 db.action('UPDATE books SET audiostatus="Skipped" WHERE bookid=?', (orphan[0],))
 
@@ -647,10 +650,10 @@ def check_db(upgradelog=None):
             cnt += len(authors)
             msg = 'Found %s %s with no books in the library or marked wanted' % (len(authors),
                                                                                  plural(len(authors), "author"))
-            logger.warn(msg)
+            logger.warning(msg)
             # for author in authors:
             # name = db.match("SELECT authorname from authors where authorid=?", (author[0],))
-            # logger.warn("%s %s" % (author[0], name[0]))
+            # logger.warning("%s %s" % (author[0], name[0]))
             # db.action('DELETE from authors where authorid=?', (author[0],))
 
         # update empty bookdate to "0000"
@@ -659,7 +662,7 @@ def check_db(upgradelog=None):
         if books:
             cnt += len(books)
             msg = 'Found %s %s with no bookdate' % (len(books), plural(len(books), "book"))
-            logger.warn(msg)
+            logger.warning(msg)
             db.action('UPDATE books SET BookDate="0000" WHERE BookDate is NULL or BookDate=""')
 
         # check magazine latest cover is correct:
@@ -670,7 +673,7 @@ def check_db(upgradelog=None):
         if latest:
             cnt += len(latest)
             msg = 'Found %s %s with incorrect latest cover' % (len(latest), plural(len(latest), "magazine"))
-            logger.warn(msg)
+            logger.warning(msg)
             for item in latest:
                 db.action('UPDATE magazines SET LatestCover=? WHERE Title=?', (item['cover'], item['title']))
 
@@ -952,6 +955,7 @@ def db_v60(db, upgradelog):
 
 
 def update_schema(db, upgradelog):
+    logger = logging.getLogger(__name__)
     db_version = get_db_version(db)
     changes = 0
 

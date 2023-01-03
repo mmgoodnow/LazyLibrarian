@@ -6,6 +6,7 @@
 # Constraint:
 #    Should not depend on any other LazyLibrarian files, except ConfigDict
 
+import logging
 import os
 import shutil
 import sys
@@ -15,23 +16,30 @@ from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, namedic
-from lazylibrarian.logger import lazylibrarian_log, log_fileperms
+
 
 class DirectoryHolder:
     """ Holds all the global directories used by LL """
-    DATADIR: str        # Where LL stores its data files
+    DATADIR: str  # Where LL stores its data files
     CACHEDIR: str = ''  # Where LL stores its cache
-    TMPDIR: str         # Where LL will store temporary files
-    FULL_PATH: str      # Fully qualified name of executable running
-    PROG_DIR = ''       # The path of LazyLibrarian
-    ARGS: str           # Command line arguments
+    TMPDIR: str  # Where LL will store temporary files
+    FULL_PATH: str  # Fully qualified name of executable running
+    PROG_DIR = ''  # The path of LazyLibrarian
+    ARGS: str  # Command line arguments
     config: ConfigDict  # A reference to the config being used
+    logger: logging.Logger
+    permlogger: logging.Logger
 
     def __init__(self):
         self.DATADIR = ''
         self.CACHEDIR = ''
         self.TMPDIR = ''
         self.tmpsequence = 0
+        self.initialize_logger()
+
+    def initialize_logger(self):
+        self.logger = logging.getLogger(__name__)
+        self.permlogger = logging.getLogger('special.fileperms')
 
     def set_fullpath_args(self, fullpath: str, args: str):
         """ Sets the full path of the main program file, plus cmdline args """
@@ -63,11 +71,11 @@ class DirectoryHolder:
 
     def ensure_data_subdir(self, subdir: str) -> str:
         """ Returns writeable directory. Tries to make it subdir, but falls back to DATADIR if needed """
-        dirname =  os.path.join(self.DATADIR, subdir)
+        dirname = os.path.join(self.DATADIR, subdir)
         ok, msg = self.ensure_dir_is_writeable(dirname)
         if not ok:
-            lazylibrarian_log.error(msg)
-            lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for {subdir}')
+            self.logger.error(msg)
+            self.logger.warning(f'Falling back to {self.DATADIR} for {subdir}')
             return self.DATADIR
         else:
             return dirname
@@ -82,7 +90,7 @@ class DirectoryHolder:
         ok = False
         if self.config['LOGDIR'] != '':
             ok, _ = self.ensure_dir_is_writeable(self.config['LOGDIR'])
-        if not ok: # Can't make configured logdir writable, pick another one
+        if not ok:  # Can't make configured logdir writable, pick another one
             self.config['LOGDIR'] = self.ensure_data_subdir('Logs')
         return self.config['LOGDIR']
 
@@ -101,21 +109,24 @@ class DirectoryHolder:
         """ Return the full name of filename in the LOG directory """
         return os.path.join(self.config['LOGDIR'], filename)
 
-    def get_tmpfilename(self, base: Optional[str]=None) -> str:
+    def get_tmpfilename(self, base: Optional[str] = None) -> str:
         """ Get a file named base in the tmp directory.
         If base is not specified, return a unique filename """
         if not base:
             timestr = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             randomstr = str(self.tmpsequence)
             self.tmpsequence += 1
-            if self.tmpsequence < 0: self.tmpsequence = 0
+            if self.tmpsequence < 0:
+                self.tmpsequence = 0
             base = f'LL-temp-{timestr}-{randomstr}.tmp'
         return syspath(os.path.join(self.TMPDIR, base))
+
 
 """ Global access to directories """
 DIRS = DirectoryHolder()
 
-## PATH FUNCTIONS
+
+# PATH FUNCTIONS
 
 def path_isfile(name: str) -> bool:
     return os.path.isfile(syspath(name))
@@ -132,17 +143,18 @@ def path_exists(name: str) -> bool:
 def path_islink(name: str) -> bool:
     return os.path.islink(syspath(name))
 
+
 WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
 
-def syspath(path: str, prefix:bool=True) -> str:
+
+def syspath(path: str, prefix: bool = True) -> str:
     """Convert a path for use by the operating system. In particular,
     paths on Windows must receive a magic prefix and must be converted
     to Unicode before they are sent to the OS. To disable the magic
     prefix on Windows, set `prefix` to False---but only do this if you
     *really* know what you're doing.
     """
-    if lazylibrarian_log.LOGLEVEL & log_fileperms > 0:
-        lazylibrarian_log.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
+    DIRS.permlogger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
 
     if os.path.__name__ != 'ntpath':
         return path
@@ -182,6 +194,7 @@ def syspath(path: str, prefix:bool=True) -> str:
 
 def remove_file(name: str) -> bool:
     """ Remove the file. On error, log an error message. Returns True if successful """
+    logger = logging.getLogger(__name__)
     ok = False
     try:
         os.remove(syspath(name))
@@ -190,18 +203,19 @@ def remove_file(name: str) -> bool:
         if err.errno == 2:  # does not exist is ok
             pass
         else:
-            lazylibrarian_log.warn("Failed to remove %s : %s" % (name, err.strerror))
+            logger.warning("Failed to remove %s : %s" % (name, err.strerror))
     except Exception as err:
-        lazylibrarian_log.warn("Failed to remove %s : %s" % (name, str(err)))
+        logger.warning("Failed to remove %s : %s" % (name, str(err)))
     return ok
 
 
-def remove_dir(name: str, remove_contents: bool=False) -> bool:
+def remove_dir(name: str, remove_contents: bool = False) -> bool:
     """ Remove the directory. On error, log an error message. Returns True if successful """
+    logger = logging.getLogger(__name__)
     ok = False
     try:
         if remove_contents:
-            shutil.rmtree(syspath(name))# , ignore_errors=True)
+            shutil.rmtree(syspath(name))  # , ignore_errors=True)
 
         os.rmdir(syspath(name))
         ok = True
@@ -209,9 +223,9 @@ def remove_dir(name: str, remove_contents: bool=False) -> bool:
         if err.errno == 2:  # does not exist is ok
             pass
         else:
-            lazylibrarian_log.warn("Failed to remove %s : %s" % (name, err.strerror))
+            logger.warning("Failed to remove %s : %s" % (name, err.strerror))
     except Exception as err:
-        lazylibrarian_log.warn("Failed to remove %s : %s" % (name, str(err)))
+        logger.warning("Failed to remove %s : %s" % (name, str(err)))
     return ok
 
 
@@ -229,7 +243,8 @@ def listdir(name: str):
         try:
             return os.listdir(dname)
         except Exception as err:
-            lazylibrarian_log.error("Listdir [%s][%s] failed: %s" % (name, dname, str(err)))
+            logger = logging.getLogger(__name__)
+            logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(err)))
             return []
 
     return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
@@ -262,7 +277,8 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
             else:
                 nondirs.append(name)
         except Exception as err:
-            lazylibrarian_log.error("[%s][%s] %s" % (repr(top), repr(name), str(err)))
+            logger = logging.getLogger(__name__)
+            logger.error("[%s][%s] %s" % (repr(top), repr(name), str(err)))
     if topdown:
         yield top, dirs, nondirs
     for name in dirs:
@@ -279,6 +295,7 @@ def setperm(file_or_dir) -> bool:
     Force newly created directories to rwxr-xr-x and files to rw-r--r--
     or other value as set in config
     """
+    logger = logging.getLogger(__name__)
     if not file_or_dir:
         return False
 
@@ -294,14 +311,13 @@ def setperm(file_or_dir) -> bool:
     st = os.stat(syspath(file_or_dir))
     old_perm = oct(st.st_mode)[-3:].zfill(3)
     if old_perm == want_perm:
-        if lazylibrarian_log.LOGLEVEL & log_fileperms:
-            lazylibrarian_log.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
+        DIRS.permlogger.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
         return True
 
     try:
         os.chmod(syspath(file_or_dir), perm)
     except Exception as err:
-        lazylibrarian_log.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir,
+        logger.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir,
                                                                     type(err).__name__, str(err)))
         return False
 
@@ -309,15 +325,14 @@ def setperm(file_or_dir) -> bool:
     new_perm = oct(st.st_mode)[-3:].zfill(3)
 
     if new_perm == want_perm:
-        if lazylibrarian_log.LOGLEVEL & log_fileperms:
-            lazylibrarian_log.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
+        DIRS.permlogger.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
         return True
     else:
         if os.name == 'nt':
-            lazylibrarian_log.debug(f"Windows can't set permission {want_perm} for {file_or_dir}; this is expected")
+            logger.debug(f"Windows can't set permission {want_perm} for {file_or_dir}; this is expected")
             return True
         else:
-            lazylibrarian_log.debug(f"Failed to set permission {want_perm} for {file_or_dir}, got {new_perm}")
+            logger.debug(f"Failed to set permission {want_perm} for {file_or_dir}, got {new_perm}")
     return False
 
 
@@ -356,8 +371,7 @@ def make_dirs(dest_path, new=False) -> bool:
             dest_path = parent
 
     for entry in to_make:
-        if lazylibrarian_log.LOGLEVEL & log_fileperms:
-            lazylibrarian_log.debug("mkdir: [%s]" % repr(entry))
+        DIRS.permlogger.debug("mkdir: [%s]" % repr(entry))
         try:
             os.mkdir(entry)  # mkdir uses umask, so set perm ourselves
             _ = setperm(entry)  # failing to set perm might not be fatal
@@ -369,15 +383,12 @@ def make_dirs(dest_path, new=False) -> bool:
             # but that returns Error 5 Access is denied
             # Trap errno 17 (linux file exists) and 183 (windows already exists)
             if why.errno in [17, 183]:
-                if lazylibrarian_log.LOGLEVEL & log_fileperms:
-                    lazylibrarian_log.debug("Ignoring mkdir already exists errno %s: [%s]" % (why.errno, repr(entry)))
-                pass
+                DIRS.permlogger.debug("Ignoring mkdir already exists errno %s: [%s]" % (why.errno, repr(entry)))
             elif 'exists' in str(why):
-                if lazylibrarian_log.LOGLEVEL & log_fileperms:
-                    lazylibrarian_log.debug("Ignoring %s: [%s]" % (why, repr(entry)))
-                pass
+                DIRS.permlogger.debug("Ignoring %s: [%s]" % (why, repr(entry)))
             else:
-                lazylibrarian_log.error('Unable to create directory %s: [%s]' % (why, repr(entry)))
+                logger = logging.getLogger(__name__)
+                logger.error('Unable to create directory %s: [%s]' % (why, repr(entry)))
                 return False
     return True
 
@@ -392,6 +403,7 @@ def safe_move(src, dst, action='move'):
     if src == dst:  # nothing to do
         return dst
 
+    logger = logging.getLogger(__name__)
     while action:  # might have more than one problem...
         try:
             if action == 'copy':
@@ -411,9 +423,9 @@ def safe_move(src, dst, action='move'):
 
         except (IOError, OSError) as err:  # both needed for different python versions
             if err.errno == 22:  # bad mode or filename
-                lazylibrarian_log.debug("src=[%s] dst=[%s]" % (src, dst))
+                logger.debug("src=[%s] dst=[%s]" % (src, dst))
                 drive, path = os.path.splitdrive(dst)
-                lazylibrarian_log.debug("drive=[%s] path=[%s]" % (drive, path))
+                logger.debug("drive=[%s] path=[%s]" % (drive, path))
                 # strip some characters windows can't handle
                 newpath = replace_all(path, namedic)
                 # windows filenames can't end in space or dot
@@ -422,7 +434,7 @@ def safe_move(src, dst, action='move'):
                 # anything left? has it changed?
                 if newpath and newpath != path:
                     dst = os.path.join(drive, newpath)
-                    lazylibrarian_log.debug("dst=[%s]" % dst)
+                    logger.debug("dst=[%s]" % dst)
                 else:
                     raise
             else:
@@ -465,7 +477,8 @@ def opf_file(search_dir: str) -> str:
                     res = os.path.join(search_dir, fname)
                 cnt += 1
         if cnt > 2 or cnt == 2 and not meta:
-            lazylibrarian_log.debug("Found %d conflicting opf in %s" % (cnt, search_dir))
+            logger = logging.getLogger(__name__)
+            logger.debug("Found %d conflicting opf in %s" % (cnt, search_dir))
             res = ''
         elif res:  # prefer bookname.opf over metadata.opf
             return res
@@ -492,7 +505,8 @@ def csv_file(search_dir: str, library: str) -> str:
                     if not library or library in fname:
                         return os.path.join(search_dir, fname)
         except Exception as err:
-            lazylibrarian_log.warn('Listdir error [%s]: %s %s' % (search_dir, type(err).__name__, str(err)))
+            logger = logging.getLogger(__name__)
+            logger.warning('Listdir error [%s]: %s %s' % (search_dir, type(err).__name__, str(err)))
     return ''
 
 
@@ -509,6 +523,7 @@ def book_file(search_dir: str, booktype: str, config: ConfigDict, recurse=False)
         return ""
 
     if path_isdir(search_dir):
+        logger = logging.getLogger(__name__)
         if recurse:
             # noinspection PyBroadException
             try:
@@ -518,7 +533,7 @@ def book_file(search_dir: str, booktype: str, config: ConfigDict, recurse=False)
                         if config.is_valid_booktype(item, booktype=booktype):
                             return os.path.join(r, item)
             except Exception:
-                lazylibrarian_log.error('Unhandled exception in book_file: %s' % traceback.format_exc())
+                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
         else:
             # noinspection PyBroadException
             try:
@@ -526,7 +541,7 @@ def book_file(search_dir: str, booktype: str, config: ConfigDict, recurse=False)
                     if config.is_valid_booktype(fname, booktype=booktype):
                         return os.path.join(make_unicode(search_dir), fname)
             except Exception:
-                lazylibrarian_log.error('Unhandled exception in book_file: %s' % traceback.format_exc())
+                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
     return ""
 
 
@@ -548,17 +563,18 @@ def get_directory(dirname):
     else:
         return usedir
     # ./ and .\ denotes relative to program path, useful for testing
+    logger = logging.getLogger(__name__)
     if usedir and len(usedir) >= 2 and usedir[0] == ".":
         if usedir[1] == "/" or usedir[1] == "\\":
-           usedir = DIRS.PROG_DIR + "/" + usedir[2:]
-           if os.path.__name__ == 'ntpath':
-               usedir = usedir.replace('/', '\\')
+            usedir = DIRS.PROG_DIR + "/" + usedir[2:]
+            if os.path.__name__ == 'ntpath':
+                usedir = usedir.replace('/', '\\')
     if usedir and not path_isdir(usedir):
         try:
             os.makedirs(syspath(usedir))
-            lazylibrarian_log.info("Created new %s folder: %s" % (dirname, usedir))
+            logger.info("Created new %s folder: %s" % (dirname, usedir))
         except OSError as e:
-            lazylibrarian_log.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DIRS.DATADIR))
+            logger.warning('Unable to create folder %s: %s, using %s' % (usedir, str(e), DIRS.DATADIR))
             usedir = DIRS.DATADIR
     if usedir and path_isdir(usedir):
         try:
@@ -566,9 +582,9 @@ def get_directory(dirname):
                 f.write('test')
             os.remove(syspath(os.path.join(usedir, 'll_temp')))
         except Exception as why:
-            lazylibrarian_log.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DIRS.DATADIR, str(why)))
+            logger.warning("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DIRS.DATADIR, str(why)))
             usedir = syspath(usedir)
-            lazylibrarian_log.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
+            logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
                                                                                     oct(os.stat(usedir).st_mode),
                                                                                     os.stat(usedir).st_uid,
                                                                                     os.stat(usedir).st_gid,
@@ -576,7 +592,7 @@ def get_directory(dirname):
                                                                                     os.access(usedir, os.X_OK)))
             usedir = DIRS.DATADIR
     else:
-        lazylibrarian_log.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DIRS.DATADIR))
+        logger.warning("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DIRS.DATADIR))
         usedir = DIRS.DATADIR
 
     return make_unicode(usedir)

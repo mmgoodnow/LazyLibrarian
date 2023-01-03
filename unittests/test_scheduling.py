@@ -3,9 +3,11 @@
 # Purpose:
 #   Test functions in scheduling.py
 
-from unittests.unittesthelpers import LLTestCase
-from lazylibrarian import scheduling
 import datetime
+import logging
+
+from lazylibrarian import scheduling
+from unittests.unittesthelpers import LLTestCase
 
 
 class SchedulingTest(LLTestCase):
@@ -33,7 +35,8 @@ class SchedulingTest(LLTestCase):
             # Failure case: Don't supply increments of less than a second
             (datetime.timedelta(days=1, microseconds=1), "0 seconds"),
         ]
-        for case in testcases:
-            delta = case[0]
-            nrt = scheduling.next_run_time(str(testnow + delta), testnow)
-            self.assertEqual(nrt, case[1])
+        with self.assertLogs(None, logging.ERROR):  # The failure case will log an error
+            for case in testcases:
+                delta = case[0]
+                nrt = scheduling.next_run_time(str(testnow + delta), testnow)
+                self.assertEqual(nrt, case[1])

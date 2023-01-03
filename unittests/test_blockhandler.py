@@ -4,9 +4,9 @@
 #   Test functions in blockhandler.py
 
 import time
+import logging
 
 from unittests.unittesthelpers import LLTestCase
-from lazylibrarian import logger
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.blockhandler import BLOCKHANDLER, BlockHandler
@@ -15,7 +15,6 @@ from lazylibrarian.blockhandler import BLOCKHANDLER, BlockHandler
 class BlockhandlerTest(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        logger.RotatingLogger.SHOW_LINE_NO = False  # type: ignore # Hack used to make tests more robust
         super().setDoAll(False)
         return super().setUpClass()
 
@@ -40,7 +39,7 @@ class BlockhandlerTest(LLTestCase):
         self.assertNotEqual(handler._torznab, handler._newznab)
 
     def test_gb_call(self):
-        logger.lazylibrarian_log.update_loglevel(1)
+        self.set_loglevel(logging.INFO)
         msg, ok = BLOCKHANDLER.add_gb_call()
         self.assertTrue(ok, 'Nothing should be blocked')
         self.assertEqual(msg, 'Ok')
@@ -62,7 +61,7 @@ class BlockhandlerTest(LLTestCase):
 
     def test_remove_provider_entry(self):
         name = 'test'
-        with self.assertLogs('lazylibrarian.logger', 'DEBUG'):
+        with self.assertLogs('root', 'DEBUG'):
             _ = BLOCKHANDLER.block_provider(name, 'blocked', delay=120)
         self.assertTrue(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(BLOCKHANDLER.number_blocked(), 1)
@@ -72,24 +71,24 @@ class BlockhandlerTest(LLTestCase):
         self.assertEqual(BLOCKHANDLER.number_blocked(), 0)
 
     def test_block_provider(self):
-        logger.lazylibrarian_log.update_loglevel(2)
+        self.set_loglevel(logging.DEBUG)
         name = 'someone'
-        with self.assertLogs('lazylibrarian.logger', 'DEBUG') as cm:
+        with self.assertLogs('root', 'DEBUG') as cm:
             delay = BLOCKHANDLER.block_provider(name, 'just because', delay=120)  # Block for 2 minutes
         self.assertListEqual(cm.output, [
-            'INFO:lazylibrarian.logger:MainThread : blockhandler.py:block_provider : Blocking provider someone for 2 minutes because just because',
-            'DEBUG:lazylibrarian.logger:MainThread : blockhandler.py:block_provider : Provider Blocklist contains 1 entry'
+            'INFO:lazylibrarian.blockhandler:Blocking provider someone for 2 minutes because just because',
+            'DEBUG:lazylibrarian.blockhandler:Provider Blocklist contains 1 entry'
         ])
         self.assertTrue(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(delay, 120, 'Timeout value is unexpected')
 
         # Repeat the same block with a shorter time
         newdelay = 2
-        with self.assertLogs('lazylibrarian.logger', 'DEBUG'):
+        with self.assertLogs('root', 'DEBUG'):
             delay = BLOCKHANDLER.block_provider('someone', 'just because', delay=newdelay)
         self.assertListEqual(cm.output, [
-            'INFO:lazylibrarian.logger:MainThread : blockhandler.py:block_provider : Blocking provider someone for 2 minutes because just because',
-            'DEBUG:lazylibrarian.logger:MainThread : blockhandler.py:block_provider : Provider Blocklist contains 1 entry'
+            'INFO:lazylibrarian.blockhandler:Blocking provider someone for 2 minutes because just because',
+            'DEBUG:lazylibrarian.blockhandler:Provider Blocklist contains 1 entry'
         ])
         self.assertTrue(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(delay, newdelay, 'Timeout value is unexpected')
@@ -100,7 +99,7 @@ class BlockhandlerTest(LLTestCase):
         self.assertFalse(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(BLOCKHANDLER.number_blocked(), 0, 'There should be no more blocks')
 
-        logger.lazylibrarian_log.update_loglevel(2)
+        self.set_loglevel(logging.DEBUG)
         # Add a 0-time block, which will be ignored
         delay = BLOCKHANDLER.block_provider('someone', 'just because', delay=0)
         self.assertEqual(delay, 0, 'Timeout value is unexpected')

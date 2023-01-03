@@ -3,9 +3,11 @@
 # Purpose:
 #   Test functions in formatter.py
 
+import logging
+
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import formatter
+from lazylibrarian.config2 import CONFIG
 from unittests.unittesthelpers import LLTestCase
 
 
@@ -288,8 +290,9 @@ class FormatterTest(LLTestCase):
             ("XYZ", "XYZ"),  # Error, just a string
             ("", ""),
         ]
-        for d in dates:
-            self.assertEqual(formatter.date_format(d[0]), d[1])
+        with self.assertLogs('root', logging.ERROR):
+            for d in dates:
+                self.assertEqual(formatter.date_format(d[0]), d[1])
 
     def test_versiontuple(self):
         versions = [

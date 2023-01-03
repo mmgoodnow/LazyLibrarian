@@ -14,13 +14,13 @@ import json
 import os
 import shutil
 import time
+import logging
 from xml.etree import ElementTree
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian import database
 from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
@@ -31,6 +31,7 @@ import http.client
 
 
 def redirect_url(url, times):
+    logger = logging.getLogger(__name__)
     s = requests.Session()
     times -= 1
     if not times:
@@ -54,8 +55,8 @@ def gr_api_sleep():
     if delay < 1.0:
         sleep_time = 1.0 - delay
         lazylibrarian.TIMERS['SLEEP_GR'] += sleep_time
-        if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-            logger.debug("GoodReads sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_GR']))
+        cachelogger = logging.getLogger('special.cache')
+        cachelogger.debug("GoodReads sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_GR']))
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_GR'] = time_now
 
@@ -66,8 +67,8 @@ def cv_api_sleep():
     if delay < 1.0:
         sleep_time = 1.0 - delay
         lazylibrarian.TIMERS['SLEEP_CV'] += sleep_time
-        if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-            logger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_CV']))
+        cachelogger = logging.getLogger('special.cache')
+        cachelogger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_CV']))
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_CV'] = time_now
 
@@ -78,6 +79,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
         Return data as raw/bytes in python2 or if raw == True
         On python3 default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
+    logger = logging.getLogger(__name__)
     http.client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
 
     url = make_unicode(url)
@@ -177,6 +179,7 @@ def cache_img(img_type, img_id, img_url, refresh=False):
         linked to the id, return the link to the cached file, success, was_in_cache
         or error message, False, False if failed to cache """
 
+    logger = logging.getLogger(__name__)
     if img_type not in ['book', 'author', 'magazine', 'comic']:
         logger.error('Internal error in cache_img, img_type = [%s]' % img_type)
         img_type = 'book'
@@ -184,8 +187,8 @@ def cache_img(img_type, img_id, img_url, refresh=False):
     cachefile = os.path.join(DIRS.CACHEDIR, img_type, img_id + '.jpg')
     link = 'cache/%s/%s.jpg' % (img_type, img_id)
     if path_isfile(cachefile) and not refresh:  # overwrite any cached image
-        if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-            logger.debug("Cached %s image exists %s" % (img_type, cachefile))
+        cachelogger = logging.getLogger('special.cache')
+        cachelogger.debug("Cached %s image exists %s" % (img_type, cachefile))
         return link, True, True
 
     if img_url.startswith('http'):
@@ -238,6 +241,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
     # if not, read url and store the result in the cache
     # return the result, and boolean True if source was cache
     #
+    logger = logging.getLogger(__name__)
     cache_location = cache + "Cache"
     cache_location = os.path.join(DIRS.CACHEDIR, cache_location)
     myhash = md5_utf8(url)
@@ -252,23 +256,24 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
         time_now = time.time()
         if expire and cache_modified_time < time_now - expiry:
             # Cache entry is too old, delete it
-            if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-                logger.debug("Expiring %s" % myhash)
+            cachelogger = logging.getLogger('special.cache')
+            cachelogger.debug("Expiring %s" % myhash)
             os.remove(syspath(hashfilename))
         else:
             valid_cache = True
 
     if valid_cache:
         lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-        if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-            logger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename, url))
+        logger = logging.getLogger(__name__)
+        cachelogger = logging.getLogger('special.cache')
+        cachelogger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename, url))
         if cache == "JSON":
             try:
                 source = json.load(open(hashfilename))
             except ValueError:
                 logger.error("Error decoding json from %s" % hashfilename)
                 # normally delete bad data, but keep for inspection if debug logging cache
-                if not (lazylibrarian_log.LOGLEVEL & logger.log_cache):
+                if not logging.getLogger('special.cache').isEnabledFor(logging.DEBUG):
                     remove_file(hashfilename)
                 return None, False
         elif cache == "HTML":
@@ -294,7 +299,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
             if source is None:
                 logger.error("Error reading xml from %s" % hashfilename)
                 # normally delete bad data, but keep for inspection if debug logging cache
-                if not (lazylibrarian_log.LOGLEVEL & logger.log_cache):
+                if not logging.getLogger('special.cache').isEnabledFor(logging.DEBUG):
                     remove_file(hashfilename)
                 return None, False
     else:
@@ -306,8 +311,8 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
             result, success = fetch_url(url, headers=headers)
 
         if success:
-            if lazylibrarian_log.LOGLEVEL & logger.log_cache:
-                logger.debug("CacheHandler: Storing %s %s for %s" % (cache, myhash, url))
+            cachelogger = logging.getLogger('special.cache')
+            cachelogger.debug("CacheHandler: Storing %s %s for %s" % (cache, myhash, url))
             if cache == "JSON":
                 try:
                     source = json.loads(result)
@@ -367,6 +372,7 @@ def clean_cache():
     if "Thread-" in threadname:
         thread_name("CLEANCACHE")
 
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     db.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
     result = []

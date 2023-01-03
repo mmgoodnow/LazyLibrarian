@@ -13,10 +13,11 @@
 import re
 import time
 import traceback
+import logging
+
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian import database
 from lazylibrarian.cache import json_request, html_request, cache_img
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
     get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
@@ -42,6 +43,9 @@ class OpenLibrary:
         self.LT_WORK = '/'.join([CONFIG['LT_URL'], "work/"])
         self.name = make_unicode(name)
         self.lt_cache = False
+        self.logger = logging.getLogger(__name__)
+        self.searchinglogger = logging.getLogger('special.searching')
+        self.matchinglogger = logging.getLogger('special.matching')
 
     def find_results(self, searchterm=None, queue=None):
         # noinspection PyBroadException
@@ -60,12 +64,11 @@ class OpenLibrary:
                 searchterm = searchterm.replace(' <ll> ', ' ')
                 searchtitle = searchtitle.split(' (')[0]  # without any series info
 
-            logger.debug('Now searching OpenLibrary API with searchterm: %s' % searchterm)
+            self.logger.debug('Now searching OpenLibrary API with searchterm: %s' % searchterm)
             searchbytes, _ = make_utf8bytes(searchterm)
             searchbytes = searchbytes.replace(b'#', b'').replace(b'/', b'_')
             baseurl = self.OL_SEARCH + 'q=' + quote_plus(searchbytes)
-            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                logger.debug(baseurl)
+            self.searchinglogger.debug(baseurl)
 
             while next_page:
                 url = baseurl
@@ -75,7 +78,7 @@ class OpenLibrary:
                 if not in_cache:
                     api_hits += 1
                 if results and 'numFound' in results:
-                    logger.debug("Found %s results for searchterm, page %s" % (results['numFound'], loop_count - 1))
+                    self.logger.debug("Found %s results for searchterm, page %s" % (results['numFound'], loop_count - 1))
                 else:
                     break
 
@@ -167,25 +170,25 @@ class OpenLibrary:
 
                 loop_count += 1
                 if 0 < CONFIG.get_int('MAX_PAGES') < loop_count:
-                    logger.warn('Maximum results page search reached, still more results available')
+                    self.logger.warning('Maximum results page search reached, still more results available')
                     next_page = False
 
                 offset += len(results['docs'])
                 if offset >= check_int(results["numFound"], 0):
                     next_page = False
 
-            logger.debug('Found %s %s with keyword: %s' % (resultcount, plural(resultcount, "result"), searchterm))
-            logger.debug('The OpenLibrary API was hit %s %s for keyword %s' %
+            self.logger.debug('Found %s %s with keyword: %s' % (resultcount, plural(resultcount, "result"), searchterm))
+            self.logger.debug('The OpenLibrary API was hit %s %s for keyword %s' %
                          (api_hits, plural(api_hits, "time"), searchterm))
 
             queue.put(resultlist)
 
         except Exception:
-            logger.error('Unhandled exception in OL.find_results: %s' % traceback.format_exc())
+            self.logger.error('Unhandled exception in OL.find_results: %s' % traceback.format_exc())
 
     def find_author_id(self, refresh=False):
         authorname = self.name.replace('#', '').replace('/', '_')
-        logger.debug("Getting author id for %s, refresh=%s" % (authorname, refresh))
+        self.logger.debug("Getting author id for %s, refresh=%s" % (authorname, refresh))
         title = ''
         if '<ll>' in authorname:
             authorname, title = authorname.split('<ll>')
@@ -213,7 +216,7 @@ class OpenLibrary:
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname),
                                                  use_cache=not refresh)
             if not authorbooks or not authorbooks["docs"]:
-                logger.debug("No books found for %s" % authorname)
+                self.logger.debug("No books found for %s" % authorname)
                 return {}
             for book in authorbooks['docs']:
                 author_name = format_author_name(book.get('author_name')[0], postfix=CONFIG.get_list('NAME_POSTFIX'))
@@ -228,20 +231,20 @@ class OpenLibrary:
         return {}
 
     def get_author_info(self, authorid=None, refresh=False):
-        logger.debug("Getting author info for %s, refresh=%s" % (authorid, refresh))
+        self.logger.debug("Getting author info for %s, refresh=%s" % (authorid, refresh))
         authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', use_cache=not refresh)
         if not authorinfo:
-            logger.debug("No info found for %s" % authorid)
+            self.logger.debug("No info found for %s" % authorid)
             return {}
 
         try:
             if authorinfo['type']['key'] == '/type/redirect':
                 newauthorid = authorinfo['location'].rsplit('/', 1)[1]
-                logger.debug("Authorid %s redirected to %s" % (authorid, newauthorid))
+                self.logger.debug("Authorid %s redirected to %s" % (authorid, newauthorid))
                 authorid = newauthorid
                 authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', use_cache=not refresh)
                 if not authorinfo:
-                    logger.debug("No info found for redirect %s" % authorid)
+                    self.logger.debug("No info found for redirect %s" % authorid)
                     return {}
         except (IndexError, KeyError):
             pass
@@ -271,12 +274,11 @@ class OpenLibrary:
                     author_name = words[1].strip() + ' ' + words[0].strip()
 
         if not author_name:
-            logger.warn("Rejecting authorid %s, no authorname" % authorid)
-            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                logger.debug(str(authorinfo))
+            self.logger.warning("Rejecting authorid %s, no authorname" % authorid)
+            self.matchinglogger.debug(str(authorinfo))
             return {}
 
-        logger.debug("[%s] Processing info for authorID: %s" % (author_name, authorid))
+        self.logger.debug("[%s] Processing info for authorID: %s" % (author_name, authorid))
         author_dict = {
             'authorid': authorid,
             'authorlink': author_link,
@@ -307,7 +309,7 @@ class OpenLibrary:
                 if seriesname:
                     match = fuzz.partial_ratio(seriesname, series_name)
                     if match < 95:
-                        logger.debug("Series name mismatch for %s, %s%% %s/%s" %
+                        self.logger.debug("Series name mismatch for %s, %s%% %s/%s" %
                                      (series_id, match, seriesname, series_name))
                     else:
                         table = data.split(b'<table>')[1].split(b'</table>')[0]
@@ -339,13 +341,13 @@ class OpenLibrary:
                                 if onum:  # might not be numeric
                                     order = onum
                                 results.append([order, bookname, authorname, authorlink, workid])
-                        logger.debug("Found %s for nseries %s" % (len(results), series_id))
+                        self.logger.debug("Found %s for nseries %s" % (len(results), series_id))
 
             except IndexError:
                 if b'<table>' in data:  # error parsing, or just no series data available?
-                    logger.debug('Error parsing series table for %s' % series_id)
+                    self.logger.debug('Error parsing series table for %s' % series_id)
                 else:
-                    logger.debug("SeriesID %s not found at librarything" % series_id)
+                    self.logger.debug("SeriesID %s not found at librarything" % series_id)
             finally:
                 if results:
                     return results
@@ -362,14 +364,14 @@ class OpenLibrary:
                         works = check_int(res, 0)
                     except IndexError:
                         works = 0
-                    logger.debug("Found %s for %s" % (works, series_name))
+                    self.logger.debug("Found %s for %s" % (works, series_name))
                     if works:
                         try:
                             seriesid = data.split(b'/nseries/')[1].split(b'/')[0].decode('utf-8')
                         except IndexError:
                             seriesid = ''
                         if seriesid and seriesid != series_id:
-                            logger.debug("SeriesID mismatch %s/%s for %s" % (seriesid, series_id, series_name))
+                            self.logger.debug("SeriesID mismatch %s/%s for %s" % (seriesid, series_id, series_name))
                         table = data.split(b'class="worksinseries"')[1].split(b'</table>')[0]
                         rows = table.split(b'<tr')
                         for row in rows:
@@ -386,12 +388,12 @@ class OpenLibrary:
                                     order = row.split('class="order">')[1].split('<')[0]
                                     results.append([order, bookname, authorname, authorlink, workid])
                                 except IndexError:
-                                    logger.debug('Incomplete data in series table for series %s' % series_id)
+                                    self.logger.debug('Incomplete data in series table for series %s' % series_id)
                 except IndexError:
                     if b'class="worksinseries"' in data:  # error parsing, or just no series data available?
-                        logger.debug('Error in series table for series %s' % series_id)
+                        self.logger.debug('Error in series table for series %s' % series_id)
         else:
-            logger.debug("SeriesID %s not found in database")
+            self.logger.debug("SeriesID %s not found in database")
         return results
 
     def lt_workinfo(self, lt_id):
@@ -436,7 +438,7 @@ class OpenLibrary:
                         if accept and count > 1:
                             genrelist.append([name, count])
                     except (IndexError, ValueError):
-                        logger.error("Split genre error [%s]" % lyne)
+                        self.logger.error("Split genre error [%s]" % lyne)
                         pass
             if genrelist:
                 genrelist.sort(key=lambda x: x[1], reverse=True)
@@ -517,7 +519,7 @@ class OpenLibrary:
             api_hits += not in_cache
             cache_hits += in_cache
             if not authorbooks or not authorbooks["docs"]:
-                logger.debug("No books found for key %s" % ol_id)
+                self.logger.debug("No books found for key %s" % ol_id)
                 next_page = False
                 docs = []
             else:
@@ -530,7 +532,7 @@ class OpenLibrary:
                     hit += 1
                 else:
                     miss += 1
-            logger.debug("%s books on page, %s with LT_ID, %s without" % (hit + miss, hit, miss))
+            self.logger.debug("%s books on page, %s with LT_ID, %s without" % (hit + miss, hit, miss))
             total_count += hit + miss
             for book in docs:
                 book_status = bookstatus
@@ -590,14 +592,14 @@ class OpenLibrary:
                                     lang = lazylibrarian.isbn_979_dict[item]
                                     break
                                 if lang != "Unknown":
-                                    logger.debug("ISBN979 returned %s for %s" % (lang, isbnhead))
+                                    self.logger.debug("ISBN979 returned %s for %s" % (lang, isbnhead))
                         elif isbnhead == '978':
                             for item in lazylibrarian.isbn_978_dict:
                                 if isbnhead.startswith(item):
                                     lang = lazylibrarian.isbn_978_dict[item]
                                     break
                             if lang != "Unknown":
-                                logger.debug("ISBN978 returned %s for %s" % (lang, isbnhead))
+                                self.logger.debug("ISBN978 returned %s for %s" % (lang, isbnhead))
 
                         if lang == "Unknown" and isbnhead:
                             # Nothing in the isbn dictionary, try any cached results
@@ -605,7 +607,7 @@ class OpenLibrary:
                             if match:
                                 lang = match['lang']
                                 cache_hits += 1
-                                logger.debug("Found cached language [%s] for %s [%s]" %
+                                self.logger.debug("Found cached language [%s] for %s [%s]" %
                                              (lang, title, isbnhead))
                             else:
                                 lang = thinglang(isbn)
@@ -655,7 +657,7 @@ class OpenLibrary:
                     # which that is, keep the old one which is already linked to other db tables
                     # but allow info (dates etc) to be updated
                     if key != exists['BookID']:
-                        logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
+                        self.logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                      (key, auth_name, title, exists['BookID']))
                         duplicates += 1
                         rejected = 'name', 'Duplicate id (%s/%s)' % (key, exists['BookID'])
@@ -679,9 +681,9 @@ class OpenLibrary:
                             isbn_count += 1
                         except Exception as e:
                             res = None
-                            logger.warn("Error from isbn: %s" % e)
+                            self.logger.warning("Error from isbn: %s" % e)
                         if res:
-                            logger.debug("isbn found %s for %s" % (res, key))
+                            self.logger.debug("isbn found %s for %s" % (res, key))
                             isbn = res
                             if len(res) == 13:
                                 isbnhead = res[3:6]
@@ -712,7 +714,7 @@ class OpenLibrary:
                         m = re.search(r'(\d+)-(\d+)', bookname)
                         if m:
                             if check_year(m.group(1), past=1800, future=0):
-                                logger.debug("Allow %s, looks like a date range" % bookname)
+                                self.logger.debug("Allow %s, looks like a date range" % bookname)
                             else:
                                 rejected = 'set', 'Set or Part %s' % m.group(0)
                         if re.search(r'\d+ of \d+', bookname) or \
@@ -721,30 +723,30 @@ class OpenLibrary:
                         elif re.search(r'\w+\s*/\s*\w+', bookname):
                             rejected = 'set', 'Set or Part'
                         if rejected:
-                            logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
+                            self.logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
 
                 if rejected and rejected[0] not in ignorable:
-                    logger.debug('Rejecting %s, %s' % (title, rejected[1]))
+                    self.logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                 elif rejected and not (rejected[0] in ignorable and CONFIG.get_bool('IMP_IGNORE')):
-                    logger.debug('Rejecting %s, %s' % (title, rejected[1]))
+                    self.logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                 else:
-                    logger.debug("Found title: %s LT:%s" % (title, id_librarything))
+                    self.logger.debug("Found title: %s LT:%s" % (title, id_librarything))
                     if not rejected and CONFIG.get_bool('NO_FUTURE'):
                         if publish_date > today()[:len(publish_date)]:
                             rejected = 'future', 'Future publication date [%s]' % publish_date
                             if ignorable is None:
-                                logger.debug('Rejecting %s, %s' % (title, rejected[1]))
+                                self.logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                             else:
-                                logger.debug("Not rejecting %s (future pub date %s) as %s" %
+                                self.logger.debug("Not rejecting %s (future pub date %s) as %s" %
                                              (title, publish_date, ignorable))
 
                     if not rejected and CONFIG.get_bool('NO_PUBDATE'):
                         if not publish_date or publish_date == '0000':
                             rejected = 'date', 'No publication date'
                             if ignorable is None:
-                                logger.debug('Rejecting %s, %s' % (title, rejected[1]))
+                                self.logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                             else:
-                                logger.debug("Not rejecting %s (no pub date) as %s" %
+                                self.logger.debug("Not rejecting %s (no pub date) as %s" %
                                              (title, ignorable))
 
                     if rejected:
@@ -822,7 +824,7 @@ class OpenLibrary:
                                         lang = infodict['lang']
                                         gbupdate.append('Language')
                                     if gbupdate:
-                                        logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
+                                        self.logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
                                         gb_lang_change += 1
 
                                 reason = "[%s] %s" % (thread_name(), reason)
@@ -852,7 +854,7 @@ class OpenLibrary:
                                         and publish_date and publish_date != '0000' and \
                                         publish_date <= today()[:len(publish_date)]:
                                     # was rejected on previous scan but bookdate has become valid
-                                    logger.debug("valid bookdate [%s] previous scanresult [%s]" %
+                                    self.logger.debug("valid bookdate [%s] previous scanresult [%s]" %
                                                  (publish_date, exists['ScanResult']))
 
                                     update_value_dict["ScanResult"] = "bookdate %s is now valid" % publish_date
@@ -860,12 +862,10 @@ class OpenLibrary:
                                     update_value_dict["ScanResult"] = reason
 
                                 if "ScanResult" in update_value_dict:
-                                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                        logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
+                                    self.searchinglogger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
                                     book_status, audio_status = get_status(key, serieslist, bookstatus,
                                                                            audiostatus, entrystatus)
-                                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                        logger.debug("status is now %s,%s" % (book_status, audio_status))
+                                    self.searchinglogger.debug("status is now %s,%s" % (book_status, audio_status))
                                     update_value_dict["Status"] = book_status
                                     update_value_dict["AudioStatus"] = audio_status
 
@@ -883,7 +883,7 @@ class OpenLibrary:
                                                                        lang, bookstatus)
                             if CONFIG.get_bool('AUDIO_TAB'):
                                 msg += " audio %s" % audiostatus
-                            logger.debug(msg)
+                            self.logger.debug(msg)
 
                             if CONFIG.get_bool('ADD_SERIES'):
                                 for series in serieslist:
@@ -901,7 +901,7 @@ class OpenLibrary:
                                             db.action('PRAGMA foreign_keys = ON')
                                             db.commit()
                                     if not exists:
-                                        logger.debug("New series: %s" % series[0])
+                                        self.logger.debug("New series: %s" % series[0])
                                         db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated,' +
                                                   ' Reason) VALUES (?,?,?,?,?)',
                                                   (seriesid, series[0], 'Paused', time.time(), id_librarything))
@@ -912,21 +912,21 @@ class OpenLibrary:
                                     if not db.match(cmd, (seriesid, id_librarything)):
                                         seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
                                         if seriesid in series_updates:
-                                            logger.debug("Series %s already updated" % seriesid)
+                                            self.logger.debug("Series %s already updated" % seriesid)
                                         elif exists['Status'] in ['Paused', 'Ignored']:
-                                            logger.debug("Not getting additional series members for %s, status is %s" %
+                                            self.logger.debug("Not getting additional series members for %s, status is %s" %
                                                          (series[0], exists['Status']))
                                         else:
                                             seriesmembers = self.get_series_members(seriesid, series[0])
                                             series_updates.append(seriesid)
                                             if not seriesmembers:
-                                                logger.warn("Series %s (%s) has no members at librarything" % (
+                                                self.logger.warning("Series %s (%s) has no members at librarything" % (
                                                             series[0], seriesid))
                                     if seriesmembers:
                                         if len(seriesmembers) == 1:
-                                            logger.debug("Found member %s for series %s" % (series[1], series[0]))
+                                            self.logger.debug("Found member %s for series %s" % (series[1], series[0]))
                                         else:
-                                            logger.debug("Found %s members for series %s" % (len(seriesmembers),
+                                            self.logger.debug("Found %s members for series %s" % (len(seriesmembers),
                                                                                              series[0]))
                                         for member in seriesmembers:
                                             # member[order, bookname, authorname, authorlink, workid]
@@ -947,7 +947,7 @@ class OpenLibrary:
                                                 if exists:
                                                     auth_name = member[2]
                                                 else:
-                                                    logger.debug("Unable to add %s for %s, author not in database" %
+                                                    self.logger.debug("Unable to add %s for %s, author not in database" %
                                                                  (member[2], member[1]))
                                                     continue
                                             else:
@@ -966,7 +966,7 @@ class OpenLibrary:
                                                                      'SeriesID=? and AuthorID=?',
                                                                      (seriesid, auth_key))
                                                     if not match:
-                                                        logger.debug("Adding %s as series author for %s" %
+                                                        self.logger.debug("Adding %s as series author for %s" %
                                                                      (auth_name, series[0]))
                                                         db.action('INSERT INTO seriesauthors ("SeriesID", ' +
                                                                   '"AuthorID") VALUES (?, ?)',
@@ -982,7 +982,7 @@ class OpenLibrary:
                                                                  "SeriesID=? AND BookID=?",
                                                                  (seriesid, exists['BookID']))
                                                 if not match:
-                                                    logger.debug("Inserting new member [%s] for %s" %
+                                                    self.logger.debug("Inserting new member [%s] for %s" %
                                                                  (member[0], series[0]))
                                                     db.action('INSERT INTO member (SeriesID, BookID, ' +
                                                               'WorkID, SeriesNum) VALUES (?,?,?,?)',
@@ -1059,13 +1059,13 @@ class OpenLibrary:
                                                                 else:
                                                                     msg = "Unable to add %s for %s" % (auth_name, title)
                                                                     msg += ", author not in database"
-                                                                    logger.debug(msg)
+                                                                    self.logger.debug(msg)
                                                                     continue
 
                                                             match = db.match('SELECT * from books ' +
                                                                              'WHERE BookID=?', (workid,))
                                                             if not match:
-                                                                logger.debug("Inserting new member [%s] for %s" %
+                                                                self.logger.debug("Inserting new member [%s] for %s" %
                                                                              (member[0], series[0]))
 
                                                                 reason = "Member %s of series %s" % (member[0],
@@ -1099,7 +1099,7 @@ class OpenLibrary:
                                                                              "SeriesID=? AND AuthorID=?",
                                                                              (seriesid, bauth_key))
                                                             if not match:
-                                                                logger.debug("Adding %s as series author for %s" %
+                                                                self.logger.debug("Adding %s as series author for %s" %
                                                                              (auth_name, series[0]))
                                                                 db.action('INSERT INTO seriesauthors ("SeriesID", ' +
                                                                           '"AuthorID") VALUES (?, ?)',
@@ -1122,10 +1122,10 @@ class OpenLibrary:
                                                                               "WHERE SeriesID=?",
                                                                               (counter, seriesid))
                     if rating == 0:
-                        logger.debug("No additional librarything info")
+                        self.logger.debug("No additional librarything info")
                         exists = db.match("SELECT * from books WHERE BookID=?", (key,))
                         if not exists:
-                            logger.debug("Inserting new book for %s" % authorid)
+                            self.logger.debug("Inserting new book for %s" % authorid)
                             if 'author_update' in entryreason:
                                 reason = 'Author: %s' % auth_name
                             else:
@@ -1183,20 +1183,20 @@ class OpenLibrary:
         db.upsert("authors", new_value_dict, control_value_dict)
 
         resultcount = added_count + updated_count
-        logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
+        self.logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
                                                loop_count, plural(loop_count, "page")))
-        logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
-        logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
-        logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
-        logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
-        logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
-        logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
+        self.logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
+        self.logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
+        self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
+        self.logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
+        self.logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
+        self.logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
                      (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
                       api_hits, plural(api_hits, "hit")))
         if cover_count:
-            logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
+            self.logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
         if isbn_count:
-            logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
+            self.logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
 
         control_value_dict = {"authorname": authorname.replace('"', '""')}
         new_value_dict = {
@@ -1213,32 +1213,31 @@ class OpenLibrary:
         db.upsert("stats", new_value_dict, control_value_dict)
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.find_book'):
-        logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
+        self.logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         db = database.DBConnection()
         url = self.OL_WORK + bookid + '.json'
         try:
-            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                logger.debug(url)
+            self.searchinglogger.debug(url)
             workinfo, in_cache = json_request(url)
             if not workinfo:
-                logger.debug("Error requesting book")
+                self.logger.debug("Error requesting book")
                 return
         except Exception as e:
-            logger.error("%s finding book: %s" % (type(e).__name__, str(e)))
+            self.logger.error("%s finding book: %s" % (type(e).__name__, str(e)))
             return
 
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
-            logger.debug("No bookstatus passed, using default %s" % bookstatus)
+            self.logger.debug("No bookstatus passed, using default %s" % bookstatus)
         if not audiostatus:
             audiostatus = CONFIG['NEWAUDIO_STATUS']
-            logger.debug("No audiostatus passed, using default %s" % audiostatus)
-        logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
+            self.logger.debug("No audiostatus passed, using default %s" % audiostatus)
+        self.logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
 
         if workinfo:
             title = workinfo.get('title', '')
             if not title:
-                logger.warn("No title for %s, unable to add book" % bookid)
+                self.logger.warning("No title for %s, unable to add book" % bookid)
                 return
             covers = workinfo.get('covers', '')
             if covers:
@@ -1255,7 +1254,7 @@ class OpenLibrary:
             valid_langs = get_list(CONFIG['IMP_PREFLANG'])
             if lang not in valid_langs and 'All' not in valid_langs:
                 msg = 'Book %s Language [%s] does not match preference' % (title, lang)
-                logger.warn(msg)
+                self.logger.warning(msg)
                 if reason.startswith("Series:"):
                     return
             originalpubdate = ''
@@ -1266,7 +1265,7 @@ class OpenLibrary:
             if CONFIG.get_bool('NO_PUBDATE'):
                 if not bookdate or bookdate == '0000':
                     msg = 'Book %s Publication date [%s] does not match preference' % (title, bookdate)
-                    logger.warn(msg)
+                    self.logger.warning(msg)
                     if reason.startswith("Series:"):
                         return
 
@@ -1274,14 +1273,14 @@ class OpenLibrary:
                 # may have yyyy or yyyy-mm-dd
                 if bookdate > today()[:len(bookdate)]:
                     msg = 'Book %s Future publication date [%s] does not match preference' % (title, bookdate)
-                    logger.warn(msg)
+                    self.logger.warning(msg)
                     if reason.startswith("Series:"):
                         return
 
             if CONFIG.get_bool('NO_SETS'):
                 if re.search(r'\d+ of \d+', title) or re.search(r'\d+/\d+', title):
                     msg = 'Book %s Set or Part' % title
-                    logger.warn(msg)
+                    self.logger.warning(msg)
                     if reason.startswith("Series:"):
                         return
 
@@ -1290,10 +1289,10 @@ class OpenLibrary:
             if m:
                 if check_year(m.group(1), past=1800, future=0):
                     msg = "Allow %s, looks like a date range" % m.group(1)
-                    logger.debug(msg)
+                    self.logger.debug(msg)
                 else:
                     msg = 'Set or Part %s' % title
-                    logger.warn(msg)
+                    self.logger.warning(msg)
                     if reason.startswith("Series:"):
                         return
 
@@ -1308,7 +1307,7 @@ class OpenLibrary:
             else:
                 authorid = ''
             if not authorid:
-                logger.warn("No AuthorID for %s, unable to add book" % title)
+                self.logger.warning("No AuthorID for %s, unable to add book" % title)
                 return
             bookdesc = ''
             bookpub = ''
@@ -1333,15 +1332,15 @@ class OpenLibrary:
                 if match:
                     authorname = match['AuthorName']
             if not authorname:
-                logger.warn("No AuthorName for %s, unable to add book %s" % (authorid, title))
+                self.logger.warning("No AuthorName for %s, unable to add book %s" % (authorid, title))
                 return
             try:
                 res = isbn_from_words(title + ' ' + unaccented(authorname, only_ascii=False))
             except Exception as e:
                 res = None
-                logger.warn("Error from isbn: %s" % e)
+                self.logger.warning("Error from isbn: %s" % e)
             if res:
-                logger.debug("isbn found %s for %s" % (res, title))
+                self.logger.debug("isbn found %s for %s" % (res, title))
                 bookisbn = res
 
             infodict = get_gb_info(isbn=bookisbn, author=authorname, title=title, expire=False)
@@ -1380,7 +1379,7 @@ class OpenLibrary:
             }
 
             db.upsert("books", new_value_dict, control_value_dict)
-            logger.info("%s by %s added to the books database, %s/%s" % (title, authorname, bookstatus, audiostatus))
+            self.logger.info("%s by %s added to the books database, %s/%s" % (title, authorname, bookstatus, audiostatus))
 
             if 'nocover' in cover or 'nophoto' in cover:
                 cover = get_cover(bookid, title)
@@ -1389,6 +1388,7 @@ class OpenLibrary:
 
 
 def get_cover(bookid, title):
+    logger = logging.getLogger(__name__)
     workcover, source = get_book_cover(bookid)
     if workcover:
         db = database.DBConnection()
@@ -1400,6 +1400,7 @@ def get_cover(bookid, title):
 
 
 def cache_cover(bookid, cover):
+    logger = logging.getLogger(__name__)
     link, success, _ = cache_img("book", bookid, cover)
     if success:
         db = database.DBConnection()

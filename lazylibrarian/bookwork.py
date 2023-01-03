@@ -16,17 +16,17 @@ import os
 import re
 import time
 import traceback
+import logging
 
 from urllib.parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.common import proxy_list
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, quotes
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.processcontrol import get_info_on_caller
 
 from thefuzz import fuzz
@@ -35,6 +35,7 @@ import requests
 
 
 def set_all_book_authors():
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     db.action('drop table if exists bookauthors')
     db.action('create table bookauthors (AuthorID TEXT, BookID TEXT, Role TEXT, UNIQUE (AuthorID, BookID, Role))')
@@ -95,6 +96,7 @@ def set_book_authors(book):
                           (authorid, book['bookid'], role), suppress='UNIQUE')
                 newrefs += 1
     except Exception as e:
+        logger = logging.getLogger(__name__)
         logger.error("Error parsing authorlist for %s: %s %s" % (book['bookname'], type(e).__name__, str(e)))
     return newauthors, newrefs
 
@@ -102,6 +104,7 @@ def set_book_authors(book):
 def set_all_book_series():
     """ Try to set series details for all books """
     db = database.DBConnection()
+    logger = logging.getLogger(__name__)
     books = db.select('select BookID,WorkID,BookName from books where Manual is not "1"')
     counter = 0
     if books:
@@ -138,6 +141,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
         serieslist is a tuple (SeriesID, SeriesNum, SeriesName)
         Return how many api hits and the original publication date if known """
     db = database.DBConnection()
+    logger = logging.getLogger(__name__)
     api_hits = 0
     originalpubdate = ''
     newserieslist = []
@@ -209,6 +213,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
 def get_status(bookid=None, serieslist=None, default=None, adefault=None, authstatus=None):
     """ Get the status of a book according to series/author/newbook/newauthor preferences
         defaults are passed in as newbook or newauthor status """
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     match = db.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
     if not match:
@@ -260,6 +265,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
 
 def delete_empty_series():
     """ remove any series from series table that have no entries in member table, return how many deleted """
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     series = db.select('SELECT SeriesID,SeriesName from series')
     count = 0
@@ -277,6 +283,7 @@ def set_work_id(books=None):
         books is a comma separated list of bookids or if empty, select from database
         Paginate requests to reduce api hits """
 
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     pages = []
     if books:
@@ -340,6 +347,7 @@ def set_work_id(books=None):
 
 def librarything_wait():
     """ Wait for a second between librarything api calls """
+    logger = logging.getLogger(__name__)
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_LT']
     if delay < 1.0:
@@ -362,6 +370,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
         preferably from the cache. If not already cached cache the results
         Return None if no workpage/seriespage available """
     global NEW_WHATWORK, LAST_NEW
+    logger = logging.getLogger(__name__)
     if not bookid and not seriesid:
         logger.error("get_bookwork - No bookID or seriesID")
         return None
@@ -494,6 +503,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
 def set_work_pages():
     """ the workpage link for any books that don't already have one """
     global LAST_NEW
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     cmd = 'select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4'
     cmd += ' and books.AuthorID = authors.AuthorID'
@@ -523,6 +533,7 @@ def set_work_pages():
 def get_work_page(bookid=None):
     """ return the URL of the LibraryThing workpage for the given bookid
         or an empty string if no workpage available """
+    logger = logging.getLogger(__name__)
     if not bookid:
         logger.error("get_work_page - No bookID")
         return ''
@@ -539,6 +550,7 @@ def get_work_page(bookid=None):
 def get_all_series_authors():
     """ For each entry in the series table, get a list of authors contributing to the series
         and import those authors (but NOT their books) into the database """
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     series = db.select('select SeriesID from series')
     if series:
@@ -563,6 +575,7 @@ def get_all_series_authors():
 
 def get_book_authors(bookid):
     """ Get a list of authors contributing to a book from the goodreads bookpage or the librarything bookwork file """
+    logger = logging.getLogger(__name__)
     authorlist = []
     if CONFIG['BOOK_API'] == 'GoodReads':
         params = {"key": CONFIG['GR_API']}
@@ -626,6 +639,7 @@ def add_series_members(seriesid, refresh=False):
         Return how many books you added
     """
     count = 0
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     series = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
     if not series:
@@ -693,9 +707,9 @@ def add_series_members(seriesid, refresh=False):
         db.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
         logger.debug("Found %s series %s, %s new for %s" % (len(members), plural(len(members), "member"),
                                                             count, seriesname))
-        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-            for member in members:
-                logger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
+        searchlogger = logging.getLogger('special.searching')
+        for member in members:
+            searchlogger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
     except Exception as e:
         logger.error("%s adding series %s: %s" % (type(e).__name__, seriesid, str(e)))
         logger.error('%s' % traceback.format_exc())
@@ -708,6 +722,7 @@ def get_series_authors(seriesid):
     """ Get a list of authors contributing to a series
         and import those authors (but NOT their books) into the database
         Return how many authors you added """
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     result = db.match("select count(*) as counter from authors")
     start = int(result['counter'])
@@ -829,6 +844,7 @@ def get_series_members(seriesid=None, seriesname=None):
         Return as a list of lists """
     results = []
     api_hits = 0
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
     if result:
@@ -957,6 +973,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
     if not author or not title or not CONFIG['GB_API']:
         return {}
 
+    logger = logging.getLogger(__name__)
     author = clean_name(author)
     title = clean_name(title)
 
@@ -986,12 +1003,11 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                 if total_fuzz > high_fuzz:
                     high_fuzz = total_fuzz
                     high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
+                fuzzlogger = logging.getLogger('special.fuzz')
                 if book_fuzz < CONFIG.get_int('MATCH_RATIO'):
-                    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                        logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
+                    fuzzlogger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
                 elif auth_fuzz < CONFIG.get_int('MATCH_RATIO'):
-                    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                        logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
+                    fuzzlogger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
                 else:
                     return res
             if 'isbn:' in url:
@@ -1005,8 +1021,8 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
             else:
                 logger.debug("No GoogleBooks match in %d %s%s cached=%s [%s:%s]" %
                              (len(results['items']), stype, plural(len(results['items'])), cached, author, title))
-            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                logger.debug(str(high_parts))
+            fuzzlogger = logging.getLogger('special.fuzz')
+            fuzzlogger.debug(str(high_parts))
     return {}
 
 

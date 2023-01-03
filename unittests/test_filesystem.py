@@ -7,12 +7,12 @@ import os
 import sys
 import mock
 import unittest
+import logging
 
 from unittests.unittesthelpers import LLTestCase
 from lazylibrarian import filesystem
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, get_directory, syspath, remove_dir
-from lazylibrarian.logger import lazylibrarian_log
 
 
 class FilesystemTest(LLTestCase):
@@ -167,24 +167,24 @@ class FilesystemTest(LLTestCase):
     @unittest.skipUnless(sys.platform == 'win32', 'This test is only for Windows')
     def test_get_directory_cannot_be_valid(self):
         # Test the get_directory() function for invalid paths
-        lazylibrarian_log.update_loglevel(override=2)
+        self.set_loglevel(logging.DEBUG)
         save = get_directory("Testdata")
         try:
             DIRS.config['TESTDATA_DIR'] = 'Cannot*Be*?V"al/id&Nope'
-            with self.assertLogs('lazylibrarian.logger', level='WARN'):
+            with self.assertLogs('root', level='WARN'):
                 testdir = get_directory("Testdata")
             self.assertEqual(testdir, DIRS.DATADIR)
         finally:
             DIRS.config['TESTDATA_DIR'] = save
 
     def test_get_directory_create_ok(self):
-        lazylibrarian_log.update_loglevel(override=2)
+        self.set_loglevel(logging.DEBUG)
         save = get_directory("Testdata")
         try:
             newdir = DIRS.get_tmpfilename('newdirtocreate')
             DIRS.config['TESTDATA_DIR'] = newdir
             try:
-                with self.assertLogs('lazylibrarian.logger', level='INFO'):
+                with self.assertLogs('root', level='INFO'):
                     testdir = get_directory("Testdata")
                 self.assertEqual(syspath(testdir), newdir)
             finally:
@@ -193,7 +193,7 @@ class FilesystemTest(LLTestCase):
             DIRS.config['TESTDATA_DIR'] = save
 
     def test_setperm(self):
-        lazylibrarian_log.update_loglevel(override=2)
+        self.set_loglevel(logging.DEBUG)
         afile = DIRS.get_tmpfilename()
         self.assertFalse(filesystem.setperm(afile), 'setperm should not work on file that does not exist')
 
@@ -207,7 +207,7 @@ class FilesystemTest(LLTestCase):
         self.assertTrue(filesystem.setperm(filesystem.get_directory("Testdata")), 'setperm should work on a dir')
 
     def test_make_dirs(self):
-        lazylibrarian_log.update_loglevel(override=1)
+        self.set_loglevel(logging.INFO)
         basedir = DIRS.TMPDIR
         deepdir = os.path.join(basedir, 'testmake', 'level', 'three', 'deepest')
         self.assertTrue(filesystem.make_dirs(deepdir), 'Cannot create deep directory tree')
@@ -216,7 +216,7 @@ class FilesystemTest(LLTestCase):
         self.assertTrue(filesystem.make_dirs(deepdir, new=True), 'Cannot re-create deep directory tree')
 
     def test_safe_move_and_copy(self):
-        lazylibrarian_log.update_loglevel(override=1)
+        self.set_loglevel(logging.INFO)
         startfile = filesystem.any_file(get_directory("Testdata"), 'ini')
         file1 = DIRS.get_tmpfilename('tst-move')
         self.assertFalse(filesystem.path_isfile(file1), 'File1 must not exist to start')
