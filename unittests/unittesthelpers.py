@@ -3,93 +3,27 @@
 # Purpose:
 #   Hold helper functions only needed for testing
 
+import logging
+import os
+import sys
 import unittest
 from collections import Counter
-from os import remove
 from shutil import rmtree
 from typing import List
-import logging
 
 import lazylibrarian
-from lazylibrarian import dbupgrade, startup, config2
+from lazylibrarian import dbupgrade
 from lazylibrarian.configtypes import Access
 from lazylibrarian.filesystem import DIRS, path_isdir
+from lazylibrarian.startup import StartupLazyLibrarian
+from lazylibrarian.config2 import LLConfigHandler, CONFIG  # One day, won't need this any more
+from lazylibrarian.configdefs import BASE_DEFAULTS
 
 
 # noinspection PyBroadException
 class LLTestCase(unittest.TestCase):
-    ALLSETUP = None
-    CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
-    starter = startup.StartupLazyLibrarian()
+    COMPLEX_INI_FILE = './unittests/testdata/testconfig-complex.ini'
     logger = logging.getLogger('unittest')  # For logging unittest
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        options, configfile = cls.starter.startup_parsecommandline(__file__, args=[''], testing=True)
-        cls.starter.load_config(cls.CONFIGFILE, options)
-        cls.starter.init_logs()
-        # Only log errors during the rest of startup
-        logging.getLogger('root').setLevel(logging.ERROR)
-        cls.starter.init_misc(config2.CONFIG)
-        if cls.ALLSETUP:
-            LLTestCase.disableHTTPSWarnings()
-            cls.starter.init_caches(config2.CONFIG)
-            cls.starter.init_database(config2.CONFIG)
-            cls.prepareTestDB()
-        cls.starter.init_build_lists(config2.CONFIG)
-        return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        config2.CONFIG.create_access_summary()
-
-        cls.starter.shutdown(restart=False, update=False, exit=False, testing=True)
-        if cls.ALLSETUP:
-            cls.removetestDB()
-            cls.removetestCache()
-            cls.ALLSETUP = None
-        cls.delete_test_logs()
-        cls.clearGlobals()
-        cls.CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
-        return super().tearDownClass()
-
-    @classmethod
-    def setDoAll(cls, doall=None):
-        cls.ALLSETUP = doall
-
-    @classmethod
-    def setConfigFile(cls, configfile):
-        cls.CONFIGFILE = configfile
-
-    @classmethod
-    def removetestDB(cls):
-        # Delete the database that was created for unit testing
-        if len(DIRS.get_dbfile()):
-            cls.logger.debug("Deleting unit test database")
-            try:
-                remove(DIRS.get_dbfile())
-                remove(DIRS.get_dbfile() + "-shm")
-                remove(DIRS.get_dbfile() + "-wal")
-            except Exception:
-                pass
-
-    @classmethod
-    def removetestCache(cls):
-        # Delete the database that was created for unit testing
-        if len(DIRS.CACHEDIR):
-            cls.logger.debug("Deleting unit test cache directory")
-            try:
-                rmtree(DIRS.CACHEDIR)
-            except Exception:
-                pass
-
-    @classmethod
-    def delete_test_logs(cls):
-        if path_isdir(config2.CONFIG['LOGDIR']) and len(config2.CONFIG['LOGDIR']) > 3:
-            try:  # Do not delete if there is a risk that it's the root of somewhere important
-                rmtree(config2.CONFIG['LOGDIR'], ignore_errors=False)
-            except Exception as e:
-                print(str(e))
 
     def set_loglevel(self, level):
         """ Set the root log level per request; the calling test function depends on it to test log messages """
@@ -112,10 +46,31 @@ class LLTestCase(unittest.TestCase):
         urllib3.disable_warnings()
 
     @classmethod
+    def removeDirectory(cls, cachedir: str, reason: str):
+        if len(cachedir):
+            cls.logger.debug(reason)
+            try:
+                rmtree(cachedir)
+            except Exception:
+                pass
+
+    @classmethod
     def prepareTestDB(cls):
         curr_ver = dbupgrade.upgrade_needed()
         if curr_ver:
             dbupgrade.db_upgrade(curr_ver)
+
+    @classmethod
+    def removetestDB(cls):
+        # Delete the database that was created for unit testing
+        if len(DIRS.get_dbfile()):
+            cls.logger.debug("Deleting unit test database")
+            try:
+                os.remove(DIRS.get_dbfile())
+                os.remove(DIRS.get_dbfile() + "-shm")
+                os.remove(DIRS.get_dbfile() + "-wal")
+            except Exception:
+                pass
 
     def assertEndsWith(self, teststr, end):
         self.assertEqual(teststr[-len(end):], end)
@@ -128,6 +83,93 @@ class LLTestCase(unittest.TestCase):
                 vgot = got[access]
                 vexp = expected[access]
                 self.assertEqual(vgot, vexp, f'{access}:{vgot}!={vexp}: {error}')
+
+    @classmethod
+    def cfg(cls) -> LLConfigHandler:
+        pass
+
+
+class LLTestCaseWithConfigandDIRS(LLTestCase):
+    """ Test case that needs a config and DIRS object to function """
+    from lazylibrarian.config2 import LLConfigHandler
+
+    CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
+    config: LLConfigHandler
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        DIRS.set_fullpath_args(os.path.abspath(__file__), sys.argv[1:])
+        cls.config = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=cls.CONFIGFILE)
+        DIRS.set_config(cls.config)
+        DIRS.initialize_logger()
+        DIRS.set_datadir(DIRS.PROG_DIR)
+        DIRS.ensure_log_dir()
+
+    @classmethod
+    def cfg(cls) -> LLConfigHandler:
+        return cls.config
+
+    @classmethod
+    def removetestCache(cls):
+        super().removeDirectory(DIRS.CACHEDIR, "Deleting unit test cache directory")
+
+    @classmethod
+    def delete_test_logs(cls):
+        if path_isdir(cls.config['LOGDIR']) and len(cls.config['LOGDIR']) > 3:
+            try:  # Do not delete if there is a risk that it's the root of somewhere important
+                rmtree(cls.config['LOGDIR'], ignore_errors=False)
+            except Exception as e:
+                print(str(e))
+
+
+class LLTestCaseWithStartup(LLTestCase):
+    """ LL test case that uses global CONFIG as well as some of the standard LL startup sequence.
+    These should get increasingly rare as the code gets parameterised. """
+    CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
+    starter: StartupLazyLibrarian
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.starter = StartupLazyLibrarian()
+        options, configfile = cls.starter.startup_parsecommandline(__file__, args=[''], testing=True)
+        cls.starter.load_config(cls.CONFIGFILE, options)
+        cls.starter.init_logs()
+        # Only log errors during the rest of startup
+        logging.getLogger('root').setLevel(logging.ERROR)
+        cls.starter.init_misc(CONFIG)
+        LLTestCase.disableHTTPSWarnings()
+        cls.starter.init_caches(CONFIG)
+        cls.starter.init_database(CONFIG)
+        cls.prepareTestDB()
+        cls.starter.init_build_lists(CONFIG)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.starter.shutdown(restart=False, update=False, exit=False, testing=True)
+        cls.removetestDB()
+        cls.removetestCache()
+        cls.delete_test_logs()
+        cls.clearGlobals()
+        cls.CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
+        return super().tearDownClass()
+
+    @classmethod
+    def cfg(cls) -> LLConfigHandler:
+        return CONFIG
+
+    @classmethod
+    def removetestCache(cls):
+        super().removeDirectory(DIRS.CACHEDIR, "Deleting unit test cache directory")
+
+    @classmethod
+    def delete_test_logs(cls):
+        if path_isdir(CONFIG['LOGDIR']) and len(CONFIG['LOGDIR']) > 3:
+            try:  # Do not delete if there is a risk that it's the root of somewhere important
+                rmtree(CONFIG['LOGDIR'], ignore_errors=False)
+            except Exception as e:
+                print(str(e))
+
 
 
 def false_method() -> bool:

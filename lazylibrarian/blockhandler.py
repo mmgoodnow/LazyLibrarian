@@ -100,10 +100,12 @@ class BlockHandler:
         daystr = today() if not pretend_day else pretend_day
         if self._nab_apicount_day != daystr:
             self._nab_apicount_day = daystr
-            for provider in self._newznab:
-                provider.set_int('APICOUNT', 0)
-            for provider in self._torznab:
-                provider.set_int('APICOUNT', 0)
+            if self._newznab:
+                for provider in self._newznab:
+                    provider.set_int('APICOUNT', 0)
+            if self._torznab:
+                for provider in self._torznab:
+                    provider.set_int('APICOUNT', 0)
             return True
         return False
 

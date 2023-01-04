@@ -53,9 +53,9 @@ loggers:
     special.cache:
         level: INFO
     special.configread:
-        level: ERROR
+        level: INFO
     special.configwrite:
-        level: ERROR
+        level: INFO
     special.dbcomms:
         level: INFO
     special.dbcomms.dbtiming:

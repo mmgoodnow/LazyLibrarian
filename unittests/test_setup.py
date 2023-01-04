@@ -10,12 +10,6 @@ from unittests.unittesthelpers import LLTestCase
 
 class SetupTest(LLTestCase):
 
-    # Initialisation code that needs to run only once
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setDoAll(True)
-        return super().setUpClass()
-
     def testConfig(self):
         # Validate that basic global objects and configs have run
         self.assertIsNotNone(CONFIG)

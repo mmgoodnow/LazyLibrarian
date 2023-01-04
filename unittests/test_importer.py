@@ -5,25 +5,23 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import importer
-from unittests.unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCaseWithStartup
 
 
-class ImporterTest(LLTestCase):
+class ImporterTest(LLTestCaseWithStartup):
     bookapi = ''
 
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        super().setDoAll(doall=True)
         rc = super().setUpClass()
-        cls.bookapi = CONFIG['BOOK_API']
+        cls.bookapi = cls.cfg()['BOOK_API']
         return rc
 
     @classmethod
     def tearDownClass(cls) -> None:
-        CONFIG.set_str('BOOK_API', cls.bookapi)
+        cls.cfg().set_str('BOOK_API', cls.bookapi)
         return super().tearDownClass()
 
     def test_is_valid_authorid_InvalidIDs(self):
@@ -35,19 +33,19 @@ class ImporterTest(LLTestCase):
 
     def test_is_valid_authorid_GoogleBooks(self):
         # Test potentially valid Google Books IDs
-        CONFIG.set_str('BOOK_API', 'GoogleBooks')
+        self.cfg().set_str('BOOK_API', 'GoogleBooks')
         self.assertEqual(importer.is_valid_authorid('123'), True)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), True)
 
     def test_is_valid_authorid_Goodreads(self):
         # Test potentially valid Goodreads Books IDs
-        CONFIG.set_str('BOOK_API', 'GoodReads')
+        self.cfg().set_str('BOOK_API', 'GoodReads')
         self.assertEqual(importer.is_valid_authorid('123'), True)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), False)
 
     def test_is_valid_authorid_OpenLibrary(self):
         # Test potentially valid Goodreads Books IDs
-        CONFIG.set_str('BOOK_API', 'OpenLibrary')
+        self.cfg().set_str('BOOK_API', 'OpenLibrary')
         self.assertEqual(importer.is_valid_authorid('123'), False)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), True)
 
@@ -74,7 +72,7 @@ class ImporterTest(LLTestCase):
     @mock.patch.object(importer, 'get_author_image')  # Patches images.get_author_image in import only
     def test_add_author_name_to_db_KnownAuthor_OL(self, images_get_author_image: MagicMock,
                                                   ol_find_author_id: MagicMock, gr_find_author_id: MagicMock):
-        CONFIG.set_str('BOOK_API', 'OpenLibrary')
+        self.cfg().set_str('BOOK_API', 'OpenLibrary')
         testname = 'Douglas Adams'
         images_get_author_image.return_value = 'douglas.png'
         gr_find_author_id.return_value = {'authorid': 'OL272947A',
@@ -101,7 +99,7 @@ class ImporterTest(LLTestCase):
     @mock.patch.object(importer, 'get_author_image')  # Patches images.get_author_image in import only
     def test_add_author_to_db_JustByID(self, images_get_author_image: MagicMock, ol_get_author_info: MagicMock):
         testid = 'OL2219179A'  # Maud D. Davies
-        CONFIG.set_str('BOOK_API', 'OpenLibrary')
+        self.cfg().set_str('BOOK_API', 'OpenLibrary')
         ol_get_author_info.return_value = {'authorid': 'OL2219179A',
                                            'authorlink': 'https://www.openlibrary.org/authors/OL2219179A',
                                            'authorimg': 'images/nophoto.png', 'authorborn': '', 'authordeath': '',

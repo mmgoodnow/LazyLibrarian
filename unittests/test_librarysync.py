@@ -7,15 +7,14 @@ import os
 
 from lazylibrarian import librarysync
 from lazylibrarian.filesystem import get_directory
-from unittests.unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCaseWithConfigandDIRS
 
 
-class LibrarySyncTest(LLTestCase):
+class LibrarySyncTest(LLTestCaseWithConfigandDIRS):
 
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        super().setDoAll(True)
         return super().setUpClass()
 
     def testGetBookInfo_NoExtension(self):

@@ -16,10 +16,6 @@ def some_function(path: bool, ext: bool) -> (str, str, int):
 
 
 class TestProcessControl(LLTestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setDoAll(False)
-        return super().setUpClass()
 
     def some_method(self, depth: int, path: bool, ext: bool) -> (str, str, int):
         """ A method that wants to know who called it """

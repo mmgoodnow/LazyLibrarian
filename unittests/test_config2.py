@@ -9,28 +9,22 @@ from typing import List, Dict
 
 import mock
 
-from lazylibrarian import config2, configdefs
+from lazylibrarian.config2 import LLConfigHandler, are_equivalent
+from lazylibrarian.configdefs import BASE_DEFAULTS
 from lazylibrarian.configdefs import get_default
 from lazylibrarian.configtypes import Access
 from lazylibrarian.filesystem import DIRS, syspath, remove_file, path_isfile, safe_copy
 from lazylibrarian.formatter import ImportPrefs
-from unittests.unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCaseWithConfigandDIRS
 
 # Ini files used for testing load/save functions.
 # If these change, many test cases need to be updated. Run to find out which ones
 SMALL_INI_FILE = './unittests/testdata/testconfig-defaults.ini'
-COMPLEX_INI_FILE = './unittests/testdata/testconfig-complex.ini'
 ERROR_INI_FILE = './unittests/testdata/testconfig-errors.ini'
 
 
 # noinspection PyBroadException
-class Config2Test(LLTestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.setConfigFile('No Config File*')
-        super().setDoAll(False)
-        return super().setUpClass()
+class Config2Test(LLTestCaseWithConfigandDIRS):
 
     def test_log_catching(self):
         """ Test that we can test for log events """
@@ -43,7 +37,7 @@ class Config2Test(LLTestCase):
         # Check more error levels, but with debug messages ignored
         with self.assertLogs(self.logger, level='DEBUG') as cm:
             self.logger.error('test error')
-            self.logger.warn('test warn')
+            self.logger.warning('test warn')
             self.logger.info('test info')
             self.logger.debug('test debug')
         self.assertListEqual(cm.output, [
@@ -71,20 +65,18 @@ class Config2Test(LLTestCase):
             'INFO:unittest:test info'
         ], 'Expected an info message')
 
-
-
     def test_compare_basic_configs(self):
         """ Test that we can compare basic configs and tell if they differ """
-        cfg1 = config2.LLConfigHandler()
-        cfg2 = config2.LLConfigHandler()
+        cfg1 = LLConfigHandler()
+        cfg2 = LLConfigHandler()
 
         with self.assertLogs('root', level='INFO') as cm:
             self.set_basic_test_values(cfg1)
             self.set_basic_test_values(cfg2)
-            self.assertTrue(config2.are_equivalent(cfg1, cfg2))
+            self.assertTrue(are_equivalent(cfg1, cfg2))
 
             cfg1.set_int('a-new-int', 1)
-            self.assertFalse(config2.are_equivalent(cfg1, cfg2))
+            self.assertFalse(are_equivalent(cfg1, cfg2))
         self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.config2:Array lengths differ: 6 != 5',
             'WARNING:lazylibrarian.config2:Base configs differ'
@@ -92,10 +84,10 @@ class Config2Test(LLTestCase):
 
         with self.assertLogs('root', level='INFO') as cm:
             cfg2.set_int('a-new-int', 1)
-            self.assertTrue(config2.are_equivalent(cfg1, cfg2))
+            self.assertTrue(are_equivalent(cfg1, cfg2))
 
             cfg2.set_str('another-str', 'help')
-            self.assertFalse(config2.are_equivalent(cfg1, cfg2))
+            self.assertFalse(are_equivalent(cfg1, cfg2))
         self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.config2:Array lengths differ: 6 != 7',
             'WARNING:lazylibrarian.config2:Base configs differ'
@@ -114,7 +106,7 @@ class Config2Test(LLTestCase):
                     vexp = expected[key][access]
                     self.assertEqual(vgot, vexp, f'[{key}.{access}]:{vgot}!={vexp}: {error}')
 
-    def set_basic_test_values(self, cfg: config2.LLConfigHandler):
+    def set_basic_test_values(self, cfg: LLConfigHandler):
         """ Helper function, sets some basic config values """
         with self.assertLogs('root', level='INFO') as cm:
             cfg.set_str('somestr', 'abc')
@@ -132,7 +124,7 @@ class Config2Test(LLTestCase):
 
     def test_basic_types(self):
         """ Tests basic config types inside a ConfigHandler """
-        cfg = config2.LLConfigHandler()
+        cfg = LLConfigHandler()
         self.set_basic_test_values(cfg)
 
         with self.assertLogs('root', level='INFO') as cm:
@@ -149,7 +141,7 @@ class Config2Test(LLTestCase):
             'ERROR:lazylibrarian.configtypes:Config[MAIL2]: read_error'
         ])
 
-    def do_csv_ops(self, cfg: config2.LLConfigHandler):
+    def do_csv_ops(self, cfg: LLConfigHandler):
         with self.assertLogs('root', level='INFO') as cm:
             cfg.set_csv('csv', 'allan,bob,fred')
             cfg.set_csv('csv2', '')
@@ -169,7 +161,7 @@ class Config2Test(LLTestCase):
 
     def test_csv(self):
         """ Test ConfigCSV handling """
-        cfg = config2.LLConfigHandler()
+        cfg = LLConfigHandler()
         self.do_csv_ops(cfg)
 
         with self.assertLogs('root', level='INFO') as cm:
@@ -189,7 +181,7 @@ class Config2Test(LLTestCase):
 
     def test_read_error_counters(self):
         """ Test that read error counters are correct in lots of cases """
-        cfg = config2.LLConfigHandler()
+        cfg = LLConfigHandler()
 
         # Try to access non-existing keys
         with self.assertLogs('root', level='INFO') as cm:
@@ -215,7 +207,7 @@ class Config2Test(LLTestCase):
         self.do_access_compare(ecs, expectedecs, [], 'Errors  not as expected')
 
     def test_all_error_lists(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
 
         allerrorlists = cfg.all_error_lists()
         for errorlist in allerrorlists:
@@ -224,7 +216,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(len(allerrorlists), 10, 'Expect there to be 1 base error list, plus one per array instance')
 
     def test_all_configs(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         allconfigs = cfg.all_configs()
         defaults = nondefaults = 0
         for name, item in allconfigs:
@@ -237,7 +229,7 @@ class Config2Test(LLTestCase):
 
     def test_access_counters(self):
         """ Test that read/create counters work correctly when there are no errors """
-        cfg = config2.LLConfigHandler()
+        cfg = LLConfigHandler()
 
         self.do_csv_ops(cfg)
         self.set_basic_test_values(cfg)
@@ -292,14 +284,14 @@ class Config2Test(LLTestCase):
     def test_LLdefaults(self):
         """ Test setting the default LL config """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
-        self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS),
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
+        self.assertEqual(len(cfg.config), len(BASE_DEFAULTS),
                          'Maybe there is a duplicate entry in BASE_DEFAULTS')
         self.assertEqual(cfg.get_str('AUTH_TYPE'), 'BASIC')
 
     def test_schedule_list(self):
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
 
         keynames = []
         schednames = []
@@ -330,7 +322,7 @@ class Config2Test(LLTestCase):
     def test_force_lower(self):
         """ Test various string configss that have force_lower and make sure they are. """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
 
         for key, item in cfg.config.items():
             if item.get_force_lower():
@@ -344,14 +336,14 @@ class Config2Test(LLTestCase):
         self.set_loglevel(logging.INFO)
         with self.assertLogs('root', level='INFO'):
             # Because no defaults are loaded, every item will case a warning
-            cfg = config2.LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
+            cfg = LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()
         self.do_access_compare(acs, {}, [], 'Loading ini without defaults should not load anything')
 
     def test_configread_defaultini(self):
         """ Test reading a near-default ini file, with all the base definitions loads """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()  # We just want to know the right things were updated
         expectedacs = {
             'GENERAL.LOGLEVEL': Counter({Access.WRITE_OK: 1}),
@@ -368,7 +360,7 @@ class Config2Test(LLTestCase):
     def test_configread_nondefault(self):
         """ Test reading a more complex config.ini file """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
             "GENERAL.LOGDIR": Counter({Access.WRITE_OK: 1}),
@@ -418,7 +410,7 @@ class Config2Test(LLTestCase):
         """ Test reading a config.ini file with errors we should be able to correct """
         self.set_loglevel(logging.DEBUG)
         with self.assertLogs('root', level='DEBUG'):
-            cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=ERROR_INI_FILE)
+            cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=ERROR_INI_FILE)
         # The ini file had array sections without _ in the name - check it's correct now
         for name in cfg.provider_names():
             array = cfg.get_array(name)
@@ -431,14 +423,14 @@ class Config2Test(LLTestCase):
     def test_configread_correcterrors(self):
         """ Read config file with errors and make sure they are gone on save/reload """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=ERROR_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=ERROR_INI_FILE)
 
         testfile = DIRS.get_tmpfilename('test-fixed.ini')
         try:
             count = cfg.save_config(testfile, False)  # Save only non-default values
             self.assertTrue(count > 20, 'Saving default config.ini has unexpected # of changes')
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
-            self.assertTrue(config2.are_equivalent(cfg, cfgnew),
+            cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(are_equivalent(cfg, cfgnew),
                             f'Save error: {testfile} is not the same as original file!')
         finally:
             self.assertTrue(remove_file(testfile), 'Could not remove test-fixed.ini')
@@ -446,7 +438,7 @@ class Config2Test(LLTestCase):
     def test_provider_iterator(self):
         """ Test the iterator function used to access providers """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         # Test reading items
         names = []
         for item in cfg.providers('NewzNab'):
@@ -477,7 +469,7 @@ class Config2Test(LLTestCase):
     def test_configread_nondefault_access(self):
         """ Test accessing a more complex config.ini file """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         cfg.clear_access_counters()
 
         with self.assertLogs('root', level='ERROR'):  # There will be errors; catch them
@@ -516,18 +508,18 @@ class Config2Test(LLTestCase):
     def test_save_config(self):
         """ Test saving config file """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         testfile = DIRS.get_tmpfilename('test-small.ini')
         try:
             count = cfg.save_config(testfile, False)  # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
-            self.assertTrue(config2.are_equivalent(cfg, cfgnew),
+            cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(are_equivalent(cfg, cfgnew),
                             f'Save error: {testfile} is not the same as original file!')
         finally:
             self.assertTrue(remove_file(testfile), 'Could not remove test-small.ini')
 
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         with self.assertLogs('root', level='WARN'):
             count = cfg.save_config('?*/\\invalid<>file', False)  # Save only non-default values
         self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
@@ -535,8 +527,8 @@ class Config2Test(LLTestCase):
             testfile = DIRS.get_tmpfilename('test-changed.ini')
             count = cfg.save_config(testfile, False)  # Save only non-default values
             self.assertEqual(count, 39, 'Saving config.ini has unexpected # of non-default items')
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
-            self.assertTrue(config2.are_equivalent(cfg, cfgnew),
+            cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(are_equivalent(cfg, cfgnew),
                             f'Save error: {testfile} is not the same as original file!')
         finally:
             self.assertTrue(remove_file(testfile), 'Could not remove test-changed.ini')
@@ -544,8 +536,8 @@ class Config2Test(LLTestCase):
         try:
             testfile = DIRS.get_tmpfilename('test-all.ini')
             _ = cfg.save_config(testfile, True)  # Save everything.
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
-            self.assertTrue(config2.are_equivalent(cfg, cfgnew),
+            cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(are_equivalent(cfg, cfgnew),
                             f'Save error: {testfile} is not the same as original file!')
         finally:
             self.assertTrue(remove_file(testfile), 'Could not remove test-all.ini')
@@ -553,16 +545,16 @@ class Config2Test(LLTestCase):
     def test_persistence_flag(self):
         """ Test whether the persist flag is obeyed when saving """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         initial = cfg['Unpersisted_test']
         cfg.set_int('Unpersisted_test', 17)
         testfile = DIRS.get_tmpfilename('test-small.ini')
         try:
             count = cfg.save_config(testfile, False)  # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
+            cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
             with self.assertLogs('root', level='WARN'):
-                self.assertFalse(config2.are_equivalent(cfg, cfgnew),
+                self.assertFalse(are_equivalent(cfg, cfgnew),
                                  f'Save error: {testfile} is identical to the original')
         finally:
             self.assertTrue(remove_file(testfile), 'Could not remove test-small.ini')
@@ -573,8 +565,8 @@ class Config2Test(LLTestCase):
         """ Test saving config file while keeping the old one as a .bak file """
         self.set_loglevel(logging.INFO)
         test_file = DIRS.get_tmpfilename('test.ini')
-        safe_copy(COMPLEX_INI_FILE, test_file)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=test_file)
+        safe_copy(self.COMPLEX_INI_FILE, test_file)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=test_file)
 
         # delete potential backup file before starting
         backupfile = syspath(cfg.configfilename + '.bak')
@@ -589,8 +581,8 @@ class Config2Test(LLTestCase):
             acs = cfg.get_all_accesses()
             self.do_access_compare(acs, {}, [], 'Expect all accesses cleared after saving')
 
-            cfgbak = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=backupfile)
-            self.assertTrue(config2.are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
+            cfgbak = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=backupfile)
+            self.assertTrue(are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
 
             # Verify that it works when .bak file exists as well:
             with self.assertLogs('root', level='INFO') as cm:  # Expect only INFO messages
@@ -610,7 +602,7 @@ class Config2Test(LLTestCase):
     def test_post_save_actions(self, mock_open, mock_makedirs, mock_rmtree):
         """ Test that the things done after saving and backing up are done correctly """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
 
         # The only test is to make sure the mako cache is clearer
         cfg.config['HTTP_LOOK'].set_str('a_special_ui')  # Force the mako cache to get cleared
@@ -628,7 +620,7 @@ class Config2Test(LLTestCase):
 
     def test_post_load_fixup(self):
         """ Verify that the post_load_fixup routine does the right thing """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
 
         # Set some values that trigger warnings/fixes
         import os
@@ -671,7 +663,7 @@ class Config2Test(LLTestCase):
 
     def test_array_entry_usage(self):
         """ Verify that array entries can be added to and deleted """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         # with self.assertLogs('root', level='WARN'):
 
         array = cfg.get_array('NOPEDOESNOTEXIST')
@@ -707,7 +699,7 @@ class Config2Test(LLTestCase):
     def test_case_tolerance(self):
         """ Make sure the config object is as Case TOLErant as possible """
         self.set_loglevel(logging.INFO)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
 
         with self.assertLogs('root', level='INFO') as cm:
             # Access an entry that doesn't exist
@@ -751,40 +743,40 @@ class Config2Test(LLTestCase):
         ], 'Unexpected log messages when testing tolerance')
 
     def test_use_rss(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
         self.assertFalse(cfg.use_rss())
 
     def test_use_wishlist(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
         self.assertFalse(cfg.use_wishlist())
 
     def test_use_irc(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
         self.assertFalse(cfg.use_irc())
 
     def test_use_nzb(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
         self.assertFalse(cfg.use_nzb())
 
     def test_use_tor(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
         self.assertFalse(cfg.use_tor())
 
     def test_use_direct(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
         self.assertFalse(cfg.use_direct())
 
     def test_use_any(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         self.assertTrue(cfg.use_any(), 'There should be some providers in use')
 
     def test_count_all_providers(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         count = cfg.total_active_providers()
         self.assertEqual(count, 2, 'Expected 2 active providers from ini file')
 
     def test_add_access_errors_to_log(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         # Make sure there are no errors from load
         allerrorlists = cfg.all_error_lists()
         for errorlist in allerrorlists:
@@ -809,7 +801,7 @@ class Config2Test(LLTestCase):
         ])
 
     def test_update_providers_from_ui(self):
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
 
         rss0 = cfg.get_array_dict('rss', 0)
         self.assertIsNotNone(rss0, 'Config initialization error, expect an RSS entry')
@@ -826,11 +818,11 @@ class Config2Test(LLTestCase):
 
     def test_onchange(self):
         """ Test the onchange mechanism that calls a method when a config changes """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS)
         self.assertEqual(ImportPrefs.LANG_LIST, ['en', 'eng', 'en-US', 'en-GB'])
 
         lang1 = cfg.get_str('IMP_PREFLANG')  # This item has an onchange method
-        cfg.load_configfile(COMPLEX_INI_FILE)  # This changes the IMP_PREFLANG value
+        cfg.load_configfile(self.COMPLEX_INI_FILE)  # This changes the IMP_PREFLANG value
         lang2 = cfg.get_str('IMP_PREFLANG')
         self.assertNotEqual(lang1, lang2)
         self.assertEqual(ImportPrefs.LANG_LIST, ['de', 'fr', 'en'])

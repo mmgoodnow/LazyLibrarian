@@ -14,11 +14,6 @@ from unittests.unittesthelpers import LLTestCase
 # noinspection PyBroadException
 class Config2Test(LLTestCase):
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setDoAll(False)
-        return super().setUpClass()
-
     def test_ConfigItem(self):
         ci = configtypes.ConfigItem(section='Section', key='Key', default=17)
         self.assertFalse(ci.is_key('Section'))

@@ -2,11 +2,11 @@ version: 1
 disable_existing_loggers: false
 formatters:
     simple:
-        format: '%(asctime)s %(threadName)s %(levelname)s: %(message)s [%(module)s.%(lineno)s]'
+        format: '%(asctime)s %(threadName)s %(levelname)s: %(message)s [%(module)s.py.%(lineno)s]'
     detail:
-        format: "%(asctime)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s"
+        format: "%(asctime)s %(threadName)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s"
     timing:
-        format: '%(asctime)s %(levelname)s, %(filename)s.%(funcName)s() (line %(lineno)s): %(message)s'
+        format: '%(asctime)s %(threadName)s %(levelname)s, %(filename)s.%(funcName)s() (line %(lineno)s): %(message)s'
 handlers:
     console:
         class: logging.StreamHandler
@@ -44,32 +44,40 @@ handlers:
         encoding: utf
 loggers:
     unittest:
-        level: DEBUG
+        level: INFO
         handlers: [console]
     special:
         level: DEBUG
         handlers: [console, debug_file]
         propagate: false
+    special.cache:
+        level: INFO
     special.configread:
-        level: DEBUG
+        level: INFO
     special.configwrite:
-        level: DEBUG
-    special.matching:
-        level: DEBUG
-    special.fuzz:
-        level: DEBUG
+        level: INFO
     special.dbcomms:
-        level: DEBUG
+        level: INFO
     special.dbcomms.dbtiming:
-        level: DEBUG
+        level: INFO
         propagate: false
         handlers: [console_timing, debug_timing_file]
-    special.cache:
-        level: DEBUG
     special.dlcomms:
-        level: DEBUG
+        level: INFO
+    special.fileperms:
+        level: INFO
+    special.fuzz:
+        level: INFO
+    special.iterateproviders:
+        level: INFO
+    special.libsync:
+        level: INFO
+    special.matching:
+        level: INFO
+    special.postprocess:
+        level: INFO
     special.searching:
-        level: DEBUG
+        level: INFO
 root:
     level: INFO
     handlers: [console, info_file, debug_file]

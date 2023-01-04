@@ -9,30 +9,25 @@ import pytest_order  # Needed to force unit test order
 import mock
 import logging
 
-from lazylibrarian.config2 import CONFIG, LLConfigHandler
+from lazylibrarian.config2 import LLConfigHandler
 from lazylibrarian import telemetry, configdefs
-from unittests.unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCaseWithConfigandDIRS
 
 
-class TelemetryTest(LLTestCase):
+class TelemetryTest(LLTestCaseWithConfigandDIRS):
 
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        super().setConfigFile('./unittests/testdata/testconfig-nondefault.ini')
-        super().setDoAll(doall=False)
+        cls.CONFIGFILE = './unittests/testdata/testconfig-nondefault.ini'
+        super().setUpClass()
         telemetry.TELEMETRY.clear_usage_data()
-        return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        return super().tearDownClass()
 
     def _do_ids_match(self):
         self.set_loglevel(logging.INFO)
         t = telemetry.LazyTelemetry()
-        loaded_id = CONFIG['SERVER_ID']
-        serverid = t.ensure_server_id(CONFIG)
+        loaded_id = self.cfg()['SERVER_ID']
+        serverid = t.ensure_server_id(self.cfg())
         self.assertIsNotNone(serverid)
         if loaded_id:
             self.assertEqual(serverid, loaded_id)
@@ -49,15 +44,15 @@ class TelemetryTest(LLTestCase):
         self.set_loglevel(logging.INFO)
         saved_id = self._do_ids_match()
         # Pretend we don't have an ID to ensure generation works
-        telemetry.LazyTelemetry().clear_id(CONFIG)
+        telemetry.LazyTelemetry().clear_id(self.cfg())
 
         new_id = self._do_ids_match()
         self.assertNotEqual(saved_id, new_id, 'ID generation does not work')
         self.assertEqual(len(saved_id), len(new_id), 'Expect constant length IDs')
 
         # Restore to known good state
-        telemetry.LazyTelemetry().clear_id(CONFIG)
-        CONFIG['SERVER_ID'] = saved_id
+        telemetry.LazyTelemetry().clear_id(self.cfg())
+        self.cfg()['SERVER_ID'] = saved_id
         check_id = self._do_ids_match()
         self.assertEqual(saved_id, check_id, 'Test logic is broken')
 
@@ -68,10 +63,10 @@ class TelemetryTest(LLTestCase):
 
         # Check we can read the new ID and test again
         with self.assertLogs('root', logging.INFO):
-            CONFIG.save_config_and_backup_old(section='Telemetry')
+            self.cfg().save_config_and_backup_old(section='Telemetry')
 
         # Test that writing went right
-        cfg = LLConfigHandler(configdefs.BASE_DEFAULTS, CONFIG.configfilename)
+        cfg = LLConfigHandler(configdefs.BASE_DEFAULTS, self.cfg().configfilename)
         id_from_file = cfg['Server_id']
         self.assertEqual(my_id, id_from_file, 'ID written to config.ini does not match')
 
@@ -79,17 +74,17 @@ class TelemetryTest(LLTestCase):
 
     def test_set_install_data(self):
         t = telemetry.LazyTelemetry()
-        t.set_install_data(CONFIG, testing=True)
+        t.set_install_data(self.cfg(), testing=True)
         srv = t.get_server_telemetry()
         self.assertIsInstance(srv, dict)
-        self.assertEqual(srv['id'], CONFIG['SERVER_ID'])
+        self.assertEqual(srv['id'], self.cfg()['SERVER_ID'])
         self.assertIsInstance(srv['uptime_seconds'], int)
         self.assertEqual(srv['python_ver'], '3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]')
 
     def test_set_config_data(self):
         t = telemetry.LazyTelemetry()
 
-        t.set_config_data(CONFIG)
+        t.set_config_data(self.cfg())
         cfg = t.get_config_telemetry()
 
         self.assertIsInstance(cfg, dict)
@@ -127,7 +122,7 @@ class TelemetryTest(LLTestCase):
     @pytest.mark.order(after="test_record_usage_data")
     def test_construct_data_string(self):
         t = telemetry.LazyTelemetry()
-        t.set_install_data(CONFIG, testing=True)
+        t.set_install_data(self.cfg(), testing=True)
         s_got = dict()
         s_got['server'] = t.construct_data_string(send_config=False, send_usage=False)
         s_got['config'] = t.construct_data_string(send_config=True, send_usage=False, send_server=False)

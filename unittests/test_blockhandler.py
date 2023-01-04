@@ -7,32 +7,22 @@ import time
 import logging
 
 from unittests.unittesthelpers import LLTestCase
-from lazylibrarian.config2 import CONFIG, LLConfigHandler
+from lazylibrarian.config2 import LLConfigHandler
 from lazylibrarian.configarray import ArrayConfig
-from lazylibrarian.blockhandler import BLOCKHANDLER, BlockHandler
+from lazylibrarian.configdefs import BASE_DEFAULTS
+from lazylibrarian.blockhandler import BlockHandler
 
 
 class BlockhandlerTest(LLTestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setDoAll(False)
-        return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        BLOCKHANDLER.clear_all()
-        return super().tearDownClass()
-
-    def setUp(self):
-        BLOCKHANDLER.clear_all()  # Clear before each test
 
     def test_set_config(self):
-        # Create a new, emppty handler for this
+        # Create a new, empty handler for this
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         handler = BlockHandler()
         self.assertIsNone(handler._config)
         self.assertIsNone(handler._newznab)
         self.assertIsNone(handler._torznab)
-        handler.set_config(CONFIG, CONFIG.providers("NEWZNAB"), CONFIG.providers("TORZNAB"))
+        handler.set_config(cfg, cfg.providers("NEWZNAB"), cfg.providers("TORZNAB"))
         self.assertIsInstance(handler._config, LLConfigHandler)
         self.assertIsInstance(handler._newznab, ArrayConfig)
         self.assertIsInstance(handler._torznab, ArrayConfig)
@@ -40,118 +30,128 @@ class BlockhandlerTest(LLTestCase):
 
     def test_gb_call(self):
         self.set_loglevel(logging.INFO)
-        msg, ok = BLOCKHANDLER.add_gb_call()
+        handler = BlockHandler()
+        msg, ok = handler.add_gb_call()
         self.assertTrue(ok, 'Nothing should be blocked')
         self.assertEqual(msg, 'Ok')
 
-        calls = BLOCKHANDLER.get_gb_calls()
+        calls = handler.get_gb_calls()
         self.assertEqual(calls, 1, 'Count of gb calls not correct')
 
-        BLOCKHANDLER.block_provider('googleapis', 'bored with testing', delay=2)  # 2 seconds!
-        msg, ok = BLOCKHANDLER.add_gb_call()
+        handler.block_provider('googleapis', 'bored with testing', delay=2)  # 2 seconds!
+        msg, ok = handler.add_gb_call()
         self.assertFalse(ok, 'This API should be blocked')
         self.assertEqual(msg, 'Blocked')
 
         time.sleep(2.1)
-        msg, ok = BLOCKHANDLER.add_gb_call()
+        msg, ok = handler.add_gb_call()
         self.assertTrue(ok, 'Nothing should be blocked')
         self.assertEqual(msg, 'Ok')
-        calls = BLOCKHANDLER.get_gb_calls()
+        calls = handler.get_gb_calls()
         self.assertEqual(calls, 0, 'Count of gb calls should have been reset')
 
     def test_remove_provider_entry(self):
         name = 'test'
+        handler = BlockHandler()
         with self.assertLogs('root', 'DEBUG'):
-            _ = BLOCKHANDLER.block_provider(name, 'blocked', delay=120)
-        self.assertTrue(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 1)
+            _ = handler.block_provider(name, 'blocked', delay=120)
+        self.assertTrue(handler.is_blocked(name), 'Expected this to be blocked')
+        self.assertEqual(handler.number_blocked(), 1)
 
-        BLOCKHANDLER.remove_provider_entry(name)
-        self.assertFalse(BLOCKHANDLER.is_blocked(name))
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 0)
+        handler.remove_provider_entry(name)
+        self.assertFalse(handler.is_blocked(name))
+        self.assertEqual(handler.number_blocked(), 0)
 
     def test_block_provider(self):
         self.set_loglevel(logging.DEBUG)
+        handler = BlockHandler()
         name = 'someone'
         with self.assertLogs('root', 'DEBUG') as cm:
-            delay = BLOCKHANDLER.block_provider(name, 'just because', delay=120)  # Block for 2 minutes
+            delay = handler.block_provider(name, 'just because', delay=120)  # Block for 2 minutes
         self.assertListEqual(cm.output, [
             'INFO:lazylibrarian.blockhandler:Blocking provider someone for 2 minutes because just because',
             'DEBUG:lazylibrarian.blockhandler:Provider Blocklist contains 1 entry'
         ])
-        self.assertTrue(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
+        self.assertTrue(handler.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(delay, 120, 'Timeout value is unexpected')
 
         # Repeat the same block with a shorter time
         newdelay = 2
         with self.assertLogs('root', 'DEBUG'):
-            delay = BLOCKHANDLER.block_provider('someone', 'just because', delay=newdelay)
+            delay = handler.block_provider('someone', 'just because', delay=newdelay)
         self.assertListEqual(cm.output, [
             'INFO:lazylibrarian.blockhandler:Blocking provider someone for 2 minutes because just because',
             'DEBUG:lazylibrarian.blockhandler:Provider Blocklist contains 1 entry'
         ])
-        self.assertTrue(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
+        self.assertTrue(handler.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(delay, newdelay, 'Timeout value is unexpected')
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 1, 'Should be exactly one blocked')
+        self.assertEqual(handler.number_blocked(), 1, 'Should be exactly one blocked')
 
         # Let the block be expired
         time.sleep(newdelay + 0.1)
-        self.assertFalse(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 0, 'There should be no more blocks')
+        self.assertFalse(handler.is_blocked(name), 'Expected this to be blocked')
+        self.assertEqual(handler.number_blocked(), 0, 'There should be no more blocks')
 
         self.set_loglevel(logging.DEBUG)
         # Add a 0-time block, which will be ignored
-        delay = BLOCKHANDLER.block_provider('someone', 'just because', delay=0)
+        delay = handler.block_provider('someone', 'just because', delay=0)
         self.assertEqual(delay, 0, 'Timeout value is unexpected')
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 0, 'Should not have added a block')
+        self.assertEqual(handler.number_blocked(), 0, 'Should not have added a block')
 
         # Add a block where the reason will be truncated to 80 chars
-        _ = BLOCKHANDLER.block_provider('short', 'X' * 200)
-        lines = BLOCKHANDLER.get_text_list_of_blocks().splitlines()
+        _ = handler.block_provider('short', 'X' * 200)
+        lines = handler.get_text_list_of_blocks().splitlines()
         self.assertListEqual(lines, [
             f"short blocked for 1 hours: {'X' * 80}",
         ])
 
     def test_number_blocked(self):
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 0, 'There should be no blocks by default')
+        handler = BlockHandler()
+        self.assertEqual(handler.number_blocked(), 0, 'There should be no blocks by default')
 
     def test_clear_all(self):
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 0)
-        BLOCKHANDLER.block_provider('test', 'no reason', )
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 1)
-        BLOCKHANDLER.clear_all()
-        self.assertEqual(BLOCKHANDLER.number_blocked(), 0)
+        handler = BlockHandler()
+        self.assertEqual(handler.number_blocked(), 0)
+        handler.block_provider('test', 'no reason', )
+        self.assertEqual(handler.number_blocked(), 1)
+        handler.clear_all()
+        self.assertEqual(handler.number_blocked(), 0)
 
     def test_check_day(self):
         """ Testing check_day requires simulating a day change """
-        change = BLOCKHANDLER.check_day(pretend_day='12345678')
+        cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
+        handler = BlockHandler()
+        handler.set_config(cfg, cfg.providers("NEWZNAB"), cfg.providers("TORZNAB"))
+        change = handler.check_day(pretend_day='12345678')
         self.assertTrue(change, 'Expected day to change')
 
         # Make up some pretend API calls
-        for provider in CONFIG.providers('NEWZNAB'):
+        for provider in cfg.providers('NEWZNAB'):
             provider.set_int('APICOUNT', 10)
-        for provider in CONFIG.providers('TORZNAB'):
+        for provider in cfg.providers('TORZNAB'):
             provider.set_int('APICOUNT', 100)
-        BLOCKHANDLER.check_day(pretend_day='12345678')
-        for provider in CONFIG.providers('NEWZNAB'):
-            self.assertEqual(provider.get_int('APICOUNT'), 10)
-        for provider in CONFIG.providers('TORZNAB'):
-            self.assertEqual(provider.get_int('APICOUNT'), 100)
+        handler.check_day(pretend_day='12345678')
+        for provider in cfg.providers('NEWZNAB'):
+            self.assertEqual(10, provider.get_int('APICOUNT'))
+        for provider in cfg.providers('TORZNAB'):
+            self.assertEqual(100, provider.get_int('APICOUNT'))
 
-        BLOCKHANDLER.check_day(pretend_day='12345700')
-        for provider in CONFIG.providers('NEWZNAB'):
-            self.assertEqual(provider.get_int('APICOUNT'), 0)
-        for provider in CONFIG.providers('TORZNAB'):
-            self.assertEqual(provider.get_int('APICOUNT'), 0)
+        # Change the day
+        handler.check_day(pretend_day='12345700')
+        for provider in cfg.providers('NEWZNAB'):
+            self.assertEqual(0, provider.get_int('APICOUNT'))
+        for provider in cfg.providers('TORZNAB'):
+            self.assertEqual(0, provider.get_int('APICOUNT'))
 
     def test_get_text_list_of_blocks(self):
-        txt = BLOCKHANDLER.get_text_list_of_blocks()
+        handler = BlockHandler()
+        txt = handler.get_text_list_of_blocks()
         self.assertEqual(txt, 'No blocked providers')
 
-        BLOCKHANDLER.block_provider('first', 'abc', 100)
-        BLOCKHANDLER.block_provider('second', 'hello', 10000)
-        BLOCKHANDLER.block_provider('googleapi', 'xyz')
-        txt = BLOCKHANDLER.get_text_list_of_blocks()
+        handler.block_provider('first', 'abc', 100)
+        handler.block_provider('second', 'hello', 10000)
+        handler.block_provider('googleapi', 'xyz')
+        txt = handler.get_text_list_of_blocks()
         lines = txt.splitlines()
         self.assertListEqual(lines, [
             'first blocked for 1 minutes, 40 seconds: abc',

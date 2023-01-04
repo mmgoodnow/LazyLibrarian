@@ -7,16 +7,10 @@ import logging
 
 import lazylibrarian
 from lazylibrarian import formatter
-from lazylibrarian.config2 import CONFIG
-from unittests.unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCaseWithStartup
 
 
-class FormatterTest(LLTestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setDoAll(False)
-        return super().setUpClass()
+class FormatterTest(LLTestCaseWithStartup):
 
     def test_sanitize(self):
         import unicodedata
@@ -151,12 +145,12 @@ class FormatterTest(LLTestCase):
             ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
             ("Author Name", "Author Name: Book (TM)", ("Book", "", "")),
         ]
-        CONFIG.set_str('IMP_NOSPLIT', '')
+        self.cfg().set_str('IMP_NOSPLIT', '')
         for data in testdata:
             name, sub, series = formatter.split_title(data[0], data[1])
             self.assertEqual((name, sub, series), data[2], f"Testdata: {data}")
 
-        CONFIG.set_csv('IMP_NOSPLIT', "unabridged,tm,annotated")
+        self.cfg().set_csv('IMP_NOSPLIT', "unabridged,tm,annotated")
         for data in testcommentarydata:
             name, sub, series = formatter.split_title(data[0], data[1])
             self.assertEqual((name, sub, series), data[2], f"Testcommentarydata: {data}")
@@ -398,7 +392,7 @@ class FormatterTest(LLTestCase):
             ".mobi",  # eBook without a name
             "Allan.test",
         ]
-        allowlist = CONFIG.get_all_types_list()
+        allowlist = self.cfg().get_all_types_list()
         for name in validfilenames:
             self.assertTrue(formatter.is_valid_type(name, extensions=allowlist))
         for name in invalidfilenames:
@@ -424,7 +418,7 @@ class FormatterTest(LLTestCase):
             fn = name[0]
             valid_types = name[1]
             for t in types:
-                self.assertEqual(CONFIG.is_valid_booktype(fn, t), t in valid_types, f"{fn} ({valid_types}, {t})")
+                self.assertEqual(self.cfg().is_valid_booktype(fn, t), t in valid_types, f"{fn} ({valid_types}, {t})")
 
     def test_get_list(self):
         lists = [
@@ -481,7 +475,7 @@ class FormatterTest(LLTestCase):
             ("Allan Testing Pedersen Snr", "Pedersen Snr, Allan Testing"),
         ]
         for name in testnames:
-            authorname = formatter.surname_first(name[0], postfixes=CONFIG.get_list('NAME_POSTFIX'))
+            authorname = formatter.surname_first(name[0], postfixes=self.cfg().get_list('NAME_POSTFIX'))
             self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
     def test_format_author_name(self):
@@ -514,7 +508,7 @@ class FormatterTest(LLTestCase):
                 self.assertEqual(authorname, name[1])
 
         # Test with the config from ini file
-        postfix = CONFIG.get_list('NAME_POSTFIX')
+        postfix = self.cfg().get_list('NAME_POSTFIX')
         for name in testnames_plain + testnames_withsuffix:
             with self.subTest(msg=f'Testing "{name}" with ini file postfix "{postfix}"'):
                 authorname = formatter.format_author_name(name[0], postfix=postfix)
@@ -541,12 +535,12 @@ class FormatterTest(LLTestCase):
 
     def test_disp_name(self):
         # Add some dummy data to test on
-        rss = CONFIG.providers('RSS')
+        rss = self.cfg().providers('RSS')
         self.assertIsNotNone(rss)
         if rss:
             rss[0].set_str('HOST', 'test-host')
             rss[0].set_str('DISPNAME', 'short-rss-name')
-        irc = CONFIG.providers('IRC')
+        irc = self.cfg().providers('IRC')
         self.assertIsNotNone(irc)
         if irc:
             irc[0].set_str('SERVER', 'irc-host')
@@ -562,7 +556,7 @@ class FormatterTest(LLTestCase):
         ]
         for p in providers:
             with self.subTest(f"Transforming {p[0]}"):
-                self.assertEqual(CONFIG.disp_name(p[0]), p[1])
+                self.assertEqual(self.cfg().disp_name(p[0]), p[1])
 
     def test_replace_quotes_with(self):
         allchars = ''
