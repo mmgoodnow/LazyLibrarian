@@ -15,17 +15,17 @@ import os
 import re
 import traceback
 import uuid
+import logging
 from hashlib import sha1
 from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import database, logger
+from lazylibrarian import database
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year
 from lazylibrarian.images import create_mag_cover
-from lazylibrarian.logger import lazylibrarian_log
 
 
 def create_id(issuename=None):
@@ -35,6 +35,8 @@ def create_id(issuename=None):
 
 
 def magazine_scan(title=None):
+    logger = logging.getLogger(__name__)
+    loggermatching = logging.getLogger('special.matching')
     lazylibrarian.MAG_UPDATE = 1
 
     # noinspection PyBroadException
@@ -127,8 +129,7 @@ def magazine_scan(title=None):
                             if match:
                                 title = match.group("title").strip()
                                 issuedate = match.group("issuedate").strip()
-                                if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                                    logger.debug("Title pattern [%s][%s]" % (title, issuedate))
+                                loggermatching.debug("Title pattern [%s][%s]" % (title, issuedate))
                                 if title.isdigit():
                                     match = False
                                 else:
@@ -163,8 +164,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(issuedate, dic).split()
                             regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                                logger.debug("Date regex [%s][%s][%s]" % (regex_pass, issuedate, year))
+                            loggermatching.debug("Date regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                             if regex_pass:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)
@@ -177,8 +177,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(fname, dic).split()
                             regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                                logger.debug("File regex [%s][%s][%s]" % (regex_pass, issuedate, year))
+                            loggermatching.debug("File regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                             if regex_pass:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)
@@ -188,7 +187,7 @@ def magazine_scan(title=None):
                                 issuedate = ''
 
                         if not issuedate:
-                            logger.warn("Invalid name format for [%s]" % fname)
+                            logger.warning("Invalid name format for [%s]" % fname)
                             continue
 
                         issuefile = os.path.join(rootdir, fname)  # full path to issue.pdf
@@ -314,7 +313,7 @@ def magazine_scan(title=None):
                             with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                                 f.write(u"magazine")
                         except IOError as e:
-                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+                            logger.warning("Unable to create/write to ignorefile: %s" % str(e))
 
                         if not CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')

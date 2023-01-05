@@ -16,6 +16,7 @@ import os
 import shutil
 import sys
 import threading
+import logging
 
 import configparser
 from queue import Queue
@@ -24,7 +25,7 @@ import cherrypy
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
@@ -38,7 +39,6 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clear_log, log_header
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
     author_update, series_update, show_stats, SchedulerCommand
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
@@ -87,7 +87,6 @@ cmd_dict = {'help': 'list available commands. ' +
             'getAbandoned': 'list abandoned books for current user',
             'getSnatched': 'list snatched books',
             'getHistory': 'list history',
-            'getLogs': 'show current log',
             'getDebug': 'show debug log header',
             'getModules': 'show installed modules',
             'checkModules': 'Check using lazylibrarian library modules',
@@ -242,6 +241,8 @@ class Api(object):
         self.data = None
         self.callback = None
         self.lower_cmds = [key.lower() for key, _ in cmd_dict.items()]
+        self.logger = logging.getLogger(__name__)
+        self.loggerdlcomms = logging.getLogger('dlcomms')
 
     def check_params(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -293,13 +294,12 @@ class Api(object):
                 remote_ip = cherrypy.request.headers.get('Remote-Addr')
             else:
                 remote_ip = cherrypy.request.remote.ip
-            logger.debug('Received API command from %s: %s %s' % (remote_ip, self.cmd, self.kwargs))
+            self.logger.debug('Received API command from %s: %s %s' % (remote_ip, self.cmd, self.kwargs))
             method_to_call = getattr(self, "_" + self.cmd.lower())
             method_to_call(**self.kwargs)
 
             if 'callback' not in self.kwargs:
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug(str(self.data))
+                self.loggerdlcomms.debug(str(self.data))
                 if isinstance(self.data, str):
                     return self.data
                 else:
@@ -413,7 +413,7 @@ class Api(object):
         tot = 0
         for item in self.data:
             tot += len(item)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
 
     def _listnabproviders(self):
         TELEMETRY.record_usage_data()
@@ -438,7 +438,7 @@ class Api(object):
                     item['Categories'] += item[key]
 
         tot = len(newzlist) + len(torzlist)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = {'Success': True,
                      'Data': {
                         'Newznabs': newzlist,
@@ -451,14 +451,14 @@ class Api(object):
         TELEMETRY.record_usage_data()
         providers = self._provider_array('RSS')
         tot = len(providers)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = providers
 
     def _listircproviders(self):
         TELEMETRY.record_usage_data()
         providers = self._provider_array('IRC')
         tot = len(providers)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = providers
 
     def _listtorrentproviders(self):
@@ -473,7 +473,7 @@ class Api(object):
                 name = "%s_%s" % (provider, item)
                 mydict[name] = CONFIG.get_int(name)
             providers.append(mydict)
-        logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
+        self.logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
         self.data = providers
 
     def _listdirectproviders(self):
@@ -497,7 +497,7 @@ class Api(object):
             mydict[name] = CONFIG.get_int(name)
         providers.append(mydict)
         tot = len(providers)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = providers
 
     def _delprovider(self, **kwargs):
@@ -1155,10 +1155,6 @@ class Api(object):
         cmd += "and books.Status='Snatched' or AudioStatus='Snatched'"
         self.data = self._dic_from_query(cmd)
 
-    def _getlogs(self):
-        TELEMETRY.record_usage_data()
-        self.data = logger.lazylibrarian_log.LOGLIST
-
     def _logmessage(self, **kwargs):
         TELEMETRY.record_usage_data()
         for item in ['level', 'text']:
@@ -1167,13 +1163,13 @@ class Api(object):
                 return
         self.data = kwargs['text']
         if kwargs['level'].upper() == 'INFO':
-            logger.info(self.data)
+            self.logger.info(self.data)
         elif kwargs['level'].upper() == 'WARN':
-            logger.warn(self.data)
+            self.logger.warning(self.data)
         elif kwargs['level'].upper() == 'ERROR':
-            logger.error(self.data)
+            self.logger.error(self.data)
         elif kwargs['level'].upper() == 'DEBUG':
-            logger.debug(self.data)
+            self.logger.debug(self.data)
         else:
             self.data = 'Invalid level: %s' % kwargs['level']
         return
@@ -1242,7 +1238,7 @@ class Api(object):
         res = db.select(q)
         descs = 0
         cnt = 0
-        logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
+        self.logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
         # ignore all errors except blocked (not found etc)
         blocked = False
         for item in res:
@@ -1253,7 +1249,7 @@ class Api(object):
             data = get_gb_info(isbn, auth, book, expire=expire)
             if data and data['desc']:
                 descs += 1
-                logger.debug("Updated description for %s:%s" % (auth, book))
+                self.logger.debug("Updated description for %s:%s" % (auth, book))
                 db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
             elif data is None:  # error, see if it's because we are blocked
                 if BLOCKHANDLER.is_blocked('googleapis'):
@@ -1265,7 +1261,7 @@ class Api(object):
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
-        logger.info(self.data)
+        self.logger.info(self.data)
 
     def _setnogenre(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1281,7 +1277,7 @@ class Api(object):
         res = db.select(q)
         genre = 0
         cnt = 0
-        logger.debug("Checking genre for %s %s" % (len(res), plural(len(res), "book")))
+        self.logger.debug("Checking genre for %s %s" % (len(res), plural(len(res), "book")))
         # ignore all errors except blocked (not found etc)
         blocked = False
         for item in res:
@@ -1293,7 +1289,7 @@ class Api(object):
             if data and data['genre']:
                 genre += 1
                 newgenre = genre_filter(data['genre'])
-                logger.debug("Updated genre for %s:%s [%s]" % (auth, book, newgenre))
+                self.logger.debug("Updated genre for %s:%s [%s]" % (auth, book, newgenre))
                 set_genres([newgenre], item['BookID'])
             elif data is None:
                 if BLOCKHANDLER.is_blocked('googleapis'):
@@ -1305,7 +1301,7 @@ class Api(object):
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
-        logger.info(self.data)
+        self.logger.info(self.data)
 
     def _listnoisbn(self):
         TELEMETRY.record_usage_data()
@@ -1326,7 +1322,7 @@ class Api(object):
         if self.data:
             db = database.DBConnection()
             for auth in self.data:
-                logger.debug("Deleting %s" % auth['AuthorName'])
+                self.logger.debug("Deleting %s" % auth['AuthorName'])
                 db.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
 
     def _listignoredseries(self):
@@ -1911,7 +1907,7 @@ class Api(object):
                     update_totals(bookdata[0])  # we moved from here
                     update_totals(kwargs['toid'])  # to here
                     self.data = "Moved book [%s] to [%s]" % (bookdata[1], authordata[0])
-            logger.debug(self.data)
+            self.logger.debug(self.data)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
@@ -1939,7 +1935,7 @@ class Api(object):
                     update_totals(fromhere[0][1])  # we moved from here
                     update_totals(tohere[0])  # to here
 
-            logger.debug(self.data)
+            self.logger.debug(self.data)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
@@ -2004,16 +2000,16 @@ class Api(object):
         for author in authors:
             followid = check_int(author['GRfollow'], 0)
             if followid > 0:
-                logger.debug('%s is already followed' % author['AuthorName'])
+                self.logger.debug('%s is already followed' % author['AuthorName'])
             elif author['GRfollow'] == "0":
-                logger.debug('%s is manually unfollowed' % author['AuthorName'])
+                self.logger.debug('%s is manually unfollowed' % author['AuthorName'])
             else:
                 res = grfollow(author['AuthorID'], True)
                 if res.startswith('Unable'):
-                    logger.warn(res)
+                    self.logger.warning(res)
                 try:
                     followid = res.split("followid=")[1]
-                    logger.debug('%s marked followed' % author['AuthorName'])
+                    self.logger.debug('%s marked followed' % author['AuthorName'])
                     count += 1
                 except IndexError:
                     followid = ''
@@ -2086,7 +2082,7 @@ class Api(object):
         authorsearch = db.select('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
         if len(authorsearch):  # to stop error if try to remove an author while they are still loading
             author_name = authorsearch[0]['AuthorName']
-            logger.debug("Removing all references to author: %s" % author_name)
+            self.logger.debug("Removing all references to author: %s" % author_name)
             db.action('DELETE from authors WHERE AuthorID=?', (kwargs['id'],))
 
     def _writecfg(self, **kwargs):

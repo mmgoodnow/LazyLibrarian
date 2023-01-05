@@ -16,13 +16,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
+import logging
+import requests
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import proxy_list
-
-import requests
 
 # API_URL = "https://boxcar.io/devices/providers/MH0S7xOFSwVLNvNhTpiC/notifications"
 # changed to boxcar2
@@ -45,6 +44,7 @@ class BoxcarNotifier:
 
         returns: True if the message succeeded, False otherwise
         """
+        logger = logging.getLogger(__name__)
         logger.debug('Boxcar notification: %s' % msg)
         logger.debug('Title: %s' % title)
         logger.debug('Token: %s' % token)
@@ -79,7 +79,7 @@ class BoxcarNotifier:
 
             # HTTP status 404 if the provided email address isn't a Boxcar user.
             if status == '404':
-                logger.warn("BOXCAR: Username is wrong/not a boxcar email. Boxcar will send an email to it")
+                logger.warning("BOXCAR: Username is wrong/not a boxcar email. Boxcar will send an email to it")
             # For HTTP status code 401's, it is because you are passing in either an
             # invalid token, or the user has not added your service.
             elif status == '401':

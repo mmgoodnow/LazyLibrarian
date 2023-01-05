@@ -242,7 +242,7 @@ def log_header(online=True):
     header = "Startup cmd: %s\n" % str(popen_list)
     header += "config file: %s\n" % CONFIG.configfilename
     header += 'Interface: %s\n' % CONFIG['HTTP_LOOK']
-    header += 'Loglevel: %s\n' % lazylibrarian_log.LOGLEVEL
+    header += 'Loglevel: %s\n' % logging.getLevelName(logger.getEffectiveLevel())
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
     for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
@@ -416,6 +416,7 @@ def log_header(online=True):
 
 def save_log():
     # TODO: What to do about save_log()?
+    logger = logging.getLogger(__name__)
     if not path_exists(CONFIG['LOGDIR']):
         return 'LOGDIR does not exist'
 

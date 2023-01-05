@@ -16,11 +16,10 @@ import string
 import time
 from xml.etree import ElementTree
 import zipfile
+import logging
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import html_request, json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, quotes
 from lazylibrarian.filesystem import path_isfile
@@ -106,12 +105,14 @@ def title_words(words):
 
 
 def cv_identify(fname, best=True):
+    logger = logging.getLogger(__name__)
+    loggermatching = logging.getLogger('special.matching')
     apikey = CONFIG['CV_APIKEY']
     if not apikey:
         # don't nag. Show warning message no more than every 20 mins
         timenow = int(time.time())
         if check_int(lazylibrarian.TIMERS['NO_CV_MSG'], 0) + 1200 < timenow:
-            logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
+            logger.warning("Please obtain an apikey from https://comicvine.gamespot.com/api/")
             lazylibrarian.TIMERS['NO_CV_MSG'] = timenow
         return []
 
@@ -200,8 +201,7 @@ def cv_identify(fname, best=True):
         return choices
 
     if choices:
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('Found %i possible for %s' % (len(choices), fname))
+        loggermatching.debug('Found %i possible for %s' % (len(choices), fname))
         results = []
         year = 0
         # do we have a year to narrow it down
@@ -210,8 +210,7 @@ def cv_identify(fname, best=True):
                 year = w
                 break
 
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug("Checking %s %s" % (len(choices), plural(len(choices), "result")))
+        loggermatching.debug("Checking %s %s" % (len(choices), plural(len(choices), "result")))
         for item in choices:
             present = 0
             noise = 0
@@ -224,14 +223,12 @@ def cv_identify(fname, best=True):
                     noise += 1
 
             if year and item['start'] and item["start"] > year:  # series not started yet
-                if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                    logger.debug("Year %s out of range (start=%s) %s" % (year, item["start"], item['title']))
+                loggermatching.debug("Year %s out of range (start=%s) %s" % (year, item["start"], item['title']))
                 rejected = True
 
             issue = get_issue_num(words, namewords)
             if issue and (issue < check_int(item["first"], 0) or issue > check_int(item["last"], 0)):
-                if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                    logger.debug("Issue %s out of range (%s to %s) %s" % (issue, item["first"],
+                loggermatching.debug("Issue %s out of range (%s to %s) %s" % (issue, item["first"],
                                                                           item["last"], item['title']))
                 rejected = True
 
@@ -243,36 +240,31 @@ def cv_identify(fname, best=True):
 
             if not rejected and present >= minmatch:
                 results.append([present, noise, missing, item, issue])
-            elif lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                logger.debug("Only matched %s %s in %s" % (present, plural(present, "word"), item['title']))
+            else:
+                loggermatching.debug("Only matched %s %s in %s" % (present, plural(present, "word"), item['title']))
 
         results = sorted(results, key=lambda x: (-x[0], x[1], -(check_int(x[3]["start"], 0))))
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug(str(results))
+        loggermatching.debug(str(results))
 
         if results:
             return results[0]
 
     if not CONFIG.get_bool('CV_WEBSEARCH'):
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('No match for %s' % fname)
+        loggermatching.debug('No match for %s' % fname)
         return []
 
-    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-        logger.debug('No api match for %s, trying websearch' % fname)
+    loggermatching.debug('No api match for %s, trying websearch' % fname)
     # fortunately comicvine sorts the resuts and gives us "best match first"
     # so we only scrape the first page (could add &page=2)
     url = '/'.join([CONFIG['CV_URL'], 'search/?i=volume&q=%s' % matchwords])
     data, in_cache = html_request(url)
     if not data:
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('No match for %s' % fname)
+        loggermatching.debug('No match for %s' % fname)
         return []
 
     choices = get_volumes_from_search(data)
     if choices:
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('Found %i possible for %s' % (len(choices), fname))
+        loggermatching.debug('Found %i possible for %s' % (len(choices), fname))
         results = []
         year = 0
         # do we have a year to narrow it down
@@ -311,8 +303,7 @@ def cv_identify(fname, best=True):
     if results:
         return results[0]
 
-    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-        logger.debug('No match for %s' % fname)
+    loggermatching.debug('No match for %s' % fname)
     return []
 
 
@@ -415,6 +406,8 @@ def get_series_detail_from_search(page_content):
 
 
 def cx_identify(fname, best=True):
+    logger = logging.getLogger(__name__)
+    loggermatching = logging.getLogger('special.matching')
     res = []
     fname = make_unicode(fname)
     words = name_words(fname)
@@ -429,8 +422,7 @@ def cx_identify(fname, best=True):
     data, _ = html_request(url)
 
     if not data:
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('No match for %s' % fname)
+        loggermatching.debug('No match for %s' % fname)
         return []
 
     series_links = get_series_links_from_search(data)
@@ -455,8 +447,7 @@ def cx_identify(fname, best=True):
 
             if pager:
                 # eg '1 TO 18 OF 27'
-                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                    logger.debug(pager)
+                loggermatching.debug(pager)
 
                 pager_words = pager.split()
                 if pager_words[2] == pager_words[4]:
@@ -504,8 +495,7 @@ def cx_identify(fname, best=True):
 
     choices = []
     if res:
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('Found %i possible for %s' % (len(res), fname))
+        loggermatching.debug('Found %i possible for %s' % (len(res), fname))
         year = 0
         # do we have a year to narrow it down
         for w in words:
@@ -536,25 +526,21 @@ def cx_identify(fname, best=True):
             for w in name_words(item['title']):
                 if w in words:
                     if check_year(w):
-                        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                            logger.debug('Match %s year %s' % (item['title'], year))
+                        loggermatching.debug('Match %s year %s' % (item['title'], year))
                     else:
                         wordcount += 1
                 else:
                     if check_year(w):
                         if y1 and y2 and int(y1) <= int(year) <= int(y2):
-                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                                logger.debug('Match %s (%s is between %s-%s)' % (item['title'], year, y1, y2))
+                            loggermatching.debug('Match %s (%s is between %s-%s)' % (item['title'], year, y1, y2))
                             rejected = False
                             break
                         elif y1 and not y2 and int(year) >= int(y1):
-                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                                logger.debug('Accept %s (%s is in %s-)' % (item['title'], year, y1))
+                            loggermatching.debug('Accept %s (%s is in %s-)' % (item['title'], year, y1))
                             rejected = False
                             break
                         else:
-                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                                logger.debug('Rejecting %s, need %s' % (item['title'], year))
+                            loggermatching.debug('Rejecting %s, need %s' % (item['title'], year))
                             rejected = True
                             noise += 1
                             break
@@ -571,8 +557,7 @@ def cx_identify(fname, best=True):
 
             if not rejected and wordcount >= minmatch:
                 if (missing + noise)/2 >= wordcount:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                        logger.debug("Rejecting %s (noise %s)" % (item['title'], missing + noise))
+                    loggermatching.debug("Rejecting %s (noise %s)" % (item['title'], missing + noise))
                 else:
                     choices.append([wordcount, noise, missing, item, issue])
 
@@ -580,12 +565,13 @@ def cx_identify(fname, best=True):
             choices = sorted(choices, key=lambda x: (-x[0], x[1]))
             return choices[0]
 
-    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-        logger.debug('No match for %s' % fname)
+    loggermatching.debug('No match for %s' % fname)
     return []
 
 
 def comic_metadata(archivename, xml=False):
+    logger = logging.getLogger(__name__)
+    loggermatching = logging.getLogger('special.matching')
     archivename = make_unicode(archivename)
     if not path_isfile(archivename):  # regular files only
         logger.debug("%s is not a file" % archivename)
@@ -606,8 +592,7 @@ def comic_metadata(archivename, xml=False):
                     logger.debug("%s bytes xml" % len(res))
                     return res
                 return meta_dict(z.read(item))
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('ComicInfo.xml not found in %s' % archivename)
+        loggermatching.debug('ComicInfo.xml not found in %s' % archivename)
         return {}
 
     if lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
@@ -625,8 +610,7 @@ def comic_metadata(archivename, xml=False):
                     logger.debug("%s bytes xml" % len(res))
                     return res
                 return meta_dict(z.read(item))
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('ComicInfo.xml not found in %s' % archivename)
+        loggermatching.debug('ComicInfo.xml not found in %s' % archivename)
         return {}
 
     if lazylibrarian.UNRARLIB == 2:
@@ -643,8 +627,7 @@ def comic_metadata(archivename, xml=False):
                 logger.debug("%s bytes xml" % len(res))
                 return res
             return meta_dict(data[0][1])
-        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-            logger.debug('ComicInfo.xml not found in %s' % archivename)
+        loggermatching.debug('ComicInfo.xml not found in %s' % archivename)
         return {}
 
     logger.debug("%s is not an archive we can unpack" % archivename)
@@ -652,6 +635,7 @@ def comic_metadata(archivename, xml=False):
 
 
 def meta_dict(data):
+    logger = logging.getLogger(__name__)
     rootxml = ElementTree.fromstring(data)
     datadict = {}
     for item in ['Series', 'Title', 'Number', 'Summary', 'Year', 'Publisher', 'Web']:
@@ -674,6 +658,7 @@ def meta_dict(data):
 
 
 def cv_issue(seriesid, issuenum):
+    logger = logging.getLogger(__name__)
     res = {'Description': '', 'Link': '', 'Contributors': ''}
     apikey = CONFIG['CV_APIKEY']
     url = '/'.join([CONFIG['CV_URL'], 'api/issues/?api_key=%s' % apikey])

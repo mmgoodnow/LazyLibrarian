@@ -18,10 +18,10 @@
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 from urllib.parse import urlencode
 from http.client import HTTPSConnection
 
-from lazylibrarian import logger
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
@@ -39,6 +39,7 @@ class PushoverNotifier:
         if not CONFIG.get_bool('USE_PUSHOVER') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         if pushover_apitoken is None:
             pushover_apitoken = CONFIG['PUSHOVER_APITOKEN']
         if pushover_keys is None:
@@ -112,10 +113,11 @@ class PushoverNotifier:
         username: The username to send the notification to (optional, defaults to the username in the config)
         force: If True then the notification will be sent even if pushover is disabled in the config
         """
+        logger = logging.getLogger(__name__)
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warn("Pushover: could not convert  message: %s" % e)
+            logger.warning("Pushover: could not convert  message: %s" % e)
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not CONFIG.get_bool('USE_PUSHOVER') and not force:
             return False

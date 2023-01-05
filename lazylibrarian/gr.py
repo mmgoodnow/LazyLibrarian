@@ -18,7 +18,7 @@ import unicodedata
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, isbn_from_words, thinglang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter
@@ -38,8 +38,10 @@ class GoodReads:
     def __init__(self, name=None):
         self.name = make_unicode(name)
         # self.type = type
+        self.logger = logging.getLogger(__name__)
+        self.loggersearching = logging.getLogger('special.searching')
         if not CONFIG['GR_API']:
-            logger.warn('No Goodreads API key, check config')
+            self.logger.warning('No Goodreads API key, check config')
         self.params = {"key": CONFIG['GR_API']}
 
     def find_results(self, searchterm=None, queue=None):
@@ -58,20 +60,19 @@ class GoodReads:
             url = quote_plus(make_utf8bytes(searchterm)[0])
             set_url = '/'.join([CONFIG['GR_URL'],
                                 'search.xml?q=' + url + '&' + urlencode(self.params)])
-            logger.debug('Now searching GoodReads API with searchterm: %s' % searchterm)
-            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                logger.debug(set_url)
+            self.logger.debug('Now searching GoodReads API with searchterm: %s' % searchterm)
+            self.loggersearching.debug(set_url)
 
             resultcount = 0
             try:
                 try:
                     rootxml, in_cache = gr_xml_request(set_url)
                 except Exception as e:
-                    logger.error("%s finding gr results: %s" % (type(e).__name__, str(e)))
+                    self.logger.error("%s finding gr results: %s" % (type(e).__name__, str(e)))
                     queue.put(resultlist)
                     return
                 if rootxml is None:
-                    logger.debug("Error requesting results")
+                    self.logger.debug("Error requesting results")
                     queue.put(resultlist)
                     return
 
@@ -213,26 +214,25 @@ class GoodReads:
 
                     if 0 < CONFIG.get_int('MAX_PAGES') < loop_count:
                         resultxml = None
-                        logger.warn('Maximum results page search reached, still more results available')
+                        self.logger.warning('Maximum results page search reached, still more results available')
                     elif totalresults and resultcount >= totalresults:
                         # fix for goodreads bug on isbn searches
                         resultxml = None
                     else:
                         url = set_url + '&page=' + str(loop_count)
                         resultxml = None
-                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                            logger.debug(set_url)
+                        self.loggersearching.debug(set_url)
                         try:
                             rootxml, in_cache = gr_xml_request(url)
                             if rootxml is None:
-                                logger.debug('Error requesting page %s of results' % loop_count)
+                                self.logger.debug('Error requesting page %s of results' % loop_count)
                             else:
                                 resultxml = rootxml.iter('work')
                                 if not in_cache:
                                     api_hits += 1
                         except Exception as e:
                             resultxml = None
-                            logger.error("%s finding page %s of results: %s" % (type(e).__name__, loop_count, str(e)))
+                            self.logger.error("%s finding page %s of results: %s" % (type(e).__name__, loop_count, str(e)))
 
                     if resultxml:
                         if all(False for _ in resultxml):  # returns True if iterator is empty
@@ -241,22 +241,22 @@ class GoodReads:
             except Exception as err:
                 # noinspection PyUnresolvedReferences
                 if hasattr(err, 'code') and err.code == 404:
-                    logger.error('Received a 404 error when searching for author')
+                    self.logger.error('Received a 404 error when searching for author')
                 # noinspection PyUnresolvedReferences
                 elif hasattr(err, 'code') and err.code == 403:
-                    logger.warn('Access to api is denied 403: usage exceeded')
+                    self.logger.warning('Access to api is denied 403: usage exceeded')
                 else:
-                    logger.error('An unexpected error has occurred when searching for an author: %s' % str(err))
-                    logger.error('in GR.find_results: %s' % traceback.format_exc())
+                    self.logger.error('An unexpected error has occurred when searching for an author: %s' % str(err))
+                    self.logger.error('in GR.find_results: %s' % traceback.format_exc())
 
-            logger.debug('Found %s %s with keyword: %s' % (resultcount, plural(resultcount, "result"), searchterm))
-            logger.debug(
+            self.logger.debug('Found %s %s with keyword: %s' % (resultcount, plural(resultcount, "result"), searchterm))
+            self.logger.debug(
                 'The GoodReads API was hit %s %s for keyword %s' % (api_hits, plural(api_hits, "time"), searchterm))
 
             queue.put(resultlist)
 
         except Exception:
-            logger.error('Unhandled exception in GR.find_results: %s' % traceback.format_exc())
+            self.logger.error('Unhandled exception in GR.find_results: %s' % traceback.format_exc())
 
     def find_author_id(self, refresh=False):
         author = self.name
@@ -264,24 +264,23 @@ class GoodReads:
         # googlebooks gives us author names with long form unicode characters
         author = make_unicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
-        logger.debug("Searching for author with name: %s" % author)
+        self.logger.debug("Searching for author with name: %s" % author)
         url = '/'.join([CONFIG['GR_URL'], 'api/author_url/'])
         try:
             url += quote(make_utf8bytes(author)[0]) + '?' + urlencode(self.params)
-            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                logger.debug(url)
+            self.loggersearching.debug(url)
             rootxml, _ = gr_xml_request(url, use_cache=not refresh)
         except Exception as e:
-            logger.error("%s finding authorid: %s, %s" % (type(e).__name__, url, str(e)))
+            self.logger.error("%s finding authorid: %s, %s" % (type(e).__name__, url, str(e)))
             return {}
         if rootxml is None:
-            logger.debug("Error requesting authorid")
+            self.logger.debug("Error requesting authorid")
             return {}
 
         resultxml = rootxml.iter('author')
 
         if resultxml is None:
-            logger.warn('No authors found with name: %s' % author)
+            self.logger.warning('No authors found with name: %s' % author)
             return {}
 
         # In spite of how this looks, goodreads only returns one result, even if there are multiple matches
@@ -298,7 +297,7 @@ class GoodReads:
             if match >= CONFIG.get_int('NAME_RATIO'):
                 return self.get_author_info(authorid)
             else:
-                logger.debug("Fuzz failed: %s [%s][%s]" % (match, author, authorname))
+                self.logger.debug("Fuzz failed: %s [%s][%s]" % (match, author, authorname))
         return {}
 
     def get_author_info(self, authorid=None):
@@ -307,25 +306,24 @@ class GoodReads:
                         'author/show/' + authorid + '.xml?' + urlencode(self.params)])
 
         try:
-            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                logger.debug(url)
+            self.loggersearching.debug(url)
             rootxml, _ = gr_xml_request(url)
         except Exception as e:
-            logger.error("%s getting author info: %s" % (type(e).__name__, str(e)))
+            self.logger.error("%s getting author info: %s" % (type(e).__name__, str(e)))
             return {}
         if rootxml is None:
-            logger.debug("Error requesting author info")
+            self.logger.debug("Error requesting author info")
             return {}
 
         resultxml = rootxml.find('author')
         if resultxml is None:
-            logger.warn('No author found with ID: ' + authorid)
+            self.logger.warning('No author found with ID: ' + authorid)
             return {}
 
         # added authorname to author_dict - this holds the intact name preferred by GR
         # except GR messes up names like "L. E. Modesitt, Jr." where it returns <name>Jr., L. E. Modesitt</name>
         authorname = format_author_name(resultxml[1].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
-        logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
+        self.logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
         author_dict = {
             'authorid': resultxml[0].text,
             'authorlink': resultxml.find('link').text,
@@ -401,14 +399,13 @@ class GoodReads:
                             'author/list/' + gr_id + '.xml?' + urlencode(self.params)])
 
             try:
-                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                    logger.debug(url)
+                self.loggersearching.debug(url)
                 rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
             except Exception as e:
-                logger.error("%s fetching author books: %s" % (type(e).__name__, str(e)))
+                self.logger.error("%s fetching author books: %s" % (type(e).__name__, str(e)))
                 return
             if rootxml is None:
-                logger.debug("Error requesting author books")
+                self.logger.debug("Error requesting author books")
                 return
             if not in_cache:
                 api_hits += 1
@@ -437,22 +434,22 @@ class GoodReads:
                 ignorable.append('lang')
 
             if resultxml is None:
-                logger.warn('[%s] No books found for author with ID: %s' % (authorname, gr_id))
+                self.logger.warning('[%s] No books found for author with ID: %s' % (authorname, gr_id))
             else:
-                logger.debug("[%s] Now processing books with GoodReads API" % authorname)
+                self.logger.debug("[%s] Now processing books with GoodReads API" % authorname)
                 author_name_result = rootxml.find('./author/name').text
                 # Goodreads sometimes puts extra whitespace in the author names!
                 author_name_result = ' '.join(author_name_result.split())
-                logger.debug("GoodReads author name [%s]" % author_name_result)
+                self.logger.debug("GoodReads author name [%s]" % author_name_result)
                 loop_count = 1
                 threadname = thread_name()
                 while resultxml:
                     if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
-                        logger.debug("Aborting %s" % threadname)
+                        self.logger.debug("Aborting %s" % threadname)
                         break
                     for book in resultxml:
                         if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
-                            logger.debug("Aborting %s" % threadname)
+                            self.logger.debug("Aborting %s" % threadname)
                             break
                         total_count += 1
                         rejected = None
@@ -488,20 +485,20 @@ class GoodReads:
                                 bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
 
                         if not bookname:
-                            logger.debug('Rejecting bookid %s for %s, no bookname' %
-                                         (bookid, author_name_result))
+                            self.logger.debug('Rejecting bookid %s for %s, no bookname' %
+                                              (bookid, author_name_result))
                             rejected = 'name', 'No bookname'
 
                         if bookpub:
                             if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
-                                logger.warn("Ignoring %s: Publisher %s" % (bookname, bookpub))
+                                self.logger.warning("Ignoring %s: Publisher %s" % (bookname, bookpub))
                                 rejected = 'publisher', bookpub
 
                         # bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
 
                         # if not rejected and re.match(r'[^\w-]', bookname):
                         # reject books with bad characters in title
-                        # logger.debug("removed result [" + bookname + "] for bad characters")
+                        # self.logger.debug("removed result [" + bookname + "] for bad characters")
                         # rejected = 'chars', 'Bad characters in bookname'
 
                         if not rejected:
@@ -526,7 +523,7 @@ class GoodReads:
                                             book_language = lazylibrarian.isbn_979_dict[item]
                                             break
                                     if book_language != "Unknown":
-                                        logger.debug("ISBN979 returned %s for %s" % (book_language, isbnhead))
+                                        self.logger.debug("ISBN979 returned %s for %s" % (book_language, isbnhead))
                                 elif (find_field == "isbn") or (find_field == "isbn13" and
                                                                 bookisbn.startswith('978')):
                                     for item in lazylibrarian.isbn_978_dict:
@@ -534,7 +531,7 @@ class GoodReads:
                                             book_language = lazylibrarian.isbn_978_dict[item]
                                             break
                                     if book_language != "Unknown":
-                                        logger.debug("ISBN978 returned %s for %s" % (book_language, isbnhead))
+                                        self.logger.debug("ISBN978 returned %s for %s" % (book_language, isbnhead))
 
                             if book_language == "Unknown" and isbnhead:
                                 # Nothing in the isbn dictionary, try any cached results
@@ -542,8 +539,8 @@ class GoodReads:
                                 if match:
                                     book_language = match['lang']
                                     cache_hits += 1
-                                    logger.debug("Found cached language [%s] for %s [%s]" %
-                                                 (book_language, find_field, isbnhead))
+                                    self.logger.debug("Found cached language [%s] for %s [%s]" %
+                                                      (book_language, find_field, isbnhead))
                                 else:
                                     book_language = thinglang(bookisbn)
                                     lt_lang_hits += 1
@@ -557,17 +554,17 @@ class GoodReads:
                                         book_url = '/'.join([CONFIG['GR_URL'], 'book/show?id=' +
                                                              book.find(find_field).text + '&' +
                                                              urlencode(self.params)])
-                                        logger.debug("Book URL: " + book_url)
+                                        self.logger.debug("Book URL: " + book_url)
                                         book_language = ""
                                         try:
                                             book_rootxml, in_cache = gr_xml_request(book_url)
                                             if book_rootxml is None:
-                                                logger.debug('Error requesting book page')
+                                                self.logger.debug('Error requesting book page')
                                             else:
                                                 try:
                                                     book_language = book_rootxml.find('./book/language_code').text
                                                 except Exception as e:
-                                                    logger.error("%s finding language_code in book xml: %s" %
+                                                    self.logger.error("%s finding language_code in book xml: %s" %
                                                                  (type(e).__name__, str(e)))
                                                 # noinspection PyBroadException
                                                 try:
@@ -597,13 +594,13 @@ class GoodReads:
                                                             if mn and dy:
                                                                 bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
                                                         except (KeyError, AttributeError):
-                                                            logger.debug("No extended date info")
+                                                            self.logger.debug("No extended date info")
                                                             pass
                                                 except Exception:
                                                     pass
 
                                         except Exception as e:
-                                            logger.error("%s getting book xml: %s" % (type(e).__name__, str(e)))
+                                            self.logger.error("%s getting book xml: %s" % (type(e).__name__, str(e)))
 
                                         if not in_cache:
                                             gr_lang_hits += 1
@@ -615,18 +612,18 @@ class GoodReads:
                                             control_value_dict = {"isbn": isbnhead}
                                             new_value_dict = {"lang": book_language}
                                             db.upsert("languages", new_value_dict, control_value_dict)
-                                            logger.debug("GoodReads reports language [%s] for %s" %
+                                            self.logger.debug("GoodReads reports language [%s] for %s" %
                                                          (book_language, isbnhead))
                                         else:
                                             not_cached += 1
 
-                                        logger.debug("GR language: " + book_language)
+                                        self.logger.debug("GR language: " + book_language)
                                     else:
-                                        logger.debug("No %s provided for [%s]" % (find_field, bookname))
+                                        self.logger.debug("No %s provided for [%s]" % (find_field, bookname))
                                         # continue
 
                                 except Exception as e:
-                                    logger.error("Goodreads language search failed: %s %s" %
+                                    self.logger.error("Goodreads language search failed: %s %s" %
                                                  (type(e).__name__, str(e)))
 
                             if not isbnhead and CONFIG.get_bool('ISBN_LOOKUP'):
@@ -644,9 +641,9 @@ class GoodReads:
                                         isbn_time += (time.time() - start)
                                     except Exception as e:
                                         res = None
-                                        logger.warn("Error from isbn: %s" % e)
+                                        self.logger.warning("Error from isbn: %s" % e)
                                     if res:
-                                        logger.debug("isbn found %s for %s" % (res, bookid))
+                                        self.logger.debug("isbn found %s for %s" % (res, bookid))
                                         bookisbn = res
                                         if len(res) == 13:
                                             isbnhead = res[3:6]
@@ -655,12 +652,12 @@ class GoodReads:
 
                             if not isbnhead and CONFIG.get_bool('NO_ISBN'):
                                 rejected = 'isbn', 'No ISBN'
-                                logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
+                                self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
                             if "All" not in valid_langs:  # do we care about language
                                 if book_language not in valid_langs:
                                     rejected = 'lang', 'Invalid language [%s]' % book_language
-                                    logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
+                                    self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
                                     ignored += 1
 
                         if not rejected:
@@ -677,7 +674,7 @@ class GoodReads:
                             for word in badwords:
                                 if (' ' in word and word in name) or word in namewords:
                                     rejected = 'word', 'Contains [%s]' % word
-                                    logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
+                                    self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
                                     break
 
                         if not rejected:
@@ -687,7 +684,7 @@ class GoodReads:
                                 m = re.search(r'(\d+)-(\d+)', name)
                                 if m:
                                     if check_year(m.group(1), past=1800, future=0):
-                                        logger.debug("Allow %s, looks like a date range" % bookname)
+                                        self.logger.debug("Allow %s, looks like a date range" % bookname)
                                     else:
                                         rejected = 'set', 'Set or Part %s' % m.group(0)
                                 if re.search(r'\d+ of \d+', name) or \
@@ -696,7 +693,7 @@ class GoodReads:
                                 elif re.search(r'\w+\s*/\s*\w+', name):
                                     rejected = 'set', 'Set or Part'
                                 if rejected:
-                                    logger.debug('Rejected %s, %s' % (name, rejected[1]))
+                                    self.logger.debug('Rejected %s, %s' % (name, rejected[1]))
 
                         if not rejected:
                             oldbookname = bookname
@@ -704,10 +701,10 @@ class GoodReads:
                             if shortname:
                                 sbookname, sbooksub, _ = split_title(author_name_result, shortname)
                                 if sbookname != bookname:
-                                    logger.warn('Different titles [%s][%s][%s]' % (oldbookname, sbookname, bookname))
+                                    self.logger.warning('Different titles [%s][%s][%s]' % (oldbookname, sbookname, bookname))
                                     bookname = sbookname
                                 if sbooksub != booksub:
-                                    logger.warn('Different subtitles [%s][%s]' % (sbooksub, booksub))
+                                    self.logger.warning('Different subtitles [%s][%s]' % (sbooksub, booksub))
                                     booksub = sbooksub
                             dic = {':': '.', '"': ''}  # do we need to strip apostrophes , '\'': ''}
                             bookname = replace_all(bookname, dic).strip()
@@ -743,7 +740,7 @@ class GoodReads:
                                 alist += anm
                                 if aid == gr_id or anm == author_name_result:
                                     if aid != gr_id:
-                                        logger.warn("Author %s has different authorid %s:%s" % (anm, aid, gr_id))
+                                        self.logger.warning("Author %s has different authorid %s:%s" % (anm, aid, gr_id))
                                     if role is None or 'author' in role.lower() or \
                                             'writer' in role.lower() or \
                                             'creator' in role.lower() or \
@@ -751,10 +748,10 @@ class GoodReads:
                                             'pen name' in role.lower():
                                         amatch = True
                                     else:
-                                        logger.debug('Ignoring %s for %s, role is %s' % (anm, bookname, role))
+                                        self.logger.debug('Ignoring %s for %s, role is %s' % (anm, bookname, role))
                             if not amatch:
                                 rejected = 'author', 'Wrong Author (got %s,%s)' % (alist, role)
-                                logger.debug('Rejecting %s for %s, %s' %
+                                self.logger.debug('Rejecting %s for %s, %s' %
                                              (bookname, author_name_result, rejected[1]))
 
                         cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
@@ -766,18 +763,18 @@ class GoodReads:
                             if author_name_result != match['AuthorName']:
                                 rejected = 'author', 'Different author for this bookid [%s][%s]' % (
                                             author_name_result, match['AuthorName'])
-                                logger.debug('Rejecting bookid %s, %s' % (bookid, rejected[1]))
+                                self.logger.debug('Rejecting bookid %s, %s' % (bookid, rejected[1]))
                             elif bookname != match['BookName']:
                                 # same bookid and author, assume goodreads fixed the title, use the new title
                                 db.action("UPDATE books SET BookName=? WHERE BookID=?", (bookname, bookid))
-                                logger.warn('Updated bookname [%s] to [%s]' % (match['BookName'], bookname))
+                                self.logger.warning('Updated bookname [%s] to [%s]' % (match['BookName'], bookname))
 
                             msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
                                    bookid, author_name_result, bookname, match['Status'])
                             if CONFIG.get_bool('AUDIO_TAB'):
                                 msg += ",%s" % match['AudioStatus']
                             msg += " %s" % match['ScanResult']
-                            logger.debug(msg)
+                            self.logger.debug(msg)
 
                             # Make sure we don't reject books we have already got or want
                             if match['Status'] not in ['Ignored', 'Skipped']:
@@ -804,12 +801,12 @@ class GoodReads:
                                 if match['BookID'] != bookid:
                                     # we have a different bookid for this author/title already
                                     if not_rejectable:
-                                        logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
+                                        self.logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
                                                      (bookname, bookid, match['BookID'], not_rejectable))
                                     else:
                                         duplicates += 1
                                         rejected = 'bookid', 'Got %s under bookid %s' % (bookid, match['BookID'])
-                                        logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
+                                        self.logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                                      (bookid, author_name_result, bookname, match['BookID']))
 
                         if rejected and rejected[0] not in ignorable:
@@ -850,7 +847,7 @@ class GoodReads:
                                     originalpubdate = newdate
                                 elif originalpubdate < newdate:  # more detailed date
                                     originalpubdate = newdate
-                                    logger.debug("Extended date info found: %s" % newdate)
+                                    self.logger.debug("Extended date info found: %s" % newdate)
                                 if not in_cache:
                                     api_hits += 1
 
@@ -860,20 +857,20 @@ class GoodReads:
                             if not rejected and CONFIG.get_bool('NO_FUTURE'):
                                 if bookdate > today()[:len(bookdate)]:
                                     if not_rejectable:
-                                        logger.debug("Not rejecting %s (future pub date %s) as %s" %
+                                        self.logger.debug("Not rejecting %s (future pub date %s) as %s" %
                                                      (bookname, bookdate, not_rejectable))
                                     else:
                                         rejected = 'future', 'Future publication date [%s]' % bookdate
-                                        logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
+                                        self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
                             if not rejected and CONFIG.get_bool('NO_PUBDATE'):
                                 if not bookdate or bookdate == '0000':
                                     if not_rejectable:
-                                        logger.debug("Not rejecting %s (no pub date) as %s" %
+                                        self.logger.debug("Not rejecting %s (no pub date) as %s" %
                                                      (bookname, not_rejectable))
                                     else:
                                         rejected = 'date', 'No publication date'
-                                        logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
+                                        self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
                             if rejected:
                                 if rejected[0] in ignorable:
@@ -920,7 +917,7 @@ class GoodReads:
                                         bookgenre = genre_filter(infodict['genre'])
                                         gbupdate.append('Genres')
                                     if gbupdate:
-                                        logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
+                                        self.logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
 
                                 threadname = thread_name()
                                 reason = "[%s] %s" % (threadname, reason)
@@ -960,7 +957,7 @@ class GoodReads:
                                     newserieslist = get_work_series(workid, 'GR', reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
-                                        logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
+                                        self.logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
                                     _api_hits, pubdate = set_series(serieslist, bookid, reason=reason)
                                     api_hits += _api_hits
                                     if pubdate and pubdate > originalpubdate:  # more detailed
@@ -972,22 +969,19 @@ class GoodReads:
                                             bookdate and bookdate != '0000' and \
                                             bookdate <= today()[:len(bookdate)]:
                                         # was rejected on previous scan but bookdate has become valid
-                                        logger.debug("valid bookdate [%s] previous scanresult [%s]" %
+                                        self.logger.debug("valid bookdate [%s] previous scanresult [%s]" %
                                                      (bookdate, existing['ScanResult']))
                                         update_value_dict["ScanResult"] = "bookdate %s is now valid" % bookdate
                                     elif not existing:
                                         update_value_dict["ScanResult"] = reason
 
                                     if "ScanResult" in update_value_dict:
-                                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                            logger.debug("entry status %s %s,%s" % (entrystatus,
-                                                                                    bookstatus,
-                                                                                    audiostatus))
+                                        self.loggersearching.debug("entry status %s %s,%s" %
+                                                                   (entrystatus, bookstatus, audiostatus))
                                         book_status, audio_status = get_status(bookid, serieslist, bookstatus,
                                                                                audiostatus, entrystatus)
-                                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                            logger.debug("status is now %s,%s" % (book_status,
-                                                                                  audio_status))
+                                        self.loggersearching.debug("status is now %s,%s" %
+                                                                   (book_status, audio_status))
                                         update_value_dict["Status"] = book_status
                                         update_value_dict["AudioStatus"] = audio_status
 
@@ -1000,7 +994,7 @@ class GoodReads:
                                             cover_time += (time.time() - start)
 
                                         if workcover:
-                                            logger.debug('Updated cover for %s using %s' % (bookname, source))
+                                            self.logger.debug('Updated cover for %s using %s' % (bookname, source))
                                             update_value_dict["BookImg"] = workcover
 
                                     elif bookimg and bookimg.startswith('http'):
@@ -1012,7 +1006,7 @@ class GoodReads:
                                         if success:
                                             update_value_dict["BookImg"] = link
                                         else:
-                                            logger.debug('Failed to cache image for %s' % bookimg)
+                                            self.logger.debug('Failed to cache image for %s' % bookimg)
 
                                     worklink = get_work_page(bookid)
                                     if worklink:
@@ -1031,7 +1025,7 @@ class GoodReads:
                                                                            book_language, book_status)
                                 if CONFIG.get_bool('AUDIO_TAB'):
                                     msg += " audio %s" % audio_status
-                                logger.debug(msg)
+                                self.logger.debug(msg)
                     loop_count += 1
                     if 0 < CONFIG.get_int('MAX_BOOKPAGES') < loop_count:
                         resultxml = None
@@ -1040,18 +1034,17 @@ class GoodReads:
                                         urlencode(self.params) + '&page=' + str(loop_count)])
                         resultxml = None
                         try:
-                            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                logger.debug(url)
+                            self.loggersearching.debug(url)
                             rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
                             if rootxml is None:
-                                logger.debug('Error requesting next page of results')
+                                self.logger.debug('Error requesting next page of results')
                             else:
                                 resultxml = rootxml.iter('book')
                                 if not in_cache:
                                     api_hits += 1
                         except Exception as e:
                             resultxml = None
-                            logger.error("%s finding next page of results: %s" % (type(e).__name__, str(e)))
+                            self.logger.error("%s finding next page of results: %s" % (type(e).__name__, str(e)))
 
                     if resultxml:
                         if all(False for _ in resultxml):  # returns True if iterator is empty
@@ -1088,20 +1081,20 @@ class GoodReads:
 
             resultcount = added_count + updated_count
             loop_count -= 1
-            logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
+            self.logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
                                                    loop_count, plural(loop_count, "page")))
-            logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
-            logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
-            logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
-            logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
-            logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
-            logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
+            self.logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
+            self.logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
+            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
+            self.logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
+            self.logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
+            self.logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
                          (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
                           api_hits, plural(api_hits, "hit")))
             if cover_count:
-                logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
+                self.logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
             if isbn_count:
-                logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
+                self.logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
 
             control_value_dict = {"authorname": authorname.replace('"', '""')}
             new_value_dict = {
@@ -1118,15 +1111,15 @@ class GoodReads:
             db.upsert("stats", new_value_dict, control_value_dict)
 
             if refresh:
-                logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
+                self.logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
                             (authorname, added_count, plural(added_count, "book"),
                              updated_count, plural(updated_count, "book")))
             else:
-                logger.info("[%s] Book processing complete: Added %s %s to the database" %
+                self.logger.info("[%s] Book processing complete: Added %s %s to the database" %
                             (authorname, added_count, plural(added_count, "book")))
 
         except Exception:
-            logger.error('Unhandled exception in GR.get_author_books: %s' % traceback.format_exc())
+            self.logger.error('Unhandled exception in GR.get_author_books: %s' % traceback.format_exc())
 
     def verify_ids(self, authorid):
         """ GoodReads occasionally consolidates bookids/workids and renumbers so check if changed... """
@@ -1134,13 +1127,13 @@ class GoodReads:
         cmd = "select BookID,gr_id,BookName from books WHERE AuthorID=? and gr_id is not NULL"
         books = db.select(cmd, (authorid,))
         counter = 0
-        logger.debug('Checking BookID/WorkID for %s %s' % (len(books), plural(len(books), "book")))
+        self.logger.debug('Checking BookID/WorkID for %s %s' % (len(books), plural(len(books), "book")))
         page = ''
         pages = []
         for book in books:
             bookid = book['gr_id']
             if not bookid:
-                logger.warn("No gr_id for %s" % book['BookName'])
+                self.logger.warning("No gr_id for %s" % book['BookName'])
             else:
                 if page:
                     page = page + ','
@@ -1162,11 +1155,10 @@ class GoodReads:
             url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' +
                             urlencode(self.params)])
             try:
-                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                    logger.debug(url)
+                self.loggersearching.debug(url)
                 rootxml, _ = gr_xml_request(url, use_cache=False)
                 if rootxml is None:
-                    logger.debug("Error requesting id_to_work_id page")
+                    self.logger.debug("Error requesting id_to_work_id page")
                 else:
                     resultxml = rootxml.find('work-ids')
                     if len(resultxml):
@@ -1177,14 +1169,14 @@ class GoodReads:
                             workid = item.text
                             if not workid:
                                 notfound.append(books[cnt])
-                                logger.debug("No workid returned for %s" % books[cnt])
+                                self.logger.debug("No workid returned for %s" % books[cnt])
                             else:
                                 found += 1
                                 res = db.match("SELECT WorkID from books WHERE bookid=?", (books[cnt],))
                                 if res:
                                     if res['WorkID'] != workid:
                                         differ += 1
-                                        logger.debug("Updating workid for %s from [%s] to [%s]" % (
+                                        self.logger.debug("Updating workid for %s from [%s] to [%s]" % (
                                                      books[cnt], res['WorkID'], workid))
                                         control_value_dict = {"gr_id": books[cnt]}
                                         new_value_dict = {"WorkID": workid}
@@ -1192,8 +1184,8 @@ class GoodReads:
                             cnt += 1
 
             except Exception as e:
-                logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
-        logger.debug("BookID/WorkID Found %d, Differ %d, Missing %d" % (found, differ, len(notfound)))
+                self.logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
+        self.logger.debug("BookID/WorkID Found %d, Differ %d, Missing %d" % (found, differ, len(notfound)))
 
         cnt = 0
         for bookid in notfound:
@@ -1201,19 +1193,19 @@ class GoodReads:
             if res:
                 if CONFIG.get_bool('FULL_SCAN'):
                     if res['Status'] in ['Wanted', 'Open', 'Have']:
-                        logger.warn("Keeping unknown goodreads bookid %s: %s, Status is %s" %
+                        self.logger.warning("Keeping unknown goodreads bookid %s: %s, Status is %s" %
                                     (bookid, res['BookName'], res['Status']))
                     elif res['AudioStatus'] in ['Wanted', 'Open', 'Have']:
-                        logger.warn("Keeping unknown goodreads bookid %s: %s, AudioStatus is %s" %
+                        self.logger.warning("Keeping unknown goodreads bookid %s: %s, AudioStatus is %s" %
                                     (bookid, res['BookName'], res['Status']))
                     else:
-                        logger.debug("Deleting unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
+                        self.logger.debug("Deleting unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
                         db.action("DELETE from books WHERE gr_id=?", (bookid,))
                         cnt += 1
                 else:
-                    logger.warn("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
+                    self.logger.warning("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
         if cnt:
-            logger.warn("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
+            self.logger.warning("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
 
         # Check for any duplicate titles for this author in the library
         cmd = "select count('bookname'),bookname from books where authorid=? "
@@ -1231,17 +1223,17 @@ class GoodReads:
                     if dupe['Status'] not in ['Ignored', 'Skipped'] \
                             or dupe['AudioStatus'] not in ['Ignored', 'Skipped']:
                         # this one is important (owned/wanted/snatched)
-                        logger.debug("Keeping bookid %s (%s/%s)" %
+                        self.logger.debug("Keeping bookid %s (%s/%s)" %
                                      (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
                     elif dupe['BookSub'] not in booksubs:
                         booksubs.append(dupe['BookSub'])
-                        logger.debug("Keeping bookid %s [%s][%s]" %
+                        self.logger.debug("Keeping bookid %s [%s][%s]" %
                                      (dupe['BookID'], item['bookname'], dupe['BookSub']))
                     elif cnt:
-                        logger.debug("Removing bookid %s (%s/%s) %s" %
+                        self.logger.debug("Removing bookid %s (%s/%s) %s" %
                                      (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
                     else:
-                        logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
+                        self.logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
                                      (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
 
         # Warn about any remaining unignored dupes
@@ -1251,33 +1243,32 @@ class GoodReads:
         dupes = len(res)
         if dupes:
             author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
-            logger.warn("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
+            self.logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
                                                              author['AuthorName']))
             for item in res:
-                logger.debug("%02d: %s" % (item[0], item[1]))
+                self.logger.debug("%02d: %s" % (item[0], item[1]))
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
-        logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
+        self.logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         db = database.DBConnection()
         url = '/'.join([CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(self.params)])
         try:
-            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                logger.debug(url)
+            self.loggersearching.debug(url)
             rootxml, _ = gr_xml_request(url)
             if rootxml is None:
-                logger.debug("Error requesting book")
+                self.logger.debug("Error requesting book")
                 return
         except Exception as e:
-            logger.error("%s finding book: %s" % (type(e).__name__, str(e)))
+            self.logger.error("%s finding book: %s" % (type(e).__name__, str(e)))
             return
 
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
-            logger.debug("No bookstatus passed, using default %s" % bookstatus)
+            self.logger.debug("No bookstatus passed, using default %s" % bookstatus)
         if not audiostatus:
             audiostatus = CONFIG['NEWAUDIO_STATUS']
-            logger.debug("No audiostatus passed, using default %s" % audiostatus)
-        logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
+            self.logger.debug("No audiostatus passed, using default %s" % audiostatus)
+        self.logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         book_language = rootxml.find('./book/language_code').text
         bookname = rootxml.find('./book/title').text
 
@@ -1290,7 +1281,7 @@ class GoodReads:
         valid_langs = get_list(CONFIG['IMP_PREFLANG'])
         if book_language not in valid_langs and 'All' not in valid_langs:
             msg = 'Book %s Language [%s] does not match preference' % (bookname, book_language)
-            logger.warn(msg)
+            self.logger.warning(msg)
             if reason.startswith("Series:"):
                 return
 
@@ -1323,7 +1314,7 @@ class GoodReads:
         if CONFIG.get_bool('NO_PUBDATE'):
             if not bookdate or bookdate == '0000':
                 msg = 'Book %s Publication date [%s] does not match preference' % (bookname, bookdate)
-                logger.warn(msg)
+                self.logger.warning(msg)
                 if reason.startswith("Series:"):
                     return
 
@@ -1331,14 +1322,14 @@ class GoodReads:
             # may have yyyy or yyyy-mm-dd
             if bookdate > today()[:len(bookdate)]:
                 msg = 'Book %s Future publication date [%s] does not match preference' % (bookname, bookdate)
-                logger.warn(msg)
+                self.logger.warning(msg)
                 if reason.startswith("Series:"):
                     return
 
         if CONFIG.get_bool('NO_SETS'):
             if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
                 msg = 'Book %s Set or Part' % bookname
-                logger.warn(msg)
+                self.logger.warning(msg)
                 if reason.startswith("Series:"):
                     return
 
@@ -1347,15 +1338,15 @@ class GoodReads:
             if m:
                 if check_year(m.group(1), past=1800, future=0):
                     msg = "Allow %s, looks like a date range" % m.group(1)
-                    logger.debug(msg)
+                    self.logger.debug(msg)
                 else:
                     msg = 'Set or Part %s' % bookname
-                    logger.warn(msg)
+                    self.logger.warning(msg)
                     if reason.startswith("Series:"):
                         return
             elif re.search(r'\w+\s*/\s*\w+', bookname):
                 msg = 'Set or Part %s' % bookname
-                logger.warn(msg)
+                self.logger.warning(msg)
                 if reason.startswith("Series:"):
                     return
         try:
@@ -1383,7 +1374,7 @@ class GoodReads:
         else:
             match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
             if match:
-                logger.debug('%s: Changing authorid from %s to %s' %
+                self.logger.debug('%s: Changing authorid from %s to %s' %
                              (authorname, authorid, match['AuthorID']))
                 author = {'authorid': match['AuthorID'], 'authorname': authorname}
             else:
@@ -1413,7 +1404,7 @@ class GoodReads:
                     "Status": newauthor_status,
                     "Reason": reason
                 }
-                logger.debug("Adding author %s %s, %s" % (author_id, author['authorname'], newauthor_status))
+                self.logger.debug("Adding author %s %s, %s" % (author_id, author['authorname'], newauthor_status))
                 # cmd = 'insert into authors (AuthorID, AuthorName, AuthorImg, AuthorLink, AuthorBorn,'
                 # cmd += ' AuthorDeath, DateAdded, Updated, Status, Reason) values (?,?,?,?,?,?,?,?,?,?)'
                 # db.action(cmd, (AuthorID, author['authorname'], author['authorimg'], author['authorlink'],
@@ -1427,7 +1418,7 @@ class GoodReads:
                     self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
                                           reason=reason)
         else:
-            logger.warn("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
+            self.logger.warning("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
             return
 
         # bookname = unaccented(bookname, only_ascii=False)
@@ -1447,9 +1438,9 @@ class GoodReads:
                 res = isbn_from_words(bookname + ' ' + unaccented(authorname, only_ascii=False))
             except Exception as e:
                 res = None
-                logger.warn("Error from isbn: %s" % e)
+                self.logger.warning("Error from isbn: %s" % e)
             if res:
-                logger.debug("isbn found %s for %s" % (res, bookname))
+                self.logger.debug("isbn found %s for %s" % (res, bookname))
                 bookisbn = res
 
         bookgenre = ''
@@ -1473,7 +1464,7 @@ class GoodReads:
         reason = "[%s] %s" % (threadname, reason)
         match = db.match("SELECT * from authors where AuthorID=?", (author_id,))
         if not match:
-            logger.warn("Authorid %s not found in database, unable to add %s" % (author_id, bookname))
+            self.logger.warning("Authorid %s not found in database, unable to add %s" % (author_id, bookname))
         else:
             control_value_dict = {"BookID": bookid}
             new_value_dict = {
@@ -1500,13 +1491,13 @@ class GoodReads:
             }
 
             db.upsert("books", new_value_dict, control_value_dict)
-            logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus, audiostatus))
+            self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus, audiostatus))
 
             if 'nocover' in bookimg or 'nophoto' in bookimg:
                 # try to get a cover from another source
                 workcover, source = get_book_cover(bookid)
                 if workcover:
-                    logger.debug('Updated cover for %s using %s' % (bookname, source))
+                    self.logger.debug('Updated cover for %s using %s' % (bookname, source))
                     control_value_dict = {"BookID": bookid}
                     new_value_dict = {"BookImg": workcover}
                     db.upsert("books", new_value_dict, control_value_dict)
@@ -1518,7 +1509,7 @@ class GoodReads:
                     new_value_dict = {"BookImg": link}
                     db.upsert("books", new_value_dict, control_value_dict)
                 else:
-                    logger.debug('Failed to cache image for %s' % bookimg)
+                    self.logger.debug('Failed to cache image for %s' % bookimg)
 
             serieslist = []
             if series:
@@ -1527,7 +1518,7 @@ class GoodReads:
                 newserieslist = get_work_series(workid, 'GR', reason=reason)
                 if newserieslist:
                     serieslist = newserieslist
-                    logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
+                    self.logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
                 set_series(serieslist, bookid, reason=reason)
 
             set_genres(get_list(bookgenre, ','), bookid)

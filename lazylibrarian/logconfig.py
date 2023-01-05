@@ -36,3 +36,24 @@ def enable_logger(logname: str, enabled: bool = True) -> logging.Logger:
     # Use the disabled property of the logger, though the logic is reversed
     logger.disabled = not enabled
     return logger
+
+
+def get_loglevel(logname: str = 'root') -> int:
+    logger = logging.getLogger(logname)
+    if logger:
+        return logger.getEffectiveLevel()
+    else:
+        return logging.NOTSET
+
+
+def get_loglevel_name(logname: str = 'root') -> str:
+    return logging.getLevelName(get_loglevel(logname))
+
+
+def set_loglevel(level: int = logging.INFO, logname: str = 'root') -> bool:
+    logger = logging.getLogger(logname)
+    if logger:
+        logger.setLevel(level)
+        return True
+    else:
+        return False

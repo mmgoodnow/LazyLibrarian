@@ -1,5 +1,6 @@
+import logging
 import os
-from lazylibrarian import logger
+
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.filesystem import DIRS, syspath
@@ -16,7 +17,7 @@ class GrowlNotifier:
 
     @staticmethod
     def _send_growl(growl_host=None, growl_password=None, event=None, message=None, force=False):
-
+        logger = logging.getLogger(__name__)
         title = "LazyLibrarian"
 
         # suppress notifications if the notifier is disabled but the notify options are checked
@@ -62,11 +63,11 @@ class GrowlNotifier:
         try:
             growl.register()
         except gntp_notifier.errors.NetworkError:
-            logger.warn(u'Growl notification failed: network error')
+            logger.warning(u'Growl notification failed: network error')
             return False
 
         except gntp_notifier.errors.AuthError:
-            logger.warn(u'Growl notification failed: authentication error')
+            logger.warning(u'Growl notification failed: authentication error')
             return False
 
         # Send it, including an image if available
@@ -86,7 +87,7 @@ class GrowlNotifier:
                 icon=image
             )
         except gntp_notifier.errors.NetworkError:
-            logger.warn(u'Growl notification failed: network error')
+            logger.warning(u'Growl notification failed: network error')
             return False
 
         logger.info(u"Growl notification sent.")

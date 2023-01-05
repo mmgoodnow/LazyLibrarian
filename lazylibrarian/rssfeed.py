@@ -16,9 +16,10 @@
 import os
 import time
 import datetime
+import logging
 import traceback
 
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import mime_type, path_exists
 from urllib.parse import unquote_plus
@@ -34,6 +35,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
     res = ''
     if not CONFIG.get_bool('RSS_ENABLED'):
         return res
+    logger = logging.getLogger(__name__)
     # noinspection PyBroadException
     try:
         podcast = False

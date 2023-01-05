@@ -14,12 +14,13 @@
 import threading
 import traceback
 import time
+import logging
 import lazylibrarian
+
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
     now, thread_name
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
@@ -41,6 +42,7 @@ def search_item(comicid=None):
     Call all active search providers to search for comic by id
     return a list of results, each entry in list containing percentage_match, title, provider, size, url
     """
+    logger = logging.getLogger(__name__)
     results = []
 
     if not comicid:
@@ -186,6 +188,7 @@ def search_item(comicid=None):
 
 
 def cron_search_comics():
+    logger = logging.getLogger(__name__)
     if 'SEARCHALLCOMICS' not in [n.name for n in [t for t in threading.enumerate()]]:
         search_comics()
     else:
@@ -193,6 +196,8 @@ def cron_search_comics():
 
 
 def search_comics(comicid=None):
+    logger = logging.getLogger(__name__)
+    loggersearching = logging.getLogger('special.searching')
     # noinspection PyBroadException
     try:
         threadname = thread_name()
@@ -230,8 +235,7 @@ def search_comics(comicid=None):
             for item in res:
                 match = None
                 if item['score'] >= 85:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                        logger.debug("Trying to match %s" % item['title'])
+                    loggersearching.debug("Trying to match %s" % item['title'])
                     if comic['ComicID'].startswith('CV'):
                         match = cv_identify(item['title'])
                     elif comic['ComicID'].startswith('CX'):
@@ -243,13 +247,10 @@ def search_comics(comicid=None):
                             if match[4] not in foundissues:
                                 foundissues[match[4]] = item
                     else:
-                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                            logger.debug("No match (%s) want %s: %s" %
-                                         (match[3]['seriesid'], id_list, item['title']))
+                        loggersearching.debug("No match (%s) want %s: %s" % (match[3]['seriesid'], id_list, item['title']))
                         notfound += 1
                 else:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                        logger.debug("No match [%s%%] %s" % (item['score'], item['title']))
+                    loggersearching.debug("No match [%s%%] %s" % (item['score'], item['title']))
                     notfound += 1
 
             total = len(foundissues)
@@ -279,6 +280,8 @@ def search_comics(comicid=None):
 
 
 def download_comiclist(foundissues):
+    logger = logging.getLogger(__name__)
+    loggesearching = logging.getLogger('special.searching')
     db = database.DBConnection()
     snatched = 0
     for issue in foundissues:
@@ -286,8 +289,7 @@ def download_comiclist(foundissues):
         match = db.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
                          (item['title'], item['provider']))
         if match:
-            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                logger.debug('%s is already marked %s' % (item['title'], match['Status']))
+            loggesearching.debug('%s is already marked %s' % (item['title'], match['Status']))
         else:
             bookid = "%s_%s" % (item['bookid'], issue)
             control_value_dict = {

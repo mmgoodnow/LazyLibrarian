@@ -1,6 +1,6 @@
+import logging
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 
 try:
@@ -16,7 +16,7 @@ class NmaNotifier:
 
     @staticmethod
     def _send_nma(nma_api=None, nma_priority=None, event=None, message=None, force=False):
-
+        logger = logging.getLogger(__name__)
         title = "LazyLibrarian"
 
         # suppress notifications if the notifier is disabled but the notify options are checked

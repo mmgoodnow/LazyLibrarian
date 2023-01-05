@@ -12,6 +12,7 @@
 
 
 import datetime
+import logging
 import re
 import threading
 import time
@@ -19,8 +20,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian import database
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
@@ -39,6 +39,8 @@ def cron_search_magazines():
 def search_magazines(mags=None, reset=False):
     # produce a list of magazines to search for, tor, nzb, torznab, rss
     TELEMETRY.record_usage_data('Search/Magazine')
+    logger = logging.getLogger(__name__)
+    loggersearching = logging.getLogger('special.searching')
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -88,7 +90,7 @@ def search_magazines(mags=None, reset=False):
                                "library": 'magazine'})
 
         if not searchlist:
-            logger.warn('There is nothing to search for.  Mark some magazines as active.')
+            logger.warning('There is nothing to search for.  Mark some magazines as active.')
 
         for book in searchlist:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLMAG":
@@ -103,7 +105,7 @@ def search_magazines(mags=None, reset=False):
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_NZB_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No nzb providers are available. Check config and blocklist')
+                        logger.warning('No nzb providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_NZB_MSG'] = timenow
                 else:
                     # prefer larger nzb over smaller ones which may be par2 repair files?
@@ -115,7 +117,7 @@ def search_magazines(mags=None, reset=False):
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_DIRECT_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No direct providers are available. Check config and blocklist')
+                        logger.warning('No direct providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_DIRECT_MSG'] = timenow
 
                 if dir_resultlist:
@@ -136,7 +138,7 @@ def search_magazines(mags=None, reset=False):
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_IRC_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No irc providers are available. Check config and blocklist')
+                        logger.warning('No irc providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_IRC_MSG'] = timenow
 
                 if irc_resultlist:
@@ -157,7 +159,7 @@ def search_magazines(mags=None, reset=False):
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_TOR_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No tor providers are available. Check config and blocklist')
+                        logger.warning('No tor providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_TOR_MSG'] = timenow
 
                 if tor_resultlist:
@@ -178,7 +180,7 @@ def search_magazines(mags=None, reset=False):
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_RSS_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No rss providers are available. Check config and blocklist')
+                        logger.warning('No rss providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_RSS_MSG'] = timenow
 
                 if rss_resultlist:
@@ -303,10 +305,9 @@ def search_magazines(mags=None, reset=False):
                             lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower().split()
                             lower_bookid = unaccented(bookid, only_ascii=False).lower().split()
                             if reject_list:
-                                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                    logger.debug('Reject: %s' % reject_list)
-                                    logger.debug('Title: %s' % lower_title)
-                                    logger.debug('Bookid: %s' % lower_bookid)
+                                loggersearching.debug('Reject: %s' % reject_list)
+                                loggersearching.debug('Title: %s' % lower_title)
+                                loggersearching.debug('Bookid: %s' % lower_bookid)
                             for word in reject_list:
                                 word = unaccented(word).lower()
                                 if word in lower_title and word not in lower_bookid:
@@ -452,16 +453,14 @@ def search_magazines(mags=None, reset=False):
                                     logger.debug('This issue of %s is new, downloading' % nzbtitle_formatted)
                                     issues.append(issue)
                                     logger.debug('Magazine request number %s' % len(issues))
-                                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                        logger.debug(str(issues))
+                                    loggersearching.debug(str(issues))
                                     insert_table = "wanted"
                                     nzbdate = now()  # when we asked for it
                                 else:
                                     logger.debug('This issue of %s is already flagged for download; skipping' % issue)
                                     continue
                             else:
-                                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
-                                    logger.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
+                                loggersearching.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
                                 old_date += 1
 
                             # store only the _new_ matching results
@@ -523,6 +522,7 @@ def search_magazines(mags=None, reset=False):
 
 
 def download_maglist(maglist, table='wanted'):
+    logger = logging.getLogger(__name__)
     snatched = 0
     try:
         db = database.DBConnection()
@@ -569,6 +569,7 @@ def download_maglist(maglist, table='wanted'):
 
 
 def get_issue_date(nzbtitle_exploded, datetype=''):
+    logger = logging.getLogger(__name__)
     regex_pass = 0
     issuedate = ''
     year = 0

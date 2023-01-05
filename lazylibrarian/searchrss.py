@@ -10,13 +10,14 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import time
 import threading
 import traceback
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.csvfile import finditem
 from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name
@@ -27,6 +28,7 @@ from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_rss_book():
+    logger = logging.getLogger(__name__)
     if 'SEARCHALLRSS' not in [n.name for n in [t for t in threading.enumerate()]]:
         search_rss_book()
     else:
@@ -34,6 +36,7 @@ def cron_search_rss_book():
 
 
 def cron_search_wishlist():
+    logger = logging.getLogger(__name__)
     if 'SEARCHWISHLIST' not in [n.name for n in [t for t in threading.enumerate()]]:
         search_wishlist()
     else:
@@ -41,6 +44,7 @@ def cron_search_wishlist():
 
 
 def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
+    logger = logging.getLogger(__name__)
     want_book = False
     want_audio = False
     db = database.DBConnection()
@@ -131,6 +135,7 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
 # noinspection PyBroadException
 def search_wishlist():
     TELEMETRY.record_usage_data('Search/Wishlist')
+    logger = logging.getLogger(__name__)
     thread_name("SEARCHWISHLIST")
     new_books = []
     new_audio = []
@@ -193,7 +198,7 @@ def search_wishlist():
                         logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
                         authorname = newauthor
                     if not newauthor:
-                        logger.warn("Authorname %s not added to database" % authorname)
+                        logger.warning("Authorname %s not added to database" % authorname)
                         authorname = ''
 
                 if authorname and book['rss_isbn']:
@@ -263,14 +268,14 @@ def search_wishlist():
                     msg = "Skipping book %s by %s" % (book['rss_title'], book['rss_author'])
                     if not results:
                         msg += ', No results returned'
-                        logger.warn(msg)
+                        logger.warning(msg)
                     else:
                         msg += ', No match found'
-                        logger.warn(msg)
-                        logger.warn("Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
-                                                                          results[0]['book_fuzz'],
-                                                                          results[0]['authorname'],
-                                                                          results[0]['bookname']))
+                        logger.warning(msg)
+                        logger.warning("Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
+                                                                             results[0]['book_fuzz'],
+                                                                             results[0]['authorname'],
+                                                                             results[0]['bookname']))
         if new_books or new_audio:
             tot = len(new_books) + len(new_audio)
             logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "item")))
@@ -305,8 +310,9 @@ def search_rss_book(books=None, library=None):
     library is "eBook" or "AudioBook" or None to search all book types
     """
     TELEMETRY.record_usage_data('Search/Book/RSS')
+    logger = logging.getLogger(__name__)
     if not (CONFIG.use_rss()):
-        logger.warn('rss search is disabled')
+        logger.warning('rss search is disabled')
         schedule_job(action=SchedulerCommand.STOP, target='search_rss_book')
         return
     try:
@@ -343,7 +349,7 @@ def search_rss_book(books=None, library=None):
 
         resultlist, nproviders, _ = iterate_over_rss_sites()
         if not nproviders:
-            logger.warn('No rss providers are available')
+            logger.warning('No rss providers are available')
             schedule_job(action=SchedulerCommand.STOP, target='search_rss_book')
             return  # No point in continuing
 
@@ -365,8 +371,8 @@ def search_rss_book(books=None, library=None):
                     cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
                     snatched = db.match(cmd, (searchbook["BookID"],))
                     if snatched:
-                        logger.warn('eBook %s %s already marked snatched in wanted table' %
-                                    (searchbook['AuthorName'], searchbook['BookName']))
+                        logger.warning('eBook %s %s already marked snatched in wanted table' %
+                                       (searchbook['AuthorName'], searchbook['BookName']))
                     else:
                         searchlist.append(
                             {"bookid": searchbook['BookID'],
@@ -381,8 +387,8 @@ def search_rss_book(books=None, library=None):
                     cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
                     snatched = db.match(cmd, (searchbook["BookID"],))
                     if snatched:
-                        logger.warn('AudioBook %s %s already marked snatched in wanted table' %
-                                    (searchbook['AuthorName'], searchbook['BookName']))
+                        logger.warning('AudioBook %s %s already marked snatched in wanted table' %
+                                       (searchbook['AuthorName'], searchbook['BookName']))
                     else:
                         searchlist.append(
                             {"bookid": searchbook['BookID'],

@@ -20,12 +20,12 @@
 import datetime
 import os
 import cherrypy
+import logging
 import lazylibrarian
 
 from cherrypy.lib.static import serve_file
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img
 from lazylibrarian.common import mime_type, zip_audio
@@ -69,6 +69,8 @@ class OPDS(object):
         self.opdsroot = '%s://%s%s' % (cherrypy.request.scheme, my_ip, self.opdsroot)
         """
         self.searchroot = self.opdsroot.replace('/opds', '')
+        self.logger = logging.getLogger(__name__)
+        self.loggerdlcomms = logging.getLogger('special.dlcomms')
 
     def check_params(self, **kwargs):
         if 'cmd' not in kwargs:
@@ -99,8 +101,7 @@ class OPDS(object):
                 remote_ip = cherrypy.request.remote.ip
 
             self.user_agent = cherrypy.request.headers.get('User-Agent')
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug(self.user_agent)
+            self.loggerdlcomms.debug(self.user_agent)
 
             # NOTE Moon+ identifies as Aldiko/Moon+  so check for Moon+ first
             # at the moment we only need to identify Aldiko as it doesn't paginate properly
@@ -110,7 +111,7 @@ class OPDS(object):
                     self.reader = ' (' + item + ')'
                     break
 
-            logger.debug('Received OPDS command from %s%s %s %s' % (remote_ip, self.reader, self.cmd, self.kwargs))
+            self.logger.debug('Received OPDS command from %s%s %s %s' % (remote_ip, self.reader, self.cmd, self.kwargs))
 
             if self.cmd == 'search':
                 if 't' in self.kwargs and self.kwargs['t'] in searchable:
@@ -123,18 +124,18 @@ class OPDS(object):
                 if self.img:
                     return serve_file(self.img, content_type='image/jpeg')
                 if self.filepath and self.filename:
-                    logger.debug('Downloading %s: %s' % (self.filename, self.filepath))
+                    self.logger.debug('Downloading %s: %s' % (self.filename, self.filepath))
                     return serve_file(self.filepath, mime_type(self.filename), 'attachment', name=self.filename)
                 if isinstance(self.data, str):
                     return self.data
                 else:
                     cherrypy.response.headers['Content-Type'] = "text/xml"
-                    logger.debug('Returning %s: %s entries' % (self.data['title'], len(self.data['entries'])))
+                    self.logger.debug('Returning %s: %s entries' % (self.data['title'], len(self.data['entries'])))
                     # noinspection PyUnresolvedReferences
                     return lazylibrarian.webServe.serve_template(templatename="opds.html",
                                                                  title=self.data['title'], opds=self.data)
             except Exception as e:
-                logger.error("Unhandled OPDS %s error: %s" % (self.cmd, e))
+                self.logger.error("Unhandled OPDS %s error: %s" % (self.cmd, e))
         else:
             return self.data
 
@@ -461,7 +462,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "genre"), index + 1,
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "genre"), index + 1,
                                                             fin, len(results)))
         self.data = feed
         return
@@ -555,7 +556,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s %s, %s to %s from %s" % (len(entries), escape(kwargs['genre']),
+        self.logger.debug("Returning %s %s %s, %s to %s from %s" % (len(entries), escape(kwargs['genre']),
                                                                plural(len(entries), "book"), index + 1,
                                                                fin, len(results)))
         self.data = feed
@@ -630,7 +631,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -704,7 +705,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -774,7 +775,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "comic"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "comic"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -844,7 +845,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "magazine"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "magazine"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -920,7 +921,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s series, %s to %s from %s" % (len(entries), index + 1, fin, len(results)))
+        self.logger.debug("Returning %s series, %s to %s from %s" % (len(entries), index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -994,7 +995,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1066,7 +1067,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1157,7 +1158,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
                                                             index + 1, fin, len(results)))
         return
 
@@ -1243,7 +1244,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
                                                             index + 1, fin, len(results)))
         return
 
@@ -1338,7 +1339,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1403,7 +1404,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1471,7 +1472,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1521,8 +1522,7 @@ class OPDS(object):
             cmd += "and CAST(BookRate AS INTEGER) > 0 order by BookRate DESC, BookDate DESC"
 
         results = db.select(cmd)
-        if results and lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug("Initial select found %s" % len(results))
+        self.loggerdlcomms.debug("Initial select found %s" % len(results))
 
         readfilter = None
         if sorder == 'Read' and 'user' in kwargs:
@@ -1539,15 +1539,13 @@ class OPDS(object):
                 readfilter = []
 
         if readfilter is not None:
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Filter length %s" % len(readfilter))
+            self.loggerdlcomms.debug("Filter length %s" % len(readfilter))
             filtered = []
             for res in results:
                 if res['BookID'] in readfilter:
                     filtered.append(res)
             results = filtered
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Filter matches %s" % len(results))
+            self.loggerdlcomms.debug("Filter matches %s" % len(results))
 
         if limit:
             page = results[index:(index + limit)]
@@ -1613,7 +1611,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1700,7 +1698,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "audiobook"),
+        self.logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "audiobook"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return

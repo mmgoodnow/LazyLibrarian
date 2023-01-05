@@ -1,9 +1,8 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
-    from lazylibrarian import logger
-    from lazylibrarian.logger import lazylibrarian_log
     from lazylibrarian.config2 import CONFIG
+    from lazylibrarian.logconfig import get_loglevel_name
     from lazylibrarian.notifiers import APPRISE_VER
 %>
 <%def name="headerIncludes()">
@@ -140,21 +139,21 @@
                         <label for="log_type" id="log_label" class="input-group-addon">Level</label>
                         <select id="log_type" name="log_type" class="form-control">
                           <%
-                            if lazylibrarian_log.LOGLEVEL == 0:
+                            if get_loglevel_name() == 'ERROR':
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
                           %>
                           <option value="Quiet" ${selected}>Quiet</option>
                           <%
-                            if lazylibrarian_log.LOGLEVEL == 1:
+                            if get_loglevel_name() == 'INFO':
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
                           %>
                           <option value="Normal" ${selected}>Normal</option>
                           <%
-                            if lazylibrarian_log.LOGLEVEL > 1:
+                            if get_loglevel_name() == 'DEBUG':
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
@@ -188,7 +187,7 @@
                       <label for="hostredact" class="control-label">
                       <input type="checkbox" id="hostredact" name="hostredact" value="1" ${checked} />
                       Also redact hostnames</label>
-                      %if lazylibrarian_log.LOGLEVEL > 1:
+                      %if get_loglevel_name() == 'DEBUG':
                       <br>
                       <fieldset id=debug_options>
                       <legend>Detailed Debug Options</legend>

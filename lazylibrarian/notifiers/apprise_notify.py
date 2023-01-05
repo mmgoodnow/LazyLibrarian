@@ -5,7 +5,6 @@
 #  only available if the Apprise module is installed.
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import plural
 

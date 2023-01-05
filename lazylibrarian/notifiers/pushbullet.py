@@ -17,7 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-from lazylibrarian import logger
+import logging
+
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
@@ -35,6 +36,7 @@ class PushbulletNotifier:
         if not CONFIG['USE_PUSHBULLET'] and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         if pushbullet_token is None:
             pushbullet_token = CONFIG['PUSHBULLET_TOKEN']
         if pushbullet_deviceid is None:
@@ -70,10 +72,11 @@ class PushbulletNotifier:
         username: The username to send the notification to (optional, defaults to the username in the config)
         force: If True then the notification will be sent even if pushbullet is disabled in the config
         """
+        logger = logging.getLogger(__name__)
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warn("Pushbullet: could not convert  message: %s" % e)
+            logger.warning("Pushbullet: could not convert  message: %s" % e)
 
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not CONFIG['USE_PUSHBULLET'] and not force:

@@ -10,10 +10,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-
+import logging
 import traceback
 
-from lazylibrarian import logger
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
@@ -25,6 +24,7 @@ import lib.feedparser as feedparser
 
 
 def torrent_trf(book=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "Torrof"
     host = CONFIG['TRF_HOST']
@@ -189,6 +189,7 @@ def torrent_trf(book=None, test=False):
 
 
 def torrent_tpb(book=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "torrent_tpb"
     host = CONFIG['TPB_HOST']
@@ -322,7 +323,7 @@ def torrent_tpb(book=None, test=False):
             return len(results)
 
         if 0 < CONFIG.get_int('MAX_PAGES') < page:
-            logger.warn('Maximum results page search reached, still more results available')
+            logger.warning('Maximum results page search reached, still more results available')
             next_page = False
         else:
             page += 1
@@ -332,6 +333,7 @@ def torrent_tpb(book=None, test=False):
 
 
 def torrent_kat(book=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "torrent_kat"
     host = CONFIG['KAT_HOST']
@@ -446,6 +448,7 @@ def torrent_kat(book=None, test=False):
 
 
 def torrent_wwt(book=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "WorldWideTorrents"
     host = CONFIG['WWT_HOST']
@@ -489,8 +492,8 @@ def torrent_wwt(book=None, test=False):
                 if test:
                     return False
             elif '503' in result:
-                logger.warn("Cloudflare bot detection? %s: %s" % (provider, result))
-                logger.warn("Try unblocking %s from a browser" % providerurl)
+                logger.warning("Cloudflare bot detection? %s: %s" % (provider, result))
+                logger.warning("Try unblocking %s from a browser" % providerurl)
                 if test:
                     return False
             else:
@@ -577,7 +580,7 @@ def torrent_wwt(book=None, test=False):
 
         page += 1
         if 0 < CONFIG.get_int('MAX_PAGES') < page:
-            logger.warn('Maximum results page search reached, still more results available')
+            logger.warning('Maximum results page search reached, still more results available')
             next_page = False
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
@@ -585,6 +588,7 @@ def torrent_wwt(book=None, test=False):
 
 
 def torrent_zoo(book=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "zooqle"
     host = CONFIG['ZOO_HOST']
@@ -671,6 +675,7 @@ def torrent_zoo(book=None, test=False):
 
 
 def torrent_lime(book=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "Limetorrent"
     host = CONFIG['LIME_HOST']
@@ -764,6 +769,7 @@ def torrent_lime(book=None, test=False):
 
 
 def torrent_tdl(book=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "torrentdownloads"
     host = CONFIG['TDL_HOST']

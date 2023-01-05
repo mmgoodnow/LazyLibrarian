@@ -2,9 +2,9 @@ version: 1
 disable_existing_loggers: false
 formatters:
     simple:
-        format: '%(asctime)s %(threadName)s %(levelname)s: %(message)s [%(module)s.py.%(lineno)s]'
+        format: '%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s)]'
     detail:
-        format: "%(asctime)s %(threadName)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s"
+        format: "%(asctime)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s (%(threadName)s)"
     timing:
         format: '%(asctime)s %(threadName)s %(levelname)s, %(filename)s.%(funcName)s() (line %(lineno)s): %(message)s'
 handlers:
@@ -43,6 +43,10 @@ handlers:
         backupCount: 5
         encoding: utf
 loggers:
+    cherrypy: # Don't log anything from CherryPy
+        level: ERROR
+        handlers: []
+        propagate: false
     unittest:
         level: INFO
         handlers: [console]
@@ -77,6 +81,8 @@ loggers:
     special.postprocess:
         level: INFO
     special.searching:
+        level: INFO
+    special.serverside:
         level: INFO
 root:
     level: INFO

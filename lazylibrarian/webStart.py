@@ -23,10 +23,10 @@ try:
     import cherrypy_cors
 except ImportError:
     import lib.cherrypy_cors as cherrypy_cors
+import logging
 from shutil import copyfile
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.webServe import WebInterface
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 
@@ -39,6 +39,7 @@ if cp_ver and int(cp_ver.split('.')[0]) >= 10:
 
 
 def initialize(options=None):
+    logger = logging.getLogger(__name__)
     if options is None:
         options = {}
     https_enabled = options['https_enabled']
@@ -49,7 +50,7 @@ def initialize(options=None):
 
     if https_enabled:
         if not (path_exists(https_cert) and path_exists(https_key)):
-            logger.warn("Disabled HTTPS because of missing certificate and key.")
+            logger.warning("Disabled HTTPS because of missing certificate and key.")
             https_enabled = False
 
     options_dict = {
@@ -261,8 +262,8 @@ def initialize(options=None):
                         msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_cmd))
         else:
             msg += ' Please install psutil to get more info'
-        logger.warn(msg)
-        logger.warn(str(e))
+        logger.warning(msg)
+        logger.warning(str(e))
         print(msg)
         print(str(e))
         sys.exit(1)

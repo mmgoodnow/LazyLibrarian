@@ -1,6 +1,6 @@
+import logging
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from urllib.parse import urlencode
 from http.client import HTTPSConnection
@@ -12,7 +12,7 @@ class ProwlNotifier:
 
     @staticmethod
     def _send_prowl(prowl_api=None, prowl_priority=None, event=None, message=None, force=False):
-
+        logger = logging.getLogger(__name__)
         title = "LazyLibrarian"
 
         # suppress notifications if the notifier is disabled but the notify options are checked
@@ -58,7 +58,7 @@ class ProwlNotifier:
                 return False
 
         except Exception as e:
-            logger.warn('Error sending to Prowl: %s' % e)
+            logger.warning('Error sending to Prowl: %s' % e)
             return False
 
     #

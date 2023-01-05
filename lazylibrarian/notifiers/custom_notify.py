@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import run_script
 
@@ -30,6 +32,7 @@ class CustomNotifier:
         if not CONFIG.get_bool('USE_CUSTOM') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         logger.debug('Custom Event: %s' % event)
         logger.debug('Custom Message: %s' % message)
         db = database.DBConnection()
@@ -102,11 +105,11 @@ class CustomNotifier:
                     logger.debug(res)
                     return True
             else:
-                logger.warn('Error sending custom notification: Check config')
+                logger.warning('Error sending custom notification: Check config')
                 return False
 
         except Exception as e:
-            logger.warn('Error sending custom notification: %s' % e)
+            logger.warning('Error sending custom notification: %s' % e)
             return False
 
     #

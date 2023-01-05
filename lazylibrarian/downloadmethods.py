@@ -22,7 +22,7 @@ try:
 except Exception:  # magic might fail for multiple reasons
     magic = None
 
-from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
+from lazylibrarian import database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.blockhandler import BLOCKHANDLER
@@ -42,6 +42,7 @@ from lib.bencode import bencode, bdecode
 
 from bs4 import BeautifulSoup
 import requests
+import logging
 
 
 def use_label(source, library):
@@ -76,6 +77,7 @@ def use_label(source, library):
 
 
 def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider: str=''):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     source = provider
     msg = ''
@@ -147,6 +149,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
 
 
 def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', label=''):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     source = ''
     download_id = ''
@@ -213,7 +216,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         nzbfile, success = fetch_url(nzburl, raw=True)
         if not success:
             res = 'Error fetching nzb from url [%s]: %s' % (nzburl, nzbfile)
-            logger.warn(res)
+            logger.warning(res)
             return False, res
 
         if nzbfile:
@@ -235,7 +238,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
 
     if not source:
         res = 'No NZB download method is enabled, check config.'
-        logger.warn(res)
+        logger.warning(res)
         return False, res
 
     if download_id:
@@ -255,6 +258,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
 
 
 def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=''):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     source = "DIRECT"
     logger.debug("Starting Direct Download for [%s]" % dl_title)
@@ -317,11 +321,11 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
         except requests.exceptions.Timeout:
             res = 'Timeout fetching file from url: %s' % dl_url
-            logger.warn(res)
+            logger.warning(res)
             return False, res
         except Exception as e:
             res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, str(e))
-            logger.warn(res)
+            logger.warning(res)
             return False, res
 
         if not str(r.status_code).startswith('2'):
@@ -366,7 +370,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     extn = 'cbz'
                 basename = dl_title
             if not extn:
-                logger.warn("Don't know the filetype for [%s]" % dl_title)
+                logger.warning("Don't know the filetype for [%s]" % dl_title)
                 basename = dl_title
             else:
                 extn = extn.lower()
@@ -423,12 +427,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                         limit = 'unknown'
                     msg = "Daily limit (%s) reached" % limit
                     BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
-                    logger.warn(msg)
+                    logger.warning(msg)
                     return False, msg
                 elif b'Too many requests' in r.content:
                     msg = "Too many requests"
                     BLOCKHANDLER.block_provider(provider, msg)
-                    logger.warn(msg)
+                    logger.warning(msg)
                     return False, msg
 
             logger.debug(res)
@@ -453,12 +457,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                         if b'Daily limit reached' in res:
                             msg = "Daily limit reached"
                             BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
-                            logger.warn(msg)
+                            logger.warning(msg)
                             return False, msg
                         elif b'Too many requests' in res:
                             msg = "Too many requests"
                             BLOCKHANDLER.block_provider(provider, msg)
-                            logger.warn(msg)
+                            logger.warning(msg)
                             return False, msg
                     else:
                         link = a.get('href')
@@ -483,6 +487,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
 
 def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', label=''):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     download_id = False
     source = ''
@@ -530,22 +535,22 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 torrent = r.content
                 if not len(torrent):
                     res = "Got empty response for %s" % tor_url
-                    logger.warn(res)
+                    logger.warning(res)
                     return False, res
                 elif len(torrent) < 100:
                     res = "Only got %s bytes for %s" % (len(torrent), tor_url)
-                    logger.warn(res)
+                    logger.warning(res)
                     return False, res
                 else:
                     logger.debug("Got %s bytes for %s" % (len(torrent), tor_url))
             else:
                 res = "Got a %s response for %s" % (r.status_code, tor_url)
-                logger.warn(res)
+                logger.warning(res)
                 return False, res
 
         except requests.exceptions.Timeout:
             res = 'Timeout fetching file from url: %s' % tor_url
-            logger.warn(res)
+            logger.warning(res)
             return False, res
         except Exception as e:
             # some jackett providers redirect internally using http 301 to a magnet link
@@ -556,12 +561,12 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 logger.debug("Redirecting to %s" % tor_url)
             else:
                 res = '%s fetching file from url: %s, %s' % (type(e).__name__, tor_url, str(e))
-                logger.warn(res)
+                logger.warning(res)
                 return False, res
 
     if not torrent and not tor_url.startswith('magnet:?'):
         res = "No magnet or data, cannot continue"
-        logger.warn(res)
+        logger.warning(res)
         return False, res
 
     if CONFIG.get_bool('TOR_DOWNLOADER_BLACKHOLE'):
@@ -597,7 +602,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     download_id = hashid
                 except Exception as e:
                     res = "Failed to write magnet to file: %s %s" % (type(e).__name__, str(e))
-                    logger.warn(res)
+                    logger.warning(res)
                     logger.debug("Progress: %s Filename [%s]" % (msg, repr(tor_path)))
                     return False, res
         else:
@@ -618,7 +623,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 download_id = source
             except Exception as e:
                 res = "Failed to write torrent to file: %s %s" % (type(e).__name__, str(e))
-                logger.warn(res)
+                logger.warning(res)
                 logger.debug("Progress: %s Filename [%s]" % (msg, repr(tor_path)))
                 return False, res
 
@@ -769,13 +774,13 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
 
     if not source:
         res = 'No torrent download method is enabled, check config.'
-        logger.warn(res)
+        logger.warning(res)
         return False, res
 
     if download_id:
         if tor_title:
             if make_unicode(download_id).upper() in make_unicode(tor_title).upper():
-                logger.warn('%s: name contains hash, probably unresolved magnet' % source)
+                logger.warning('%s: name contains hash, probably unresolved magnet' % source)
             else:
                 tor_title = unaccented(tor_title, only_ascii=False)
                 # need to check against reject words list again as the name may have changed
@@ -831,6 +836,7 @@ def calculate_torrent_hash(link, data=None):
     Calculate the torrent hash from a magnet link or data. Returns empty string
     when it cannot create a torrent hash given the input data.
     """
+    logger = logging.getLogger(__name__)
     try:
         torrent_hash = re.findall(r"urn:btih:(\w{32,40})", link)[0]
         if len(torrent_hash) == 32:

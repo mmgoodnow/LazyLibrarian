@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-from lazylibrarian import logger
+import logging
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
@@ -32,6 +32,7 @@ class SlackNotifier:
         if not CONFIG.get_bool('USE_SLACK') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         url = CONFIG['SLACK_URL']
         if not url.startswith("http"):
             url = 'https://' + url
@@ -77,10 +78,11 @@ class SlackNotifier:
         message: The message string to send
         force: If True then the notification will be sent even if slack is disabled in the config
         """
+        logger = logging.getLogger(__name__)
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warn("Slack: could not convert message: %s" % e)
+            logger.warning("Slack: could not convert message: %s" % e)
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not CONFIG.get_bool('USE_SLACK') and not force:
             return False

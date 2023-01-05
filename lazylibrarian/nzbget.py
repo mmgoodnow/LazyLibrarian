@@ -19,17 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-
+import logging
 from base64 import standard_b64encode
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.formatter import make_unicode
 from xmlrpc.client import ServerProxy, ProtocolError
 from http.client import HTTPException
 from urllib.parse import quote
-from lazylibrarian.logger import lazylibrarian_log
 
 
 def check_link():
@@ -53,6 +51,8 @@ def delete_nzb(nzbid, remove_data=False):
 def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
     # we can send a new nzb, or commands to act on an existing nzbID (or array of nzbIDs)
     # by setting nzbID and cmd (we currently only use test, history, listgroups and delete)
+    logger = logging.getLogger(__name__)
+    dlcommslogger = logging.getLogger('special.dlcomms')
     host = CONFIG['NZBGET_HOST']
     port = CONFIG.get_int('NZBGET_PORT')
     if not host or not port:
@@ -95,8 +95,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
 
     try:
         if nzb_get_rpc.writelog("INFO", msg):
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Successfully connected to NZBget")
+            dlcommslogger.debug("Successfully connected to NZBget")
             if cmd == "test":
                 # should check nzbget category is valid
                 return True, ''
@@ -106,7 +105,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
                 logger.debug(res)
                 return False, res
             else:
-                logger.warn("Successfully connected to NZBget, but unable to send %s" % (nzb.name + ".nzb"))
+                logger.warning("Successfully connected to NZBget, but unable to send %s" % (nzb.name + ".nzb"))
 
     except HTTPException as e:
         res = "Please check your NZBget host and port (if it is running). "
@@ -149,8 +148,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
         nzbcontent64 = make_unicode(standard_b64encode(data))
 
     logger.info("Sending NZB to NZBget")
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("URL: " + url)
+    dlcommslogger.debug("URL: " + url)
 
     dupekey = ""
     dupescore = 0
@@ -163,8 +161,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
         # beginning with a 0.x will use the old command
         nzbget_version_str = nzb_get_rpc.version()
         nzbget_version = int(nzbget_version_str[:nzbget_version_str.find(".")])
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug("NZB Version %s" % nzbget_version)
+        dlcommslogger.debug("NZB Version %s" % nzbget_version)
         # for some reason 14 seems to not work with >= 13 method? I get invalid param autoAdd
         # PAB think its fixed now, code had autoAdd param as "False", it's not a string, it's bool so False
         if nzbget_version == 0:  # or nzbget_version == 14:

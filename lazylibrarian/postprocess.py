@@ -17,6 +17,7 @@ import datetime
 import json
 import os
 import re
+import logging
 import shutil
 import subprocess
 import tarfile
@@ -34,9 +35,8 @@ from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
 
-from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
+from lazylibrarian import database, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3read
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
@@ -73,20 +73,21 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
     # import a magazine issue by title/num
     # Assumes the source file is the correct file for the issue and renames it to match
     # Adds the magazine id to the database if not already there
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         if not source_file or not path_isfile(source_file):
-            logger.warn("%s is not a file" % source_file)
+            logger.warning("%s is not a file" % source_file)
             return False
         _, extn = os.path.splitext(source_file)
         extn = extn.lstrip('.')
         if not extn or extn not in get_list(CONFIG['MAG_TYPE']):
-            logger.warn("%s is not a valid issue file" % source_file)
+            logger.warning("%s is not a valid issue file" % source_file)
             return False
         title = unaccented(sanitize(title), only_ascii=False)
         if not title:
-            logger.warn("No title for %s, rejecting" % source_file)
+            logger.warning("No title for %s, rejecting" % source_file)
             return False
 
         TELEMETRY.record_usage_data('Process/Magazine/FromFile')
@@ -195,14 +196,15 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
     # import a book by id from a directory
     # Assumes the book is the correct file for the id and renames it to match
     # Adds the id to the database if not already there
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         if not source_dir or not path_isdir(source_dir):
-            logger.warn("%s is not a directory" % source_dir)
+            logger.warning("%s is not a directory" % source_dir)
             return False
         if source_dir.startswith(get_directory(library)):
-            logger.warn('Source directory must not be the same as or inside library')
+            logger.warning('Source directory must not be the same as or inside library')
             return False
 
         TELEMETRY.record_usage_data('Process/Book/FromDir')
@@ -215,7 +217,7 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
             logger.debug('Processing %s directory %s' % (library, source_dir))
             book = db.match('SELECT * from books where BookID=?', (bookid,))
             if not book:
-                logger.warn("Bookid [%s] not found in database, trying to add..." % (bookid,))
+                logger.warning("Bookid [%s] not found in database, trying to add..." % (bookid,))
                 if CONFIG['BOOK_API'] == "GoodReads":
                     gr_id = GoodReads(bookid)
                     gr_id.find_book(bookid, None, None, "Added by import_book %s" % source_dir)
@@ -242,12 +244,14 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
 def process_issues(source_dir=None, title=''):
     # import magazine issues for a given title from an alternate directory
     # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
+    loggermatching = logging.getLogger('special.matching')
     try:
         if not source_dir:
-            logger.warn("Alternate Directory not configured")
+            logger.warning("Alternate Directory not configured")
             return False
         if not path_isdir(source_dir):
-            logger.warn("%s is not a directory" % source_dir)
+            logger.warning("%s is not a directory" % source_dir)
             return False
 
         TELEMETRY.record_usage_data('Process/Issues')
@@ -276,22 +280,19 @@ def process_issues(source_dir=None, title=''):
             if not extn or extn.lower() not in get_list(CONFIG['MAG_TYPE']):
                 continue
 
-            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                logger.debug('Trying to match %s' % f)
+            loggermatching.debug('Trying to match %s' % f)
             filename_words = replace_all(f.lower(), dic).split()
             found_title = True
             for word in title_words:
                 if word not in filename_words:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                        logger.debug('[%s] not found in %s' % (word, f))
+                    loggermatching.debug('[%s] not found in %s' % (word, f))
                     found_title = False
                     break
 
             if found_title:
                 for item in rejects:
                     if item in filename_words:
-                        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                            logger.debug('Rejecting %s, contains %s' % (f, item))
+                        loggermatching.debug('Rejecting %s, contains %s' % (f, item))
                         found_title = False
                         break
 
@@ -327,10 +328,9 @@ def process_issues(source_dir=None, title=''):
                     if process_mag_from_file(os.path.join(source_dir, f), title, issuedate):
                         logger.debug('Processed %s issue %s' % (title, issuedate))
                     else:
-                        logger.warn('Failed to process %s' % f)
+                        logger.warning('Failed to process %s' % f)
                 else:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
-                        logger.debug('regex failed for %s' % f)
+                    loggermatching.debug('regex failed for %s' % f)
         return True
 
     except Exception:
@@ -341,15 +341,16 @@ def process_issues(source_dir=None, title=''):
 def process_alternate(source_dir=None, library='eBook', automerge=False):
     # import a book/audiobook from an alternate directory
     # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
     try:
         if not source_dir:
-            logger.warn("Alternate Directory not configured")
+            logger.warning("Alternate Directory not configured")
             return False
         if not path_isdir(source_dir):
-            logger.warn("%s is not a directory" % source_dir)
+            logger.warning("%s is not a directory" % source_dir)
             return False
         if source_dir.startswith(get_directory('eBook')):
-            logger.warn('Alternate directory must not be the same as or inside Destination')
+            logger.warning('Alternate directory must not be the same as or inside Destination')
             return False
 
         TELEMETRY.record_usage_data('Process/Alternate')
@@ -385,7 +386,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                             break
                 new_book = book_file(source_dir, booktype='ebook', config=CONFIG)
             if not new_book:
-                logger.warn("No book file found in %s" % source_dir)
+                logger.warning("No book file found in %s" % source_dir)
                 return False
 
             # see if there is a metadata file in this folder with the info we need
@@ -397,7 +398,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 try:
                     metadata = get_book_info(metafile)
                 except Exception as e:
-                    logger.warn('Failed to read metadata from %s, %s %s' % (metafile, type(e).__name__, str(e)))
+                    logger.warning('Failed to read metadata from %s, %s %s' % (metafile, type(e).__name__, str(e)))
             else:
                 logger.debug('No metadata file found for %s' % new_book)
 
@@ -408,11 +409,11 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                     try:
                         metadata = get_book_info(new_book)
                     except Exception as e:
-                        logger.warn('No metadata found in %s, %s %s' % (new_book, type(e).__name__, str(e)))
+                        logger.warning('No metadata found in %s, %s %s' % (new_book, type(e).__name__, str(e)))
         else:
             new_book = book_file(source_dir, booktype='audiobook', config=CONFIG)
             if not new_book:
-                logger.warn("No audiobook file found in %s" % source_dir)
+                logger.warning("No audiobook file found in %s" % source_dir)
                 return False
             id3r = id3read(new_book)
             author = id3r['author']
@@ -446,7 +447,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                         author_gr = ol.find_author_id()
                     except Exception as e:
                         author_gr = {}
-                        logger.warn("No author id for [%s] %s" % (authorname, type(e).__name__))
+                        logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
                 else:
                     logger.debug("Checking GoodReads for [%s]" % authorname)
                     gr = GoodReads(authorname)
@@ -454,7 +455,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                         author_gr = gr.find_author_id()
                     except Exception as e:
                         author_gr = {}
-                        logger.warn("No author id for [%s] %s" % (authorname, type(e).__name__))
+                        logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
                 if author_gr:
                     grauthorname = author_gr['authorname']
                     authorid = author_gr['authorid']
@@ -521,34 +522,34 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 if library == 'eBook':
                     res = db.match("SELECT Status from books WHERE BookID=?", (bookid,))
                     if res and res['Status'] == 'Ignored':
-                        logger.warn("%s %s by %s is marked Ignored in database, importing anyway" %
+                        logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
                                     (library, bookname, authorname))
                 else:
                     res = db.match("SELECT AudioStatus,Narrator from books WHERE BookID=?", (bookid,))
                     if metadata.get('narrator', '') and res and not res['Narrator']:
                         db.action("update books set narrator=? where bookid=?", (metadata['narrator'], bookid))
                     if res and res['AudioStatus'] == 'Ignored':
-                        logger.warn("%s %s by %s is marked Ignored in database, importing anyway" %
+                        logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
                                     (library, bookname, authorname))
                 return process_book(source_dir, bookid, library, automerge=automerge)
             else:
                 msg = "%s %s by %s not found in database" % (library, bookname, authorname)
                 if not results:
                     msg += ', No results returned'
-                    logger.warn(msg)
+                    logger.warning(msg)
                 else:
                     msg += ', No match found'
-                    logger.warn(msg)
+                    logger.warning(msg)
                     msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'], results[0]['book_fuzz'],
                                                                 results[0]['authorname'], results[0]['bookname'])
                     if results[0]['authorid'] != authorid:
                         msg += ' wrong authorid'
-                    logger.warn(msg)
+                    logger.warning(msg)
         else:
-            logger.warn('%s %s has no metadata' % (library, new_book))
+            logger.warning('%s %s has no metadata' % (library, new_book))
             res = check_residual(source_dir)
             if not res:
-                logger.warn('%s has no book with LL.number' % source_dir)
+                logger.warning('%s has no book with LL.number' % source_dir)
                 return False
 
     except Exception:
@@ -561,6 +562,7 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
     # (files begin with fname) from sourcedir to new targetdir
     # can't move metadata.opf or cover.jpg or similar as can't be sure they are ours
     # return how many files you moved
+    logger = logging.getLogger(__name__)
     cnt = 0
     list_dir = listdir(sourcedir)
     valid_extensions = CONFIG.get_all_types_list()
@@ -581,7 +583,7 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
                         logger.debug("move_into_subdir %s" % ourfile)
                         cnt += 1
                 except Exception as why:
-                    logger.warn("Failed to copy/move file %s to [%s], %s %s" %
+                    logger.warning("Failed to copy/move file %s to [%s], %s %s" %
                                 (ourfile, targetdir, type(why).__name__, str(why)))
                     continue
     return cnt
@@ -591,7 +593,8 @@ def unpack_archive(archivename, download_dir, title):
     """ See if archivename is an archive containing a book
         returns new directory in download_dir with book in it, or empty string
     """
-
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     archivename = make_unicode(archivename)
     if not path_isfile(archivename):  # regular files only
         return ''
@@ -601,8 +604,7 @@ def unpack_archive(archivename, download_dir, title):
     try:
         if zipfile.is_zipfile(archivename):
             TELEMETRY.record_usage_data('Process/Archive')
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                logger.debug('%s is a zip file' % archivename)
+            loggerpostprocess.debug('%s is a zip file' % archivename)
             try:
                 z = zipfile.ZipFile(archivename)
             except Exception as e:
@@ -631,8 +633,7 @@ def unpack_archive(archivename, download_dir, title):
                         f.write(z.read(item))
 
         elif tarfile.is_tarfile(archivename):
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                logger.debug('%s is a tar file' % archivename)
+            loggerpostprocess.debug('%s is a tar file' % archivename)
             try:
                 z = tarfile.TarFile(archivename)
             except Exception as e:
@@ -660,8 +661,7 @@ def unpack_archive(archivename, download_dir, title):
                         f.write(z.extractfile(item).read())
 
         elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                logger.debug('%s is a rar file' % archivename)
+            loggerpostprocess.debug('%s is a rar file' % archivename)
             try:
                 z = lazylibrarian.RARFILE.RarFile(archivename)
             except Exception as e:
@@ -692,8 +692,7 @@ def unpack_archive(archivename, download_dir, title):
             # noinspection PyBroadException
             try:
                 z = lazylibrarian.RARFILE(archivename)
-                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                    logger.debug('%s is a rar file' % archivename)
+                loggerpostprocess.debug('%s is a rar file' % archivename)
             except Exception as e:
                 if archivename.endswith('.rar'):
                     logger.debug(str(e))
@@ -728,8 +727,7 @@ def unpack_archive(archivename, download_dir, title):
                                     f.write(entry[1])
                             break
         if not targetdir:
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
+            loggerpostprocess.debug("[%s] doesn't look like an archive we can unpack" % archivename)
             return ''
 
         return targetdir
@@ -741,6 +739,7 @@ def unpack_archive(archivename, download_dir, title):
 
 def PostProcessor(): # was cron_process_dir
     if lazylibrarian.STOPTHREADS:
+        logger = logging.getLogger(__name__)
         logger.debug("STOPTHREADS is set, not starting postprocessor")
         schedule_job(SchedulerCommand.STOP, target='PostProcessor')
     else:
@@ -758,6 +757,9 @@ def book_type(book):
 
 
 def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
+    loggerfuzz = logging.getLogger('special.fuzz')
     status = {'status': 'failed'}
     count = 0
     for threadname in [n.name for n in [t for t in threading.enumerate()]]:
@@ -810,7 +812,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                 if dlname and dlname != matchtitle:
                     if book['Source'] == 'SABNZBD':
-                        logger.warn("%s unexpected change [%s] to [%s]" % (book['Source'], matchtitle, dlname))
+                        logger.warning("%s unexpected change [%s] to [%s]" % (book['Source'], matchtitle, dlname))
                     logger.debug("%s Changing [%s] to [%s]" % (book['Source'], matchtitle, dlname))
                     # should we check against reject word list again as the name has changed?
                     db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (dlname, book['NZBurl']))
@@ -872,7 +874,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         completion = time.time() - check_int(book['Completed'], 0)
                         completion = int(-(-completion // 1))  # round up to int
                         if completion < delay:
-                            logger.warn("Ignoring %s as completion was %s %s ago" %
+                            logger.warning("Ignoring %s as completion was %s %s ago" %
                                         (book['NZBtitle'], completion, plural(completion, 'second')))
                             continue
                         elif check_int(book['Completed'], 0):
@@ -892,8 +894,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                     for fname in downloads:
                         # skip if failed before or incomplete torrents, or incomplete btsync etc
-                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                            logger.debug("Checking extn on %s" % fname)
+                        loggerpostprocess.debug("Checking extn on %s" % fname)
                         extn = os.path.splitext(fname)[1]
                         if not extn or extn.strip('.') not in skipped_extensions:
                             # This is to get round differences in torrent filenames.
@@ -905,8 +906,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             matchname = sanitize(matchname)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
                             pp_path = ''
-                            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                                logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
+                            loggerfuzz.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
                             if match >= CONFIG.get_int('DLOAD_RATIO'):
                                 # matching file or folder name
                                 pp_path = os.path.join(download_dir, fname)
@@ -918,16 +918,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                                         matchname = sanitize(matchname)
                                         match = fuzz.token_set_ratio(matchtitle, matchname)
-                                        if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                                            logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
+                                        loggerfuzz.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
                                         if match >= CONFIG.get_int('DLOAD_RATIO'):
                                             # found matching file in this folder
                                             pp_path = os.path.join(download_dir, fname)
                                             break
 
                             if match >= CONFIG.get_int('DLOAD_RATIO'):
-                                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                                    logger.debug("process_dir found %s %s" % (type(pp_path), repr(pp_path)))
+                                loggerpostprocess.debug("process_dir found %s %s" % (type(pp_path), repr(pp_path)))
 
                                 if path_isfile(pp_path):
                                     # Check for single file downloads first. Book/mag file in download root.
@@ -936,8 +934,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     # note that epub are zipfiles so check booktype first
                                     # and don't unpack cbr/cbz comics'
                                     if is_valid_type(fname, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
-                                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                                            logger.debug('file [%s] is a valid book/mag' % fname)
+                                        loggerpostprocess.debug('file [%s] is a valid book/mag' % fname)
                                         if bts_file(download_dir):
                                             logger.debug("Skipping %s, found a .bts file" % download_dir)
                                         else:
@@ -962,7 +959,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                     try:
                                                         os.rmdir(targetdir)
                                                     except OSError as why:
-                                                        logger.warn("Unable to delete %s: %s" %
+                                                        logger.warning("Unable to delete %s: %s" %
                                                                     (targetdir, why.strerror))
                                             else:
                                                 logger.debug("Unable to make directory %s" % targetdir)
@@ -1012,8 +1009,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             for f in listdir(pp_path):
                                                 if CONFIG.is_valid_booktype(f, booktype="book"):
                                                     bookmatch = fuzz.token_set_ratio(matchtitle, f)
-                                                    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                                                        logger.debug("%s%% match %s : %s" % (bookmatch,
+                                                    loggerfuzz.debug("%s%% match %s : %s" % (bookmatch,
                                                                                              matchtitle, f))
                                                     if bookmatch > found_score:
                                                         found_file = f
@@ -1104,11 +1100,11 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             # CFG2DO: Verify that this path handling code is no longer necessary
                             # if os.name == 'nt':
                             #     if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
-                            #         logger.warn('Please check your EBOOK_DEST_FOLDER setting')
+                            #         logger.warning('Please check your EBOOK_DEST_FOLDER setting')
                             #         lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
                             #             'EBOOK_DEST_FOLDER'].replace('/', '\\')
                             #     if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
-                            #         logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
+                            #         logger.warning('Please check your AUDIOBOOK_DEST_FOLDER setting')
                             #         lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
                             #             'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
                             # Default destination path, should be allowed change per config file.
@@ -1166,7 +1162,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     dest_path = make_utf8bytes(dest_path)[0]
 
                                 if not dest_path or not make_dirs(dest_path):
-                                    logger.warn('Unable to create directory %s' % dest_path)
+                                    logger.warning('Unable to create directory %s' % dest_path)
 
                                 if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
                                     global_name = CONFIG['MAG_DEST_FILE'].replace(
@@ -1207,7 +1203,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         dest_path = make_utf8bytes(dest_path)[0]
 
                                     if not make_dirs(dest_path):
-                                        logger.warn('Unable to create directory %s' % dest_path)
+                                        logger.warning('Unable to create directory %s' % dest_path)
 
                                 else:  # not recognised, maybe deleted
                                     emsg = 'Nothing in database matching "%s"' % book['BookID']
@@ -1221,9 +1217,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                      (book['NZBmode'], book['NZBtitle']))
                         if match:
                             logger.debug('Closest match (%s%%): %s' % (match, pp_path))
-                            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                                for match in matches:
-                                    logger.debug('Match: %s%%  %s' % (match[0], match[1]))
+                            for match in matches:
+                                loggerfuzz.debug('Match: %s%%  %s' % (match[0], match[1]))
 
                     if not dest_path:
                         continue
@@ -1351,9 +1346,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             # ask downloader to delete the torrent, but not the files
                             # we may delete them later, depending on other settings
                             if not book['Source']:
-                                logger.warn("Unable to remove %s, no source" % book['NZBtitle'])
+                                logger.warning("Unable to remove %s, no source" % book['NZBtitle'])
                             elif not book['DownloadID'] or book['DownloadID'] == "unknown":
-                                logger.warn("Unable to remove %s from %s, no DownloadID" %
+                                logger.warning("Unable to remove %s from %s, no DownloadID" %
                                             (book['NZBtitle'], book['Source']))
                             elif book['Source'] != 'DIRECT':
                                 progress, finished = get_download_progress(book['Source'], book['DownloadID'])
@@ -1392,7 +1387,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                              (pp_path, book['NZBtitle'], book['NZBmode'],
                                               book['Source']))
                             except Exception as why:
-                                logger.warn("Unable to remove %s, %s %s" %
+                                logger.warning("Unable to remove %s, %s %s" %
                                             (pp_path, type(why).__name__, str(why)))
                         else:
                             if CONFIG.get_bool('DESTINATION_COPY'):
@@ -1445,7 +1440,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             shutil.rmtree(pp_path + '.fail', ignore_errors=True)
                             try:
                                 _ = safe_move(pp_path, pp_path + '.fail')
-                                logger.warn('Residual files remain in %s.fail' % pp_path)
+                                logger.warning('Residual files remain in %s.fail' % pp_path)
                             except Exception as why:
                                 logger.error("Unable to rename %s, %s %s" %
                                              (repr(pp_path), type(why).__name__, str(why)))
@@ -1462,7 +1457,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     remove_file(os.path.join(parent, 'll_temp'))
                                 except Exception as why:
                                     logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
-                                logger.warn('Residual files remain in %s' % pp_path)
+                                logger.warning('Residual files remain in %s' % pp_path)
 
             ppcount += check_residual(download_dir)
 
@@ -1479,16 +1474,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             mins = 0
             progress = 'Unknown'
             finished = False
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                logger.debug("%s %s %s" % (book['Status'], book['Source'], book['NZBtitle']))
+            loggerpostprocess.debug("%s %s %s" % (book['Status'], book['Source'], book['NZBtitle']))
             if book['Status'] == "Aborted":
                 abort = True
             else:
                 progress, finished = get_download_progress(book['Source'], book['DownloadID'])
 
             if book['Status'] == "Seeding":
-                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                    logger.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
+                loggerpostprocess.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
                                                                          CONFIG.get_bool('SEED_WAIT')))
                 if not CONFIG.get_bool('KEEP_SEEDING') and (finished or progress < 0 and
                                                                                   not CONFIG.get_bool('SEED_WAIT')):
@@ -1582,7 +1575,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         db.action(q, (book['NZBurl'],))
 
                     if CONFIG.get_bool('DEL_FAILED'):
-                        logger.warn('%s, deleting failed task' % dlresult)
+                        logger.warning('%s, deleting failed task' % dlresult)
                         delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
                 if book['Source']:
@@ -1624,6 +1617,7 @@ def check_contents(source, downloadid, booktype, title):
         Return empty string if ok, or error message if rejected
         Error message gets logged and then passed back to history table
     """
+    logger = logging.getLogger(__name__)
     rejected = ''
     banned_extensions = get_list(CONFIG['BANNED_EXT'])
     if booktype.lower() == 'ebook':
@@ -1679,7 +1673,7 @@ def check_contents(source, downloadid, booktype, title):
             extn = os.path.splitext(fname)[1].lstrip('.').lower()
             if extn and extn in banned_extensions:
                 rejected = "%s extension %s" % (title, extn)
-                logger.warn("%s. Rejecting download" % rejected)
+                logger.warning("%s. Rejecting download" % rejected)
                 break
 
             if not rejected and banlist:
@@ -1687,7 +1681,7 @@ def check_contents(source, downloadid, booktype, title):
                 for word in wordlist:
                     if word in banlist:
                         rejected = "%s contains %s" % (fname, word)
-                        logger.warn("%s. Rejecting download" % rejected)
+                        logger.warning("%s. Rejecting download" % rejected)
                         break
 
             # only check size on right types of file
@@ -1710,11 +1704,11 @@ def check_contents(source, downloadid, booktype, title):
                     if fsize:
                         if maxsize and fsize > maxsize:
                             rejected = "%s is too large (%s%s)" % (fname, fsize, unit)
-                            logger.warn("%s. Rejecting download" % rejected)
+                            logger.warning("%s. Rejecting download" % rejected)
                             break
                         if minsize and fsize < minsize:
                             rejected = "%s is too small (%s%s)" % (fname, fsize, unit)
-                            logger.warn("%s. Rejecting download" % rejected)
+                            logger.warning("%s. Rejecting download" % rejected)
                             break
             if not rejected:
                 logger.debug("%s: (%s%s) is wanted" % (fname, fsize, unit))
@@ -1729,12 +1723,13 @@ def check_residual(download_dir):
     # Import any books in download that weren't marked as snatched, but have a LL.(bookid)
     # don't process any we've already got as we might not want to delete originals
     # NOTE: we currently only import ebook OR audiobook from a single folder, not both
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     db = database.DBConnection()
     skipped_extensions = get_list(CONFIG['SKIPPED_EXT'])
     ppcount = 0
     downloads = listdir(download_dir)
-    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-        logger.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
+    loggerpostprocess.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
                                                             plural(len(downloads), 'entry'),
                                                             download_dir))
     TELEMETRY.record_usage_data('Process/Residual')
@@ -1764,31 +1759,27 @@ def check_residual(download_dir):
                 if exists:
                     logger.debug('Skipping BookID %s, already exists' % book_id)
                 else:
-                    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                        logger.debug("Checking type of %s" % pp_path)
+                    loggerpostprocess.debug("Checking type of %s" % pp_path)
 
                     if path_isfile(pp_path):
-                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                            logger.debug("%s is a file" % pp_path)
+                        loggerpostprocess.debug("%s is a file" % pp_path)
                         pp_path = os.path.join(download_dir)
 
                     if path_isdir(pp_path):
-                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                            logger.debug("%s is a dir" % pp_path)
+                        loggerpostprocess.debug("%s is a dir" % pp_path)
                         if process_book(pp_path, book_id):
-                            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                                logger.debug("Imported %s" % pp_path)
+                            loggerpostprocess.debug("Imported %s" % pp_path)
                             ppcount += 1
             else:
-                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                    logger.debug("Skipping extn %s" % entry)
+                loggerpostprocess.debug("Skipping extn %s" % entry)
         else:
-            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                logger.debug("Skipping (no LL bookid) %s" % entry)
+            loggerpostprocess.debug("Skipping (no LL bookid) %s" % entry)
     return ppcount
 
 
 def get_download_name(title, source, downloadid):
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
     dlname = None
     try:
         logger.debug("%s was sent to %s" % (title, source))
@@ -1812,8 +1803,7 @@ def get_download_name(title, source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug("Deluge RPC Status [%s]" % str(result))
+                loggerdlcomms.debug("Deluge RPC Status [%s]" % str(result))
                 if 'name' in result:
                     dlname = unaccented(result['name'], only_ascii=False)
             except Exception as e:
@@ -1865,6 +1855,8 @@ def get_download_name(title, source, downloadid):
 
 
 def get_download_files(source, downloadid):
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
     dlfiles = None
     TELEMETRY.record_usage_data('Get/DownloadFiles')
     try:
@@ -1888,15 +1880,13 @@ def get_download_files(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug("Deluge RPC Status [%s]" % str(result))
+                loggerdlcomms.debug("Deluge RPC Status [%s]" % str(result))
                 if 'files' in result:
                     dlfiles = result['files']
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         else:
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Unable to get file list from %s (not implemented)" % source)
+            loggerdlcomms.debug("Unable to get file list from %s (not implemented)" % source)
         return dlfiles
 
     except Exception as e:
@@ -1906,6 +1896,8 @@ def get_download_files(source, downloadid):
 
 
 def get_download_folder(source, downloadid):
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
     dlfolder = None
     # noinspection PyBroadException
     TELEMETRY.record_usage_data('Get/DownloadFolder')
@@ -1930,8 +1922,7 @@ def get_download_folder(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug("Deluge RPC Status [%s]" % str(result))
+                loggerdlcomms.debug("Deluge RPC Status [%s]" % str(result))
                 if 'save_path' in result:
                     dlfolder = result['save_path']
             except Exception as e:
@@ -1976,8 +1967,7 @@ def get_download_folder(source, downloadid):
 
         elif source == 'NZBGET':
             res, _ = nzbget.send_nzb(cmd='listgroups')
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug(str(res))
+            loggerdlcomms.debug(str(res))
             if res:
                 for item in res:
                     if item['NZBID'] == check_int(downloadid, 0):
@@ -1985,8 +1975,7 @@ def get_download_folder(source, downloadid):
                         break
             if not dlfolder:  # not in queue, try history
                 res, _ = nzbget.send_nzb(cmd='history')
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug(str(res))
+                loggerdlcomms.debug(str(res))
                 if res:
                     for item in res:
                         if item['NZBID'] == check_int(downloadid, 0):
@@ -1995,12 +1984,14 @@ def get_download_folder(source, downloadid):
         return dlfolder
 
     except Exception:
-        logger.warn("Failed to get folder from %s for %s" % (source, downloadid))
+        logger.warning("Failed to get folder from %s for %s" % (source, downloadid))
         logger.error('Unhandled exception in get_download_folder: %s' % traceback.format_exc())
         return None
 
 
 def get_download_progress(source, downloadid):
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
     progress = 0
     finished = False
     db = database.DBConnection()
@@ -2090,8 +2081,7 @@ def get_download_progress(source, downloadid):
 
         elif source == 'NZBGET':
             res, _ = nzbget.send_nzb(cmd='listgroups')
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug(str(res))
+            loggerdlcomms.debug(str(res))
             found = False
             if res:
                 for item in res:
@@ -2109,8 +2099,7 @@ def get_download_progress(source, downloadid):
                         break
             if not found:  # not in queue, try history in case completed or error
                 res, _ = nzbget.send_nzb(cmd='history')
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug(str(res))
+                loggerdlcomms.debug(str(res))
                 if res:
                     for item in res:
                         if item['NZBID'] == check_int(downloadid, 0):
@@ -2187,8 +2176,7 @@ def get_download_progress(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug("Deluge RPC Status [%s]" % str(result))
+                loggerdlcomms.debug("Deluge RPC Status [%s]" % str(result))
 
                 if 'progress' in result:
                     progress = result['progress']
@@ -2209,9 +2197,8 @@ def get_download_progress(source, downloadid):
                 progress = 0
 
         else:
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("Unable to get progress from %s (not implemented)" % source)
-                progress = 0
+            loggerdlcomms.debug("Unable to get progress from %s (not implemented)" % source)
+            progress = 0
         try:
             progress = int(progress)
         except ValueError:
@@ -2226,15 +2213,16 @@ def get_download_progress(source, downloadid):
         return progress, finished
 
     except Exception:
-        logger.warn("Failed to get download progress from %s for %s" % (source, downloadid))
+        logger.warning("Failed to get download progress from %s for %s" % (source, downloadid))
         logger.error('Unhandled exception in get_download_progress: %s' % traceback.format_exc())
         return 0, False
 
 
 def delete_task(source, download_id, remove_data):
+    logger = logging.getLogger(__name__)
     try:
         if source == "BLACKHOLE":
-            logger.warn("Download %s has not been processed from blackhole" % download_id)
+            logger.warning("Download %s has not been processed from blackhole" % download_id)
         elif source == "SABNZBD":
             if CONFIG.get_bool('SAB_DELETE'):
                 sabnzbd.sab_nzbd(download_id, 'delete', remove_data)
@@ -2272,19 +2260,20 @@ def delete_task(source, download_id, remove_data):
         return True
 
     except Exception as e:
-        logger.warn("Failed to delete task %s from %s: %s %s" % (download_id, source, type(e).__name__, str(e)))
+        logger.warning("Failed to delete task %s from %s: %s %s" % (download_id, source, type(e).__name__, str(e)))
         return False
 
 
 def process_book(pp_path=None, bookid=None, library=None, automerge=False):
     TELEMETRY.record_usage_data('Process/Book')
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         # Move a book into LL folder structure given just the folder and bookID, returns True or False
         # Called from "import_alternate" or if we find a "LL.(xxx)" folder that doesn't match a snatched book/mag
-        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-            logger.debug("process_book %s" % pp_path)
+        loggerpostprocess.debug("process_book %s" % pp_path)
         is_audio = (book_file(pp_path, "audiobook", config=CONFIG) != '')
         is_ebook = (book_file(pp_path, "ebook", config=CONFIG) != '')
 
@@ -2316,8 +2305,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
             elif want_ebook and is_ebook:
                 booktype = "eBook"
             elif not was_snatched:
-                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                    logger.debug('Bookid %s was not snatched so cannot check type, contains ebook:%s audio:%s' %
+                loggerpostprocess.debug('Bookid %s was not snatched so cannot check type, contains ebook:%s audio:%s' %
                                  (bookid, is_ebook, is_audio))
 
                 if is_audio and not CONFIG.get_bool('AUDIO_TAB'):
@@ -2339,11 +2327,11 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
             # CFG2DO Check that path handling no longer necessary
             # if os.name == 'nt':
             #     if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
-            #         logger.warn('Please check your EBOOK_DEST_FOLDER setting')
+            #         logger.warning('Please check your EBOOK_DEST_FOLDER setting')
             #         lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
             #             'EBOOK_DEST_FOLDER'].replace('/', '\\')
             #     if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
-            #         logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
+            #         logger.warning('Please check your AUDIOBOOK_DEST_FOLDER setting')
             #         lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
             #             'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
 
@@ -2366,8 +2354,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 dest_file = make_unicode(dest_file)
                 if was_snatched:
                     snatched_from = CONFIG.disp_name(was_snatched[0]['NZBprov'])
-                    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                        logger.debug("%s was snatched from %s" % (global_name, snatched_from))
+                    loggerpostprocess.debug("%s was snatched from %s" % (global_name, snatched_from))
                     control_value_dict = {"BookID": bookid}
                     new_value_dict = {"Status": "Processed", "NZBDate": now(), "DLResult": dest_file}
                     db.upsert("wanted", new_value_dict, control_value_dict)
@@ -2376,8 +2363,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                     new_value_dict = {"AuxInfo": booktype, "NZBDate": now(), "DLResult": dest_file}
                     db.upsert("wanted", new_value_dict, control_value_dict)
                     snatched_from = "manually added"
-                    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-                        logger.debug("%s %s was %s" % (booktype, global_name, snatched_from))
+                    loggerpostprocess.debug("%s %s was %s" % (booktype, global_name, snatched_from))
 
                 if dest_file:  # do we know the location (not calibre already exists)
                     process_extras(dest_file, global_name, bookid, booktype)
@@ -2415,7 +2401,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 shutil.rmtree(pp_path + '.fail', ignore_errors=True)
                 try:
                     _ = safe_move(pp_path, pp_path + '.fail')
-                    logger.warn('Residual files remain in %s.fail' % pp_path)
+                    logger.warning('Residual files remain in %s.fail' % pp_path)
                 except Exception as e:
                     logger.error("Unable to rename %s, %s %s" %
                                  (repr(pp_path), type(e).__name__, str(e)))
@@ -2430,7 +2416,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                         remove_file(os.path.join(parent, 'll_temp'))
                     except Exception as why:
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
-                    logger.warn('Residual files remain in %s' % pp_path)
+                    logger.warning('Residual files remain in %s' % pp_path)
 
                 was_snatched = db.match('SELECT NZBurl FROM wanted WHERE BookID=? and Status="Snatched"', (bookid,))
                 if was_snatched:
@@ -2451,6 +2437,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
 def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBook"):
     # given bookid, handle author count, calibre autoadd, book image, opf
 
+    logger = logging.getLogger(__name__)
     if not bookid:
         logger.error('No bookid supplied')
         return
@@ -2516,6 +2503,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         Return True, full_path_to_book, pp_path (which may have changed)  or False, error_message"""
 
     TELEMETRY.record_usage_data('Process/Destination')
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     logger.debug("%s [%s] %s" % (booktype, global_name, str(data)))
     booktype = booktype.lower()
     pp_path = make_unicode(pp_path)
@@ -2671,7 +2660,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if rc:
                 return False, 'calibredb rc %s from %s' % (rc, CONFIG['IMP_CALIBREDB']), pp_path
             elif booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
-                logger.warn('Calibre failed to import %s %s, already exists, marking book as "Have"' %
+                logger.warning('Calibre failed to import %s %s, already exists, marking book as "Have"' %
                             (authorname, bookname))
                 db = database.DBConnection()
                 control_value_dict = {"BookID": bookid}
@@ -2687,7 +2676,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if calibre_id.isdigit():
                 logger.debug('Calibre ID: [%s]' % calibre_id)
             else:
-                logger.warn('Calibre ID looks invalid: [%s]' % calibre_id)
+                logger.warning('Calibre ID looks invalid: [%s]' % calibre_id)
 
             our_opf = False
             rc = 0
@@ -2739,7 +2728,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     if opfpath:
                         _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
                         if rc:
-                            logger.warn("calibredb unable to set opf")
+                            logger.warning("calibredb unable to set opf")
 
                     tags = ''
                     if CONFIG.get_bool('OPF_TAGS'):
@@ -2764,7 +2753,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     if tags:
                         _, _, rc = calibredb('set_metadata', ['--field', 'tags:%s' % tags], [calibre_id])
                         if rc:
-                            logger.warn("calibredb unable to set tags")
+                            logger.warning("calibredb unable to set tags")
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
                 if booktype == 'magazine':
@@ -2781,20 +2770,20 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
                     _, _, rc = calibredb('set_metadata', ['--field', 'pubdate:%s' % issuedate], [calibre_id])
                     if rc:
-                        logger.warn("calibredb unable to set pubdate")
+                        logger.warning("calibredb unable to set pubdate")
                 _, _, rc = calibredb('set_metadata', ['--field', 'authors:%s' % unaccented(
                                      authorname, only_ascii=False)], [calibre_id])
                 if rc:
-                    logger.warn("calibredb unable to set author")
+                    logger.warning("calibredb unable to set author")
                 _, _, rc = calibredb('set_metadata', ['--field',
                                                       'title:%s' % unaccented(global_name, only_ascii=False)],
                                      [calibre_id])
                 if rc:
-                    logger.warn("calibredb unable to set title")
+                    logger.warning("calibredb unable to set title")
 
                 _, _, rc = calibredb('set_metadata', ['--field', 'identifiers:%s' % identifier], [calibre_id])
                 if rc:
-                    logger.warn("calibredb unable to set identifier")
+                    logger.warning("calibredb unable to set identifier")
 
             if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
                 return True, data['IssueFile'], pp_path
@@ -2878,7 +2867,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                         with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                             f.write(make_unicode(booktype))
                     except IOError as e:
-                        logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+                        logger.warning("Unable to create/write to ignorefile: %s" % str(e))
 
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
@@ -2892,13 +2881,12 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e)), pp_path
     else:
         # we are copying the files ourselves
-        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-            logger.debug("BookType: %s, calibredb: [%s]" % (booktype, CONFIG['IMP_CALIBREDB']))
-            logger.debug("Source Path: %s" % (repr(pp_path)))
-            logger.debug("Dest Path: %s" % (repr(dest_path)))
+        loggerpostprocess.debug("BookType: %s, calibredb: [%s]" % (booktype, CONFIG['IMP_CALIBREDB']))
+        loggerpostprocess.debug("Source Path: %s" % (repr(pp_path)))
+        loggerpostprocess.debug("Dest Path: %s" % (repr(dest_path)))
         dest_path, encoding = make_utf8bytes(dest_path)
-        if encoding and lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-            logger.debug("dest_path was %s" % encoding)
+        if encoding:
+            loggerpostprocess.debug("dest_path was %s" % encoding)
         if not path_exists(dest_path):
             logger.debug('%s does not exist, so it\'s safe to create it' % dest_path)
         elif not path_isdir(dest_path):
@@ -2914,8 +2902,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
         udest_path = make_unicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
         global_name, encoding = make_utf8bytes(global_name)
-        if encoding and lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
-            logger.debug("global_name was %s" % encoding)
+        if encoding:
+            loggerpostprocess.debug("global_name was %s" % encoding)
 
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
         firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multipart audiobooks
@@ -3002,7 +2990,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 with open(syspath(ignorefile), 'w') as f:
                     f.write(make_unicode(booktype))
             except (IOError, TypeError) as e:
-                logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+                logger.warning("Unable to create/write to ignorefile: %s" % str(e))
 
             if booktype == 'comic':
                 cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
@@ -3036,6 +3024,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
 def process_auto_add(src_path=None, booktype='book'):
     # Called to copy/move the book files to an auto add directory for the likes of Calibre which can't do nested dirs
+    logger = logging.getLogger(__name__)
     autoadddir = CONFIG['IMP_AUTOADD']
     savefiles = CONFIG.get_bool('IMP_AUTOADD_COPY')
     if booktype == 'mag':
@@ -3096,7 +3085,7 @@ def process_auto_add(src_path=None, booktype='book'):
                 try:
                     os.chmod(syspath(dstname), 0o666)  # make rw for calibre
                 except OSError as why:
-                    logger.warn("Could not set permission of %s because [%s]" % (dstname, why.strerror))
+                    logger.warning("Could not set permission of %s because [%s]" % (dstname, why.strerror))
                     # permissions might not be fatal, continue
 
         if copied and not savefiles:  # do we want to keep the library files?
@@ -3117,6 +3106,7 @@ def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cac
     #     logger.debug('Not creating coverfile, bookonly is set')
     #     return
 
+    logger = logging.getLogger(__name__)
     coverfile = jpg_file(dest_path)
     if not overwrite and coverfile:
         logger.debug('Cover %s already exists' % coverfile)
@@ -3178,6 +3168,7 @@ def create_comic_opf(pp_path, data, global_name, overwrite=False):
 
 def create_mag_opf(issuefile, authors, title, issue, issue_id, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
+    logger = logging.getLogger(__name__)
     logger.debug("Creating opf with file:%s authors:%s title:%s issue:%s issueid:%s overwrite:%s" %
                  (issuefile, authors, title, issue, issue_id, overwrite))
     dest_path, global_name = os.path.split(issuefile)
@@ -3218,6 +3209,7 @@ def create_mag_opf(issuefile, authors, title, issue, issue_id, overwrite=False):
 
 
 def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
+    logger = logging.getLogger(__name__)
     opfpath = os.path.join(dest_path, global_name + '.opf')
     if not overwrite and path_exists(opfpath):
         logger.debug('%s already exists. Did not create one.' % opfpath)
@@ -3379,6 +3371,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
 
 
 def write_meta(book_folder, opf):
+    logger = logging.getLogger(__name__)
     if not path_exists(opf):
         logger.error("No opf file [%s]" % opf)
         return

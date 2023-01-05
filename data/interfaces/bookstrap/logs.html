@@ -3,18 +3,12 @@
     import lazylibrarian
     from lazylibrarian.config2 import CONFIG
     from lazylibrarian import formatter
-    from lazylibrarian.logger import lazylibrarian_log
+    from lazylibrarian.logconfig import get_loglevel_name
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
     <div id="subhead_menu">
       <a href="clear_log" class="button btn btn-sm btn-primary"><i class="far fa-square"></i> Clear Log </a>
-      %if lazylibrarian_log.LOGLEVEL >= 2:
-      <a href="toggle_log" class="button btn btn-sm btn-primary"><i class="fa fa-stop"></i> Stop Debug Log</a>
-      <a href="save_log" class="button btn btn-sm btn-primary"><i class="fa fa-save"></i> Save Debug Log</a>
-      %else:
-      <a href="toggle_log" class="button btn btn-sm btn-primary"><i class="fa fa-play"></i> Start Debug Log</a>
-      %endif
     </div>
   </div>
 </%def>

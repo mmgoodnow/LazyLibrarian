@@ -11,19 +11,19 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import socket
 import ssl
 from time import sleep
 
 from lazylibrarian.filesystem import get_directory
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
-from lazylibrarian.logger import lazylibrarian_log
 from xmlrpc.client import Binary, ServerProxy
 
 
-
 def get_server():
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
     host = CONFIG['RTORRENT_HOST']
     if not host:
         logger.error("rtorrent error: No host found, check your config")
@@ -51,8 +51,7 @@ def get_server():
             server = ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug("rTorrent client version = %s" % version)
+        loggerdlcomms.debug("rTorrent client version = %s" % version)
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed
         logger.error("xmlrpc_client error: %s" % repr(e))
@@ -60,11 +59,12 @@ def get_server():
     if version:
         return server, version
     else:
-        logger.warn('No response from rTorrent server')
+        logger.warning('No response from rTorrent server')
         return False, ''
 
 
 def add_torrent(tor_url, hash_id, data=None):
+    logger = logging.getLogger(__name__)
     server, version = get_server()
     if server is False:
         return False, 'rTorrent unable to connect to server'

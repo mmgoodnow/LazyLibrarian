@@ -12,16 +12,16 @@
 
 
 import json
+import logging
 import re
 import time
+
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlencode
 from urllib.request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
     build_opener, install_opener, Request
 
-from lazylibrarian import logger
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import get_user_agent
 from lazylibrarian.formatter import check_int, get_list
 
@@ -33,11 +33,13 @@ class UtorrentClient(object):
     def __init__(self, base_url='',  # lazylibrarian.CONFIG['UTORRENT_HOST'],
                  username='',  # lazylibrarian.CONFIG['UTORRENT_USER'],
                  password='',):  # lazylibrarian.CONFIG['UTORRENT_PASS']):
+        self.logger = logging.getLogger(__name__)
+        self.loggerdlcomms = logging.getLogger('special.dlcomms')
 
         host = CONFIG['UTORRENT_HOST']
         port = CONFIG.get_int('UTORRENT_PORT')
         if not host or not port:
-            logger.error('Invalid Utorrent host or port, check your config')
+            self.logger.error('Invalid Utorrent host or port, check your config')
 
         if not host.startswith("http://") and not host.startswith("https://"):
             host = 'http://' + host
@@ -81,9 +83,8 @@ class UtorrentClient(object):
         try:
             response = self.opener.open(url)
         except Exception as err:
-            logger.error('%s getting Token. uTorrent responded with: %s' % (type(err).__name__, str(err)))
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug('URL: %s' % url)
+            self.logger.error('%s getting Token. uTorrent responded with: %s' % (type(err).__name__, str(err)))
+            self.loggerdlcomms.debug('URL: %s' % url)
             return None
         match = re.search(UtorrentClient.TOKEN_REGEX, response.read())
         return match.group(1)
@@ -185,8 +186,7 @@ class UtorrentClient(object):
 
     def _action(self, params, body=None, content_type=None):
         url = "%s/gui/?token=%s&%s" % (self.base_url, self.token, urlencode(params))
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug("uTorrent params %s" % str(params))
+        self.loggerdlcomms.debug("uTorrent params %s" % str(params))
         request = Request(url)
         if CONFIG['PROXY_HOST']:
             for item in get_list(CONFIG['PROXY_TYPE']):
@@ -203,13 +203,12 @@ class UtorrentClient(object):
             response = self.opener.open(request)
             res = response.code
             js = json.loads(response.read())
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug("uTorrent response code %s" % res)
-                logger.debug(str(js))
+            self.loggerdlcomms.debug("uTorrent response code %s" % res)
+            self.loggerdlcomms.debug(str(js))
             return res, js
         except Exception as err:
-            logger.debug('URL: %s' % url)
-            logger.debug('uTorrent webUI raised the following error: ' + str(err))
+            self.logger.debug('URL: %s' % url)
+            self.logger.debug('uTorrent webUI raised the following error: ' + str(err))
             return 0, str(err)
 
 
@@ -236,8 +235,8 @@ def check_link():
 
 # noinspection PyUnresolvedReferences
 def label_torrent(hashid, label):
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("set label %s for %s" % (label, hashid))
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("set label %s for %s" % (label, hashid))
     uclient = UtorrentClient()
     torrent_list = uclient.list()
     for torrent in torrent_list[1].get('torrents'):
@@ -248,8 +247,8 @@ def label_torrent(hashid, label):
 
 
 def dir_torrent(hashid):
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("get directory for %s" % hashid)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("get directory for %s" % hashid)
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -260,8 +259,8 @@ def dir_torrent(hashid):
 
 
 def name_torrent(hashid):
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("get name for %s" % hashid)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("get name for %s" % hashid)
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -272,15 +271,15 @@ def name_torrent(hashid):
 
 
 def pause_torrent(hashid):
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("pause %s" % hashid)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("pause %s" % hashid)
     uclient = UtorrentClient()
     return uclient.pause(hashid)
 
 
 def progress_torrent(hashid):
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("get progress for %s" % hashid)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("get progress for %s" % hashid)
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -292,8 +291,8 @@ def progress_torrent(hashid):
 
 
 def list_torrent(hashid):
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("get file list for %s" % hashid)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("get file list for %s" % hashid)
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -304,8 +303,8 @@ def list_torrent(hashid):
 
 
 def remove_torrent(hashid, remove_data=False):
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("remove torrent %s remove_data=%s" % (hashid, remove_data))
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("remove torrent %s remove_data=%s" % (hashid, remove_data))
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -322,8 +321,8 @@ def remove_torrent(hashid, remove_data=False):
 def add_torrent(link, hashid):
     uclient = UtorrentClient()
     uclient.add_url(link)
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("Add hashid %s" % hashid)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug("Add hashid %s" % hashid)
     count = 10
     while count:
         torrentlist = uclient.list()

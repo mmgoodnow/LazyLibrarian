@@ -18,12 +18,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import requests
+
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import proxy_list
 
-import requests
 
 
 class AndroidPNNotifier:
@@ -43,6 +44,7 @@ class AndroidPNNotifier:
             'username': username,
             'message': msg,
         }
+        logger = logging.getLogger(__name__)
         proxies = proxy_list()
         # send the request
         try:
@@ -55,7 +57,7 @@ class AndroidPNNotifier:
 
             # HTTP status 404 if the provided email address isn't a AndroidPN user.
             if status == '404':
-                logger.warn("ANDROIDPN: Username is wrong/not a AndroidPN email. AndroidPN will send an email to it")
+                logger.warning("ANDROIDPN: Username is wrong/not a AndroidPN email. AndroidPN will send an email to it")
             # For HTTP status code 401's, it is because you are passing in either an
             # invalid token, or the user has not added your service.
             elif status == '401':
@@ -98,6 +100,7 @@ class AndroidPNNotifier:
         if not CONFIG.get_bool('USE_ANDROIDPN') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         # fill in omitted parameters
         if not username:
             username = CONFIG['ANDROIDPN_USERNAME']

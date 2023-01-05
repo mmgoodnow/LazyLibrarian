@@ -1,6 +1,6 @@
+import logging
 import requests
 
-from lazylibrarian import logger
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 
@@ -16,6 +16,7 @@ class TelegramNotifier:
         if not CONFIG.get_bool('USE_TELEGRAM') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         telegram_api = "https://api.telegram.org/bot%s/%s"
 
         if telegram_token is None:
@@ -37,13 +38,13 @@ class TelegramNotifier:
             logger.debug(str(payload))
             response = requests.request('POST', url, data=payload)
         except Exception as e:
-            logger.warn('Telegram notify failed: ' + str(e))
+            logger.warning('Telegram notify failed: ' + str(e))
             return False
 
         if response.status_code == 200:
             return True
         else:
-            logger.warn('Could not send notification to TelegramBot (token=%s). Response: [%s]' %
+            logger.warning('Could not send notification to TelegramBot (token=%s). Response: [%s]' %
                         (telegram_token, response.text))
             return False
         #

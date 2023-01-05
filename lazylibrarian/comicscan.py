@@ -15,11 +15,12 @@ import datetime
 import os
 import traceback
 import uuid
+import logging
 from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import database, logger
+from lazylibrarian import database
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
 from lazylibrarian.formatter import plural, check_int, now, get_list, unaccented, sanitize
@@ -28,6 +29,7 @@ from lazylibrarian.postprocess import create_comic_opf
 
 
 def comic_scan(comicid=None):
+    logger = logging.getLogger(__name__)
     lazylibrarian.COMIC_UPDATE = 1
     title = ''
     # noinspection PyBroadException
@@ -265,7 +267,7 @@ def comic_scan(comicid=None):
                             with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                                 f.write(u'comic')
                         except IOError as e:
-                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+                            logger.warning("Unable to create/write to ignorefile: %s" % str(e))
 
                         # see if this issues date values are useful
                         control_value_dict = {"ComicID": comicid}

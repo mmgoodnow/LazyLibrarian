@@ -970,7 +970,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         searchname = "%s %s" % (clean_name(author), clean_name(book))
                                         searchterm = quote_plus(make_utf8bytes(searchname)[0])
                                         set_url = base_url + searchterm + '&' + urlencode(params)
-                                        # if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
                                         logger.debug("Rescan url: %s" % set_url)
                                         # noinspection PyBroadException
                                         try:

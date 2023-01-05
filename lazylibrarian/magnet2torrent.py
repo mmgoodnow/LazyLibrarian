@@ -29,13 +29,14 @@ import os
 import shutil
 import tempfile
 from time import sleep
+import logging
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 
 
 # noinspection PyArgumentList
 def magnet2torrent(magnet, output_name=None):
+    logger = logging.getLogger(__name__)
     try:
         import libtorrent as lt
     except ImportError:

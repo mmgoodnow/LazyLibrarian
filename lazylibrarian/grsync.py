@@ -23,7 +23,7 @@ from urllib.parse import urlencode, parse_qsl
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.cache import gr_api_sleep
 from lazylibrarian.formatter import plural, get_list, check_int, thread_name
 from lazylibrarian.gr import GoodReads
@@ -44,6 +44,8 @@ class GrAuth:
     @staticmethod
     def goodreads_oauth1():
         global client, request_token, consumer
+        logger = logging.getLogger(__name__)
+        loggergrsync = logging.getLogger('special.grsync')
         if CONFIG['GR_API'] == 'ckvsiSDsuqh7omh74ZZ6Q':
             msg = "Please get your own personal GoodReads api key from https://www.goodreads.com/api/keys and try again"
             return msg
@@ -68,7 +70,7 @@ class GrAuth:
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':
-                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return "Exception in client.request: see error log"
 
         if not response['status'].startswith('2'):
@@ -78,8 +80,7 @@ class GrAuth:
 
         request_token = dict(parse_qsl(content))
         request_token = {key.decode("utf-8"): request_token[key].decode("utf-8") for key in request_token}
-        if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-            logger.debug("oauth1: %s" % str(request_token))
+        loggergrsync.debug("oauth1: %s" % str(request_token))
         if 'oauth_token' in request_token:
             authorize_link = '%s?oauth_token=%s' % (authorize_url, request_token['oauth_token'])
             return authorize_link
@@ -90,6 +91,8 @@ class GrAuth:
     @staticmethod
     def goodreads_oauth2():
         global request_token, consumer, token, client
+        logger = logging.getLogger(__name__)
+        loggergrsync = logging.getLogger('special.grsync')
         try:
             if request_token and 'oauth_token' in request_token and 'oauth_token_secret' in request_token:
                 # noinspection PyTypeChecker
@@ -109,7 +112,7 @@ class GrAuth:
         except Exception as e:
             logger.error("Exception in oauth2 client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':
-                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return "Error in oauth2 client request: see error log"
 
         if not response['status'].startswith('2'):
@@ -117,8 +120,7 @@ class GrAuth:
 
         access_token = dict(parse_qsl(content))
         access_token = {key.decode("utf-8"): access_token[key].decode("utf-8") for key in access_token}
-        if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-            logger.debug("oauth2: %s" % str(access_token))
+        loggergrsync.debug("oauth2: %s" % str(access_token))
         CONFIG.set_str('GR_OAUTH_TOKEN', access_token['oauth_token'])
         CONFIG.set_str('GR_OAUTH_SECRET', access_token['oauth_token_secret'])
         CONFIG.save_config_and_backup_old(section='API')
@@ -126,9 +128,10 @@ class GrAuth:
 
     def get_user_id(self):
         global consumer, client, token, user_id
+        logger = logging.getLogger(__name__)
         if not CONFIG['GR_API'] or not CONFIG['GR_SECRET'] or not \
                 CONFIG['GR_OAUTH_TOKEN'] or not CONFIG['GR_OAUTH_SECRET']:
-            logger.warn("Goodreads user id error: Please authorise first")
+            logger.warning("Goodreads user id error: Please authorise first")
             return ""
         else:
             try:
@@ -138,7 +141,7 @@ class GrAuth:
                 client = oauth.Client(consumer, token)
                 user_id = self.get_userid()
                 if not user_id:
-                    logger.warn("Goodreads userid error")
+                    logger.warning("Goodreads userid error")
                     return ""
                 return user_id
             except Exception as e:
@@ -147,9 +150,11 @@ class GrAuth:
 
     def get_shelf_list(self):
         global consumer, client, token, user_id
+        logger = logging.getLogger(__name__)
+        loggergrsync = logging.getLogger('special.grsync')
         if not CONFIG['GR_API'] or not CONFIG['GR_SECRET'] or not \
                 CONFIG['GR_OAUTH_TOKEN'] or not CONFIG['GR_OAUTH_SECRET']:
-            logger.warn("Goodreads get shelf error: Please authorise first")
+            logger.warning("Goodreads get shelf error: Please authorise first")
             return []
         else:
             #
@@ -163,7 +168,7 @@ class GrAuth:
             client = oauth.Client(consumer, token)
             user_id = self.get_userid()
             if not user_id:
-                logger.warn("Goodreads userid error")
+                logger.warning("Goodreads userid error")
                 return []
             current_page = 0
             shelves = []
@@ -182,13 +187,12 @@ class GrAuth:
                 except Exception as e:
                     logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
                     if type(e).__name__ == 'SSLError':
-                        logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                        logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
                     return shelves
 
                 if not response['status'].startswith('2'):
                     logger.error('Failure status: %s for page %s' % (response['status'], current_page))
-                    if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                        logger.debug(request_url)
+                    loggergrsync.debug(request_url)
                 else:
                     # noinspection PyUnresolvedReferences
                     xmldoc = xml.dom.minidom.parseString(content)
@@ -201,11 +205,9 @@ class GrAuth:
                         shelves.append({'name': shelf_name, 'books': shelf_count, 'exclusive': shelf_exclusive})
                         page_shelves += 1
 
-                        if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                            logger.debug('Shelf %s : %s: Exclusive %s' % (shelf_name, shelf_count, shelf_exclusive))
+                        loggergrsync.debug('Shelf %s : %s: Exclusive %s' % (shelf_name, shelf_count, shelf_exclusive))
 
-                    if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                        logger.debug('Found %s shelves on page %s' % (page_shelves, current_page))
+                    loggergrsync.debug('Found %s shelves on page %s' % (page_shelves, current_page))
 
             logger.debug('Found %s %s on %s %s' % (len(shelves), plural(len(shelves), "shelf"),
                                                    current_page - 1, plural(current_page - 1, "page")))
@@ -214,9 +216,10 @@ class GrAuth:
 
     def follow_author(self, authorid=None, follow=True):
         global consumer, client, token, user_id
+        logger = logging.getLogger(__name__)
         if not CONFIG['GR_API'] or not CONFIG['GR_SECRET'] or not \
                 CONFIG['GR_OAUTH_TOKEN'] or not CONFIG['GR_OAUTH_SECRET']:
-            logger.warn("Goodreads follow author error: Please authorise first")
+            logger.warning("Goodreads follow author error: Please authorise first")
             return False, 'Unauthorised'
 
         consumer = oauth.Consumer(key=str(CONFIG['GR_API']),
@@ -240,7 +243,7 @@ class GrAuth:
             except Exception as e:
                 logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
                 if type(e).__name__ == 'SSLError':
-                    logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                    logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
                 return False, "Error in client.request: see error log"
         else:
             body = urlencode({'format': 'xml'})
@@ -251,7 +254,7 @@ class GrAuth:
             except Exception as e:
                 logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
                 if type(e).__name__ == 'SSLError':
-                    logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                    logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
                 return False, "Error in client.request: see error log"
 
         if follow and response['status'] == '422':
@@ -265,9 +268,10 @@ class GrAuth:
 
     def create_shelf(self, shelf='lazylibrarian', exclusive=False, sortable=False):
         global consumer, client, token, user_id
+        logger = logging.getLogger(__name__)
         if not CONFIG['GR_API'] or not CONFIG['GR_SECRET'] or not \
                 CONFIG['GR_OAUTH_TOKEN'] or not CONFIG['GR_OAUTH_SECRET']:
-            logger.warn("Goodreads create shelf error: Please authorise first")
+            logger.warning("Goodreads create shelf error: Please authorise first")
             return False, 'Unauthorised'
 
         consumer = oauth.Consumer(key=str(CONFIG['GR_API']),
@@ -294,7 +298,7 @@ class GrAuth:
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':
-                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return False, "Error in client.request: see error log"
 
         if not response['status'].startswith('2'):
@@ -304,9 +308,11 @@ class GrAuth:
 
     def get_gr_shelf_contents(self, shelf='to-read'):
         global consumer, client, token, user_id
+        logger = logging.getLogger(__name__)
+        loggergrsync = logging.getLogger('special.grsync')
         if not CONFIG['GR_API'] or not CONFIG['GR_SECRET'] or not \
                 CONFIG['GR_OAUTH_TOKEN'] or not CONFIG['GR_OAUTH_SECRET']:
-            logger.warn("Goodreads shelf contents error: Please authorise first")
+            logger.warning("Goodreads shelf contents error: Please authorise first")
             return []
         else:
             #
@@ -320,7 +326,7 @@ class GrAuth:
             client = oauth.Client(consumer, token)
             user_id = self.get_userid()
             if not user_id:
-                logger.warn("Goodreads userid error")
+                logger.warning("Goodreads userid error")
                 return []
 
             logger.debug('User id is: ' + user_id)
@@ -339,19 +345,18 @@ class GrAuth:
                 for book in xmldoc.getElementsByTagName('book'):
                     book_id, book_title = self.get_book_info(book)
 
-                    if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
+                    if loggergrsync.isEnabledFor(logging.DEBUG):
                         try:
-                            logger.debug('Book %10s : %s' % (str(book_id), book_title))
+                            loggergrsync.debug('Book %10s : %s' % (str(book_id), book_title))
                         except UnicodeEncodeError:
-                            logger.debug('Book %10s : %s' % (str(book_id), 'Title Messed Up By Unicode Error'))
+                            loggergrsync.debug('Book %10s : %s' % (str(book_id), 'Title Messed Up By Unicode Error'))
 
                     gr_list.append(book_id)
 
                     page_books += 1
                     total_books += 1
 
-                if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                    logger.debug('Found %s books on page %s (total = %s)' % (page_books, current_page, total_books))
+                loggergrsync.debug('Found %s books on page %s (total = %s)' % (page_books, current_page, total_books))
                 if page_books == 0:
                     break
 
@@ -365,6 +370,7 @@ class GrAuth:
     @staticmethod
     def get_userid():
         global client, user_id
+        logger = logging.getLogger(__name__)
         gr_api_sleep()
 
         try:
@@ -373,7 +379,7 @@ class GrAuth:
         except Exception as e:
             logger.error("Error in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':
-                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return ''
         if not response['status'].startswith('2'):
             logger.error('Cannot fetch userid: %s' % response['status'])
@@ -392,6 +398,8 @@ class GrAuth:
     @staticmethod
     def get_shelf_books(page, shelf_name):
         global client, user_id
+        logger = logging.getLogger(__name__)
+        loggergrsync = logging.getLogger('special.grsync')
         data = '${base}/review/list?format=xml&v=2&id=${user_id}&sort=author&order=a'
         data += '&key=${key}&page=${page}&per_page=100&shelf=${shelf_name}'
         owned_template = Template(data)
@@ -405,12 +413,11 @@ class GrAuth:
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':
-                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return "Error in client.request: see error log"
         if not response['status'].startswith('2'):
             logger.error('Failure status: %s for %s page %s' % (response['status'], shelf_name, page))
-            if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                logger.debug(request_url)
+            logger_grsync.debug(request_url)
         return content
 
     #############################
@@ -427,6 +434,7 @@ class GrAuth:
     @staticmethod
     def book_to_list(book_id, shelf_name, action='add'):
         global client
+        logger = logging.getLogger(__name__)
         if action == 'remove':
             body = urlencode({'name': shelf_name, 'book_id': book_id, 'a': 'remove'})
         else:
@@ -439,7 +447,7 @@ class GrAuth:
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':
-                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+                logger.warning("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return False, "Error in client.request: see error log"
 
         if not response['status'].startswith('2'):
@@ -467,10 +475,12 @@ def cron_sync_to_gr():
     if 'GRSync' not in [n.name for n in [t for t in threading.enumerate()]]:
         _ = sync_to_gr()
     else:
+        logger = logging.getLogger(__name__)
         logger.debug("GRSync is already running")
 
 
 def sync_to_gr():
+    logger = logging.getLogger(__name__)
     msg = ''
     new_books = []
     new_audio = []
@@ -623,6 +633,8 @@ def grfollow(authorid, follow=True):
 
 def grsync(status, shelf, library='eBook', reset=False, user=None):
     # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
+    loggergrsync = logging.getLogger('special.grsync')
     db = database.DBConnection()
     dstatus = status
     # noinspection PyBroadException
@@ -732,10 +744,9 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     content = ''
                 if r:
                     gr_shelf.remove(book)
-                    if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                        logger.debug("%10s removed from %s shelf" % (book, shelf))
+                    loggergrsync.debug("%10s removed from %s shelf" % (book, shelf))
                 else:
-                    logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
+                    logger.warning("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
 
         # Sync method for WANTED:
         # Get results of last_sync (if any)
@@ -782,8 +793,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     shelf_changed += 1
                 else:
                     if '404' not in content:  # already removed is ok
-                        if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                            logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
+                        loggergrsync.warning("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
 
         logger.info("%s missing from goodreads %s" % (len(removed_from_shelf), shelf))
         if len(removed_from_shelf):
@@ -799,7 +809,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 gr.find_book(book, None, None, "Added by grsync")
                 res = db.match(cmd, (book,))
             if not res:
-                logger.warn('%s %s not found in database' % (library, book))
+                logger.warning('%s %s not found in database' % (library, book))
             elif user:
                 try:
                     ll_list.remove(book)
@@ -814,7 +824,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                         logger.debug("%10s set to Skipped" % book)
                     else:
                         if res['Status'] == 'Open' and shelf == CONFIG['GR_OWNED']:
-                            logger.warn("Adding book %s [%s] back to %s shelf" % (
+                            logger.warning("Adding book %s [%s] back to %s shelf" % (
                                 res['BookName'], book, CONFIG['GR_OWNED']))
                             try:
                                 _, _ = ga.book_to_list(book, shelf, action='add')
@@ -822,7 +832,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                                 logger.error("Error adding %s back to %s: %s %s" % (
                                     book, CONFIG['GR_OWNED'], type(e).__name__, str(e)))
                         else:
-                            logger.warn("Not marking %s [%s] as Skipped, book is marked %s" % (
+                            logger.warning("Not marking %s [%s] as Skipped, book is marked %s" % (
                                         res['BookName'], book, res['Status']))
 
                 if 'Audio' in library:
@@ -832,7 +842,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                         logger.debug("%10s set to Skipped" % book)
                     else:
                         if res['AudioStatus'] == 'Open' and shelf == CONFIG['GR_AOWNED']:
-                            logger.warn("Adding audiobook %s [%s] back to %s shelf" % (
+                            logger.warning("Adding audiobook %s [%s] back to %s shelf" % (
                                 res['BookName'], book, CONFIG['GR_AOWNED']))
                             try:
                                 _, _ = ga.book_to_list(book, shelf, action='add')
@@ -840,7 +850,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                                 logger.error("Error adding %s back to %s: %s %s" % (
                                     book, CONFIG['GR_AOWNED'], type(e).__name__, str(e)))
                         else:
-                            logger.warn("Not marking %s [%s] as Skipped, audiobook is marked %s" % (
+                            logger.warning("Not marking %s [%s] as Skipped, audiobook is marked %s" % (
                                         res['BookName'], book, res['AudioStatus']))
 
         # new additions to lazylibrarian
@@ -863,7 +873,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                         bookinfo = db.match("SELECT BookName from books where BookID=?", (book,))
                         if bookinfo:
                             content = "Not Found:%s: %s", (content, book, bookinfo['BookName'])
-                    logger.warn("Failed to add %s to %s shelf: %s" % (book, shelf, content))
+                    logger.warning("Failed to add %s to %s shelf: %s" % (book, shelf, content))
 
         # new additions to goodreads shelf
         logger.info("%s new in goodreads %s" % (len(added_to_shelf), shelf))
@@ -879,7 +889,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 gr.find_book(book, None, None, "Added by grsync")
                 res = db.match(cmd, (book,))
             if not res:
-                logger.warn('Book %s not found in database' % book)
+                logger.warning('Book %s not found in database' % book)
             elif user:
                 ll_list.append(book)
                 logger.debug("%10s added to user %s" % (book, shelf))
@@ -898,8 +908,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 if 'eBook' in library:
                     if status == 'Open':
                         if res['Status'] == 'Open':
-                            if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                                logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
+                            loggergrsync.warning("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
                             db.action("UPDATE books SET Status='Have' WHERE BookID=?", (book,))
                             ll_changed.append(book)
@@ -920,19 +929,18 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                                 logger.debug("%10s removed from %s shelf" % (book, shelf))
                                 shelf_changed += 1
                             else:
-                                logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
+                                logger.warning("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
                         elif res['Status'] not in ['Open', 'Have']:
                             db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
-                            logger.warn("Not setting %s [%s] as Wanted, already marked %s" %
+                            logger.warning("Not setting %s [%s] as Wanted, already marked %s" %
                                         (res['BookName'], book, res['Status']))
                 if 'Audio' in library:
                     if status == 'Open':
                         if res['AudioStatus'] == 'Open':
-                            if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
-                                logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
+                            loggergrsync.warning("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
                             db.action("UPDATE books SET AudioStatus='Have' WHERE BookID=?", (book,))
                             ll_changed.append(book)
@@ -953,13 +961,13 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                                 logger.debug("%10s removed from %s shelf" % (book, shelf))
                                 shelf_changed += 1
                             else:
-                                logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
+                                logger.warning("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
                         elif res['AudioStatus'] not in ['Open', 'Have']:
                             db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
-                            logger.warn("Not setting %s [%s] as Wanted, already marked %s" %
+                            logger.warning("Not setting %s [%s] as Wanted, already marked %s" %
                                         (res['BookName'], book, res['Status']))
 
         # set new definitive list for ll

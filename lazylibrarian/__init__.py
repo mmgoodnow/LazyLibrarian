@@ -18,8 +18,9 @@
 import os
 import sys
 import threading
+import logging
 
-from lazylibrarian import logger, config2
+from lazylibrarian import config2
 from lazylibrarian.filesystem import syspath
 
 # Transient globals NOT stored in config
@@ -143,13 +144,14 @@ def daemonize():
     Fork off as a daemon
     """
     # active_count in python 3.9 but camelCase name still supported
+    logger = logging.getLogger(__name__)
     if 'activeCount' in dir(threading):
         # noinspection PyDeprecation
         threadcount = threading.activeCount()
     else:
         threadcount = threading.active_count()
     if threadcount != 1:
-        logger.warn('There are %d active threads. Daemonizing may cause strange behavior.' % threadcount)
+        logger.warning('There are %d active threads. Daemonizing may cause strange behavior.' % threadcount)
 
     sys.stdout.flush()
     sys.stderr.flush()

@@ -13,12 +13,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import traceback
 
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import only_punctuation
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, \
     direct_dl_method, irc_dl_method
@@ -59,6 +59,8 @@ def find_best_result(resultlist, book, searchtype, source):
         return:     highest scoring match, or None if no match
     """
     # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
+    loggerfuzz = logging.getLogger('special.fuzz')
     try:
         db = database.DBConnection()
         # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
@@ -110,14 +112,12 @@ def find_best_result(resultlist, book, searchtype, source):
                 book_match = fuzz.token_set_ratio(title.replace(author, ''), only_title)
             if 'booksearch' in res and res['booksearch'] == 'bibliotik':
                 # bibliotik only returns book title, not author name
-                if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                    logger.debug("bibliotik, ignoring author fuzz")
+                loggerfuzz.debug("bibliotik, ignoring author fuzz")
                 author_match = 100
             else:
                 author_match = fuzz.token_set_ratio(author, result_title)
 
-            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
-                logger.debug("%s author/book Match: %s/%s %s at %s" %
+            loggerfuzz.debug("%s author/book Match: %s/%s %s at %s" %
                              (source.upper(), author_match, book_match, result_title, res[prefix + 'prov']))
 
             rejected = False
@@ -300,6 +300,7 @@ def download_result(match, book):
                 2 if we snatched it
     """
     # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
     try:
         db = database.DBConnection()
 

@@ -10,9 +10,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.formatter import get_list, unaccented, plural, date_format
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
@@ -33,6 +34,7 @@ def search_item(item=None, bookid=None, cat=None):
     if not item:
         return results
 
+    logger = logging.getLogger(__name__)
     book = {}
     searchterm = unaccented(item, only_ascii=False, umlauts=False)
 

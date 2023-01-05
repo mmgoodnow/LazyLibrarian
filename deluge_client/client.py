@@ -1,10 +1,9 @@
+import logging
 import socket
 import ssl
 import struct
 import warnings
 import zlib
-from lazylibrarian import logger
-from lazylibrarian.logger import lazylibrarian_log
 
 from .rencode import dumps, loads
 
@@ -15,7 +14,7 @@ RPC_EVENT = 3
 MESSAGE_HEADER_SIZE = 5
 READ_SIZE = 10
 
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DelugeClientException(Exception):
@@ -100,7 +99,7 @@ class DelugeRPCClient(object):
             # Note: have not verified that we actually get errno 258 for this error
             if (hasattr(ssl, 'PROTOCOL_SSLv3') and
                     (getattr(e, 'reason', None) == 'UNSUPPORTED_PROTOCOL' or e.errno == 258)):
-                logger.warn('Was unable to ssl handshake, trying to force SSLv3 (insecure)')
+                logger.warning('Was unable to ssl handshake, trying to force SSLv3 (insecure)')
                 self._create_socket(ssl_version=ssl.PROTOCOL_SSLv3)
                 self._socket.connect((self.host, self.port))
             else:
@@ -149,7 +148,7 @@ class DelugeRPCClient(object):
                 debug_args[1] = '<password hidden>'
                 if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
-                             (self.request_id, method, debug_args, kwargs))
+                                 (self.request_id, method, debug_args, kwargs))
         else:
             if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %

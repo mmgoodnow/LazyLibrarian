@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import lib.pythontwitter as twitter
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from lazylibrarian.formatter import now, make_bytestr
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from urllib.parse import parse_qsl
@@ -54,6 +54,7 @@ class TwitterNotifier:
         return self._notify_twitter("This is a test notification from LazyLibrarian / " + now(), force=True)
 
     def _get_authorization(self):
+        logger = logging.getLogger(__name__)
         _ = oauth.SignatureMethod_HMAC_SHA1()
         oauth_consumer = oauth.Consumer(key=self.consumer_key, secret=self.consumer_secret)
         oauth_client = oauth.Client(oauth_consumer)
@@ -70,11 +71,12 @@ class TwitterNotifier:
             CONFIG.set_str('TWITTER_USERNAME', request_token['oauth_token'])
             CONFIG.set_str('TWITTER_PASSWORD', request_token['oauth_token_secret'])
             logger.debug('Twitter oauth_token = %s oauth_secret = %s' % (
-            CONFIG['TWITTER_USERNAME'],
-            CONFIG['TWITTER_PASSWORD']))
+                CONFIG['TWITTER_USERNAME'],
+                CONFIG['TWITTER_PASSWORD']))
             return self.AUTHORIZATION_URL + "?oauth_token=" + request_token['oauth_token']
 
     def _get_credentials(self, key):
+        logger = logging.getLogger(__name__)
         request_token = {'oauth_token': CONFIG['TWITTER_USERNAME'],
                          'oauth_token_secret': CONFIG['TWITTER_PASSWORD'],
                          'oauth_callback_confirmed': 'true'}
@@ -103,6 +105,7 @@ class TwitterNotifier:
             return True
 
     def _send_tweet(self, message=None):
+        logger = logging.getLogger(__name__)
 
         username = self.consumer_key
         password = self.consumer_secret

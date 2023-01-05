@@ -185,15 +185,14 @@ class StartupLazyLibrarian:
         config = lazylibrarian.config2.CONFIG  # Don't create a new instance
         config.load_configfile(configfile=configfile)
         config.post_load_fixup()
+        DIRS.ensure_log_dir()
 
         if options.nolaunch:
             config.set_bool('LAUNCH_BROWSER', False)
 
     def init_logs(self):
         """ Initialize log files. Until this is done, do not use the logger """
-        DIRS.ensure_log_dir()
-
-        read_log_config()
+        read_log_config(fixfilenames=False)
 
         self.logger = logging.getLogger(__name__)
         self.logger.info('Starting LazyLibrarian')

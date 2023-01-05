@@ -11,13 +11,14 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import threading
 import traceback
 import time
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database
+from lazylibrarian import database
 from lazylibrarian.formatter import plural, check_int, thread_name
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
@@ -27,6 +28,7 @@ from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_book():
+    logger = logging.getLogger(__name__)
     if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
         search_book()
     else:
@@ -41,6 +43,7 @@ def good_enough(match):
 
 def warn_mode(mode):
     # don't nag. Show warning messages no more than every 20 mins
+    logger = logging.getLogger(__name__)
     timenow = int(time.time())
     if mode == 'rss':
         if check_int(lazylibrarian.TIMERS['NO_RSS_MSG'], 0) + 1200 < timenow:
@@ -69,7 +72,7 @@ def warn_mode(mode):
             return
     else:
         return
-    logger.warn('No %s providers are available. Check config and blocklist' % mode)
+    logger.warning('No %s providers are available. Check config and blocklist' % mode)
 
 
 def search_book(books=None, library=None):
@@ -78,6 +81,7 @@ def search_book(books=None, library=None):
     library is "eBook" or "AudioBook" or None to search all book types
     """
     TELEMETRY.record_usage_data('Search/Book')
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -166,14 +170,14 @@ def search_book(books=None, library=None):
             if searchbook['AuthorName']:
                 searchterm = searchbook['AuthorName']
             else:
-                logger.warn("No AuthorName for %s" % searchbook['BookID'])
+                logger.warning("No AuthorName for %s" % searchbook['BookID'])
 
             if searchbook['BookName']:
                 if len(searchterm):
                     searchterm += ' '
                 searchterm += searchbook['BookName']
             else:
-                logger.warn("No BookName for %s" % searchbook['BookID'])
+                logger.warning("No BookName for %s" % searchbook['BookID'])
 
             if searchbook['BookSub']:
                 if len(searchterm):
@@ -184,7 +188,7 @@ def search_book(books=None, library=None):
                 cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
-                    logger.warn('eBook %s %s already marked snatched in wanted table' %
+                    logger.warning('eBook %s %s already marked snatched in wanted table' %
                                 (searchbook['AuthorName'], searchbook['BookName']))
                 else:
                     searchlist.append(
@@ -199,7 +203,7 @@ def search_book(books=None, library=None):
                 cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
-                    logger.warn('AudioBook %s %s already marked snatched in wanted table' %
+                    logger.warning('AudioBook %s %s already marked snatched in wanted table' %
                                 (searchbook['AuthorName'], searchbook['BookName']))
                 else:
                     searchlist.append(

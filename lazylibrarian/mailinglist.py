@@ -11,9 +11,11 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import logging
+
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import database, logger
+from lazylibrarian import database
 from lazylibrarian.common import run_script
 from lazylibrarian.filesystem import path_exists, syspath
 from lazylibrarian.formatter import plural, get_list, check_int
@@ -23,6 +25,7 @@ from lazylibrarian.notifiers import email_notifier
 def mailing_list(book_type, global_name, book_id):
     if not CONFIG.get_bool('USER_ACCOUNTS'):
         return
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     columns = db.select('PRAGMA table_info(subscribers)')
     if not columns:  # no such table

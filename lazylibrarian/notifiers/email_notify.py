@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import smtplib
 import ssl
 import cherrypy
@@ -28,7 +29,7 @@ import os
 import traceback
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger, database, ebook_convert
+from lazylibrarian import database, ebook_convert
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import is_valid_email, run_script, mime_type
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
@@ -45,6 +46,7 @@ class EmailNotifier:
         if not CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         subject = event
         text = message
         oversize = False
@@ -75,14 +77,14 @@ class EmailNotifier:
         elif is_valid_email(CONFIG['EMAIL_FROM']):
             from_addr = CONFIG['EMAIL_FROM']
         else:
-            logger.warn("Invalid FROM address, check config settings")
+            logger.warning("Invalid FROM address, check config settings")
             return False
 
         if not to_addr:
             to_addr = CONFIG['EMAIL_TO']
             logger.debug("Using default to_addr=%s" % to_addr)
         if not is_valid_email(to_addr):
-            logger.warn("Invalid TO address, check users email and/or config")
+            logger.warning("Invalid TO address, check users email and/or config")
             return False
 
         message['From'] = formataddr(('LazyLibrarian', from_addr))
@@ -158,7 +160,7 @@ class EmailNotifier:
             return True
 
         except Exception as e:
-            logger.warn('Error sending Email: %s' % e)
+            logger.warning('Error sending Email: %s' % e)
             logger.error('Email traceback: %s' % traceback.format_exc())
             return False
 
@@ -170,6 +172,7 @@ class EmailNotifier:
         return self._notify(message=message, event=subject, force=True, to_addr=to_addr)
 
     def email_file(self, subject, message, to_addr, files):
+        logger = logging.getLogger(__name__)
         logger.debug("to_addr=%s" % to_addr)
         res = self._notify(message=message, event=subject, force=True, files=files, to_addr=to_addr)
         return res
@@ -187,6 +190,7 @@ class EmailNotifier:
         if not CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         if CONFIG.get_bool('EMAIL_NOTIFY_ONDOWNLOAD') or force:
             files = None
             event = notifyStrings[NOTIFY_DOWNLOAD]

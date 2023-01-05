@@ -19,9 +19,9 @@
 # Session tool to be loaded.
 # from cherrypy/tools on github
 
+import logging
 import cherrypy
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
 from html import escape
 
 from urllib.parse import quote
@@ -125,6 +125,7 @@ def all_of(*conditions):
 class AuthController(object):
     @staticmethod
     def on_login(username):
+        logger = logging.getLogger(__name__)
         """Called on successful login"""
         logger.info('%s successfully logged on.' % username)
         # not needed or used for Mylar currently

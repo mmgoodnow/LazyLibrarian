@@ -13,8 +13,9 @@
 import os
 import shutil
 import traceback
+import logging
 
-from lazylibrarian import database, logger
+from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move, csv_file
@@ -31,12 +32,13 @@ except ImportError:
 
 # noinspection PyArgumentList
 def dump_table(table, savedir=None, status=None):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         columns = db.select('PRAGMA table_info(%s)' % table)
         if not columns:  # no such table
-            logger.warn("No such table [%s]" % table)
+            logger.warning("No such table [%s]" % table)
             return 0
 
         if not path_isdir(savedir):
@@ -79,12 +81,13 @@ def dump_table(table, savedir=None, status=None):
 
 
 def restore_table(table, savedir=None, status=None):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         columns = db.select('PRAGMA table_info(%s)' % table)
         if not columns:  # no such table
-            logger.warn("No such table [%s]" % table)
+            logger.warning("No such table [%s]" % table)
             return 0
 
         if not path_isdir(savedir):
@@ -149,6 +152,7 @@ def restore_table(table, savedir=None, status=None):
 
 def export_csv(search_dir=None, status="Wanted", library=''):
     """ Write a csv file to the search_dir containing all books marked as "Wanted" """
+    logger = logging.getLogger(__name__)
     msg = 'Export CSV'
     if not library:
         if CONFIG.get_bool('AUDIO_TAB'):
@@ -159,15 +163,15 @@ def export_csv(search_dir=None, status="Wanted", library=''):
     try:
         if not search_dir:
             msg = "Alternate Directory not configured"
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
         elif not path_isdir(search_dir):
             msg = "Alternate Directory [%s] not found" % search_dir
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
         elif not os.access(syspath(search_dir), os.W_OK | os.X_OK):
             msg = "Alternate Directory [%s] not writable" % search_dir
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
 
         csvfile = os.path.join(search_dir, "%s %s - %s.csv" % (status, library, now().replace(':', '-')))
@@ -183,7 +187,7 @@ def export_csv(search_dir=None, status="Wanted", library=''):
 
         if not find_status:
             msg = "No %s marked as %s" % (library, status)
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
         count = 0
         # noinspection PyArgumentList
@@ -258,6 +262,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
         and marking the books as "Wanted"
         Delete the file on successful completion if 'DELETE_CSV' is True
     """
+    logger = logging.getLogger(__name__)
     msg = 'Import CSV'
     if not library:
         library = 'audio' if CONFIG.get_bool('AUDIO_TAB') else 'eBook'
@@ -265,11 +270,11 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
     try:
         if not search_dir:
             msg = "Alternate Directory not configured"
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
         elif not path_isdir(search_dir):
             msg = "Alternate Directory [%s] not found" % search_dir
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
 
         csvfile = csv_file(search_dir, library=library)
@@ -285,7 +290,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
 
         if not csvfile:
             msg = "No %s CSV file found in %s" % (library, search_dir)
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
 
         logger.debug('Reading file %s' % csvfile)
@@ -296,7 +301,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
                 headers = row
                 if 'Author' not in headers or 'Title' not in headers:
                     msg = 'Invalid CSV file found %s' % csvfile
-                    logger.warn(msg)
+                    logger.warning(msg)
                     return msg
             elif row:
                 total += 1
@@ -320,7 +325,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
                     if new:
                         authcount += 1
                     if not authorid:
-                        logger.warn("Authorname %s not added to database" % authorname)
+                        logger.warning("Authorname %s not added to database" % authorname)
 
                 if authorid:
                     bookmatch = finditem(item, authorname, library=library, reason='import_csv: %s' % csvfile)
@@ -384,20 +389,20 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
                     msg = "Skipping book %s by %s" % (title, authorname)
                     if not results:
                         msg += ', No results found'
-                        logger.warn(msg)
+                        logger.warning(msg)
                     elif bookmatch and not imported:
                         msg += ', Failed to import %s' % bookmatch['bookid']
-                        logger.warn(msg)
+                        logger.warning(msg)
                     else:
                         msg += ', No match found'
-                        logger.warn(msg)
+                        logger.warning(msg)
                         msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
                                                                     results[0]['book_fuzz'],
                                                                     results[0]['authorname'],
                                                                     results[0]['bookname'])
                         if results[0]['authorid'] != authorid:
                             msg += ' wrong authorid'
-                        logger.warn(msg)
+                        logger.warning(msg)
                     skipcount += 1
 
         msg = "Found %i %s%s in csv file, %i already existing or Wanted" % (total, library,
@@ -414,14 +419,14 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
                 try:
                     remove_file(csvfile)
                 except OSError as why:
-                    logger.warn('Unable to delete %s: %s' % (csvfile, why.strerror))
+                    logger.warning('Unable to delete %s: %s' % (csvfile, why.strerror))
             else:
-                logger.warn("Not deleting %s as not all books found" % csvfile)
+                logger.warning("Not deleting %s as not all books found" % csvfile)
                 if path_isdir(csvfile + '.fail'):
                     try:
                         shutil.rmtree(csvfile + '.fail')
                     except Exception as why:
-                        logger.warn("Unable to remove %s, %s %s" % (csvfile + '.fail',
+                        logger.warning("Unable to remove %s, %s %s" % (csvfile + '.fail',
                                                                     type(why).__name__, str(why)))
                 try:
                     _ = safe_move(csvfile, csvfile + '.fail')

@@ -10,19 +10,18 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import requests
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
-from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import proxy_list
 from lazylibrarian.formatter import make_utf8bytes, versiontuple
 from urllib.parse import urlencode
 
-import requests
-
 
 def check_link():
+    logger = logging.getLogger(__name__)
     # connection test, check host/port
     auth, _ = sab_nzbd(nzburl='auth')
     if not auth:
@@ -49,6 +48,7 @@ def check_link():
 
 
 def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None, library='eBook', label=''):
+    logger = logging.getLogger(__name__)
 
     if nzburl in ['delete', 'delhistory', 'pause'] and title == 'unknown':
         res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
@@ -188,13 +188,12 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 #    if lazylibrarian.SAB_PP:
 #        params["script"] = lazylibrarian.SAB_SCRIPT
 
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug('sab params: %s' % repr(params))
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug('sab params: %s' % repr(params))
 
     url = host + "/api?" + urlencode(params)
 
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
+    loggerdlcomms.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
     proxies = proxy_list()
     try:
         timeout = CONFIG.get_int('HTTP_TIMEOUT')
@@ -212,8 +211,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         res = "Unable to connect to SAB with URL: %s, %s:%s" % (url, type(e).__name__, str(e))
         logger.error(res)
         return False, res
-    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-        logger.debug("Result text from SAB: " + str(result))
+    loggerdlcomms.debug("Result text from SAB: " + str(result))
 
     if title and title.startswith('LL.('):
         return result, ''
