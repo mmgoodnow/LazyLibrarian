@@ -50,11 +50,10 @@ def main():
     # rename this thread
     thread_name("MAIN")
     starter = startup.StartupLazyLibrarian()
-
-    # Read command line and return options
-    options, configfile = starter.startup_parsecommandline(__file__, args=sys.argv[1:])
     # Read logging config and initialize loggers
     starter.init_logs()
+    # Read command line and return options
+    options, configfile = starter.startup_parsecommandline(__file__, args=sys.argv[1:])
     # Load config.ini and initialize CONFIG and DIRS
     starter.load_config(configfile, options)
     # Run initialization that needs CONFIG to be loaded

@@ -501,7 +501,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
     """
 
     logger = logging.getLogger(__name__)
-    iterateproviderslogger = logging.getLogger('iterateproviders')
+    iterateproviderslogger = logging.getLogger('special.iterateproviders')
     resultslist = []
     providers = 0
 
@@ -600,7 +600,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
 
 def iterate_over_torrent_sites(book=None, search_type=None):
     logger = logging.getLogger(__name__)
-    iterateproviderslogger = logging.getLogger('iterateproviders')
+    iterateproviderslogger = logging.getLogger('special.iterateproviders')
     resultslist = []
     providers = 0
 
@@ -664,7 +664,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
 
 def iterate_over_direct_sites(book=None, search_type=None):
     logger = logging.getLogger(__name__)
-    iterateproviderslogger = logging.getLogger('iterateproviders')
+    iterateproviderslogger = logging.getLogger('special.iterateproviders')
     resultslist = []
     providers = 0
     if search_type not in ['mag', 'comic'] and not search_type.startswith('general'):
@@ -771,7 +771,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
 
 def iterate_over_rss_sites():
     logger = logging.getLogger(__name__)
-    iterateproviderslogger = logging.getLogger('iterateproviders')
+    iterateproviderslogger = logging.getLogger('special.iterateproviders')
     resultslist = []
     providers = 0
     dltypes = ''
@@ -793,7 +793,7 @@ def iterate_over_rss_sites():
 
 def iterate_over_wishlists():
     logger = logging.getLogger(__name__)
-    iterateproviderslogger = logging.getLogger('iterateproviders')
+    iterateproviderslogger = logging.getLogger('special.iterateproviders')
     resultslist = []
     providers = 0
     for provider in CONFIG.providers('RSS'):
@@ -899,7 +899,7 @@ def iterate_over_wishlists():
 
 def iterate_over_irc_sites(book=None, search_type=None):
     logger = logging.getLogger(__name__)
-    iterateproviderslogger = logging.getLogger('iterateproviders')
+    iterateproviderslogger = logging.getLogger('special.iterateproviders')
     resultslist = []
     providers = 0
     try:

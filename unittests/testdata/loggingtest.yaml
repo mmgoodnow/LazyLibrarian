@@ -1,22 +1,24 @@
 version: 1
-disable_existing_loggers: false
+disable_existing_loggers: true # Important for testing
 formatters:
     simple:
-        format: '%(asctime)s %(threadName)s %(levelname)s: %(message)s [%(module)s.py.%(lineno)s]'
+        format: '%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s)]'
     detail:
-        format: "%(asctime)s %(threadName)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s"
+        format: "%(asctime)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s (%(threadName)s)"
     timing:
         format: '%(asctime)s %(threadName)s %(levelname)s, %(filename)s.%(funcName)s() (line %(lineno)s): %(message)s'
+    special:
+        format: '%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s/%(name)s)]'
 handlers:
     console:
         class: logging.StreamHandler
         level: DEBUG
         formatter: simple
         stream: ext://sys.stdout
-    console_timing:
+    console_special:
         class: logging.StreamHandler
-        level: ERROR
-        formatter: timing
+        level: DEBUG
+        formatter: special
         stream: ext://sys.stdout
     info_file:
         class: logging.handlers.RotatingFileHandler
@@ -42,14 +44,21 @@ handlers:
         maxBytes: 10485760 # 10MB
         backupCount: 5
         encoding: utf
+    debug_special_file:
+        class: logging.handlers.RotatingFileHandler
+        level: DEBUG
+        formatter: special
+        filename: lazylibrarian-debug.log
+        maxBytes: 10485760 # 10MB
+        backupCount: 5
+        encoding: utf
 loggers:
-    unittest:
-        level: INFO
-        handlers: [console]
     special:
         level: DEBUG
-        handlers: [console, debug_file]
+        handlers: [console_special, debug_special_file]
         propagate: false
+    special.admin:
+        level: INFO
     special.cache:
         level: INFO
     special.configread:
@@ -58,15 +67,13 @@ loggers:
         level: INFO
     special.dbcomms:
         level: INFO
-    special.dbcomms.dbtiming:
-        level: INFO
-        propagate: false
-        handlers: [console_timing, debug_timing_file]
     special.dlcomms:
         level: INFO
     special.fileperms:
         level: INFO
     special.fuzz:
+        level: INFO
+    special.grsync:
         level: INFO
     special.iterateproviders:
         level: INFO
@@ -76,8 +83,19 @@ loggers:
         level: INFO
     special.postprocess:
         level: INFO
+    special.requests:
+        level: INFO
     special.searching:
         level: INFO
+    special.serverside:
+        level: INFO
+    cherrypy: # Don't log anything from CherryPy
+        level: ERROR
+        handlers: []
+        propagate: false
+    unittest:
+        level: INFO
+        handlers: [console]
 root:
     level: INFO
     handlers: [console, info_file, debug_file]

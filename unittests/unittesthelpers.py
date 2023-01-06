@@ -18,6 +18,7 @@ from lazylibrarian.filesystem import DIRS, path_isdir
 from lazylibrarian.startup import StartupLazyLibrarian
 from lazylibrarian.config2 import LLConfigHandler, CONFIG  # One day, won't need this any more
 from lazylibrarian.configdefs import BASE_DEFAULTS
+from lazylibrarian.logconfig import LOGCONFIG
 
 
 # noinspection PyBroadException
@@ -27,7 +28,9 @@ class LLTestCase(unittest.TestCase):
 
     def set_loglevel(self, level):
         """ Set the root log level per request; the calling test function depends on it to test log messages """
-        logging.getLogger('root').setLevel(level)
+        root = logging.getLogger('root')
+        root.setLevel(level)
+        root.disabled = False
         self.logger.setLevel(level)
 
     @classmethod
@@ -99,6 +102,7 @@ class LLTestCaseWithConfigandDIRS(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         DIRS.set_fullpath_args(os.path.abspath(__file__), sys.argv[1:])
+        LOGCONFIG.read_log_config()
         cls.config = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=cls.CONFIGFILE)
         DIRS.set_config(cls.config)
         DIRS.initialize_logger()
@@ -132,9 +136,9 @@ class LLTestCaseWithStartup(LLTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.starter = StartupLazyLibrarian()
+        cls.starter.init_logs()
         options, configfile = cls.starter.startup_parsecommandline(__file__, args=[''], testing=True)
         cls.starter.load_config(cls.CONFIGFILE, options)
-        cls.starter.init_logs()
         # Only log errors during the rest of startup
         logging.getLogger('root').setLevel(logging.ERROR)
         cls.starter.init_misc(CONFIG)

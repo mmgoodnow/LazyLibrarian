@@ -10,6 +10,8 @@ from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigI
     ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder, \
     ConfigScheduler, ConfigDownloadTypes, ConfigConnection, TimeUnit
 from lazylibrarian.formatter import ImportPrefs
+from lazylibrarian.logconfig import LogConfig
+
 
 BASE_DEFAULTS: List[ConfigItem] = [
     ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),
@@ -32,13 +34,13 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('General', 'SYS_ENCODING', ''),
     ConfigStr('General', 'HOMEPAGE', ''),
     ConfigFolder('General', 'LOGDIR', ''),
-    ConfigInt('General', 'LOGLIMIT', 500),
+    ConfigInt('General', 'LOGLIMIT', 500, onchange=LogConfig.change_memory_limit),
     ConfigInt('General', 'LOGFILES', 10),
     ConfigInt('General', 'LOGSIZE', 204800),
     ConfigBool('General', 'LOGREDACT', 0),
     ConfigBool('General', 'HOSTREDACT', 0),
     ConfigStr('General', 'AUTH_TYPE', "BASIC"),
-    ConfigInt('General', 'LOGLEVEL', 1),
+    ConfigRangedInt('General', 'LOGLEVEL', 20, 10, 60, onchange=LogConfig.change_root_loglevel),
     ConfigInt('General', 'WALL_COLUMNS', 6),
     ConfigPerm('General', 'FILE_PERM', '0o644'),
     ConfigPerm('General', 'DIR_PERM', '0o755'),

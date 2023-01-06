@@ -59,7 +59,7 @@ from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
     get_preferred_author_name
-from lazylibrarian.logconfig import enable_logger, set_loglevel
+from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
@@ -1670,45 +1670,27 @@ class WebInterface(object):
             newloglevel = logging.INFO
         elif logtype == 'Debug':
             newloglevel = logging.DEBUG
-            # TODO: How to represent special logging from UI?
-            """
-            if 'log_matching' in kwargs:
-                newloglevel += logger.log_matching
-            if 'log_searching' in kwargs:
-                newloglevel += logger.log_searching
-            if 'log_dbcomms' in kwargs:
-                newloglevel += logger.log_dbcomms
-            if 'log_dlcomms' in kwargs:
-                newloglevel += logger.log_dlcomms
-            if 'log_postprocess' in kwargs:
-                newloglevel += logger.log_postprocess
-            if 'log_fuzz' in kwargs:
-                newloglevel += logger.log_fuzz
-            if 'log_serverside' in kwargs:
-                newloglevel += logger.log_serverside
-            if 'log_fileperms' in kwargs:
-                newloglevel += logger.log_fileperms
-            if 'log_grsync' in kwargs:
-                newloglevel += logger.log_grsync
-            if 'log_cache' in kwargs:
-                newloglevel += logger.log_cache
-            if 'log_libsync' in kwargs:
-                newloglevel += logger.log_libsync
-            if 'log_admin' in kwargs:
-                newloglevel += logger.log_admin
-            if 'log_cherrypy' in kwargs:
-                newloglevel += logger.log_cherrypy
-            if 'log_requests' in kwargs:
-                newloglevel += logger.log_requests
-            if 'log_configread' in kwargs:
-                newloglevel += logger.log_configread
-            if 'log_configwrite' in kwargs:
-                newloglevel += logger.log_configwrite
-            """
         else:  # legacy interface, no log_type
             newloglevel = int(kwargs.get('loglevel', logging.INFO))
 
-        set_loglevel(newloglevel)
+        # Temporarily enable/disable special loggers based on UI
+        for logger in LOGCONFIG.get_special_logger_list():
+            shortname = LOGCONFIG.get_short_special_logger_name(logger.name)
+            uiname = f'log_{shortname}'  # Name starts with 'special.'
+            LOGCONFIG.enable_special_logger(shortname, uiname in kwargs)
+
+        # Cherrypy logger gets special treatment
+        cherrypylogger = logging.getLogger('cherrypy')
+        if 'log_cherrypy' in kwargs:
+            cherrypylogger.disabled = False
+            cherrypylogger.propagate = True
+            cherrypylogger.setLevel(logging.DEBUG)
+        else:
+            cherrypylogger.disabled = True
+            cherrypylogger.propagate = False
+
+        # Store this in CONFIG so it's persisted. OnChange triggers event to activate.
+        CONFIG.set_int('LOGLEVEL', newloglevel)
         CONFIG.save_config_and_backup_old(restart_jobs=True)
         if not lazylibrarian.STOPTHREADS:
             check_running_jobs()
@@ -5760,8 +5742,8 @@ class WebInterface(object):
         # kwargs is used by datatables to pass params
         # TODO: How to show log in UI?
         logger = logging.getLogger(__name__)
-        rows = []
-        filtered = []
+        rows = filtered = []
+        total = 0
 
         # noinspection PyBroadException
         try:
@@ -5769,36 +5751,19 @@ class WebInterface(object):
             displaylength = int(iDisplayLength)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
-            if sSearch:
-                filtered = [x for x in logger.lazylibrarian_log.LOGLIST[::] if sSearch.lower() in str(x).lower()]
-            else:
-                filtered = logger.lazylibrarian_log.LOGLIST[::]
+            redactlist = CONFIG.REDACTLIST if CONFIG.get_bool('LOGREDACT') else []
+            filtered, total = LOGCONFIG.get_ui_logrows(sSearch, redactlist)
 
             sortcolumn = int(iSortCol_0)
-
             filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                           reverse=sSortDir_0 == "desc")
-            if displaylength < 0:  # display = all
-                rows = filtered
-            else:
-                rows = filtered[displaystart:(displaystart + displaylength)]
-
-            if CONFIG.get_bool('LOGREDACT'):
-                redacted = []
-                for line in rows:
-                    line = list(line)
-                    for item in CONFIG.REDACTLIST:
-                        line[6] = line[6].replace(item, '**********')
-                    redacted.append(line)
-                rows = redacted
-
+            rows = filtered if displaylength < 0 else filtered[displaystart:(displaystart + displaylength)]
         except Exception:
             logger.error('Unhandled exception in get_log: %s' % traceback.format_exc())
-            rows = []
-            filtered = []
+            rows = filtered = []
         finally:
             mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(logger.lazylibrarian_log.LOGLIST),
+                      'iTotalRecords': total,
                       'aaData': rows,
                       }
             return mydict

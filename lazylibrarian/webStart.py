@@ -27,6 +27,7 @@ import logging
 from shutil import copyfile
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.webServe import WebInterface
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 
@@ -231,7 +232,7 @@ def initialize(options=None):
 
     cherrypy.tree.mount(WebInterface(), str(options['http_root']), config=conf)
 
-    if lazylibrarian.CHERRYPYLOG:
+    if LOGCONFIG.is_special_logger_enabled('cherrypy'):
         cherrypy.config.update({
             'log.access_file': DIRS.get_logfile('cherrypy.access.log'),
             'log.error_file': DIRS.get_logfile('cherrypy.error.log'),

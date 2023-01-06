@@ -1,8 +1,9 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    import logging
     from lazylibrarian.config2 import CONFIG
-    from lazylibrarian.logconfig import get_loglevel_name
+    from lazylibrarian.logconfig import LOGCONFIG
     from lazylibrarian.notifiers import APPRISE_VER
 %>
 <%def name="headerIncludes()">
@@ -139,21 +140,21 @@
                         <label for="log_type" id="log_label" class="input-group-addon">Level</label>
                         <select id="log_type" name="log_type" class="form-control">
                           <%
-                            if get_loglevel_name() == 'ERROR':
+                            if LOGCONFIG.get_loglevel_name() == 'ERROR':
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
                           %>
                           <option value="Quiet" ${selected}>Quiet</option>
                           <%
-                            if get_loglevel_name() == 'INFO':
+                            if LOGCONFIG.get_loglevel_name() == 'INFO':
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
                           %>
                           <option value="Normal" ${selected}>Normal</option>
                           <%
-                            if get_loglevel_name() == 'DEBUG':
+                            if LOGCONFIG.get_loglevel_name() == 'DEBUG':
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
@@ -187,14 +188,13 @@
                       <label for="hostredact" class="control-label">
                       <input type="checkbox" id="hostredact" name="hostredact" value="1" ${checked} />
                       Also redact hostnames</label>
-                      %if get_loglevel_name() == 'DEBUG':
                       <br>
                       <fieldset id=debug_options>
-                      <legend>Detailed Debug Options</legend>
+                      <legend>Additional Debug Logging</legend>
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
+                            if LOGCONFIG.is_special_logger_enabled('matching'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -205,7 +205,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
+                            if LOGCONFIG.is_special_logger_enabled('searching'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -218,7 +218,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
+                            if LOGCONFIG.is_special_logger_enabled('dlcomms'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -229,7 +229,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
+                            if LOGCONFIG.is_special_logger_enabled('dbcomms'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -242,7 +242,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
+                            if LOGCONFIG.is_special_logger_enabled('postprocess'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -253,7 +253,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
+                            if LOGCONFIG.is_special_logger_enabled('fuzz'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -266,7 +266,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
+                            if LOGCONFIG.is_special_logger_enabled('serverside'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -277,7 +277,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
+                            if LOGCONFIG.is_special_logger_enabled('fileperms'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -290,7 +290,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
+                            if LOGCONFIG.is_special_logger_enabled('grsync'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -301,7 +301,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_cache:
+                            if LOGCONFIG.is_special_logger_enabled('cache'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -314,7 +314,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
+                            if LOGCONFIG.is_special_logger_enabled('libsync'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -325,7 +325,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_admin:
+                            if LOGCONFIG.is_special_logger_enabled('admin'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -338,18 +338,18 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_cherrypy:
+                            if LOGCONFIG.is_logger_enabled_for('cherrypy', logging.INFO):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
                           %>
                           <label for="log_cherrypy" class="control-label">
                           <input type="checkbox" id="log_cherrypy" name="log_cherrypy" value="1" ${checked} />
-                          Cherrypy Logging (needs restart)</label>
+                          Cherrypy Webserver</label>
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_requests:
+                            if LOGCONFIG.is_special_logger_enabled('requests'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -360,7 +360,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_configread:
+                            if LOGCONFIG.is_special_logger_enabled('configread'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -371,7 +371,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian_log.LOGLEVEL & logger.log_configwrite:
+                            if LOGCONFIG.is_special_logger_enabled('configwrite'):
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -380,8 +380,8 @@
                           <input type="checkbox" id="log_configwrite" name="log_configwrite" value="1" ${checked} />
                           Config Write Value</label>
                         </div>
-                      </div>
-                      %endif
+                      </div><p>To permanently change these settings, edit logging.yaml<p/>
+
                     </fieldset>
                   </fieldset>
                   <br>

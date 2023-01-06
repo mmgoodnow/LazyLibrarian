@@ -231,8 +231,9 @@ class ConfigStr(ConfigItem):
 class ConfigInt(ConfigItem):
     """ A config item that is an int """
 
-    def __init__(self, section: str, key: str, default: int, is_new: bool = False, persist: bool = True):
-        super().__init__(section, key, default, is_new, persist)
+    def __init__(self, section: str, key: str, default: int, is_new: bool = False, persist: bool = True,
+                 onchange=None):
+        super().__init__(section, key, default, is_new, persist, onchange)
 
     def get_int(self) -> int:
         if self._on_read(type(self.value) in [int, bool]):
@@ -276,10 +277,10 @@ class ConfigRangedInt(ConfigInt):
     """ An int config item that must be in a particular range """
 
     def __init__(self, section: str, key: str, default: int,
-                 range_min: int, range_max: int, is_new: bool = False, persist: bool = True):
+                 range_min: int, range_max: int, is_new: bool = False, persist: bool = True, onchange=None):
         self.range_min = range_min
         self.range_max = range_max
-        super().__init__(section, key, default, is_new, persist)
+        super().__init__(section, key, default, is_new, persist, onchange)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         return self.range_min <= int(value) <= self.range_max

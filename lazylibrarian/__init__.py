@@ -32,8 +32,7 @@ SYS_ENCODING = ''  # A copy of CONFIG['SYS_ENCODING'] that can be overridden
 LOGINUSER = None  # UserID of currently logged in user, if any
 COMMIT_LIST = ''  # List of git commits since last update. If it includes "**MANUAL**", don't update.
 SHOWLOGOUT = 1  # If 1, the Logout option is shown in the UI.
-CHERRYPYLOG = 0  # If 1, creates Cherrypy access and error log files. Can be set with log_cherrypy on command line
-REQUESTSLOG = 0  # If 1, sets http.client.HTTPConnection.debuglevel=1. Can be set with log_requests on command line
+REQUESTSLOG = 0  # If 1, sets http.client.HTTPConnection.debuglevel=1.
 DOCKER = False  # Set to True if we discover LL is running inside of Docker
 STOPTHREADS = False  # Part of the scheduling state machine. Should move to a scheduling class?
 

@@ -45,7 +45,6 @@ class DBConnection:
             self.dblog = syspath(DIRS.get_logfile('database.log'))
             self.logger = logging.getLogger(__name__)
             self.dbcommslogger = logging.getLogger('special.dbcomms')
-            self.dbtiminglogger = logging.getLogger('special.dbcomms.dbtiming')
         except Exception as e:
             self.logger.debug(str(e))
             self.logger.debug(DIRS.get_dbfile())
@@ -84,13 +83,13 @@ class DBConnection:
                         sql_result = self.connection.execute(query, args)
 
                 elapsed = time.time() - start
-                self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                 break
 
             except sqlite3.OperationalError as e:
                 if "unable to open database file" in str(e) or "database is locked" in str(e):
                     elapsed = time.time() - start
-                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                     self.dbcommslogger.debug(f'Database Error {str(e)}')
 
                     self.logger.warning('Database Error: %s' % e)
@@ -98,7 +97,7 @@ class DBConnection:
                     time.sleep(1)
                 else:
                     elapsed = time.time() - start
-                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                     self.dbcommslogger.debug(f'Database OperationalError {str(e)}')
 
                     self.logger.error('Database OperationalError: %s' % e)
@@ -112,12 +111,12 @@ class DBConnection:
                 elapsed = time.time() - start
                 msg = str(e).lower()
                 if suppress and 'UNIQUE' in suppress and ('not unique' in msg or 'unique constraint failed' in msg):
-                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                     self.dbcommslogger.debug(f'Suppressed {msg}')
                     self.connection.commit()
                     break
                 else:
-                    self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                    self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                     self.dbcommslogger.debug(f'IntegrityError: {msg}')
 
                     self.logger.error('Database IntegrityError: %s' % e)
@@ -127,7 +126,7 @@ class DBConnection:
 
             except sqlite3.DatabaseError as e:
                 elapsed = time.time() - start
-                self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                 self.dbcommslogger.debug(f'DatabaseError: {str(e)}')
 
                 self.logger.error('Fatal error executing %s :%s: %s' % (query, args, e))
@@ -136,7 +135,7 @@ class DBConnection:
 
             except Exception as e:
                 elapsed = time.time() - start
-                self.dbtiminglogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                 self.dbcommslogger.debug(f'CatchallError: {str(e)}')
 
                 self.logger.error('Exception executing %s :: %s' % (query, e))

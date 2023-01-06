@@ -11,12 +11,11 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import inspect
+import logging
 import os
 import re
 import time
 import traceback
-import logging
 
 from urllib.parse import quote_plus, quote, urlencode
 import lazylibrarian
@@ -424,7 +423,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
                 # don't nag. Show message no more than every 12 hrs
                 timenow = int(time.time())
                 if check_int(LAST_NEW, 0) + 43200 < timenow:
-                    logger.warn("New WhatWork is disabled")
+                    logger.warning("New WhatWork is disabled")
                     LAST_NEW = timenow
                 return None
             if bookid:
@@ -593,7 +592,7 @@ def get_book_authors(bookid):
         authors = book.find('authors')
         anames = authors.iter('author')
         if anames is None:
-            logger.warn('No authors found for %s' % bookid)
+            logger.warning('No authors found for %s' % bookid)
             return []
         for aname in anames:
             author = {}
@@ -762,7 +761,7 @@ def get_series_authors(seriesid):
                     if not in_cache:
                         api_hits += 1
                     if rootxml is None:
-                        logger.warn('Error getting XML for %s' % searchname)
+                        logger.warning('Error getting XML for %s' % searchname)
                     else:
                         resultxml = rootxml.iter('work')
                         for item in resultxml:
@@ -798,7 +797,7 @@ def get_series_authors(seriesid):
                         if not in_cache:
                             api_hits += 1
                         if rootxml is None:
-                            logger.warn('Error getting XML for %s' % searchname)
+                            logger.warning('Error getting XML for %s' % searchname)
                         else:
                             resultxml = rootxml.iter('work')
                             for item in resultxml:
@@ -822,7 +821,7 @@ def get_series_authors(seriesid):
                                                  (author, booktitle, authorid))
                                     break
                     if not authorid:
-                        logger.warn("GoodReads doesn't know about %s %s" % (authorname, bookname))
+                        logger.warning("GoodReads doesn't know about %s %s" % (authorname, bookname))
                 except Exception as e:
                     logger.error("Error finding goodreads results: %s %s" % (type(e).__name__, str(e)))
 
@@ -870,7 +869,7 @@ def get_series_members(seriesid=None, seriesname=None):
         works = rootxml.find('series/series_works')
         books = works.iter('series_work')
         if books is None:
-            logger.warn('No books found for %s' % seriesid)
+            logger.warning('No books found for %s' % seriesid)
             return [], api_hits
         for book in books:
             mydict = {}
@@ -961,7 +960,7 @@ def get_series_members(seriesid=None, seriesname=None):
         if not rejected:
             filtered.append(item)
     if len(filtered) and not first:
-        logger.warn("Series %s (%s) has %s members but no book 1" % (seriesid, seriesname, len(filtered)))
+        logger.warning("Series %s (%s) has %s members but no book 1" % (seriesid, seriesname, len(filtered)))
     return filtered, api_hits
 
 
@@ -1114,6 +1113,7 @@ def google_book_dict(item):
 def get_work_series(bookid=None, source='GR', reason=""):
     """ Return the series names and numbers in series for the given id as a list of tuples
         For goodreads the id is a WorkID, for librarything it's a BookID """
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     serieslist = []
     if not bookid:
@@ -1126,7 +1126,7 @@ def get_work_series(bookid=None, source='GR', reason=""):
 
         rootxml, _ = gr_xml_request(seriesurl)
         if rootxml is None:
-            logger.warn('Error getting XML for %s' % seriesurl)
+            logger.warning('Error getting XML for %s' % seriesurl)
         else:
             resultxml = rootxml.iter('series_work')
             for item in resultxml:
@@ -1143,9 +1143,9 @@ def get_work_series(bookid=None, source='GR', reason=""):
                     logger.debug("Ignoring goodreads single-book-series (%s) %s" % (seriesid, seriesname))
                 elif CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
                     logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
-                elif CONFIG.get_bool('NO_SETS') and seriesnum and (re.search(r'\d+ of \d+', seriesnum) or
-                                                                                         re.search(r'\d+/\d+', seriesnum) or
-                                                                                         re.search(r'\d+-\d+', seriesnum)):
+                elif CONFIG.get_bool('NO_SETS') and seriesnum and (not (
+                        not re.search(r'\d+ of \d+', seriesnum) and not re.search(r'\d+/\d+',
+                                                                                  seriesnum)) or re.search(r'\d+-\d+', seriesnum)):
                     logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
                 elif seriesname and seriesid:
                     seriesname = clean_name(seriesname, '&/')
@@ -1161,10 +1161,10 @@ def get_work_series(bookid=None, source='GR', reason=""):
                                           (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
                                            0, 0, 0, reason, ''))
                             else:
-                                logger.warn("Name mismatch for series %s, [%s][%s]" % (
+                                logger.warning("Name mismatch for series %s, [%s][%s]" % (
                                             seriesid, seriesname, match['SeriesName']))
                         elif str(match['SeriesID']) != str(seriesid):
-                            logger.warn("SeriesID mismatch for series %s, [%s][%s] assume different series?" % (
+                            logger.warning("SeriesID mismatch for series %s, [%s][%s] assume different series?" % (
                                         seriesname, seriesid, match['SeriesID']))
                             match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
@@ -1277,6 +1277,7 @@ def genre_filter(genre):
 
 
 def get_gr_genres(bookid, refresh=False):
+    logger = logging.getLogger(__name__)
     if lazylibrarian.GRGENRES:
         genre_users = lazylibrarian.GRGENRES.get('genreUsers', 10)
         genre_limit = lazylibrarian.GRGENRES.get('genreLimit', 3)
@@ -1328,6 +1329,7 @@ def get_gr_genres(bookid, refresh=False):
 
 
 def get_book_pubdate(bookid, refresh=False):
+    logger = logging.getLogger(__name__)
     bookdate = "0000"
     if bookid.isdigit():  # goodreads bookid
         url = '/'.join([CONFIG['GR_URL'],
@@ -1365,7 +1367,7 @@ def get_book_pubdate(bookid, refresh=False):
         return bookdate, in_cache
     else:
         if not CONFIG['GB_API']:
-            logger.warn('No GoogleBooks API key, check config')
+            logger.warning('No GoogleBooks API key, check config')
             return bookdate, False
 
         url = '/'.join([CONFIG['GB_URL'],
@@ -1384,6 +1386,7 @@ def thinglang(isbn):
     # try searching librarything for a language code using the isbn
     # if no language found, librarything return value is "invalid" or "unknown"
     # librarything returns plain text, not xml
+    logger = logging.getLogger(__name__)
     book_url = '/'.join([CONFIG['LT_URL'], 'api/thinglang.php?isbn=' + isbn])
     proxies = proxy_list()
     booklang = ''
@@ -1404,6 +1407,7 @@ def thinglang(isbn):
 def isbn_from_words(words):
     """ Use Google to get an ISBN for a book from words in title and authors name.
         Store the results in the database """
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     res = db.match("SELECT ISBN from isbn WHERE Words=?", (words,))
     if res:

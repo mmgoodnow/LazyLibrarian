@@ -36,7 +36,7 @@
       <div class="toggles col-xs-12 col-sm-7 text-right">
         Toggle: <a class="toggle-vis" data-column="0"> Timestamp</a>
         <a class="toggle-vis" data-column="1"> Level</a>
-        %if lazylibrarian_log.LOGLEVEL >= 2:
+        %if get_loglevel_name() == 'DEBUG':
           <a class="toggle-vis" data-column="2"> Thread</a>
           <a class="toggle-vis" data-column="3"> File</a>
           <a class="toggle-vis" data-column="4"> Method</a>
@@ -51,7 +51,7 @@
         <tr>
           <th class="timestamp">Timestamp</th>
           <th class="level">Level</th>
-          %if lazylibrarian_log.LOGLEVEL >= 2:
+          %if get_loglevel_name() == 'DEBUG':
             <th class="thead">Thread</th>
             <th class="file">File</th>
             <th class="method">Method</th>
@@ -71,7 +71,7 @@
         var oTable = $('#log_table').DataTable({
                 "bAutoWidth": false,
                 "aoColumnDefs": [
-                    %if lazylibrarian_log.LOGLEVEL >= 2:
+                    %if get_loglevel_name() == 'DEBUG':
                     { "sWidth": "3%", "aTargets": [ 0,1,2,3,4,5 ] },
                     { "sWidth": "60%", "aTargets": [ 6 ] }
                     %else:
@@ -102,7 +102,7 @@
                     } else {
                         $('td', nRow).closest('tr').addClass("text-info");
                     }
-                    %if lazylibrarian_log.LOGLEVEL < 2:
+                    %if get_loglevel_name() != 'DEBUG':
                         $('td', nRow).eq(2).addClass("hidden");
                         $('td', nRow).eq(3).addClass("hidden");
                         $('td', nRow).eq(4).addClass("hidden");

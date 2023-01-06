@@ -42,18 +42,18 @@ from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
-from lazylibrarian.logconfig import read_log_config
+from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.notifiers import APPRISE_VER
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler, SchedulerCommand
 
 
 class StartupLazyLibrarian:
-    LOG_QUIET = False
     logger: logging.Logger
 
     def startup_parsecommandline(self, mainfile, args, testing=False) -> (Any, str):
         """ Parse command line, return options and configfile to use """
         # All initializartion that needs to happen before logging starts
+        self.logger.debug('Parsing command line')
         if hasattr(sys, 'frozen'):
             DIRS.set_fullpath_args(os.path.abspath(sys.executable), sys.argv[1:])
         else:
@@ -110,11 +110,20 @@ class StartupLazyLibrarian:
         p.add_option('-u', '--userid',
                      dest='userid', default=None,
                      help="Login as this userid")
-
+        p.add_option('--loglevel',
+                     dest='loglevel', default=None,
+                     help="Debug loglevel")
         options, _ = p.parse_args(args)
 
         if options.quiet:
-            self.LOG_QUIET = True
+            # Don't output anything at all to the console
+            LOGCONFIG.remove_console_handlers()
+
+        if options.loglevel:
+            try:
+                LOGCONFIG.change_root_loglevel(options.loglevel)
+            except ValueError as e:
+                self.logger.warning(f'loglevel parameter must be an integer, error {str(e)}')
 
         if options.noipv6:
             # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
@@ -168,9 +177,9 @@ class StartupLazyLibrarian:
                 lazylibrarian.PIDFILE = str(options.pidfile)
 
         if not testing:
-            print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
-            time.sleep(
-                2)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
+            self.logger.info("Lazylibrarian (pid %s) is starting up..." % os.getpid())
+            # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
+            time.sleep(2)
 
         icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
@@ -192,11 +201,8 @@ class StartupLazyLibrarian:
 
     def init_logs(self):
         """ Initialize log files. Until this is done, do not use the logger """
-        read_log_config(fixfilenames=False)
-
+        LOGCONFIG.read_log_config()
         self.logger = logging.getLogger(__name__)
-        self.logger.info('Starting LazyLibrarian')
-        self.logger.debug(f"{DIRS.FULL_PATH} {DIRS.ARGS}")
 
     def init_misc(self, config: ConfigDict):
         """ Other initialization."""
