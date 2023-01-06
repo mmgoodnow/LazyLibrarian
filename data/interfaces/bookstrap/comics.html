@@ -118,7 +118,7 @@
         var intjob = 0;
         $('#comicfilter').val(getUrlVars()['comic_filter']);
 
-        var show = ""+${CONFIG['COMIC_IMG']};
+        var show = ""+${CONFIG.get_int('COMIC_IMG')}
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 
