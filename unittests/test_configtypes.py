@@ -7,7 +7,7 @@ from collections import Counter
 import logging
 
 from lazylibrarian import configtypes
-from lazylibrarian.configtypes import Access, TimeUnit
+from lazylibrarian.configenums import Access, TimeUnit, OnChangeReason
 from unittests.unittesthelpers import LLTestCase
 
 
@@ -329,7 +329,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(someint.get_write_count(), 1, 'Expected 1 write')
 
     @classmethod
-    def onchangesample(cls, value: str):
+    def onchangesample(cls, value: str, reason: OnChangeReason):
         cls.changed_value = value
 
     def test_onchange(self):

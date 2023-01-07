@@ -18,12 +18,12 @@
 
 from __future__ import print_function
 
+import logging
 import sys
 import time
-import logging
 
 import lazylibrarian
-from lazylibrarian import startup, webStart, notifiers
+from lazylibrarian import startup, webStart
 from lazylibrarian.formatter import thread_name
 
 # The following should probably be made configurable at the settings level
@@ -50,12 +50,14 @@ def main():
     # rename this thread
     thread_name("MAIN")
     starter = startup.StartupLazyLibrarian()
-    # Read logging config and initialize loggers
-    starter.init_logs()
+    # Set up a console-only logger until config is read
+    starter.init_loggers(console_only=True)
     # Read command line and return options
     options, configfile = starter.startup_parsecommandline(__file__, args=sys.argv[1:])
     # Load config.ini and initialize CONFIG and DIRS
     starter.load_config(configfile, options)
+    # Read logging config and initialize loggers
+    starter.init_loggers(console_only=False)
     # Run initialization that needs CONFIG to be loaded
     starter.init_misc(lazylibrarian.config2.CONFIG)
     starter.init_caches(lazylibrarian.config2.CONFIG)

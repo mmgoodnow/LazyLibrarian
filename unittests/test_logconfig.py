@@ -6,21 +6,22 @@
 #   Do not use the standard unittesthelper; this needs to run standalone
 
 import logging
-import unittest
+import unittesthelpers
 from typing import List
 
 from lazylibrarian.logconfig import LOGCONFIG
 
 
-class TestLogConfig(unittest.TestCase):
+class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
     """ Test the logconfig.py class """
 
     def setUp(self) -> None:
         # For each test, clear the old config and read a fresh one
-        LOGCONFIG.read_log_config('./unittests/testdata/loggingtest.yaml')
+        LOGCONFIG.initialize_log_config(max_size=10000, max_number=2)
         LOGCONFIG.clear_ui_log()
         root = logging.getLogger('root')
         root.disabled = False  # Sometimes, logging sets it to disabled after loading. Hmm.
+        root.setLevel(logging.INFO)
 
     def test_read_log_config(self):
         """ Very basic test: Just load the config and validate it loaded """

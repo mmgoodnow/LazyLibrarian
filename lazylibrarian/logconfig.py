@@ -11,6 +11,9 @@ from typing import Dict, List
 
 import yaml
 
+from lazylibrarian.configenums import OnChangeReason
+from lazylibrarian.filesystem import DIRS
+
 
 class RecentMemoryHandler(logging.handlers.MemoryHandler):
     """ Memory handler that only empties if it's asked to; flushing simply
@@ -40,30 +43,177 @@ class LogConfig:
     """ Central log configuration for LazyLibrarian. Mainly to hold the in-memory
     log handler necessary to display the log in the UI. """
 
+    DefaultConfig = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "simple": {
+                "format": "%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s)]"
+            },
+            "detail": {
+                "format": "%(asctime)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s (%(threadName)s)"
+            },
+            "timing": {
+                "format": "%(asctime)s %(threadName)s %(levelname)s, %(filename)s.%(funcName)s() (line %(lineno)s): %(message)s"
+            },
+            "special": {
+                "format": "%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s/%(name)s)]"
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
+            },
+            "console_special": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "special",
+                "stream": "ext://sys.stdout",
+            },
+            "info_file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "INFO",
+                "formatter": "simple",
+                "filename": "lazylibrarian-info.log",
+                "maxBytes": 10485760,
+                "backupCount": 5,
+                "encoding": "utf8",
+            },
+            "debug_file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "DEBUG",
+                "formatter": "detail",
+                "filename": "lazylibrarian-debug.log",
+                "maxBytes": 10485760,
+                "backupCount": 5,
+                "encoding": "utf",
+            },
+            "debug_timing_file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "DEBUG",
+                "formatter": "timing",
+                "filename": "lazylibrarian-debug.log",
+                "maxBytes": 10485760,
+                "backupCount": 5,
+                "encoding": "utf",
+            },
+            "debug_special_file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "DEBUG",
+                "formatter": "special",
+                "filename": "lazylibrarian-debug.log",
+                "maxBytes": 10485760,
+                "backupCount": 5,
+                "encoding": "utf",
+            },
+        },
+        "loggers": {
+            "special": {
+                "level": "DEBUG",
+                "handlers": ["console_special", "debug_special_file"],
+            },
+            "special.admin": {"level": "INFO"},
+            "special.cache": {"level": "INFO"},
+            "special.configread": {"level": "INFO"},
+            "special.configwrite": {"level": "INFO"},
+            "special.dbcomms": {"level": "INFO"},
+            "special.dlcomms": {"level": "INFO"},
+            "special.fileperms": {"level": "INFO"},
+            "special.fuzz": {"level": "INFO"},
+            "special.grsync": {"level": "INFO"},
+            "special.iterateproviders": {"level": "INFO"},
+            "special.libsync": {"level": "INFO"},
+            "special.matching": {"level": "INFO"},
+            "special.postprocess": {"level": "INFO"},
+            "special.requests": {"level": "INFO"},
+            "special.searching": {"level": "INFO"},
+            "special.serverside": {"level": "INFO"},
+            "cherrypy": {"level": "ERROR", "propagate": False},
+            "unittest": {"level": "INFO", "handlers": ["console"]},
+        },
+        "root": {"handlers": ["console", "info_file", "debug_file"]},
+    }
+
+    StartupLoggerConfig = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "simple": {
+                "format": "%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s)]"
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            "special": {
+                "level": "INFO",
+            },
+        },
+        "root": {"handlers": ["console"]},
+    }
+
     def __init__(self):
         self._memorybuffer = None
-        self.ensure_memoryhandler_for_ui(100)
+        self.ensure_memoryhandler_for_ui()
 
-    def read_log_config(self, yamlname='logging.yaml') -> Dict:
+    def get_default_logconfig(self, console_only: bool):
+        return self.StartupLoggerConfig if console_only else self.DefaultConfig
+
+    def get_log_config(self, console_only: bool, usedefault: bool = True, yamlname: str = '') -> Dict:
+        """ Return a log configuration, either the default or from a file """
+        custom = False
+        if not usedefault and yamlname != '':
+            with open(yamlname, "r") as stream:
+                try:
+                    logsettings = yaml.safe_load(stream)
+                    custom = True
+                except yaml.YAMLError as exc:
+                    print(f"YAML error reading logging configfrom {yamlname}, using defaults ({str(exc)})")
+                    logsettings = self.DefaultConfig
+                except Exception as e:
+                    print(f"Error reading logging config from {yamlname}, using defaults ({str(e)})")
+                    logsettings = self.DefaultConfig
+        if custom:
+            return logsettings
+        else:
+            return self.get_default_logconfig(console_only)
+
+    def initialize_console_only_log(self) -> Dict:
+        """ Initialize the console-only log used for startup """
+        settings = self.get_log_config(console_only=True)
+        logging.config.dictConfig(settings)
+        self.ensure_memoryhandler_for_ui(capacity_lines=-1)
+        return settings
+
+    def initialize_log_config(self, max_size: int, max_number: int) -> Dict:
         """ Read a new config from yaml file and apply """
-        with open(yamlname, "r") as stream:
-            try:
-                logsettings = yaml.safe_load(stream)
-                logging.config.dictConfig(logsettings)
-                self.ensure_memoryhandler_for_ui()
-                return logsettings
-            except yaml.YAMLError as exc:
-                print(f"YAML error reading logging config: {str(exc)}")
-            except Exception as e:
-                raise RuntimeError(f"Error reading logging config, exiting: {str(e)}")
+        settings = self.get_log_config(console_only=False)
+        for name, handler in settings['handlers'].items():
+            if 'filename' in handler:
+                handler['filename'] = DIRS.get_logfile(handler['filename'])
+                handler['maxBytes'] = max_size
+                handler['backupCount'] = max_number
+        logging.config.dictConfig(settings)
+        self.ensure_memoryhandler_for_ui(capacity_lines=-1)
+        return settings
 
     # Methods for dealing with in-memory log for UI display
 
-    def ensure_memoryhandler_for_ui(self, capacity_lines: int = 100):
+    def ensure_memoryhandler_for_ui(self, capacity_lines: int = 400):
         """ Ensure there is a memory handler for displaying the log in the UI """
         logger = logging.getLogger('root')
         if self._memorybuffer:
-            self._memorybuffer.capacity = capacity_lines
+            if capacity_lines > 0:
+                self._memorybuffer.capacity = capacity_lines
         else:
             self._memorybuffer = RecentMemoryHandler(capacity=capacity_lines)
 
@@ -100,17 +250,24 @@ class LogConfig:
         return rows, len(handler.buffer)
 
     @staticmethod
-    def change_memory_limit(limitstr: str):
+    def change_memory_limit(limitstr: str, reason: OnChangeReason = OnChangeReason.SETTING):
         """ Method used as onchange event for LOGLIMIT """
-        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=int(limitstr))
+        if reason != OnChangeReason.COPYING:
+            LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=int(limitstr))
 
     # Methods for dealing with normal loggers
 
     @staticmethod
-    def change_root_loglevel(value: str):
+    def change_root_loglevel(value: str, reason: OnChangeReason = OnChangeReason.SETTING):
         """ Onchange event for LOGLEVEL """
-        logger = logging.getLogger('root')
-        logger.setLevel(int(value))
+        if reason != OnChangeReason.COPYING:
+            logger = logging.getLogger('root')
+            levelmap = logging.getLevelNamesMapping()
+            if value.upper() in levelmap:
+                level = levelmap[value.upper()]
+            else:
+                level = int(value)
+            logger.setLevel(level)
 
     @staticmethod
     def enable_logger(logname: str, enabled: bool = True) -> logging.Logger:
@@ -209,7 +366,7 @@ class LogConfig:
         if error:
             return 'Failed to clear logfiles: %s' % error
         else:
-            return f"{delted} log files deleted from {CONFIG['LOGDIR']}"
+            return f"{deleted} log files deleted from {CONFIG['LOGDIR']}"
 
 
 LOGCONFIG = LogConfig()

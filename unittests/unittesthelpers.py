@@ -13,7 +13,7 @@ from typing import List
 
 import lazylibrarian
 from lazylibrarian import dbupgrade
-from lazylibrarian.configtypes import Access
+from lazylibrarian.configenums import Access
 from lazylibrarian.filesystem import DIRS, path_isdir
 from lazylibrarian.startup import StartupLazyLibrarian
 from lazylibrarian.config2 import LLConfigHandler, CONFIG  # One day, won't need this any more
@@ -102,7 +102,7 @@ class LLTestCaseWithConfigandDIRS(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         DIRS.set_fullpath_args(os.path.abspath(__file__), sys.argv[1:])
-        LOGCONFIG.read_log_config()
+        LOGCONFIG.initialize_console_only_log()
         cls.config = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=cls.CONFIGFILE)
         DIRS.set_config(cls.config)
         DIRS.initialize_logger()
@@ -136,10 +136,11 @@ class LLTestCaseWithStartup(LLTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.starter = StartupLazyLibrarian()
-        cls.starter.init_logs()
+        cls.starter.init_loggers(console_only=True)
         options, configfile = cls.starter.startup_parsecommandline(__file__, args=[''], testing=True)
         cls.starter.load_config(cls.CONFIGFILE, options)
         # Only log errors during the rest of startup
+        cls.starter.init_loggers(console_only=False)
         logging.getLogger('root').setLevel(logging.ERROR)
         cls.starter.init_misc(CONFIG)
         LLTestCase.disableHTTPSWarnings()

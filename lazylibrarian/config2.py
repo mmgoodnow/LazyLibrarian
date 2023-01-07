@@ -18,8 +18,9 @@ from typing import Dict, List, Optional, Generator, Tuple
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configarray import ArrayConfig
+from lazylibrarian.configenums import Access, OnChangeReason
 from lazylibrarian.configdefs import BASE_DEFAULTS, ARRAY_DEFS, configitem_from_default
-from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict, \
+from lazylibrarian.configtypes import ConfigItem, ConfigBool, CaseInsensitiveDict, ConfigDict, \
     ConfigScheduler, ConfigDictListIterator, ErrorListIterator
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 from lazylibrarian.formatter import thread_name, plural
@@ -74,7 +75,7 @@ class LLConfigHandler(ConfigDict):
                 item = configitem_from_default(config_item)
                 self.config[key] = item
                 if item.onchange:
-                    item.onchange(item.get_str())
+                    item.onchange(item.get_str(), OnChangeReason.COPYING)
 
     def _load_section(self, section: str, parser: ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """

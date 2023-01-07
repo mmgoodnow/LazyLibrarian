@@ -8,36 +8,19 @@ import os
 import sys
 from collections import Counter, OrderedDict
 from configparser import ConfigParser
-from enum import Enum
 from re import match, compile, IGNORECASE
 from typing import Dict, List, Callable
 from typing import Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
+
+from lazylibrarian.configenums import Access, TimeUnit, OnChangeReason
 
 # Type aliases to distinguish types of string
 ValidIntTypes = Union[int, bool]
 ValidStrTypes = str
 ValidTypes = Union[ValidStrTypes, ValidIntTypes]
 
-
-# Types of access
-class Access(Enum):
-    READ_OK = 'read_ok'
-    WRITE_OK = 'write_ok'
-    READ_ERR = 'read_error'
-    WRITE_ERR = 'write_error'
-    CREATE_OK = 'create_ok'
-    FORMAT_ERR = 'format_error'
-
-
-# Schedule intervals
-class TimeUnit(Enum):
-    MIN = 'min'
-    HOUR = 'hour'
-    DAY = 'day'
-
-
 # Class method that can be called when a value changes
-OnChangeCallback = Callable[[object, str], None]
+OnChangeCallback = Callable[[object, str, str], None]
 
 
 class ConfigItem:
@@ -177,7 +160,7 @@ class ConfigItem:
                 logger.debug(f"Set config[{self.key}]={value}")
             self.value = value
             if self.onchange:
-                self.onchange(self.get_str())
+                self.onchange(self.get_str(), OnChangeReason.SETTING)
             return True
         else:
             self.accesses[Access.WRITE_ERR] += 1

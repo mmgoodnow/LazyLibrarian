@@ -12,7 +12,7 @@ import mock
 from lazylibrarian.config2 import LLConfigHandler, are_equivalent
 from lazylibrarian.configdefs import BASE_DEFAULTS
 from lazylibrarian.configdefs import get_default
-from lazylibrarian.configtypes import Access
+from lazylibrarian.configenums import Access
 from lazylibrarian.filesystem import DIRS, syspath, remove_file, path_isfile, safe_copy
 from lazylibrarian.formatter import ImportPrefs
 from unittests.unittesthelpers import LLTestCaseWithConfigandDIRS

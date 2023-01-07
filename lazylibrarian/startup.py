@@ -123,7 +123,7 @@ class StartupLazyLibrarian:
             try:
                 LOGCONFIG.change_root_loglevel(options.loglevel)
             except ValueError as e:
-                self.logger.warning(f'loglevel parameter must be an integer, error {str(e)}')
+                self.logger.warning(f'loglevel parameter must be a valid log level, error {str(e)}')
 
         if options.noipv6:
             # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
@@ -199,9 +199,12 @@ class StartupLazyLibrarian:
         if options.nolaunch:
             config.set_bool('LAUNCH_BROWSER', False)
 
-    def init_logs(self):
+    def init_loggers(self, console_only: bool):
         """ Initialize log files. Until this is done, do not use the logger """
-        LOGCONFIG.read_log_config()
+        if console_only:
+            LOGCONFIG.initialize_console_only_log()
+        else:
+            LOGCONFIG.initialize_log_config(CONFIG.get_int('LOGSIZE'), CONFIG.get_int('LOGFILES'))
         self.logger = logging.getLogger(__name__)
 
     def init_misc(self, config: ConfigDict):

@@ -22,6 +22,7 @@ import logging
 from typing import List
 
 import lazylibrarian
+from lazylibrarian.configenums import OnChangeReason
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
@@ -40,12 +41,12 @@ class ImportPrefs:
     SPLIT_LIST = []
 
     @classmethod
-    def lang_changed(cls, languages: str):
+    def lang_changed(cls, languages: str, reason: OnChangeReason = OnChangeReason.SETTING):
         """ Called automatically when CONFIG[IMP_PREFLANG] changes value """
         cls.LANG_LIST = get_list(languages, ',')
 
     @classmethod
-    def nosplit_changed(cls, nosplits: str):
+    def nosplit_changed(cls, nosplits: str, reason: OnChangeReason = OnChangeReason.SETTING):
         """ Called automatically when CONFIG[IMP_NOSPLIT] changes value """
         cls.SPLIT_LIST = get_list(nosplits, ',')
 
