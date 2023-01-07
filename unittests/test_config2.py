@@ -346,7 +346,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()  # We just want to know the right things were updated
         expectedacs = {
-            'GENERAL.LOGLEVEL': Counter({Access.WRITE_OK: 1}),
+            'LOGGING.LOGLEVEL': Counter({Access.WRITE_OK: 1}),
             'GENERAL.NO_IPV6': Counter({Access.WRITE_OK: 1}),
             'GENERAL.EBOOK_DIR': Counter({Access.WRITE_OK: 1}),
             'GENERAL.AUDIO_DIR': Counter({Access.WRITE_OK: 1}),
@@ -363,19 +363,19 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
-            "GENERAL.LOGDIR": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.LOGLIMIT": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.LOGFILES": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.LOGSIZE": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.LOGLEVEL": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.MAG_TAB": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.COMIC_TAB": Counter({Access.WRITE_OK: 1}),
+            "LOGGING.LOGDIR": Counter({Access.WRITE_OK: 1}),
+            "LOGGING.LOGLIMIT": Counter({Access.WRITE_OK: 1}),
+            "LOGGING.LOGFILES": Counter({Access.WRITE_OK: 1}),
+            "LOGGING.LOGSIZE": Counter({Access.WRITE_OK: 1}),
+            "LOGGING.LOGLEVEL": Counter({Access.WRITE_OK: 1}),
+            "MAGAZINES.MAG_TAB": Counter({Access.WRITE_OK: 1}),
+            "COMICS.COMIC_TAB": Counter({Access.WRITE_OK: 1}),
             "GENERAL.AUDIO_TAB": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.API_ENABLED": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.API_KEY": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.IMP_CALIBREDB": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.CALIBRE_USE_SERVER": Counter({Access.WRITE_OK: 1}),
-            "GENERAL.CALIBRE_SERVER": Counter({Access.WRITE_OK: 1}),
+            "API.API_ENABLED": Counter({Access.WRITE_OK: 1}),
+            "API.API_KEY": Counter({Access.WRITE_OK: 1}),
+            "CALIBRE.IMP_CALIBREDB": Counter({Access.WRITE_OK: 1}),
+            "CALIBRE.CALIBRE_USE_SERVER": Counter({Access.WRITE_OK: 1}),
+            "CALIBRE.CALIBRE_SERVER": Counter({Access.WRITE_OK: 1}),
             "GENERAL.IMP_NOSPLIT": Counter({Access.WRITE_OK: 1}),
             "GENERAL.IMP_PREFLANG": Counter({Access.WRITE_OK: 1}),
             "TELEMETRY.SERVER_ID": Counter({Access.WRITE_OK: 1}),
