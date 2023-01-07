@@ -122,7 +122,7 @@ class LogConfig:
             "special.requests": {"level": "INFO"},
             "special.searching": {"level": "INFO"},
             "special.serverside": {"level": "INFO"},
-            "cherrypy": {"level": "ERROR", "propagate": False},
+            "cherrypy": {"level": "INFO", "propagate": False},
             "unittest": {"level": "INFO", "handlers": ["console"]},
         },
         "root": {"handlers": ["console", "logfile"]},
@@ -179,6 +179,8 @@ class LogConfig:
                 handler['maxBytes'] = max_size
                 handler['backupCount'] = max_number
         logging.config.dictConfig(settings)
+        logging.getLogger('cherrypy').setLevel(logging.INFO)  # TODO: Why is this necessary?
+        logging.getLogger('cherrypy').disabled = True
         self.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=redactui)
 
         self.set_file_redact_filter(redactfiles)
@@ -378,10 +380,6 @@ class LogConfig:
     @staticmethod
     def delete_log_files(logdir: str) -> str:
         """ Delete on-disc log files, return status string """
-        # * Look up all File-based loggers
-        # * For each, close the logger and delete the file
-        # * Then restart the loggers
-
         # Close all file-based handlers owned by LL
         logger = logging.getLogger('root')
         for handler in logger.handlers:
@@ -403,18 +401,17 @@ class LogConfig:
                 error = err.strerror
                 logger.debug("Failed to remove %s : %s" % (f, error))
 
-        # I don't think it is necessary to re-initialize the loggers, but just in case, here is the code:
-        # self.reinitialize_log_config()
-
         # Let the user know what happened
         if deleted == 0:
             if error:
                 return 'Failed to clear logfiles: %s' % error
+            else:
+                return 'No log files to delete'
         else:
             if error:
-                return f"{deleted} log files deleted from {logdir}. An error also occurred: {error}"
+                return f"{deleted} log file(s) deleted from {logdir}. An error also occurred: {error}"
             else:
-                return f"{deleted} log files deleted from {logdir}"
+                return f"{deleted} log file(s) deleted from {logdir}"
 
 
 # Global access variable

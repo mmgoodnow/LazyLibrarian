@@ -6,6 +6,8 @@
 #   Do not use the standard unittesthelper; this needs to run standalone
 
 import logging
+import mock
+import os
 import unittesthelpers
 from typing import List
 
@@ -93,14 +95,12 @@ class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
         self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('root'))
         self.assertEqual(logging.DEBUG, LOGCONFIG.get_loglevel('special'))
         self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('special.fuzz'))
-        self.assertEqual(logging.ERROR, LOGCONFIG.get_loglevel('cherrypy'))
         self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel(''))
 
     def test_get_loglevel_name(self):
         self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('root'))
         self.assertEqual('DEBUG', LOGCONFIG.get_loglevel_name('special'))
         self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('special.fuzz'))
-        self.assertEqual('ERROR', LOGCONFIG.get_loglevel_name('cherrypy'))
         # Undefined logger gets root level:
         self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('somelogger-notdefinedyet'))
 
@@ -143,8 +143,8 @@ class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
                              'Results should be consistent with is_special_logger_enabled')
 
             with self.assertLogs(logger.name) as lm:
-                self.assertFalse(logger.isEnabledFor(logging.DEBUG))
-                self.assertTrue(logger.isEnabledFor(logging.INFO))
+                self.assertFalse(logger.isEnabledFor(logging.DEBUG), logger.name)
+                self.assertTrue(logger.isEnabledFor(logging.INFO), logger.name)
                 logger.debug('Debug')
                 logger.info('Info')
             self.assertEqual(1, len(lm.output), 'Expected 1 Info message')
@@ -222,4 +222,20 @@ class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
         for test in tests:
             fullname = LogConfig.get_full_filename(filename=test[0], redact=test[1])
             self.assertTrue(fullname.endswith(test[2]))
+
+    @mock.patch('glob.glob')
+    @mock.patch.object(os, 'remove')
+    def test_delete_log_files(self, mock_remove, mock_glob):
+        # Test no log files case
+        mock_glob.return_value = []
+        res = LogConfig.delete_log_files('/logs')
+        self.assertEqual(0, mock_remove.call_count)
+        self.assertEqual('No log files to delete', res)
+
+        # Mock up a result that means 2 files should be deleted
+        mock_glob.return_value = ['logs/lazy.log', 'logs/some.log.1']
+        res = LogConfig.delete_log_files('/logs')
+        self.assertEqual(2, mock_remove.call_count)
+        self.assertEqual(f"2 log file(s) deleted from /logs", res)
+
 

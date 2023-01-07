@@ -232,7 +232,7 @@ def initialize(options=None):
 
     cherrypy.tree.mount(WebInterface(), str(options['http_root']), config=conf)
 
-    if LOGCONFIG.is_special_logger_enabled('cherrypy'):
+    if LOGCONFIG.is_logger_enabled_for('cherrypy', logging.DEBUG):
         cherrypy.config.update({
             'log.access_file': DIRS.get_logfile('cherrypy.access.log'),
             'log.error_file': DIRS.get_logfile('cherrypy.error.log'),
