@@ -41,7 +41,7 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import save_log, log_header, pwd_generator, pwd_check, \
+from lazylibrarian.common import log_header, pwd_generator, pwd_check, \
     is_valid_email, mime_type, zip_audio, run_script, get_calibre_id
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
@@ -5755,7 +5755,6 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     def get_log(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         # kwargs is used by datatables to pass params
-        # TODO: How to show log in UI?
         logger = logging.getLogger(__name__)
         rows = filtered = []
         total = 0
@@ -5766,8 +5765,7 @@ class WebInterface(object):
             displaylength = int(iDisplayLength)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
-            redactlist = CONFIG.REDACTLIST if CONFIG.get_bool('LOGREDACT') else []
-            filtered, total = LOGCONFIG.get_ui_logrows(sSearch, redactlist)
+            filtered, total = LOGCONFIG.get_ui_logrows(sSearch)
 
             sortcolumn = int(iSortCol_0)
             filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',

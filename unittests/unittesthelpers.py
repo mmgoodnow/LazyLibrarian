@@ -102,7 +102,7 @@ class LLTestCaseWithConfigandDIRS(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         DIRS.set_fullpath_args(os.path.abspath(__file__), sys.argv[1:])
-        LOGCONFIG.initialize_console_only_log()
+        LOGCONFIG.initialize_console_only_log(redact=False)
         cls.config = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=cls.CONFIGFILE)
         DIRS.set_config(cls.config)
         DIRS.initialize_logger()

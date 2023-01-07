@@ -107,8 +107,9 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('Logging', 'LOGFILES', 10),
     ConfigInt('Logging', 'LOGSIZE', 204800),
     ConfigBool('Logging', 'DETAILEDUILOG', 0),
-    ConfigBool('Logging', 'LOGREDACT', 0),
+    ConfigBool('Logging', 'LOGREDACT', 0, onchange=LogConfig.change_loguiredact),
     ConfigBool('Logging', 'HOSTREDACT', 0),
+    ConfigBool('Logging', 'LOGFILEREDACT', 0, onchange=LogConfig.change_logfileredact),
     ConfigRangedInt('Logging', 'LOGLEVEL', 20, 10, 60, onchange=LogConfig.change_root_loglevel),
 
     ConfigBool('Importer', 'MULTI_SOURCE', 0),

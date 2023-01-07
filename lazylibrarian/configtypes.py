@@ -366,8 +366,9 @@ class ConfigPerm(ConfigStr):
 class ConfigBool(ConfigInt):
     """ A config item that is a bool """
 
-    def __init__(self, section: str, key: str, default: Union[bool, int], is_new: bool = False, persist: bool = True):
-        super().__init__(section, key, default, is_new, persist)
+    def __init__(self, section: str, key: str, default: Union[bool, int], is_new: bool = False, persist: bool = True,
+                 onchange=None):
+        super().__init__(section, key, default, is_new, persist, onchange)
 
     def get_bool(self) -> bool:
         if self._on_read(type(self.value) in [bool, int]):  # We're ok with ints

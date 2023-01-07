@@ -24,6 +24,7 @@ from lazylibrarian.configtypes import ConfigItem, ConfigBool, CaseInsensitiveDic
     ConfigScheduler, ConfigDictListIterator, ErrorListIterator
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 from lazylibrarian.formatter import thread_name, plural
+from lazylibrarian.logconfig import LOGCONFIG
 
 
 class LLConfigHandler(ConfigDict):
@@ -389,7 +390,7 @@ class LLConfigHandler(ConfigDict):
 
     def post_save_actions(self, restart_jobs: bool = True, clear_counters: bool = False):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
-        # TODO: Re-initialize all cached loggers
+        # Re-initialize cached loggers
         self.initialize_logger()
         DIRS.initialize_logger()
 
@@ -513,8 +514,9 @@ class LLConfigHandler(ConfigDict):
                         if config['API']:
                             self.REDACTLIST.append(f"{config['API']}")
 
+        LOGCONFIG.redact_list_updated(self.REDACTLIST)
         self.logger.debug("Redact list has %d %s" % (len(self.REDACTLIST),
-                                                plural(len(self.REDACTLIST), "entry")))
+                                                     plural(len(self.REDACTLIST), "entry")))
 
     def get_all_types_list(self) -> List[str]:
         """ Return a list of extensions that includes all types of items """

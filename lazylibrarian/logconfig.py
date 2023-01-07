@@ -9,9 +9,7 @@ import logging
 import logging.config
 import logging.handlers
 import os
-from typing import Dict, List
-
-import yaml
+from typing import Dict, List, Set, Optional
 
 from lazylibrarian.configenums import OnChangeReason
 from lazylibrarian.filesystem import DIRS, syspath
@@ -39,6 +37,34 @@ class RecentMemoryHandler(logging.handlers.MemoryHandler):
             self.buffer.clear()
         finally:
             self.release()
+
+
+class RedactFilter(logging.Filter):
+    """ Filter used to remove sensitive information from logs """
+
+    def __init__(self):
+        super().__init__()
+        self.redacted = 0
+        self.redactset: Set[str] = set()
+
+    def update_reactlist(self, redactlist: List[str]):
+        # Store the list as a set to make it more efficient to use
+        self.redactset = set(redactlist)
+
+    def filter(self, record: logging.LogRecord):
+        """ Filter is called for every log message when redact is on """
+        changed = False
+        for word in self.redactset:
+            if word in record.message:
+                record.message = record.message.replace(word, '[redacted]')
+                changed = True
+
+        if changed:
+            self.redacted += 1
+            # This is a hack: The RotatingFileHandler recalculates message twice after filtering, this prevents that :(
+            record.msg = record.message
+            record.args = None
+        return True
 
 
 class LogConfig:
@@ -69,27 +95,17 @@ class LogConfig:
                 "formatter": "simple",
                 "stream": "ext://sys.stdout",
             },
-            "console_special": {
-                "class": "logging.StreamHandler",
-                "level": "DEBUG",
-                "formatter": "special",
-                "stream": "ext://sys.stdout",
-            },
-            "info_file": {
+            "logfile": {
                 "class": "logging.handlers.RotatingFileHandler",
                 "level": "INFO",
                 "formatter": "simple",
-                "filename": "lazylibrarian.log",
                 "maxBytes": 10485760,
                 "backupCount": 5,
                 "encoding": "utf8",
             },
         },
         "loggers": {
-            "special": {
-                "level": "DEBUG",
-                "handlers": ["console_special", "info_file"],
-            },
+            "special": {"level": "DEBUG"},
             "special.admin": {"level": "INFO"},
             "special.cache": {"level": "INFO"},
             "special.configread": {"level": "INFO"},
@@ -109,7 +125,7 @@ class LogConfig:
             "cherrypy": {"level": "ERROR", "propagate": False},
             "unittest": {"level": "INFO", "handlers": ["console"]},
         },
-        "root": {"handlers": ["console", "info_file"]},
+        "root": {"handlers": ["console", "logfile"]},
     }
 
     StartupLoggerConfig = {
@@ -136,61 +152,43 @@ class LogConfig:
         "root": {"handlers": ["console"]},
     }
 
+    basefilename = 'lazylibrarian.log'
+
     def __init__(self):
         self._memorybuffer = None
-        self.ensure_memoryhandler_for_ui()
-        self.saved_maxsize = 1000000
-        self.saved_maxnumber = 1
+        self.redact_filter = RedactFilter()  # Need just one instance
+        self.ensure_memoryhandler_for_ui(capacity_lines=400, redact=False)
 
     def get_default_logconfig(self, console_only: bool):
+        """ Get the default log config for either console-only or everything """
         return self.StartupLoggerConfig if console_only else self.DefaultConfig
 
-    def get_log_config(self, console_only: bool, usedefault: bool = True, yamlname: str = '') -> Dict:
-        """ Return a log configuration, either the default or from a file """
-        custom = False
-        if not usedefault and yamlname != '':
-            with open(yamlname, "r") as stream:
-                try:
-                    logsettings = yaml.safe_load(stream)
-                    custom = True
-                except yaml.YAMLError as exc:
-                    print(f"YAML error reading logging configfrom {yamlname}, using defaults ({str(exc)})")
-                    logsettings = self.DefaultConfig
-                except Exception as e:
-                    print(f"Error reading logging config from {yamlname}, using defaults ({str(e)})")
-                    logsettings = self.DefaultConfig
-        if custom:
-            return logsettings
-        else:
-            return self.get_default_logconfig(console_only)
-
-    def initialize_console_only_log(self) -> Dict:
+    def initialize_console_only_log(self, redact: Optional[bool]) -> Dict:
         """ Initialize the console-only log used for startup """
-        settings = self.get_log_config(console_only=True)
+        settings = self.get_default_logconfig(console_only=True)
         logging.config.dictConfig(settings)
-        self.ensure_memoryhandler_for_ui(capacity_lines=-1)
+        self.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=redact)
         return settings
 
-    def initialize_log_config(self, max_size: int, max_number: int) -> Dict:
-        """ Read a new config from yaml file and apply """
-        settings = self.get_log_config(console_only=False)
+    def initialize_log_config(self, max_size: int, max_number: int, redactui: bool, redactfiles: bool) -> Dict:
+        """ Apply a fresh configuration """
+        settings = self.get_default_logconfig(console_only=False)
         for name, handler in settings['handlers'].items():
-            if 'filename' in handler:
-                handler['filename'] = DIRS.get_logfile(handler['filename'])
+            if 'FileHandler' in handler['class']:
+                handler['filename'] = self.get_full_filename(self.basefilename, redactfiles)
                 handler['maxBytes'] = max_size
                 handler['backupCount'] = max_number
         logging.config.dictConfig(settings)
-        self.ensure_memoryhandler_for_ui(capacity_lines=-1)
-        return settings
+        self.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=redactui)
 
-    def reinitialize_log_config(self):
-        """ Re-initialize config after deleting log files """
-        self.initialize_log_config(self.saved_maxsize, self.saved_maxnumber)
+        self.set_file_redact_filter(redactfiles)
+        return settings
 
     # Methods for dealing with in-memory log for UI display
 
-    def ensure_memoryhandler_for_ui(self, capacity_lines: int = 400):
-        """ Ensure there is a memory handler for displaying the log in the UI """
+    def ensure_memoryhandler_for_ui(self, capacity_lines, redact: Optional[bool]):
+        """ Ensure there is a memory handler for displaying the log in the UI.
+         If capacity_lines is > 0, set the capacity, otherwise leave as-is. """
         logger = logging.getLogger('root')
         if self._memorybuffer:
             if capacity_lines > 0:
@@ -198,8 +196,26 @@ class LogConfig:
         else:
             self._memorybuffer = RecentMemoryHandler(capacity=capacity_lines)
 
+        if redact:
+            self._memorybuffer.addFilter(self.redact_filter)
+        else:
+            self._memorybuffer.removeFilter(self.redact_filter)
         # Make sure it's part of the root logger
         logger.addHandler(self._memorybuffer)
+
+    def set_file_redact_filter(self, redact: Optional[bool]):
+        """ Apply the redact filter to all handlers, if redact is true """
+        if redact is None:
+            return  # No change
+
+        root = logging.getLogger('root')
+        for handler in root.handlers:
+            if isinstance(handler, logging.FileHandler):
+                handler.close()
+                handler.removeFilter(self.redact_filter)
+                handler.baseFilename = self.get_full_filename(self.basefilename, redact)
+                if redact:
+                    handler.addFilter(self.redact_filter)
 
     def get_ui_loghandler(self) -> RecentMemoryHandler:
         return self._memorybuffer
@@ -207,34 +223,54 @@ class LogConfig:
     def clear_ui_log(self):
         self._memorybuffer.clear()
 
-    def get_ui_logrows(self, filterstr: str = '', redactlist=None) -> (List, int):
+    def get_ui_logrows(self, filterstr: str = '') -> (List, int):
         """ Return log rows to show in the UI, filtered by lowercase(filter), as
          well as the total number of items that could be displayed """
-        if redactlist is None:
-            redactlist = []
         filterstr = filterstr.lower() if filterstr else ''
 
         rows = []
         handler = self.get_ui_loghandler()
         for logrec in handler.buffer:
             if hasattr(logrec, 'message'):  # If not, it's a sign it was added to the log without a formatter
-                redacted = logrec.message
-                if redactlist:
-                    for item in redactlist:
-                        if item in redacted:
-                            redacted = redacted.replace(item, '[redacted]')
                 # Timestamp, level, thread, file, method, line, message
                 line = [logrec.asctime, logrec.levelname, logrec.threadName, logrec.filename, logrec.funcName,
-                        logrec.lineno, redacted]
+                        logrec.lineno, logrec.message]
                 if not filterstr or filterstr in str(line).lower():
                     rows.append(line)
         return rows, len(handler.buffer)
+
+    #
+    # Event handlers for when CONFIG changes
+    #
 
     @staticmethod
     def change_memory_limit(limitstr: str, reason: OnChangeReason = OnChangeReason.SETTING):
         """ Method used as onchange event for LOGLIMIT """
         if reason != OnChangeReason.COPYING:
-            LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=int(limitstr))
+            LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=int(limitstr), redact=None)
+
+    @staticmethod
+    def change_loguiredact(redactstr: str, reason: OnChangeReason = OnChangeReason.SETTING):
+        """ The LOGREDACT setting changes """
+        redact = redactstr and redactstr in ['True', '1', 'TRUE', 'On']
+        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=redact)
+
+    @staticmethod
+    def change_logfileredact(redactstr: str, reason: OnChangeReason = OnChangeReason.SETTING):
+        """ The LOGFILEREDACT setting changes """
+        if reason != OnChangeReason.COPYING:
+            logger = logging.getLogger(__name__)
+            redact = redactstr and redactstr in ['True', '1', 'TRUE', 'On']
+            # Add a final message to the no-longer-active log
+            if redact:
+                logger.info('Switching to REDACTED logging.')
+            else:
+                logger.info('Switching to unredacted logging.')
+            LOGCONFIG.set_file_redact_filter(redact)
+            if redact:
+                logger.info('Started REDACTED logging.')
+            else:
+                logger.info('Started unredacted logging.')
 
     # Methods for dealing with normal loggers
 
@@ -295,7 +331,7 @@ class LogConfig:
         """ Called on --quiet, to make sure all LL handlers named console* are removed """
         # The only predefined ones are in root and special:
         removed = LogConfig.remove_console_handlers_from_logger('root') + \
-            LogConfig.remove_console_handlers_from_logger('special')
+                  LogConfig.remove_console_handlers_from_logger('special')
         return removed
 
     # Methods for dealing with special loggers
@@ -326,7 +362,21 @@ class LogConfig:
 
     # Other methods for log management
 
-    def delete_log_files(self, logdir: str) -> str:
+    def redact_list_updated(self, redactlist: List[str]):
+        self.redact_filter.update_reactlist(redactlist)
+
+    @staticmethod
+    def get_full_filename(filename: str, redact: Optional[bool]) -> str:
+        """ Return the fully qualified log file name that uses filename as the basis.
+        If redact is true, insert '-redacted' in the name. """
+        if redact:
+            justfilename = os.path.basename(filename)
+            basefilename, ext = os.path.splitext(justfilename)
+            filename = f"{basefilename}-redacted{ext}"
+        return DIRS.get_logfile(filename)
+
+    @staticmethod
+    def delete_log_files(logdir: str) -> str:
         """ Delete on-disc log files, return status string """
         # * Look up all File-based loggers
         # * For each, close the logger and delete the file
@@ -367,4 +417,5 @@ class LogConfig:
                 return f"{deleted} log files deleted from {logdir}"
 
 
+# Global access variable
 LOGCONFIG = LogConfig()

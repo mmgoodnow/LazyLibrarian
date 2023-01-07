@@ -9,7 +9,7 @@ import logging
 import unittesthelpers
 from typing import List
 
-from lazylibrarian.logconfig import LOGCONFIG
+from lazylibrarian.logconfig import LOGCONFIG, LogConfig
 
 
 class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
@@ -17,7 +17,7 @@ class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
 
     def setUp(self) -> None:
         # For each test, clear the old config and read a fresh one
-        LOGCONFIG.initialize_log_config(max_size=10000, max_number=2)
+        LOGCONFIG.initialize_log_config(max_size=10000, max_number=2, redactui=False, redactfiles=False)
         LOGCONFIG.clear_ui_log()
         root = logging.getLogger('root')
         root.disabled = False  # Sometimes, logging sets it to disabled after loading. Hmm.
@@ -162,40 +162,47 @@ class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
     def test_ensure_memoryhandler_for_ui(self):
         oldhandler = LOGCONFIG.get_ui_loghandler()
         self.assertIsNotNone(oldhandler)
-        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=10)
+        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=10, redact=False)
         newhandler = LOGCONFIG.get_ui_loghandler()
         self.assertIsNotNone(newhandler)
         self.assertEqual(newhandler, oldhandler)
 
-    def test_get_ui_logrows(self):
+    def test_get_ui_logrows_basic(self):
         logger = logging.getLogger()
+        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=False)
         self.assertEqual(logging.INFO, logger.getEffectiveLevel())
         logger.debug('Testing debug')
         logger.info('Testing info')
         logger.info('Testing warning')
 
-        rows, total = LOGCONFIG.get_ui_logrows(None)
+        rows, total = LOGCONFIG.get_ui_logrows()
         self.assertEqual(total, len(rows), 'Expect to return all rows')
         self.assertEqual(2, len(rows), 'Expected 2 rows')
 
         rows, _ = LOGCONFIG.get_ui_logrows('warn')
         self.assertEqual(1, len(rows), 'Expected 1 filtered row')
 
-        # Make it overrun
+    def test_get_ui_logrows_overrun(self):
+        logger = logging.getLogger()
         test_capacity = 5
-        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=test_capacity)
+        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=test_capacity, redact=False)
+        self.assertEqual(logging.INFO, logger.getEffectiveLevel())
         for i in range(10):
             logger.info(f"Log {i}")
-        rows, _ = LOGCONFIG.get_ui_logrows('')
+        rows, _ = LOGCONFIG.get_ui_logrows()
         lastrow = rows[-1]
         self.assertEqual(lastrow[6], 'Log 9', 'The message is not as expected')
         self.assertEqual(len(rows), test_capacity)
 
-        # Test a redactlist
-        redactedrows, _ = LOGCONFIG.get_ui_logrows('', ['9', 'INFO'])
+    def test_get_ui_logrows_redacted(self):
+        logger = logging.getLogger()
+        LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=100, redact=True)
+        LOGCONFIG.redact_list_updated(['9', 'INFO'])
+        for i in range(10):
+            logger.info(f"Log {i}")
+        redactedrows, _ = LOGCONFIG.get_ui_logrows('')
         lastrow = redactedrows[-1]
-        self.assertEqual(lastrow[6], 'Log [redacted]', 'The message is not redacted properly')
-        self.assertEqual(len(redactedrows), test_capacity)
+        self.assertEqual('Log [redacted]', lastrow[6], 'The message is not redacted properly')
 
     def test_special_loggers_to_ui(self):
         logger = LOGCONFIG.enable_special_logger('fuzz', True)
@@ -203,7 +210,16 @@ class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
         logger.debug('Testing debug')
         logger.debug('Testing info')
 
-        rows, total = LOGCONFIG.get_ui_logrows(None)
+        rows, total = LOGCONFIG.get_ui_logrows()
         self.assertEqual(total, len(rows), 'Expect to return all rows')
         self.assertEqual(2, len(rows), 'Expected 2 rows')
+
+    def test_get_full_filename(self):
+        tests = [
+            ['lazylibrarian.log', False, 'lazylibrarian.log'],
+            ['lazylibrarian.log', True, 'lazylibrarian-redacted.log']
+        ]
+        for test in tests:
+            fullname = LogConfig.get_full_filename(filename=test[0], redact=test[1])
+            self.assertTrue(fullname.endswith(test[2]))
 

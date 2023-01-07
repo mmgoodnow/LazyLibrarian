@@ -202,9 +202,13 @@ class StartupLazyLibrarian:
     def init_loggers(self, console_only: bool):
         """ Initialize log files. Until this is done, do not use the logger """
         if console_only:
-            LOGCONFIG.initialize_console_only_log()
+            LOGCONFIG.initialize_console_only_log(redact=False)
         else:
-            LOGCONFIG.initialize_log_config(CONFIG.get_int('LOGSIZE'), CONFIG.get_int('LOGFILES'))
+            LOGCONFIG.initialize_log_config(
+                max_size=CONFIG.get_int('LOGSIZE'),
+                max_number=CONFIG.get_int('LOGFILES'),
+                redactui=CONFIG.get_bool('LOGREDACT'),
+                redactfiles=CONFIG.get_bool('LOGFILEREDACT'))
         self.logger = logging.getLogger(__name__)
 
     def init_misc(self, config: ConfigDict):

@@ -170,25 +170,44 @@
                         <label for="logsize" class="input-group-addon">File Size</label>
                         <input type="number" id="logsize" name="logsize" value="${CONFIG['LOGSIZE']}" class="form-control" placeholder="Log File Size">
                       </div>
-                      <%
-                        if CONFIG['LOGREDACT']:
+
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if CONFIG['LOGREDACT']:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="logredact" class="control-label">
+                          <input type="checkbox" id="logredact" name="logredact" value="1" ${checked} />
+                          Redact information in screen log</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if CONFIG['HOSTREDACT']:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="hostredact" class="control-label">
+                          <input type="checkbox" id="hostredact" name="hostredact" value="1" ${checked} />
+                          Also redact hostnames</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                        <%
+                        if CONFIG['LOGFILEREDACT']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
-                      %>
-                      <label for="logredact" class="control-label">
-                      <input type="checkbox" id="logredact" name="logredact" value="1" ${checked} />
-                      Redact information in screen log</label>
-                      <%
-                        if CONFIG['HOSTREDACT']:
-                            checked = 'checked="checked"'
-                        else:
-                            checked = ''
-                      %>
-                      <label for="hostredact" class="control-label">
-                      <input type="checkbox" id="hostredact" name="hostredact" value="1" ${checked} />
-                      Also redact hostnames</label>
-                      <br>
+                        %>
+                      <label for="logfileredact" class="control-label">
+                      <input type="checkbox" id="logfileredact" name="logfileredact" value="1" ${checked} />
+                          Redact logs saved to disc</label>
+                          </div>
+                      </div>
                       <fieldset id=debug_options>
                       <legend>Additional Debug Logging</legend>
                       <div class="row checkbox">
@@ -358,6 +377,8 @@
                           <input type="checkbox" id="log_requests" name="log_requests" value="1" ${checked} />
                           Requests Logging</label>
                         </div>
+                      </div>
+                      <div class="row checkbox">
                         <div class="col-md-6">
                           <%
                             if LOGCONFIG.is_special_logger_enabled('configread'):
@@ -365,7 +386,7 @@
                             else:
                                 checked = ''
                           %>
-                          <label for="log_requests" class="control-label">
+                          <label for="log_configread" class="control-label">
                           <input type="checkbox" id="log_configread" name="log_configread" value="1" ${checked} />
                           Config Read Value</label>
                         </div>
@@ -376,12 +397,11 @@
                             else:
                                 checked = ''
                           %>
-                          <label for="log_requests" class="control-label">
+                          <label for="log_configwrite" class="control-label">
                           <input type="checkbox" id="log_configwrite" name="log_configwrite" value="1" ${checked} />
                           Config Write Value</label>
                         </div>
-                      </div><p>To permanently change these settings, edit logging.yaml<p/>
-
+                      </div>
                     </fieldset>
                   </fieldset>
                   <br>
@@ -825,7 +845,7 @@
                       %>
                       <label for="sort_definite" class="control-label">
                         <input type="checkbox" id="sort_definite" name="sort_definite" value="1" ${checked} />
-                        Show titles ignoring definite article (The, A)</label>
+                        Show titles ignoring article (The, A)</label>
                       </div>
                       <div class="col-md-12">
                       <%
