@@ -4,15 +4,17 @@
 #    Handles logging configuration, stored in logging.yaml but with some
 #    overrides from config.ini
 
+import glob
 import logging
 import logging.config
 import logging.handlers
+import os
 from typing import Dict, List
 
 import yaml
 
 from lazylibrarian.configenums import OnChangeReason
-from lazylibrarian.filesystem import DIRS
+from lazylibrarian.filesystem import DIRS, syspath
 
 
 class RecentMemoryHandler(logging.handlers.MemoryHandler):
@@ -77,43 +79,16 @@ class LogConfig:
                 "class": "logging.handlers.RotatingFileHandler",
                 "level": "INFO",
                 "formatter": "simple",
-                "filename": "lazylibrarian-info.log",
+                "filename": "lazylibrarian.log",
                 "maxBytes": 10485760,
                 "backupCount": 5,
                 "encoding": "utf8",
-            },
-            "debug_file": {
-                "class": "logging.handlers.RotatingFileHandler",
-                "level": "DEBUG",
-                "formatter": "detail",
-                "filename": "lazylibrarian-debug.log",
-                "maxBytes": 10485760,
-                "backupCount": 5,
-                "encoding": "utf",
-            },
-            "debug_timing_file": {
-                "class": "logging.handlers.RotatingFileHandler",
-                "level": "DEBUG",
-                "formatter": "timing",
-                "filename": "lazylibrarian-debug.log",
-                "maxBytes": 10485760,
-                "backupCount": 5,
-                "encoding": "utf",
-            },
-            "debug_special_file": {
-                "class": "logging.handlers.RotatingFileHandler",
-                "level": "DEBUG",
-                "formatter": "special",
-                "filename": "lazylibrarian-debug.log",
-                "maxBytes": 10485760,
-                "backupCount": 5,
-                "encoding": "utf",
             },
         },
         "loggers": {
             "special": {
                 "level": "DEBUG",
-                "handlers": ["console_special", "debug_special_file"],
+                "handlers": ["console_special", "info_file"],
             },
             "special.admin": {"level": "INFO"},
             "special.cache": {"level": "INFO"},
@@ -134,7 +109,7 @@ class LogConfig:
             "cherrypy": {"level": "ERROR", "propagate": False},
             "unittest": {"level": "INFO", "handlers": ["console"]},
         },
-        "root": {"handlers": ["console", "info_file", "debug_file"]},
+        "root": {"handlers": ["console", "info_file"]},
     }
 
     StartupLoggerConfig = {
@@ -164,6 +139,8 @@ class LogConfig:
     def __init__(self):
         self._memorybuffer = None
         self.ensure_memoryhandler_for_ui()
+        self.saved_maxsize = 1000000
+        self.saved_maxnumber = 1
 
     def get_default_logconfig(self, console_only: bool):
         return self.StartupLoggerConfig if console_only else self.DefaultConfig
@@ -205,6 +182,10 @@ class LogConfig:
         logging.config.dictConfig(settings)
         self.ensure_memoryhandler_for_ui(capacity_lines=-1)
         return settings
+
+    def reinitialize_log_config(self):
+        """ Re-initialize config after deleting log files """
+        self.initialize_log_config(self.saved_maxsize, self.saved_maxnumber)
 
     # Methods for dealing with in-memory log for UI display
 
@@ -345,28 +326,45 @@ class LogConfig:
 
     # Other methods for log management
 
-    def delete_log_files(self) -> str:
+    def delete_log_files(self, logdir: str) -> str:
         """ Delete on-disc log files, return status string """
-        return 'Not yet implemented'
-
         # * Look up all File-based loggers
         # * For each, close the logger and delete the file
         # * Then restart the loggers
-        error = False
 
-        # TODO P1: clear_log() needs some thought
-        logger = logging.getLogger(__name__)
-        for f in glob.glob(CONFIG['LOGDIR'] + "/*.log*"):
+        # Close all file-based handlers owned by LL
+        logger = logging.getLogger('root')
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                handler.close()
+        logger = logging.getLogger('special')
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                handler.close()
+
+        # Delete everything in the LOGDIR
+        error = False
+        deleted = 0
+        for f in glob.glob(logdir + "/*.log*"):
             try:
                 os.remove(syspath(f))
+                deleted += 1
             except OSError as err:
                 error = err.strerror
                 logger.debug("Failed to remove %s : %s" % (f, error))
 
-        if error:
-            return 'Failed to clear logfiles: %s' % error
+        # I don't think it is necessary to re-initialize the loggers, but just in case, here is the code:
+        # self.reinitialize_log_config()
+
+        # Let the user know what happened
+        if deleted == 0:
+            if error:
+                return 'Failed to clear logfiles: %s' % error
         else:
-            return f"{deleted} log files deleted from {CONFIG['LOGDIR']}"
+            if error:
+                return f"{deleted} log files deleted from {logdir}. An error also occurred: {error}"
+            else:
+                return f"{deleted} log files deleted from {logdir}"
 
 
 LOGCONFIG = LogConfig()

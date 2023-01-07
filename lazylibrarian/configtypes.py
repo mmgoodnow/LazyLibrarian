@@ -178,6 +178,9 @@ class ConfigItem:
         """ Get the full list of 'accesses' """
         return self.accesses
 
+    def reset_read_count(self):
+        self.accesses[Access.READ_OK] = 0
+
     def get_read_count(self) -> int:
         """ Get number of successful reads since last reset """
         return self.accesses[Access.READ_OK]

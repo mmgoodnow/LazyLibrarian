@@ -1201,7 +1201,7 @@ class Api(object):
     def _clearlogs(self):
         TELEMETRY.record_usage_data()
         LOGCONFIG.clear_ui_log()
-        self.data = LOGCONFIG.delete_log_files()
+        self.data = LOGCONFIG.delete_log_files(CONFIG['LOGDIR'])
 
     def _getindex(self):
         TELEMETRY.record_usage_data()

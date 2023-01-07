@@ -1510,6 +1510,9 @@ class WebInterface(object):
             "namevars": testvars,
             "updated": time.ctime(CONFIG.get_int('GIT_UPDATED'))
         }
+        for item in CONFIG.config.values():
+            if isinstance(item, ConfigBool):
+                item.reset_read_count() # Reset read counts as we use this to determine which settings have changed
         return serve_template(templatename="config.html", title="Settings", config=config)
 
     @cherrypy.expose
@@ -5733,7 +5736,7 @@ class WebInterface(object):
     @cherrypy.expose
     def delete_logs(self):
         logger = logging.getLogger(__name__)
-        result = LOGCONFIG.delete_log_files()
+        result = LOGCONFIG.delete_log_files((CONFIG['LOGDIR']))
         logger.info(result)
         raise cherrypy.HTTPRedirect("logs")
 
