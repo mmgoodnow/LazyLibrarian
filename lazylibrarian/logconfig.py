@@ -45,6 +45,7 @@ class LogConfig:
         self.ensure_memoryhandler_for_ui(100)
 
     def read_log_config(self, yamlname='logging.yaml') -> Dict:
+        """ Read a new config from yaml file and apply """
         with open(yamlname, "r") as stream:
             try:
                 logsettings = yaml.safe_load(stream)
@@ -55,6 +56,8 @@ class LogConfig:
                 print(f"YAML error reading logging config: {str(exc)}")
             except Exception as e:
                 raise RuntimeError(f"Error reading logging config, exiting: {str(e)}")
+
+    # Methods for dealing with in-memory log for UI display
 
     def ensure_memoryhandler_for_ui(self, capacity_lines: int = 100):
         """ Ensure there is a memory handler for displaying the log in the UI """
@@ -101,6 +104,8 @@ class LogConfig:
         """ Method used as onchange event for LOGLIMIT """
         LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=int(limitstr))
 
+    # Methods for dealing with normal loggers
+
     @staticmethod
     def change_root_loglevel(value: str):
         """ Onchange event for LOGLEVEL """
@@ -131,15 +136,37 @@ class LogConfig:
         return logger.getEffectiveLevel()
 
     @staticmethod
+    def is_logger_enabled_for(name: str, level: int = logging.DEBUG) -> bool:
+        logger = logging.getLogger(name)
+        return logger.isEnabledFor(level)
+
+    @staticmethod
+    def remove_console_handlers_from_logger(name: str) -> int:
+        """ Remove all handlers named console* from the logger named name.
+        Returns number of handlers removed. Not reversible without reloading config. """
+        logger = logging.getLogger(name)
+        count = 0
+        for handler in logger.handlers:
+            if handler.get_name().startswith('console'):
+                logger.removeHandler(handler)
+                count += 1
+        return count
+
+    @staticmethod
+    def remove_console_handlers() -> int:
+        """ Called on --quiet, to make sure all LL handlers named console* are removed """
+        # The only predefined ones are in root and special:
+        removed = LogConfig.remove_console_handlers_from_logger('root') + \
+            LogConfig.remove_console_handlers_from_logger('special')
+        return removed
+
+    # Methods for dealing with special loggers
+
+    @staticmethod
     def get_special_logger_list() -> List:
         """ Get the list of special loggers and their current state """
         loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict if name.startswith('special.')]
         return loggers
-
-    @staticmethod
-    def is_logger_enabled_for(name: str, level: int = logging.DEBUG) -> bool:
-        logger = logging.getLogger(name)
-        return logger.isEnabledFor(level)
 
     @staticmethod
     def is_special_logger_enabled(shortname: str) -> bool:
@@ -158,6 +185,31 @@ class LogConfig:
     def get_short_special_logger_name(fullname: str) -> str:
         """ Return the name of the logger without 'special.' at the beginning """
         return fullname[8:]
+
+    # Other methods for log management
+
+    def delete_log_files(self) -> str:
+        """ Delete on-disc log files, return status string """
+        return 'Not yet implemented'
+
+        # * Look up all File-based loggers
+        # * For each, close the logger and delete the file
+        # * Then restart the loggers
+        error = False
+
+        # TODO P1: clear_log() needs some thought
+        logger = logging.getLogger(__name__)
+        for f in glob.glob(CONFIG['LOGDIR'] + "/*.log*"):
+            try:
+                os.remove(syspath(f))
+            except OSError as err:
+                error = err.strerror
+                logger.debug("Failed to remove %s : %s" % (f, error))
+
+        if error:
+            return 'Failed to clear logfiles: %s' % error
+        else:
+            return f"{delted} log files deleted from {CONFIG['LOGDIR']}"
 
 
 LOGCONFIG = LogConfig()

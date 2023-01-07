@@ -41,7 +41,7 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import clear_log, save_log, log_header, pwd_generator, pwd_check, \
+from lazylibrarian.common import save_log, log_header, pwd_generator, pwd_check, \
     is_valid_email, mime_type, zip_audio, run_script, get_calibre_id
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
@@ -59,8 +59,8 @@ from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
     get_preferred_author_name
-from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.librarysync import library_scan
+from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
@@ -5720,8 +5720,20 @@ class WebInterface(object):
     @cherrypy.expose
     def clear_log(self):
         logger = logging.getLogger(__name__)
-        # Clear the log
-        result = clear_log()
+        LOGCONFIG.clear_ui_log()
+        logger.info('Screen log cleared')
+        raise cherrypy.HTTPRedirect("logs")
+
+    @cherrypy.expose
+    def toggle_detailed_logs(self):
+        detail = CONFIG.get_bool('DETAILEDUILOG')
+        CONFIG.set_bool('DETAILEDUILOG', not detail)
+        raise cherrypy.HTTPRedirect("logs")
+
+    @cherrypy.expose
+    def delete_logs(self):
+        logger = logging.getLogger(__name__)
+        result = LOGCONFIG.delete_log_files()
         logger.info(result)
         raise cherrypy.HTTPRedirect("logs")
 

@@ -210,30 +210,6 @@ def get_calibre_id(data):
     return calibre_id
 
 
-def clear_log():
-    error = False
-    if os.name == 'nt':
-        return "Screen log cleared"
-
-    # TODO P1: clear_log() needs some thought
-    logger = logging.getLogger(__name__)
-    logger.lazylibrarian_log.stop_logger()
-    for f in glob.glob(CONFIG['LOGDIR'] + "/*.log*"):
-        try:
-            os.remove(syspath(f))
-        except OSError as err:
-            error = err.strerror
-            logger.debug("Failed to remove %s : %s" % (f, error))
-
-    logger.lazylibrarian_log.init_logger(config=CONFIG)
-
-    if error:
-        return 'Failed to clear logfiles: %s' % error
-    else:
-        return "Log cleared, level set to  Log Directory is [%s]" % (
-            CONFIG['LOGDIR'])
-
-
 # noinspection PyUnresolvedReferences,PyPep8Naming
 def log_header(online=True):
     logger = logging.getLogger(__name__)

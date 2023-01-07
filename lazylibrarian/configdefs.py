@@ -37,6 +37,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'LOGLIMIT', 500, onchange=LogConfig.change_memory_limit),
     ConfigInt('General', 'LOGFILES', 10),
     ConfigInt('General', 'LOGSIZE', 204800),
+    ConfigBool('General', 'DETAILEDUILOG', 0),
     ConfigBool('General', 'LOGREDACT', 0),
     ConfigBool('General', 'HOSTREDACT', 0),
     ConfigStr('General', 'AUTH_TYPE', "BASIC"),

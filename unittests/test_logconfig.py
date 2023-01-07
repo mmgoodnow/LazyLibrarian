@@ -195,3 +195,14 @@ class TestLogConfig(unittest.TestCase):
         lastrow = redactedrows[-1]
         self.assertEqual(lastrow[6], 'Log [redacted]', 'The message is not redacted properly')
         self.assertEqual(len(redactedrows), test_capacity)
+
+    def test_special_loggers_to_ui(self):
+        logger = LOGCONFIG.enable_special_logger('fuzz', True)
+        self.assertEqual(logging.DEBUG, logger.getEffectiveLevel())
+        logger.debug('Testing debug')
+        logger.debug('Testing info')
+
+        rows, total = LOGCONFIG.get_ui_logrows(None)
+        self.assertEqual(total, len(rows), 'Expect to return all rows')
+        self.assertEqual(2, len(rows), 'Expected 2 rows')
+

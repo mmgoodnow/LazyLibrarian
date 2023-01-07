@@ -36,7 +36,7 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import clear_log, log_header
+from lazylibrarian.common import log_header
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
@@ -51,6 +51,7 @@ from lazylibrarian.images import get_author_image, get_author_images, get_book_c
     create_mag_covers, create_mag_cover, shrink_mag
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals
 from lazylibrarian.librarysync import library_scan
+from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
@@ -1199,7 +1200,8 @@ class Api(object):
 
     def _clearlogs(self):
         TELEMETRY.record_usage_data()
-        self.data = clear_log()
+        LOGCONFIG.clear_ui_log()
+        self.data = LOGCONFIG.delete_log_files()
 
     def _getindex(self):
         TELEMETRY.record_usage_data()

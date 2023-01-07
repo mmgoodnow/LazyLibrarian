@@ -56,7 +56,7 @@ loggers:
     special:
         level: DEBUG
         handlers: [console_special, debug_special_file]
-        propagate: false
+        propagate: true
     special.admin:
         level: INFO
     special.cache:
