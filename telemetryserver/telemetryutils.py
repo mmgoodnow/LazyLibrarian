@@ -2,6 +2,7 @@
 
 import json
 
+
 # Routine used for testing
 def test_loadjson():
     f = open('./unittests/testdata/telemetry-sample.json')
