@@ -251,7 +251,7 @@
                       </div>
                       <div class="row checkbox">
                         <div class="col-md-6">
-                          <% checked = 'checked="checked"' if LOGCONFIG.is_logger_enabled_for('cherrypy', logging.INFO) else '' %>
+                          <% checked = 'checked="checked"' if LOGCONFIG.is_logger_enabled_for('cherrypy', logging.DEBUG) else '' %>
                           <label for="log_cherrypy" class="control-label">
                           <input type="checkbox" id="log_cherrypy" name="log_cherrypy" value="1" ${checked} />
                           Cherrypy Webserver</label>
@@ -517,7 +517,7 @@
                           <input type="checkbox" id="comic_tab" name="comic_tab" value="1" ${checked} />
                           Show Comics</label>
                       </div>
-                      %if CONFIG['COMIC_TAB']:
+                      %if CONFIG.get_int('COMIC_TAB') > 0:
                       <div class="col-md-6">
                         <% checked = 'checked="checked"' if CONFIG['COMIC_IMG'] else '' %>
                         <label for="comic_img" class="control-label">

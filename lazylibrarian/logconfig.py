@@ -164,6 +164,7 @@ class LogConfig:
     def __init__(self):
         self._memorybuffer = None
         self.redact_filter = RedactFilter()  # Need just one instance
+        logging.basicConfig()  # Make sure there is a valid root logger
         self.ensure_memoryhandler_for_ui(capacity_lines=400, redact=False)
 
     def get_default_logconfig(self, console_only: bool):
@@ -186,8 +187,6 @@ class LogConfig:
                 handler['maxBytes'] = max_size
                 handler['backupCount'] = max_number
         logging.config.dictConfig(settings)
-        logging.getLogger('cherrypy').setLevel(logging.INFO)  # TODO: Why is this necessary?
-        logging.getLogger('cherrypy').disabled = True
         self.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=redactui)
 
         self.set_file_redact_filter(redactfiles)
@@ -198,7 +197,7 @@ class LogConfig:
     def ensure_memoryhandler_for_ui(self, capacity_lines, redact: Optional[bool]):
         """ Ensure there is a memory handler for displaying the log in the UI.
          If capacity_lines is > 0, set the capacity, otherwise leave as-is. """
-        logger = logging.getLogger('root')
+        logger = logging.getLogger()
         if self._memorybuffer:
             if capacity_lines > 0:
                 self._memorybuffer.capacity = capacity_lines
@@ -216,7 +215,7 @@ class LogConfig:
         if redact is None:
             return  # No change
 
-        root = logging.getLogger('root')
+        root = logging.getLogger()
         for handler in root.handlers:
             if isinstance(handler, logging.FileHandler):
                 handler.close()
@@ -286,7 +285,7 @@ class LogConfig:
     def change_root_loglevel(value: str, reason: OnChangeReason = OnChangeReason.SETTING):
         """ Onchange event for LOGLEVEL """
         if reason != OnChangeReason.COPYING:
-            logger = logging.getLogger('root')
+            logger = logging.getLogger()
             try:
                 level = int(value)
                 # Translate prior log level to standard scheme:
@@ -312,15 +311,15 @@ class LogConfig:
         return logger
 
     @staticmethod
-    def get_loglevel(logname: str = 'root') -> int:
+    def get_loglevel(logname: str = '') -> int:
         return logging.getLogger(logname).getEffectiveLevel()
 
     @staticmethod
-    def get_loglevel_name(logname: str = 'root') -> str:
+    def get_loglevel_name(logname: str = '') -> str:
         return logging.getLevelName(LogConfig.get_loglevel(logname))
 
     @staticmethod
-    def set_loglevel(level: int = logging.INFO, logname: str = 'root') -> int:
+    def set_loglevel(level: int = logging.INFO, logname: str = '') -> int:
         """ Set the log level for the logger, return the effective log level """
         logger = logging.getLogger(logname)
         logger.setLevel(level)
@@ -347,7 +346,7 @@ class LogConfig:
     def remove_console_handlers() -> int:
         """ Called on --quiet, to make sure all LL handlers named console* are removed """
         # The only predefined ones are in root and special:
-        removed = LogConfig.remove_console_handlers_from_logger('root') + \
+        removed = LogConfig.remove_console_handlers_from_logger('') + \
                   LogConfig.remove_console_handlers_from_logger('special')
         return removed
 
@@ -396,7 +395,7 @@ class LogConfig:
     def delete_log_files(logdir: str) -> str:
         """ Delete on-disc log files, return status string """
         # Close all file-based handlers owned by LL
-        logger = logging.getLogger('root')
+        logger = logging.getLogger()
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 handler.close()
