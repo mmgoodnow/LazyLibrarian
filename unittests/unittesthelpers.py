@@ -153,7 +153,7 @@ class LLTestCaseWithStartup(LLTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        cls.starter.shutdown(restart=False, update=False, exit=False, testing=True)
+        cls.starter.shutdown(restart=False, update=False, quit=False, testing=True)
         cls.removetestDB()
         cls.removetestCache()
         cls.delete_test_logs()
