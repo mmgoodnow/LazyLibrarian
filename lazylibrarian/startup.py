@@ -101,6 +101,9 @@ class StartupLazyLibrarian:
         p.add_option('--datadir',
                      dest='datadir', default=None,
                      help="Path to the data directory")
+        p.add_option('--debug',
+                     dest='debug', default=None,
+                     help="Set DEBUG level logging")
         p.add_option('--config',
                      dest='config', default=None,
                      help="Path to config.ini file")
@@ -112,7 +115,7 @@ class StartupLazyLibrarian:
                      help="Login as this userid")
         p.add_option('--loglevel',
                      dest='loglevel', default=None,
-                     help="Debug loglevel")
+                     help="Set loglevel to either DEBUG, INFO or ERROR, or 10, 20 or 40.")
         options, _ = p.parse_args(args)
 
         if options.quiet:
@@ -122,8 +125,13 @@ class StartupLazyLibrarian:
         if options.loglevel:
             try:
                 LOGCONFIG.change_root_loglevel(options.loglevel)
+                self.logger.info(f"Set loglevel to {LOGCONFIG.get_loglevel_name('root')}")
             except ValueError as e:
                 self.logger.warning(f'loglevel parameter must be a valid log level, error {str(e)}')
+
+        if options.debug:
+            LOGCONFIG.change_root_loglevel('DEBUG')
+            self.logger.debug(f'Enabled DEBUG level logging.')
 
         if options.noipv6:
             # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
@@ -149,6 +157,15 @@ class StartupLazyLibrarian:
         else:
             DIRS.set_datadir(DIRS.PROG_DIR)
 
+        if options.config:
+            configfile = str(options.config)
+        else:
+            configfile = os.path.join(DIRS.DATADIR, "config.ini")
+
+        if options.pidfile:
+            if lazylibrarian.DAEMON:
+                lazylibrarian.PIDFILE = str(options.pidfile)
+
         if options.update:
             lazylibrarian.SIGNAL = 'update'
             # This is the "emergency recovery" update in case lazylibrarian won't start.
@@ -166,15 +183,6 @@ class StartupLazyLibrarian:
                 print('Cannot update, not a git or source installation')
             else:
                 self.shutdown(update=True, exit=True, testing=False)
-
-        if options.config:
-            configfile = str(options.config)
-        else:
-            configfile = os.path.join(DIRS.DATADIR, "config.ini")
-
-        if options.pidfile:
-            if lazylibrarian.DAEMON:
-                lazylibrarian.PIDFILE = str(options.pidfile)
 
         if not testing:
             self.logger.info("Lazylibrarian (pid %s) is starting up..." % os.getpid())

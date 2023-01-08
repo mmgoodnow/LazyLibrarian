@@ -289,7 +289,7 @@ class LogConfig:
             try:
                 level = int(value)
             except ValueError:
-                level = logging.getLevelName(value)
+                level = logging.getLevelName(value.upper())
             logger.setLevel(level)
 
     @staticmethod
