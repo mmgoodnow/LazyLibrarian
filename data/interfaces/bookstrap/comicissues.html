@@ -25,7 +25,7 @@
 <%def name="body()">
   <h1>${title}
     %if perm&lazylibrarian.perm_edit:
-    <a href="edit_comic?comicid=${comicid}" target="_new"><small><i> Edit</i></small></a>
+    <a href="edit_comic?comicid=${comicid}"><small><i> Edit</i></small></a>
   %endif
 </h1>
     %if lazylibrarian.COMIC_UPDATE == True:
