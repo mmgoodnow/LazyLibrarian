@@ -108,9 +108,3 @@ class ImporterTest(LLTestCaseWithStartup):
         authorid = importer.add_author_to_db(
             authorname=None, refresh=False, addbooks=False, reason='Testing', authorid=testid)
         self.assertEqual(authorid, testid)
-
-    def test_search_for(self):
-        # Need to find a good way to test this
-        # s = importer.search_for("Douglas Adams")
-        # print(s)
-        pass

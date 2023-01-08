@@ -284,7 +284,7 @@ class FormatterTest(LLTestCaseWithStartup):
             ("XYZ", "XYZ"),  # Error, just a string
             ("", ""),
         ]
-        with self.assertLogs('root', logging.ERROR):
+        with self.assertLogs(None, logging.ERROR):
             for d in dates:
                 self.assertEqual(formatter.date_format(d[0]), d[1])
 

@@ -54,10 +54,15 @@ class RedactFilter(logging.Filter):
     def filter(self, record: logging.LogRecord):
         """ Filter is called for every log message when redact is on """
         changed = False
-        for word in self.redactset:
-            if word in record.message:
-                record.message = record.message.replace(word, '[redacted]')
-                changed = True
+        if hasattr(record, 'message'):
+            for word in self.redactset:
+                if word in record.message:
+                    record.message = record.message.replace(word, '[redacted]')
+                    changed = True
+        elif hasattr(record, 'msg'):
+            for word in self.redactset:
+                if word in record.msg:
+                    record.msg = record.msg.replace(word, '[redacted]')
 
         if changed:
             self.redacted += 1
@@ -123,7 +128,7 @@ class LogConfig:
             "special.searching": {"level": "INFO"},
             "special.serverside": {"level": "INFO"},
             "cherrypy": {"level": "INFO", "propagate": False},
-            "unittest": {"level": "INFO", "handlers": ["console"]},
+            "unittest": {"level": "INFO"},
         },
         "root": {"handlers": ["console", "logfile"]},
     }
@@ -133,7 +138,7 @@ class LogConfig:
         "disable_existing_loggers": False,
         "formatters": {
             "simple": {
-                "format": "%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s)]"
+                "format": "%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s/%(name)s)]"
             },
         },
         "handlers": {
@@ -153,6 +158,7 @@ class LogConfig:
     }
 
     basefilename = 'lazylibrarian.log'
+    _memorybuffer: RecentMemoryHandler
 
     def __init__(self):
         self._memorybuffer = None
@@ -198,10 +204,9 @@ class LogConfig:
         else:
             self._memorybuffer = RecentMemoryHandler(capacity=capacity_lines)
 
+        self._memorybuffer.removeFilter(self.redact_filter)
         if redact:
             self._memorybuffer.addFilter(self.redact_filter)
-        else:
-            self._memorybuffer.removeFilter(self.redact_filter)
         # Make sure it's part of the root logger
         logger.addHandler(self._memorybuffer)
 
@@ -281,11 +286,10 @@ class LogConfig:
         """ Onchange event for LOGLEVEL """
         if reason != OnChangeReason.COPYING:
             logger = logging.getLogger('root')
-            levelmap = logging.getLevelNamesMapping()
-            if value.upper() in levelmap:
-                level = levelmap[value.upper()]
-            else:
+            try:
                 level = int(value)
+            except ValueError:
+                level = logging.getLevelName(value)
             logger.setLevel(level)
 
     @staticmethod

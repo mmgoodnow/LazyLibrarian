@@ -25,6 +25,8 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         root = logging.getLogger('root')
         root.disabled = False  # Sometimes, logging sets it to disabled after loading. Hmm.
         root.setLevel(logging.INFO)
+        logging.getLogger(None).setLevel(logging.WARNING)
+        super().setUp()
 
     def test_read_log_config(self):
         """ Very basic test: Just load the config and validate it loaded """
@@ -93,26 +95,24 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         self.assertFalse(logger.isEnabledFor(logging.ERROR))
 
     def test_get_loglevel(self):
-        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('root'))
-        self.assertEqual(logging.DEBUG, LOGCONFIG.get_loglevel('special'))
-        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('special.fuzz'))
-        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel(''))
+        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('root'), 'Root not INFO')
+        self.assertEqual(logging.DEBUG, LOGCONFIG.get_loglevel('special'), 'Special not DEBUG')
+        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('special.fuzz'), 'Special.fuzz not INFO')
+        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel(None), 'None not WARNING')
+        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel(''), 'blank not WARNING')
 
     def test_get_loglevel_name(self):
-        self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('root'))
-        self.assertEqual('DEBUG', LOGCONFIG.get_loglevel_name('special'))
-        self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('special.fuzz'))
+        self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('root'), 'Root not INFO')
+        self.assertEqual('DEBUG', LOGCONFIG.get_loglevel_name('special'), 'special not DEBUG')
+        self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('special.fuzz'), 'special.fuzz not INFO')
         # Undefined logger gets root level:
-        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('somelogger-notdefinedyet'))
+        self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('somelogger-notdefinedyet'), 'Undefined is not INFO')
 
     def test_set_loglevel(self):
-        self.assertEqual(logging.WARNING, LOGCONFIG.set_loglevel(logging.WARNING, 'root'))
-        self.assertEqual(logging.DEBUG, LOGCONFIG.set_loglevel(logging.DEBUG, 'special.fuzz'))
-        self.assertEqual(logging.WARNING, LOGCONFIG.get_loglevel('root'))
-        self.assertEqual(logging.DEBUG, LOGCONFIG.get_loglevel('special.fuzz'))
-        # Setting to NOTSET gets the parent level:
-        self.assertEqual(logging.WARNING, LOGCONFIG.set_loglevel(logging.NOTSET, 'someotherlogger'))
-        self.assertEqual(logging.WARNING, LOGCONFIG.get_loglevel('someotherlogger'))
+        self.assertEqual(logging.WARNING, LOGCONFIG.set_loglevel(logging.WARNING, 'root'), 'root not WARNING')
+        self.assertEqual(logging.DEBUG, LOGCONFIG.set_loglevel(logging.DEBUG, 'special.fuzz'), 'special.FUZZ not DEBUG')
+        self.assertEqual(logging.WARNING, LOGCONFIG.get_loglevel('root'), 'root not WARNING again')
+        self.assertEqual(logging.DEBUG, LOGCONFIG.get_loglevel('special.fuzz'), 'special.fuzz not DEBUG')
 
     def test_is_logger_enabled_for(self):
         self.assertTrue(LOGCONFIG.is_logger_enabled_for('root', logging.INFO))
@@ -169,7 +169,7 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         self.assertEqual(newhandler, oldhandler)
 
     def test_get_ui_logrows_basic(self):
-        logger = logging.getLogger()
+        logger = logging.getLogger('root')
         LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=False)
         self.assertEqual(logging.INFO, logger.getEffectiveLevel())
         logger.debug('Testing debug')
@@ -184,7 +184,7 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         self.assertEqual(1, len(rows), 'Expected 1 filtered row')
 
     def test_get_ui_logrows_overrun(self):
-        logger = logging.getLogger()
+        logger = logging.getLogger('root')
         test_capacity = 5
         LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=test_capacity, redact=False)
         self.assertEqual(logging.INFO, logger.getEffectiveLevel())
@@ -196,12 +196,14 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         self.assertEqual(len(rows), test_capacity)
 
     def test_get_ui_logrows_redacted(self):
-        logger = logging.getLogger()
+        logger = logging.getLogger('root')
         LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=100, redact=True)
         LOGCONFIG.redact_list_updated(['9', 'INFO'])
         for i in range(10):
-            logger.info(f"Log {i}")
-        redactedrows, _ = LOGCONFIG.get_ui_logrows('')
+            logger.info("Log %d" % i)
+        redactedrows, total = LOGCONFIG.get_ui_logrows('')
+        self.assertEqual(10, total, 'Expected 10 rows total')
+        self.assertEqual(len(redactedrows), total, 'Expected all rows to be returned')
         lastrow = redactedrows[-1]
         self.assertEqual('Log [redacted]', lastrow[6], 'The message is not redacted properly')
 

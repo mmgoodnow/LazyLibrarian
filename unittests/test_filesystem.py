@@ -169,7 +169,7 @@ class FilesystemTest(LLTestCaseWithConfigandDIRS):
         save = get_directory("Testdata")
         try:
             DIRS.config['TESTDATA_DIR'] = 'Cannot*Be*?V"al/id&Nope'
-            with self.assertLogs('root', level='WARN'):
+            with self.assertLogs(self.logger, level='WARN'):
                 testdir = get_directory("Testdata")
             self.assertEqual(testdir, DIRS.DATADIR)
         finally:
@@ -182,7 +182,7 @@ class FilesystemTest(LLTestCaseWithConfigandDIRS):
             newdir = DIRS.get_tmpfilename('newdirtocreate')
             DIRS.config['TESTDATA_DIR'] = newdir
             try:
-                with self.assertLogs('root', level='INFO'):
+                with self.assertLogs(self.logger, level='INFO'):
                     testdir = get_directory("Testdata")
                 self.assertEqual(syspath(testdir), newdir)
             finally:

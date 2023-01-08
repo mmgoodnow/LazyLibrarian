@@ -105,7 +105,7 @@ class TestProcessControl(LLTestCase):
 
     def test_track_resource_usage(self):
         self.set_loglevel(logging.DEBUG)  # Need debug logging
-        with self.assertLogs('root', 'DEBUG') as cm:
+        with self.assertLogs(self.logger, 'DEBUG') as cm:
             _ = self.use_some_resource()
 
         if PSUTIL:

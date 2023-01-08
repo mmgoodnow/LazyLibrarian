@@ -62,7 +62,7 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
         my_id = self._do_ids_match()
 
         # Check we can read the new ID and test again
-        with self.assertLogs('root', logging.INFO):
+        with self.assertLogs(self.logger, logging.INFO):
             self.cfg().save_config_and_backup_old(section='Telemetry')
 
         # Test that writing went right
@@ -160,7 +160,7 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
         t = telemetry.LazyTelemetry()
 
         # Pretend to submit data and experience a timeout
-        with self.assertLogs('root', logging.INFO):
+        with self.assertLogs(self.logger, logging.INFO):
             mock.side_effect = requests.exceptions.Timeout
             msg, status = t.submit_data('http://testserver', False, False)
             mock_requests.get.assert_called_once()

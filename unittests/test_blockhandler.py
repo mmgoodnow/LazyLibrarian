@@ -53,7 +53,7 @@ class BlockhandlerTest(LLTestCase):
     def test_remove_provider_entry(self):
         name = 'test'
         handler = BlockHandler()
-        with self.assertLogs('root', 'DEBUG'):
+        with self.assertLogs(self.logger, 'DEBUG'):
             _ = handler.block_provider(name, 'blocked', delay=120)
         self.assertTrue(handler.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(handler.number_blocked(), 1)
@@ -66,7 +66,7 @@ class BlockhandlerTest(LLTestCase):
         self.set_loglevel(logging.DEBUG)
         handler = BlockHandler()
         name = 'someone'
-        with self.assertLogs('root', 'DEBUG') as cm:
+        with self.assertLogs(self.logger, 'DEBUG') as cm:
             delay = handler.block_provider(name, 'just because', delay=120)  # Block for 2 minutes
         self.assertListEqual(cm.output, [
             'INFO:lazylibrarian.blockhandler:Blocking provider someone for 2 minutes because just because',
@@ -77,7 +77,7 @@ class BlockhandlerTest(LLTestCase):
 
         # Repeat the same block with a shorter time
         newdelay = 2
-        with self.assertLogs('root', 'DEBUG'):
+        with self.assertLogs(self.logger, 'DEBUG'):
             delay = handler.block_provider('someone', 'just because', delay=newdelay)
         self.assertListEqual(cm.output, [
             'INFO:lazylibrarian.blockhandler:Blocking provider someone for 2 minutes because just because',

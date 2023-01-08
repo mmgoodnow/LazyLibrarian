@@ -28,18 +28,19 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
 
     def test_log_catching(self):
         """ Test that we can test for log events """
-        self.set_loglevel(logging.INFO)
+        logger = logging.getLogger('unittest')
+        logger.setLevel(logging.INFO)
         # Test checking that a single message can be captured
-        with self.assertLogs(self.logger, level='ERROR') as cm:
-            self.logger.error('test error')
+        with self.assertLogs(logger, level='ERROR') as cm:
+            logger.error('test error')
         self.assertListEqual(cm.output, ['ERROR:unittest:test error'], 'Did not log a message as expected')
 
         # Check more error levels, but with debug messages ignored
-        with self.assertLogs(self.logger, level='DEBUG') as cm:
-            self.logger.error('test error')
-            self.logger.warning('test warn')
-            self.logger.info('test info')
-            self.logger.debug('test debug')
+        with self.assertLogs(logger, level='DEBUG') as cm:
+            logger.error('test error')
+            logger.warning('test warn')
+            logger.info('test info')
+            logger.debug('test debug')
         self.assertListEqual(cm.output, [
             'ERROR:unittest:test error',
             'WARNING:unittest:test warn',
@@ -49,18 +50,18 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
 
         # Test capturing debug messages
         self.set_loglevel(logging.DEBUG)
-        with self.assertLogs(self.logger, level='DEBUG') as cm:
-            self.logger.info('test info')
-            self.logger.debug('test debug')
+        with self.assertLogs(logger, level='DEBUG') as cm:
+            logger.info('test info')
+            logger.debug('test debug')
         self.assertListEqual(cm.output, [
             'INFO:unittest:test info', 'DEBUG:unittest:test debug'
         ], 'Expected an info and a debug message')
 
         # Test capturing only INFO and above
         self.set_loglevel(logging.INFO)
-        with self.assertLogs(self.logger, level='INFO') as cm:
-            self.logger.info('test info')
-            self.logger.debug('test debug')
+        with self.assertLogs(logger, level='INFO') as cm:
+            logger.info('test info')
+            logger.debug('test debug')
         self.assertListEqual(cm.output, [
             'INFO:unittest:test info'
         ], 'Expected an info message')
@@ -70,7 +71,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg1 = LLConfigHandler()
         cfg2 = LLConfigHandler()
 
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             self.set_basic_test_values(cfg1)
             self.set_basic_test_values(cfg2)
             self.assertTrue(are_equivalent(cfg1, cfg2))
@@ -82,7 +83,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
             'WARNING:lazylibrarian.config2:Base configs differ'
         ])
 
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             cfg2.set_int('a-new-int', 1)
             self.assertTrue(are_equivalent(cfg1, cfg2))
 
@@ -108,7 +109,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
 
     def set_basic_test_values(self, cfg: LLConfigHandler):
         """ Helper function, sets some basic config values """
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             cfg.set_str('somestr', 'abc')
             cfg.set_int('someint', 123)
             cfg.set_int('someint', 45)
@@ -127,7 +128,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg = LLConfigHandler()
         self.set_basic_test_values(cfg)
 
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             self.assertEqual('abc', cfg.get_str('somestr'))
             self.assertEqual('abc', cfg['somestr'])
             self.assertEqual(45, cfg.get_int('someint'))
@@ -142,7 +143,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         ])
 
     def do_csv_ops(self, cfg: LLConfigHandler):
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             cfg.set_csv('csv', 'allan,bob,fred')
             cfg.set_csv('csv2', '')
             cfg.set_csv('csv3', ',,test')  # Format error
@@ -164,7 +165,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg = LLConfigHandler()
         self.do_csv_ops(cfg)
 
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             self.assertEqual('allan,bob,fred', cfg.get_csv('csv'))
             self.assertEqual('', cfg.get_csv('csv2'))
             self.assertEqual('single', cfg.get_csv('csv5'))
@@ -184,7 +185,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg = LLConfigHandler()
 
         # Try to access non-existing keys
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             self.assertEqual('', cfg.get_str('does-not-exist'))
             self.assertEqual(0, cfg.get_int('does-not-exist'))
             self.assertEqual(False, cfg.get_bool('does-not-exist'))
@@ -334,7 +335,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
     def test_configread_nodefs_defaultini(self):
         """ Test reading a near-default ini file, but without base definitions """
         self.set_loglevel(logging.INFO)
-        with self.assertLogs('root', level='INFO'):
+        with self.assertLogs(self.logger, level='INFO'):
             # Because no defaults are loaded, every item will case a warning
             cfg = LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()
@@ -409,7 +410,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
     def test_configread_witherrors(self):
         """ Test reading a config.ini file with errors we should be able to correct """
         self.set_loglevel(logging.DEBUG)
-        with self.assertLogs('root', level='DEBUG'):
+        with self.assertLogs(self.logger, level='DEBUG'):
             cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=ERROR_INI_FILE)
         # The ini file had array sections without _ in the name - check it's correct now
         for name in cfg.provider_names():
@@ -457,7 +458,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         # Test accessing a provider array that doesn't exist
         cm = None
         try:
-            with self.assertLogs('root', level='ERROR') as cm:
+            with self.assertLogs(self.logger, level='ERROR') as cm:
                 _ = cfg.providers('DoesNotExist')
             self.assertTrue(False, 'Should never get here')
         except Exception:
@@ -472,7 +473,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         cfg.clear_access_counters()
 
-        with self.assertLogs('root', level='ERROR'):  # There will be errors; catch them
+        with self.assertLogs(self.logger, level='ERROR'):  # There will be errors; catch them
             self.assertEqual(cfg['BaseInvalid'], '',
                              'Retrieving invalid base key does not work as expected')  # Read error
 
@@ -520,7 +521,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
             self.assertTrue(remove_file(testfile), 'Could not remove test-small.ini')
 
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
-        with self.assertLogs('root', level='WARN'):
+        with self.assertLogs(self.logger, level='WARN'):
             count = cfg.save_config('?*/\\invalid<>file', False)  # Save only non-default values
         self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
         try:
@@ -553,7 +554,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
             count = cfg.save_config(testfile, False)  # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
             cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
-            with self.assertLogs('root', level='WARN'):
+            with self.assertLogs(self.logger, level='WARN'):
                 self.assertFalse(are_equivalent(cfg, cfgnew),
                                  f'Save error: {testfile} is identical to the original')
         finally:
@@ -573,7 +574,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         remove_file(backupfile)
 
         try:
-            with self.assertLogs('root', level='INFO') as cm:  # Expect only INFO messages
+            with self.assertLogs(self.logger, level='INFO') as cm:  # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
@@ -585,7 +586,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
             self.assertTrue(are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
 
             # Verify that it works when .bak file exists as well:
-            with self.assertLogs('root', level='INFO') as cm:  # Expect only INFO messages
+            with self.assertLogs(self.logger, level='INFO') as cm:  # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages here')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
@@ -637,7 +638,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg.config['HOMEPAGE'].set_str('AudioBooks')
         cfg.config['SSL_CERTS'].set_str('dir-doesnot-exist')
 
-        with self.assertLogs('root', level='WARN') as cm:
+        with self.assertLogs(self.logger, level='WARN') as cm:
             warnings = cfg.post_load_fixup()
         # Do not test for specific messages as they depend on the OS
         self.assertEqual(len(cm.output), 6, 'Unexpected # of log messages')
@@ -664,7 +665,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
     def test_array_entry_usage(self):
         """ Verify that array entries can be added to and deleted """
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
-        # with self.assertLogs('root', level='WARN'):
+        # with self.assertLogs(self.logger, level='WARN'):
 
         array = cfg.get_array('NOPEDOESNOTEXIST')
         self.assertIsNone(array, 'Non-existent array type must not be found')
@@ -701,7 +702,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         self.set_loglevel(logging.INFO)
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
 
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             # Access an entry that doesn't exist
             test1: str = cfg['HELLO']  # Doesn't exist: Return empty string
             test2: str = cfg['hello']  # Doesn't exist: Return empty string
@@ -789,7 +790,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         rss = cfg.get_array_dict('RSS', 0)
         rss.set_int('HOST', 2)  # Write error (type)
         _ = rss.get_str('NotAValidRSSKey')  # Read error (key)
-        with self.assertLogs('root', level=logging.ERROR) as cm:
+        with self.assertLogs(self.logger, level=logging.ERROR) as cm:
             cfg.add_access_errors_to_log()
         # The order is always type, then key errors
         self.assertListEqual(cm.output, [

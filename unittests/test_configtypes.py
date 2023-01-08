@@ -57,7 +57,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_default(), 'Default')
         self.assertFalse(ci.get_force_lower())
 
-        with self.assertLogs('root', level=logging.WARNING) as cm:
+        with self.assertLogs(self.logger, level=logging.WARNING) as cm:
             ci.set_int(2)  # Write Error
             self.assertEqual(ci.get_int(), 0)  # Read Error
             ci.set_bool(True)  # Write Error
@@ -82,7 +82,7 @@ class Config2Test(LLTestCase):
         """ Tests for ConfigInt class """
         ci = configtypes.ConfigInt('Section', 'IntValue', 42)
         self.set_loglevel(logging.DEBUG)
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             self.assertEqual(ci.get_int(), 42)
             self.assertEqual(ci.get_str(), '42')
             self.assertEqual(ci.get_bool(), False)  # Read Error
@@ -116,7 +116,7 @@ class Config2Test(LLTestCase):
         """ Tests for ConfigRangedInt class """
         ci = configtypes.ConfigRangedInt('Section', 'RangedIntValue', 42, 10, 1000)
         self.set_loglevel(logging.DEBUG)
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             self.assertEqual(int(ci), 42)
             ci.set_int(5)  # Write Error
             self.assertEqual(ci.get_int(), 42)
@@ -139,7 +139,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(str(ci), '0o777')
 
         self.set_loglevel(logging.DEBUG)
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             ci.set_int(1000000)  # Write Error
             self.assertEqual(int(ci), 0o777)
             ci.set_int(-8)  # Write Error
@@ -160,7 +160,7 @@ class Config2Test(LLTestCase):
         """ Tests for ConfigBool class """
         ci = configtypes.ConfigBool('Section', 'BoolValue', True)
         self.set_loglevel(logging.DEBUG)
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             self.assertEqual(ci.get_int(), 1)  # We can read bools as int
             self.assertEqual(ci.get_str(), '1')
             self.assertEqual(ci.get_bool(), True)
@@ -247,7 +247,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_schedule_name(), 'Test', 'Schedule name not stored correctly')
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
         self.assertIsNotNone(ci.get_method(), 'Cannot find schedule method to run')
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             ci.set_int(10000000)  # Value too large, should have no effect
         self.assertEqual(cm.output, [
             'WARNING:lazylibrarian.configtypes:Cannot set config[] to 10000000'])
@@ -287,7 +287,7 @@ class Config2Test(LLTestCase):
 
     def test_ConfigDownloadTypes(self):
         """ Test the ConfigDownloadTypes, which can only be A,C,E,M or combinations """
-        with self.assertLogs('root', level='INFO') as cm:
+        with self.assertLogs(self.logger, level='INFO') as cm:
             cdt = configtypes.ConfigDownloadTypes('', '', 'E')
             self.assertEqual(cdt.get_csv(), 'E')
             cdt.set_str('M,A')

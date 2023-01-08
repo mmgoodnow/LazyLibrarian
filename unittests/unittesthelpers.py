@@ -24,13 +24,14 @@ from lazylibrarian.logconfig import LOGCONFIG
 # noinspection PyBroadException
 class LLTestCase(unittest.TestCase):
     COMPLEX_INI_FILE = './unittests/testdata/testconfig-complex.ini'
-    logger = logging.getLogger('unittest')  # For logging unittest
+
+    def setUp(self):
+        super().setUp()
+        self.logger = logging.getLogger('')
+        self.logger.setLevel(logging.INFO)
 
     def set_loglevel(self, level):
         """ Set the root log level per request; the calling test function depends on it to test log messages """
-        root = logging.getLogger('root')
-        root.setLevel(level)
-        root.disabled = False
         self.logger.setLevel(level)
 
     @classmethod
@@ -51,7 +52,7 @@ class LLTestCase(unittest.TestCase):
     @classmethod
     def removeDirectory(cls, cachedir: str, reason: str):
         if len(cachedir):
-            cls.logger.debug(reason)
+            logging.getLogger(None).debug(reason)
             try:
                 rmtree(cachedir)
             except Exception:
@@ -67,7 +68,7 @@ class LLTestCase(unittest.TestCase):
     def removetestDB(cls):
         # Delete the database that was created for unit testing
         if len(DIRS.get_dbfile()):
-            cls.logger.debug("Deleting unit test database")
+            logging.getLogger(None).debug("Deleting unit test database")
             try:
                 os.remove(DIRS.get_dbfile())
                 os.remove(DIRS.get_dbfile() + "-shm")
@@ -101,6 +102,7 @@ class LLTestCaseWithConfigandDIRS(LLTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        lazylibrarian.SYS_ENCODING = 'UTF-8'
         DIRS.set_fullpath_args(os.path.abspath(__file__), sys.argv[1:])
         LOGCONFIG.initialize_console_only_log(redact=False)
         cls.config = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=cls.CONFIGFILE)
