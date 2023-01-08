@@ -166,7 +166,7 @@ class StartupLazyLibrarian:
                 lazylibrarian.SIGNAL = None
                 print('Cannot update, not a git or source installation')
             else:
-                self.shutdown(update=True, exit=True, testing=False)
+                self.shutdown(update=True, quit=True, testing=False)
 
         if options.config:
             configfile = str(options.config)
