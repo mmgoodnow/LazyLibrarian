@@ -289,6 +289,16 @@ class LogConfig:
             logger = logging.getLogger('root')
             try:
                 level = int(value)
+                # Translate prior log level to standard scheme:
+                if level < 10 or level > 50:
+                    oldlevel = level
+                    if oldlevel == 0:
+                        level = logging.ERROR  # 40
+                    elif oldlevel == 1:
+                        level = logging.INFO  # 20
+                    elif oldlevel >= 2:
+                        level = logging.DEBUG  # 10
+                    logger.warning(f"Translating prior LOGLEVEL of {oldlevel} to {level}, which is the new value.")
             except ValueError:
                 level = logging.getLevelName(value.upper())
             logger.setLevel(level)
