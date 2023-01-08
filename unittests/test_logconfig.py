@@ -6,15 +6,16 @@
 #   Do not use the standard unittesthelper; this needs to run standalone
 
 import logging
-import mock
 import os
-import unittesthelpers
 from typing import List
 
+import mock
+
 from lazylibrarian.logconfig import LOGCONFIG, LogConfig
+from unittests.unittesthelpers import LLTestCaseWithConfigandDIRS
 
 
-class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
+class TestLogConfig(LLTestCaseWithConfigandDIRS):
     """ Test the logconfig.py class """
 
     def setUp(self) -> None:
@@ -237,5 +238,3 @@ class TestLogConfig(unittesthelpers.LLTestCaseWithConfigandDIRS):
         res = LogConfig.delete_log_files('/logs')
         self.assertEqual(2, mock_remove.call_count)
         self.assertEqual(f"2 log file(s) deleted from /logs", res)
-
-
