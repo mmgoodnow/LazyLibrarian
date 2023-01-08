@@ -195,7 +195,7 @@ class UtorrentClient(object):
 
         if body:
             request.data(body)
-            request.add_header('Content-length', len(body))
+            request.add_header('Content-length', str(len(body)))
         if content_type:
             request.add_header('Content-type', content_type)
 

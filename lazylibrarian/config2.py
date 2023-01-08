@@ -328,7 +328,8 @@ class LLConfigHandler(ConfigDict):
 
                 if not msg:
                     if section:
-                        msg = f'Config file {self.configfilename} has been saved with {savecount} items (Triggered by {section})'
+                        msg = f'Config file {self.configfilename} has been saved with {savecount} items ' \
+                              f'(Triggered by {section})'
                     else:
                         msg = f'Config file {self.configfilename} has been saved with {savecount} items'
                     self.logger.info(msg)

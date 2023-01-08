@@ -312,7 +312,7 @@ def audio_parts(folder, bookname, authorname):
             break
         if parts[cnt][0] != cnt + 1:
             logger.warning('%s: No part %i found, "%s" for token "%s" %s' % (bookname, cnt + 1, parts[cnt][0],
-                                                                          tokmatch, parts[cnt][3]))
+                                                                             tokmatch, parts[cnt][3]))
             failed = True
             break
         cnt += 1

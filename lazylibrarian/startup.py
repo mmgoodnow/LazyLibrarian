@@ -25,6 +25,7 @@ import sys
 import tarfile
 import time
 import traceback
+from pathlib import Path
 from shutil import rmtree
 from typing import Any
 
@@ -665,7 +666,7 @@ class StartupLazyLibrarian:
         if not lazylibrarian.STOPTHREADS:
             restart_jobs(command=SchedulerCommand.START)
 
-    def shutdown(self, restart=False, update=False, exit=False, testing=False):
+    def shutdown(self, restart=False, update=False, quit=False, testing=False):
         if not testing:
             cherrypy.engine.exit()
             time.sleep(2)
@@ -711,7 +712,7 @@ class StartupLazyLibrarian:
             self.logger.info('Removing pidfile %s' % lazylibrarian.PIDFILE)
             os.remove(syspath(lazylibrarian.PIDFILE))
 
-        if restart and not exit:
+        if restart and not quit:
             self.logger.info('LazyLibrarian is restarting ...')
             if not lazylibrarian.DOCKER:
                 # Try to use the currently running python executable, as it is known to work
@@ -842,6 +843,6 @@ class StartupLazyLibrarian:
                                     self.logger.info(msg)
                                     subprocess.Popen(popen_list, cwd=os.getcwd())
 
-        if exit:
+        if quit:
             self.logger.info('Lazylibrarian (pid %s) is exiting now' % os.getpid())
             sys.exit(0)

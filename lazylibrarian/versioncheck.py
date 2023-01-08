@@ -116,7 +116,7 @@ def get_install_type():
         CONFIG.set_str('GIT_BRANCH', 'master')
 
     logger.debug('%s install detected. Setting Branch to [%s]' %
-           (CONFIG['INSTALL_TYPE'], CONFIG['GIT_BRANCH']))
+                 (CONFIG['INSTALL_TYPE'], CONFIG['GIT_BRANCH']))
 
 
 def get_current_version() -> str:
@@ -397,7 +397,8 @@ def get_commit_difference_from_git() -> (int, str):
                 ahead = 0
                 behind = 0
                 if CONFIG['INSTALL_TYPE'] == 'git':
-                    output, _ = run_git('rev-list --left-right --count master...origin/master')
+                    branch = CONFIG['GIT_BRANCH']
+                    output, _ = run_git('rev-list --left-right --count %s...origin/%s' % (branch, branch))
                     if output:
                         a, b = output.split(None, 1)
                         ahead = check_int(a, 0)

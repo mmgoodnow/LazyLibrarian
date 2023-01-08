@@ -472,8 +472,7 @@ class ConfigDownloadTypes(ConfigCSV):
     def is_valid_value(self, value: ValidTypes) -> bool:
         if super().is_valid_value(value):
             parts = str(value).upper().split(',')
-            ok = all(len(part) == 1 for part in parts) and \
-                 all(part in 'ACEM' for part in parts)
+            ok = all(len(part) == 1 for part in parts) and all(part in 'ACEM' for part in parts)
             return ok
         else:
             return False

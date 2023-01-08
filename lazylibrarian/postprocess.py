@@ -41,8 +41,8 @@ from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3re
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import run_script, multibook, calibre_prg
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, setperm, \
-    make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, \
+    setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory
 from lazylibrarian.formatter import unaccented, plural, now, today, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, sanitize, thread_name
@@ -523,14 +523,14 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                     res = db.match("SELECT Status from books WHERE BookID=?", (bookid,))
                     if res and res['Status'] == 'Ignored':
                         logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
-                                    (library, bookname, authorname))
+                                       (library, bookname, authorname))
                 else:
                     res = db.match("SELECT AudioStatus,Narrator from books WHERE BookID=?", (bookid,))
                     if metadata.get('narrator', '') and res and not res['Narrator']:
                         db.action("update books set narrator=? where bookid=?", (metadata['narrator'], bookid))
                     if res and res['AudioStatus'] == 'Ignored':
                         logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
-                                    (library, bookname, authorname))
+                                       (library, bookname, authorname))
                 return process_book(source_dir, bookid, library, automerge=automerge)
             else:
                 msg = "%s %s by %s not found in database" % (library, bookname, authorname)
@@ -584,7 +584,7 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
                         cnt += 1
                 except Exception as why:
                     logger.warning("Failed to copy/move file %s to [%s], %s %s" %
-                                (ourfile, targetdir, type(why).__name__, str(why)))
+                                   (ourfile, targetdir, type(why).__name__, str(why)))
                     continue
     return cnt
 
@@ -619,7 +619,8 @@ def unpack_archive(archivename, download_dir, title):
             logger.debug("Created target %s" % targetdir)
             # Look for any wanted files (inc jpg for cbr/cbz)
             for item in z.namelist():
-                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):  # not if it's a directory
+                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):
+                    # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     if os.path.__name__ == 'ntpath':
                         dst = os.path.join(targetdir, item.replace('/', '\\'))
@@ -647,7 +648,8 @@ def unpack_archive(archivename, download_dir, title):
 
             logger.debug("Created target %s" % targetdir)
             for item in z.getnames():
-                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):  # not if it's a directory
+                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):
+                    # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     if os.path.__name__ == 'ntpath':
                         dst = os.path.join(targetdir, item.replace('/', '\\'))
@@ -675,7 +677,8 @@ def unpack_archive(archivename, download_dir, title):
 
             logger.debug("Created target %s" % targetdir)
             for item in z.namelist():
-                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):  # not if it's a directory
+                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):
+                    # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     if os.path.__name__ == 'ntpath':
                         dst = os.path.join(targetdir, item.replace('/', '\\'))
@@ -737,7 +740,7 @@ def unpack_archive(archivename, download_dir, title):
         return ''
 
 
-def PostProcessor(): # was cron_process_dir
+def PostProcessor():  # was cron_process_dir
     if lazylibrarian.STOPTHREADS:
         logger = logging.getLogger(__name__)
         logger.debug("STOPTHREADS is set, not starting postprocessor")
@@ -875,7 +878,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         completion = int(-(-completion // 1))  # round up to int
                         if completion < delay:
                             logger.warning("Ignoring %s as completion was %s %s ago" %
-                                        (book['NZBtitle'], completion, plural(completion, 'second')))
+                                           (book['NZBtitle'], completion, plural(completion, 'second')))
                             continue
                         elif check_int(book['Completed'], 0):
                             logger.debug("%s was completed %s %s ago" %
@@ -960,7 +963,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                         os.rmdir(targetdir)
                                                     except OSError as why:
                                                         logger.warning("Unable to delete %s: %s" %
-                                                                    (targetdir, why.strerror))
+                                                                       (targetdir, why.strerror))
                                             else:
                                                 logger.debug("Unable to make directory %s" % targetdir)
                                     else:
@@ -985,7 +988,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     # only unpack first archive, we are only matching one download
                                     if not found:
                                         for f in listdir(pp_path):
-                                            if not is_valid_type(f, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
+                                            if not is_valid_type(f, extensions=CONFIG.get_all_types_list(),
+                                                                 extras='cbr, cbz'):
                                                 res = unpack_archive(os.path.join(pp_path, f), download_dir, f)
                                                 if res:
                                                     pp_path = res
@@ -1349,7 +1353,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 logger.warning("Unable to remove %s, no source" % book['NZBtitle'])
                             elif not book['DownloadID'] or book['DownloadID'] == "unknown":
                                 logger.warning("Unable to remove %s from %s, no DownloadID" %
-                                            (book['NZBtitle'], book['Source']))
+                                               (book['NZBtitle'], book['Source']))
                             elif book['Source'] != 'DIRECT':
                                 progress, finished = get_download_progress(book['Source'], book['DownloadID'])
                                 logger.debug("Progress for %s %s/%s" % (book['NZBtitle'], progress, finished))
@@ -1388,7 +1392,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                               book['Source']))
                             except Exception as why:
                                 logger.warning("Unable to remove %s, %s %s" %
-                                            (pp_path, type(why).__name__, str(why)))
+                                               (pp_path, type(why).__name__, str(why)))
                         else:
                             if CONFIG.get_bool('DESTINATION_COPY'):
                                 logger.debug("Not removing %s as Keep Files is set" % pp_path)
@@ -1482,9 +1486,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
             if book['Status'] == "Seeding":
                 loggerpostprocess.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
-                                                                         CONFIG.get_bool('SEED_WAIT')))
-                if not CONFIG.get_bool('KEEP_SEEDING') and (finished or progress < 0 and
-                                                                                  not CONFIG.get_bool('SEED_WAIT')):
+                                                                                CONFIG.get_bool('SEED_WAIT')))
+                if not CONFIG.get_bool('KEEP_SEEDING') and (finished or progress < 0
+                                                            and not CONFIG.get_bool('SEED_WAIT')):
                     if finished:
                         logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
                     else:
@@ -1730,8 +1734,7 @@ def check_residual(download_dir):
     ppcount = 0
     downloads = listdir(download_dir)
     loggerpostprocess.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
-                                                            plural(len(downloads), 'entry'),
-                                                            download_dir))
+                                                                   plural(len(downloads), 'entry'), download_dir))
     TELEMETRY.record_usage_data('Process/Residual')
     for entry in downloads:
         if "LL.(" in entry:
@@ -2306,7 +2309,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 booktype = "eBook"
             elif not was_snatched:
                 loggerpostprocess.debug('Bookid %s was not snatched so cannot check type, contains ebook:%s audio:%s' %
-                                 (bookid, is_ebook, is_audio))
+                                        (bookid, is_ebook, is_audio))
 
                 if is_audio and not CONFIG.get_bool('AUDIO_TAB'):
                     is_audio = False
@@ -2661,7 +2664,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 return False, 'calibredb rc %s from %s' % (rc, CONFIG['IMP_CALIBREDB']), pp_path
             elif booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
                 logger.warning('Calibre failed to import %s %s, already exists, marking book as "Have"' %
-                            (authorname, bookname))
+                               (authorname, bookname))
                 db = database.DBConnection()
                 control_value_dict = {"BookID": bookid}
                 new_value_dict = {"Status": "Have"}

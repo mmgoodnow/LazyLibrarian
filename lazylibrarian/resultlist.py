@@ -354,8 +354,8 @@ def download_result(match, book):
                         (new_value_dict["AuxInfo"], new_value_dict["NZBtitle"], new_value_dict["NZBprov"]))
             custom_notify_snatch("%s %s" % (new_value_dict["BookID"], new_value_dict['AuxInfo']))
             notify_snatch("%s %s from %s at %s" %
-                          (new_value_dict["AuxInfo"], new_value_dict["NZBtitle"], CONFIG.disp_name(new_value_dict["NZBprov"]),
-                           now()))
+                          (new_value_dict["AuxInfo"], new_value_dict["NZBtitle"],
+                           CONFIG.disp_name(new_value_dict["NZBprov"]), now()))
             # at this point we could add NZBprov to the blocklist with a short timeout, a second or two?
             # This would implement a round-robin search system. Blocklist with an incremental counter.
             # If number of active providers == number blocklisted, so no unblocked providers are left,
