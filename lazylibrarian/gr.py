@@ -232,7 +232,8 @@ class GoodReads:
                                     api_hits += 1
                         except Exception as e:
                             resultxml = None
-                            self.logger.error("%s finding page %s of results: %s" % (type(e).__name__, loop_count, str(e)))
+                            self.logger.error("%s finding page %s of results: %s" % (type(e).__name__, loop_count,
+                                                                                     str(e)))
 
                     if resultxml:
                         if all(False for _ in resultxml):  # returns True if iterator is empty
@@ -565,7 +566,7 @@ class GoodReads:
                                                     book_language = book_rootxml.find('./book/language_code').text
                                                 except Exception as e:
                                                     self.logger.error("%s finding language_code in book xml: %s" %
-                                                                 (type(e).__name__, str(e)))
+                                                                      (type(e).__name__, str(e)))
                                                 # noinspection PyBroadException
                                                 try:
                                                     res = book_rootxml.find('./book/isbn').text
@@ -613,7 +614,7 @@ class GoodReads:
                                             new_value_dict = {"lang": book_language}
                                             db.upsert("languages", new_value_dict, control_value_dict)
                                             self.logger.debug("GoodReads reports language [%s] for %s" %
-                                                         (book_language, isbnhead))
+                                                              (book_language, isbnhead))
                                         else:
                                             not_cached += 1
 
@@ -624,7 +625,7 @@ class GoodReads:
 
                                 except Exception as e:
                                     self.logger.error("Goodreads language search failed: %s %s" %
-                                                 (type(e).__name__, str(e)))
+                                                      (type(e).__name__, str(e)))
 
                             if not isbnhead and CONFIG.get_bool('ISBN_LOOKUP'):
                                 # try lookup by name
@@ -701,7 +702,8 @@ class GoodReads:
                             if shortname:
                                 sbookname, sbooksub, _ = split_title(author_name_result, shortname)
                                 if sbookname != bookname:
-                                    self.logger.warning('Different titles [%s][%s][%s]' % (oldbookname, sbookname, bookname))
+                                    self.logger.warning('Different titles [%s][%s][%s]' % (oldbookname, sbookname,
+                                                                                           bookname))
                                     bookname = sbookname
                                 if sbooksub != booksub:
                                     self.logger.warning('Different subtitles [%s][%s]' % (sbooksub, booksub))
@@ -740,7 +742,8 @@ class GoodReads:
                                 alist += anm
                                 if aid == gr_id or anm == author_name_result:
                                     if aid != gr_id:
-                                        self.logger.warning("Author %s has different authorid %s:%s" % (anm, aid, gr_id))
+                                        self.logger.warning("Author %s has different authorid %s:%s" % (anm, aid,
+                                                                                                        gr_id))
                                     if role is None or 'author' in role.lower() or \
                                             'writer' in role.lower() or \
                                             'creator' in role.lower() or \
@@ -752,7 +755,7 @@ class GoodReads:
                             if not amatch:
                                 rejected = 'author', 'Wrong Author (got %s,%s)' % (alist, role)
                                 self.logger.debug('Rejecting %s for %s, %s' %
-                                             (bookname, author_name_result, rejected[1]))
+                                                  (bookname, author_name_result, rejected[1]))
 
                         cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
                         cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
@@ -802,12 +805,12 @@ class GoodReads:
                                     # we have a different bookid for this author/title already
                                     if not_rejectable:
                                         self.logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
-                                                     (bookname, bookid, match['BookID'], not_rejectable))
+                                                          (bookname, bookid, match['BookID'], not_rejectable))
                                     else:
                                         duplicates += 1
                                         rejected = 'bookid', 'Got %s under bookid %s' % (bookid, match['BookID'])
                                         self.logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
-                                                     (bookid, author_name_result, bookname, match['BookID']))
+                                                          (bookid, author_name_result, bookname, match['BookID']))
 
                         if rejected and rejected[0] not in ignorable:
                             removed_results += 1
@@ -858,7 +861,7 @@ class GoodReads:
                                 if bookdate > today()[:len(bookdate)]:
                                     if not_rejectable:
                                         self.logger.debug("Not rejecting %s (future pub date %s) as %s" %
-                                                     (bookname, bookdate, not_rejectable))
+                                                          (bookname, bookdate, not_rejectable))
                                     else:
                                         rejected = 'future', 'Future publication date [%s]' % bookdate
                                         self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
@@ -867,7 +870,7 @@ class GoodReads:
                                 if not bookdate or bookdate == '0000':
                                     if not_rejectable:
                                         self.logger.debug("Not rejecting %s (no pub date) as %s" %
-                                                     (bookname, not_rejectable))
+                                                          (bookname, not_rejectable))
                                     else:
                                         rejected = 'date', 'No publication date'
                                         self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
@@ -970,7 +973,7 @@ class GoodReads:
                                             bookdate <= today()[:len(bookdate)]:
                                         # was rejected on previous scan but bookdate has become valid
                                         self.logger.debug("valid bookdate [%s] previous scanresult [%s]" %
-                                                     (bookdate, existing['ScanResult']))
+                                                          (bookdate, existing['ScanResult']))
                                         update_value_dict["ScanResult"] = "bookdate %s is now valid" % bookdate
                                     elif not existing:
                                         update_value_dict["ScanResult"] = reason
@@ -1082,15 +1085,16 @@ class GoodReads:
             resultcount = added_count + updated_count
             loop_count -= 1
             self.logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
-                                                   loop_count, plural(loop_count, "page")))
+                                                        loop_count, plural(loop_count, "page")))
             self.logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
             self.logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
-            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
+            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results,
+                                                                                              "result")))
             self.logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
             self.logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
             self.logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
-                         (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
-                          api_hits, plural(api_hits, "hit")))
+                              (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
+                               api_hits, plural(api_hits, "hit")))
             if cover_count:
                 self.logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
             if isbn_count:
@@ -1112,11 +1116,11 @@ class GoodReads:
 
             if refresh:
                 self.logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
-                            (authorname, added_count, plural(added_count, "book"),
-                             updated_count, plural(updated_count, "book")))
+                                 (authorname, added_count, plural(added_count, "book"),
+                                 updated_count, plural(updated_count, "book")))
             else:
                 self.logger.info("[%s] Book processing complete: Added %s %s to the database" %
-                            (authorname, added_count, plural(added_count, "book")))
+                                 (authorname, added_count, plural(added_count, "book")))
 
         except Exception:
             self.logger.error('Unhandled exception in GR.get_author_books: %s' % traceback.format_exc())
@@ -1194,10 +1198,10 @@ class GoodReads:
                 if CONFIG.get_bool('FULL_SCAN'):
                     if res['Status'] in ['Wanted', 'Open', 'Have']:
                         self.logger.warning("Keeping unknown goodreads bookid %s: %s, Status is %s" %
-                                    (bookid, res['BookName'], res['Status']))
+                                            (bookid, res['BookName'], res['Status']))
                     elif res['AudioStatus'] in ['Wanted', 'Open', 'Have']:
                         self.logger.warning("Keeping unknown goodreads bookid %s: %s, AudioStatus is %s" %
-                                    (bookid, res['BookName'], res['Status']))
+                                            (bookid, res['BookName'], res['Status']))
                     else:
                         self.logger.debug("Deleting unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
                         db.action("DELETE from books WHERE gr_id=?", (bookid,))
@@ -1224,17 +1228,17 @@ class GoodReads:
                             or dupe['AudioStatus'] not in ['Ignored', 'Skipped']:
                         # this one is important (owned/wanted/snatched)
                         self.logger.debug("Keeping bookid %s (%s/%s)" %
-                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
+                                          (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
                     elif dupe['BookSub'] not in booksubs:
                         booksubs.append(dupe['BookSub'])
                         self.logger.debug("Keeping bookid %s [%s][%s]" %
-                                     (dupe['BookID'], item['bookname'], dupe['BookSub']))
+                                          (dupe['BookID'], item['bookname'], dupe['BookSub']))
                     elif cnt:
                         self.logger.debug("Removing bookid %s (%s/%s) %s" %
-                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
+                                          (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
                     else:
                         self.logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
-                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
+                                          (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
 
         # Warn about any remaining unignored dupes
         cmd = "select count('bookname'),bookname from books where authorid=? and "
@@ -1244,7 +1248,7 @@ class GoodReads:
         if dupes:
             author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
             self.logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
-                                                             author['AuthorName']))
+                                author['AuthorName']))
             for item in res:
                 self.logger.debug("%02d: %s" % (item[0], item[1]))
 
@@ -1375,7 +1379,7 @@ class GoodReads:
             match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
             if match:
                 self.logger.debug('%s: Changing authorid from %s to %s' %
-                             (authorname, authorid, match['AuthorID']))
+                                  (authorname, authorid, match['AuthorID']))
                 author = {'authorid': match['AuthorID'], 'authorname': authorname}
             else:
                 gr = GoodReads(authorname)
@@ -1491,7 +1495,8 @@ class GoodReads:
             }
 
             db.upsert("books", new_value_dict, control_value_dict)
-            self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus, audiostatus))
+            self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus,
+                                                                              audiostatus))
 
             if 'nocover' in bookimg or 'nophoto' in bookimg:
                 # try to get a cover from another source

@@ -196,7 +196,7 @@ def serve_template(templatename, **kwargs):
                 userprefs = check_int(cookie['ll_prefs'].value, 0)
 
             if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-                if  CONFIG.get_str('auth_type') == 'FORM':
+                if CONFIG.get_str('auth_type') == 'FORM':
                     templatename = "formlogin.html"
                 else:
                     templatename = "login.html"
@@ -1512,7 +1512,7 @@ class WebInterface(object):
         }
         for item in CONFIG.config.values():
             if isinstance(item, ConfigBool):
-                item.reset_read_count() # Reset read counts as we use this to determine which settings have changed
+                item.reset_read_count()  # Reset read counts as we use this to determine which settings have changed
         return serve_template(templatename="config.html", title="Settings", config=config)
 
     @cherrypy.expose
@@ -1611,7 +1611,7 @@ class WebInterface(object):
                 CONFIG.set_from_ui(key, value)
             else:
                 if isinstance(item, ConfigBool) and item.get_read_count() > 0:
-                    item.set_from_ui(False) # Set other items to False that we've seen (i.e. are shown)
+                    item.set_from_ui(False)  # Set other items to False that we've seen (i.e. are shown)
         CONFIG.ensure_valid_homepage()
 
         magazines = db.select('SELECT * from magazines')
@@ -1662,7 +1662,6 @@ class WebInterface(object):
             if count:
                 logger.info("Magazine %s filters updated" % count)
 
-        count = 0
         CONFIG.update_providers_from_ui(kwargs)
 
         # Convert legacy log settings
@@ -1765,7 +1764,7 @@ class WebInterface(object):
                                 rmtree(os.path.dirname(book['BookFile']), ignore_errors=True)
                             except Exception as e:
                                 logger.warning('rmtree failed on %s, %s %s' %
-                                            (book['BookFile'], type(e).__name__, str(e)))
+                                               (book['BookFile'], type(e).__name__, str(e)))
 
                     db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
                 elif action == "Remove":
@@ -1843,9 +1842,10 @@ class WebInterface(object):
         author['AuthorDeath'] = date_format(author['AuthorDeath'], CONFIG['AUTHOR_DATE_FORMAT'])
 
         return serve_template(
-            templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]),
-            author=author, languages=languages, booklang=book_lang, types=types, library=library, ignored=ignored,
-            showseries=CONFIG.get_int('SERIES_TAB'), firstpage=firstpage, user=user, email=email, book_filter=book_filter)
+            templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]), author=author,
+            languages=languages, booklang=book_lang, types=types, library=library, ignored=ignored,
+            showseries=CONFIG.get_int('SERIES_TAB'), firstpage=firstpage, user=user, email=email,
+            book_filter=book_filter)
 
     @cherrypy.expose
     def set_author(self, authorid, status):
@@ -2013,7 +2013,8 @@ class WebInterface(object):
                 matchname = unaccented(matchname).lower()
                 bestmatch = [0, '']
                 for item in listdir(libdir):
-                    match = fuzz.ratio(format_author_name(unaccented(item), CONFIG.get_list('NAME_POSTFIX')).lower(), matchname)
+                    match = fuzz.ratio(format_author_name(unaccented(item), CONFIG.get_list('NAME_POSTFIX')).lower(),
+                                       matchname)
                     if match >= CONFIG.get_int('NAME_RATIO'):
                         authordir = os.path.join(libdir, item)
                         loggerfuzz.debug("Fuzzy match folder %s%% %s for %s" % (match, item, author_name))
@@ -2487,26 +2488,26 @@ class WebInterface(object):
 
                     if row[20]:  # is there a librarything workid
                         worklink = '<a href="' + CONFIG['LT_URL'] + '/' + 'work/' + \
-                                   row[20] + '" target="_new"><small><i>LibraryThing</i></small></a>'
+                                   row[20] + '"><small><i>LibraryThing</i></small></a>'
                     elif row[10]:  # is there a workpage link
-                        worklink = '<a href="' + row[10] + '" target="_new"><small><i>LibraryThing</i></small></a>'
+                        worklink = '<a href="' + row[10] + '" ><small><i>LibraryThing</i></small></a>'
                     else:
                         row[10] = ''
                         row[20] = ''
 
                     editpage = '<a href="edit_book?bookid=' + row[6] + '&library=' + library + \
-                        '" target="_new"><small><i>Manual</i></a>'
+                        '"><small><i>Manual</i></a>'
 
                     if not row[9]:
                         row[9] = ''
                     elif row[9].startswith('/works/OL'):
                         ref = CONFIG['OL_URL'] + row[9]
-                        sitelink = '<a href="%s" target="_new"><small><i>OpenLibrary</i></small></a>' % ref
+                        sitelink = '<a href="%s"><small><i>OpenLibrary</i></small></a>' % ref
 
                     elif 'goodreads' in row[9]:
-                        sitelink = '<a href="%s" target="_new"><small><i>GoodReads</i></small></a>' % row[9]
+                        sitelink = '<a href="%s"><small><i>GoodReads</i></small></a>' % row[9]
                     elif 'books.google.com' in row[9] or 'market.android.com' in row[9]:
-                        sitelink = '<a href="%s" target="_new"><small><i>GoogleBooks</i></small></a>' % row[9]
+                        sitelink = '<a href="%s"><small><i>GoogleBooks</i></small></a>' % row[9]
                     title = row[2]
                     if row[8] and ' #' not in row[8]:  # is there a subtitle that's not series info
                         title = '%s<br><small><i>%s</i></small>' % (title, row[8])
@@ -3251,7 +3252,7 @@ class WebInterface(object):
                                 rejected = False
                             except Exception as why:
                                 logger.warning("Failed to copy file %s, %s %s" %
-                                            (authorimg, type(why).__name__, str(why)))
+                                               (authorimg, type(why).__name__, str(why)))
                         else:
                             logger.warning("Invalid extension on [%s]" % authorimg)
 
@@ -3393,7 +3394,7 @@ class WebInterface(object):
                     match = db.match(cmd, (newid,))
                     if match:
                         logger.warning("Cannot change bookid to %s, in use by %s/%s" %
-                                    (newid, match['BookName'], match['AuthorName']))
+                                       (newid, match['BookName'], match['AuthorName']))
                     else:
                         logger.warning("Updating bookid is not supported yet")
                         # edited += "BookID "
@@ -3717,7 +3718,7 @@ class WebInterface(object):
                                         logger.info('AudioBook %s deleted from disc' % bookname)
                                     except Exception as e:
                                         logger.warning('rmtree failed on %s, %s %s' %
-                                                    (bookfile, type(e).__name__, str(e)))
+                                                       (bookfile, type(e).__name__, str(e)))
 
                             if 'eBook' in library:
                                 bookfile = bookdata['BookFile']
@@ -3727,7 +3728,7 @@ class WebInterface(object):
                                         deleted = True
                                     except Exception as e:
                                         logger.warning('rmtree failed on %s, %s %s' %
-                                                    (bookfile, type(e).__name__, str(e)))
+                                                       (bookfile, type(e).__name__, str(e)))
                                         deleted = False
 
                                     if deleted:
@@ -4459,7 +4460,6 @@ class WebInterface(object):
         # add a comic from a list in comicresults.html
         global comicresults
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
         apikey = CONFIG['CV_APIKEY']
         if not comicid or comicid == 'None':
             raise cherrypy.HTTPRedirect("comics")
@@ -4754,21 +4754,21 @@ class WebInterface(object):
 
     @cherrypy.expose
     def magazines(self, mag_filter=''):
-            user = 0
-            email = ''
-            db = database.DBConnection()
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                user = cookie['ll_uid'].value
-                res = db.match('SELECT SendTo from users where UserID=?', (user,))
-                if res and res['SendTo']:
-                    email = res['SendTo']
-            # use server-side processing
-            covers = 1
-            if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
-                covers = 0
-            return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
-                                  covercount=covers, user=user, email=email, mag_filter=mag_filter)
+        user = 0
+        email = ''
+        db = database.DBConnection()
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            user = cookie['ll_uid'].value
+            res = db.match('SELECT SendTo from users where UserID=?', (user,))
+            if res and res['SendTo']:
+                email = res['SendTo']
+        # use server-side processing
+        covers = 1
+        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
+            covers = 0
+        return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
+                              covercount=covers, user=user, email=email, mag_filter=mag_filter)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -4890,7 +4890,6 @@ class WebInterface(object):
                 email = res['SendTo']
         return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
                               user=user, email=email, firstpage=firstpage)
-
 
     @cherrypy.expose
     def past_issues(self, mag=None, **kwargs):
@@ -5900,7 +5899,7 @@ class WebInterface(object):
                     rows.append(row)
 
             loggerserverside.debug("get_history returning %s to %s, snatching %s" %
-                             (displaystart, displaystart + displaylength, snatching))
+                                   (displaystart, displaystart + displaylength, snatching))
             loggerserverside.debug("get_history filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
             logger.error('Unhandled exception in get_history: %s' % traceback.format_exc())
@@ -6755,7 +6754,8 @@ class WebInterface(object):
         try:
             if loggerpostprocess.isEnabledFor(logging.DEBUG):
                 ffmpeg_env = os.environ.copy()
-                ffmpeg_env["FFREPORT"] = DIRS.get_logfile("ffmpeg-test-%s.log" % now().replace(':', '-').replace(' ', '-'))
+                ffmpeg_env["FFREPORT"] = DIRS.get_logfile("ffmpeg-test-%s.log" %
+                                                          now().replace(':', '-').replace(' ', '-'))
                 params = [ffmpeg, "-version", "-report"]
             else:
                 params = [ffmpeg, "-version"]

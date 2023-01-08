@@ -229,7 +229,7 @@ def cv_identify(fname, best=True):
             issue = get_issue_num(words, namewords)
             if issue and (issue < check_int(item["first"], 0) or issue > check_int(item["last"], 0)):
                 loggermatching.debug("Issue %s out of range (%s to %s) %s" % (issue, item["first"],
-                                                                          item["last"], item['title']))
+                                                                              item["last"], item['title']))
                 rejected = True
 
             for w in titlewords:

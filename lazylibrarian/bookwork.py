@@ -1144,8 +1144,8 @@ def get_work_series(bookid=None, source='GR', reason=""):
                 elif CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
                     logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
                 elif CONFIG.get_bool('NO_SETS') and seriesnum and (not (
-                        not re.search(r'\d+ of \d+', seriesnum) and not re.search(r'\d+/\d+',
-                                                                                  seriesnum)) or re.search(r'\d+-\d+', seriesnum)):
+                        not re.search(r'\d+ of \d+', seriesnum) and not re.search(r'\d+/\d+', seriesnum)) or
+                                                                   re.search(r'\d+-\d+', seriesnum)):
                     logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
                 elif seriesname and seriesid:
                     seriesname = clean_name(seriesname, '&/')

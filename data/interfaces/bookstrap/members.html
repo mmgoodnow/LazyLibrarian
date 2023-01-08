@@ -28,7 +28,7 @@
   %else:
   <h1>${series['AuthorName']} : ${title}
   %if perm&lazylibrarian.perm_edit:
-    <a href="edit_series?seriesid=${series['SeriesID']}" target="_new"><small><i> Edit</i></small></a>
+    <a href="edit_series?seriesid=${series['SeriesID']}"><small><i> Edit</i></small></a>
   %endif
   </h1>
   %endif
@@ -127,13 +127,13 @@
             <td class="bookname">
             <button onclick="bookinfo(${result['BookID']})" class="button btn-link text-left" type="button">${result['BookName']}</button><br>
               %if 'GoodReads' in result['BookLink']:
-                <a href="${result['BookLink']}" target="_new"><small><i>GoodReads</i></small></a>&nbsp;
+                <a href="${result['BookLink']}"><small><i>GoodReads</i></small></a>&nbsp;
               %endif
               %if 'http' in result['WorkPage']:
-                <a href="${result['WorkPage']}" target="_new"><small><i>LibraryThing</i></small></a>&nbsp;
+                <a href="${result['WorkPage']}"><small><i>LibraryThing</i></small></a>&nbsp;
               %endif
               %if perm&lazylibrarian.perm_edit:
-              <a href="edit_book?bookid=${result['BookID']}" target="_new"><small><i>Manual</i></small></a>
+              <a href="edit_book?bookid=${result['BookID']}"><small><i>Manual</i></small></a>
               %endif
             </td>
             %if multi == "True":

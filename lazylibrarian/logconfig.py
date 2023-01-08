@@ -87,7 +87,8 @@ class LogConfig:
                 "format": "%(asctime)s %(levelname)s  %(filename)s.%(funcName)s(): %(message)s (%(threadName)s)"
             },
             "timing": {
-                "format": "%(asctime)s %(threadName)s %(levelname)s, %(filename)s.%(funcName)s() (line %(lineno)s): %(message)s"
+                "format": "%(asctime)s %(threadName)s %(levelname)s, %(filename)s.%(funcName)s() "
+                          "(line %(lineno)s): %(message)s"
             },
             "special": {
                 "format": "%(asctime)s %(levelname)s: %(message)s [%(module)s.py:%(lineno)s (%(threadName)s/%(name)s)]"

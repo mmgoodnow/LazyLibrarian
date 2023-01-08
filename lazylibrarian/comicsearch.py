@@ -247,7 +247,8 @@ def search_comics(comicid=None):
                             if match[4] not in foundissues:
                                 foundissues[match[4]] = item
                     else:
-                        loggersearching.debug("No match (%s) want %s: %s" % (match[3]['seriesid'], id_list, item['title']))
+                        loggersearching.debug("No match (%s) want %s: %s" % (match[3]['seriesid'],
+                                                                             id_list, item['title']))
                         notfound += 1
                 else:
                     loggersearching.debug("No match [%s%%] %s" % (item['score'], item['title']))

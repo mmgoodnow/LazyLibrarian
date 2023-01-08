@@ -45,7 +45,7 @@ class TelegramNotifier:
             return True
         else:
             logger.warning('Could not send notification to TelegramBot (token=%s). Response: [%s]' %
-                        (telegram_token, response.text))
+                           (telegram_token, response.text))
             return False
         #
         # Public functions

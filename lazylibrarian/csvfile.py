@@ -256,7 +256,7 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     return bookmatch
 
 
-def import_csv(search_dir: str, status: str='Wanted', library: str='', config: ConfigDict=CONFIG) -> str:
+def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', config: ConfigDict = CONFIG) -> str:
     """ Find a csv file in the search_dir and process all the books in it,
         adding authors to the database if not found
         and marking the books as "Wanted"
@@ -427,7 +427,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
                         shutil.rmtree(csvfile + '.fail')
                     except Exception as why:
                         logger.warning("Unable to remove %s, %s %s" % (csvfile + '.fail',
-                                                                    type(why).__name__, str(why)))
+                                                                       type(why).__name__, str(why)))
                 try:
                     _ = safe_move(csvfile, csvfile + '.fail')
                 except Exception as e:

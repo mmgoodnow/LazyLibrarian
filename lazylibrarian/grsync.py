@@ -936,7 +936,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             logger.debug("%10s set to Wanted" % book)
                         else:
                             logger.warning("Not setting %s [%s] as Wanted, already marked %s" %
-                                        (res['BookName'], book, res['Status']))
+                                           (res['BookName'], book, res['Status']))
                 if 'Audio' in library:
                     if status == 'Open':
                         if res['AudioStatus'] == 'Open':
@@ -968,7 +968,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             logger.debug("%10s set to Wanted" % book)
                         else:
                             logger.warning("Not setting %s [%s] as Wanted, already marked %s" %
-                                        (res['BookName'], book, res['Status']))
+                                           (res['BookName'], book, res['Status']))
 
         # set new definitive list for ll
         if user:

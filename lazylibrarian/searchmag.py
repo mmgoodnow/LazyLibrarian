@@ -394,7 +394,7 @@ def search_magazines(mags=None, reset=False):
                                         control_date = 0
                                     elif re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                         start_time = time.time()
-                                        start_time -= CONFIG.get_int('MAG_AGE') * 24 * 60 * 60  # number of days in seconds
+                                        start_time -= CONFIG.get_int('MAG_AGE') * 24 * 60 * 60
                                         if start_time < 0:  # limit of unixtime (1st Jan 1970)
                                             start_time = 0
                                         control_date = time.strftime("%Y-%m-%d", time.localtime(start_time))

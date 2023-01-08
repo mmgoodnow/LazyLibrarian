@@ -307,7 +307,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
         if valid_cache:
             lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
             cachelogger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
-                                                                                    searchstring))
+                                                                                     searchstring))
             with open(syspath(hashfilename), "rb") as cachefile:
                 data = cachefile.read()
             return hashfilename, data
@@ -677,7 +677,7 @@ def irc_results(provider: ConfigDict, fname, retries=5):
                 else:
                     results.append(entry)
             dlcommslogger.debug("Stripped %s results from %s users not online" %
-                             (stripped, len(offline)))
+                                (stripped, len(offline)))
         else:
             logger.debug("Not checking online status for results")
     return results

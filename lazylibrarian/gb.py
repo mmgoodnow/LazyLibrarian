@@ -334,7 +334,8 @@ class GoogleBooks:
                                                 for lang in lazylibrarian.isbn_979_dict:
                                                     if isbnhead.startswith(lang):
                                                         booklang = lazylibrarian.isbn_979_dict[lang]
-                                                        self.logger.debug("ISBN979 returned %s for %s" % (booklang, isbnhead))
+                                                        self.logger.debug("ISBN979 returned %s for %s" % (booklang,
+                                                                                                          isbnhead))
                                                         match = True
                                                         break
                                             elif (len(book['isbn']) == 10) or \
@@ -431,7 +432,8 @@ class GoogleBooks:
                         if match:  # we have a book with this bookid already
                             if bookname != match['BookName'] or authorname != match['AuthorName']:
                                 self.logger.debug('Rejecting bookid %s for [%s][%s] already got bookid for [%s][%s]' %
-                                                  (bookid, authorname, bookname, match['AuthorName'], match['BookName']))
+                                                  (bookid, authorname, bookname, match['AuthorName'],
+                                                   match['BookName']))
                                 duplicates += 1
                                 rejected = 'got', 'Already got this book in database'
                             else:
@@ -619,7 +621,8 @@ class GoogleBooks:
             self.logger.debug("Found %s total %s for author" % (total_count, plural(total_count, "book")))
             self.logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
             self.logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
-            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
+            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results,
+                                                                                              "result")))
             self.logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
             self.logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
             self.logger.debug("Imported/Updated %s %s for author" % (resultcount, plural(resultcount, "book")))
@@ -774,7 +777,8 @@ class GoogleBooks:
         }
 
         db.upsert("books", new_value_dict, control_value_dict)
-        self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus, audiostatus))
+        self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname,
+                                                                          bookstatus, audiostatus))
 
         if 'nocover' in book['img'] or 'nophoto' in book['img']:
             # try to get a cover from another source

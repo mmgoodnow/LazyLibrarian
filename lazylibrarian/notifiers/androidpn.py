@@ -26,7 +26,6 @@ from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLO
 from lazylibrarian.common import proxy_list
 
 
-
 class AndroidPNNotifier:
     def __init__(self):
         pass

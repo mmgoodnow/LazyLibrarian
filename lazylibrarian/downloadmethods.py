@@ -76,7 +76,7 @@ def use_label(source, library):
     return ''
 
 
-def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider: str=''):
+def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider: str = ''):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     source = provider

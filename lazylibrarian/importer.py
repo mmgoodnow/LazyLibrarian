@@ -35,7 +35,7 @@ from queue import Queue
 
 def is_valid_authorid(authorid: str) -> bool:
     if not authorid or not isinstance(authorid, str):
-        return False # Reject blank, or non-string
+        return False  # Reject blank, or non-string
     # GoogleBooks doesn't provide authorid so we use one of the other sources
     if authorid.isdigit() and CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
         return True
@@ -221,7 +221,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
                     logger.warning("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
-                                (authorname, authorid, dbauthor['AuthorID']))
+                                   (authorname, authorid, dbauthor['AuthorID']))
                     db.action("PRAGMA foreign_keys = OFF")
                     db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
                               (authorid, dbauthor['authorid']))
@@ -318,11 +318,11 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                         akas = get_list(author.get('AKA', ''), ',')
                     if authorname != gr_name and gr_name not in akas:
                         logger.warning("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
-                                    (authorid, authorname, gr_name))
+                                       (authorid, authorname, gr_name))
                         akas.append(gr_name)
                     if authorname != ol_name and ol_name not in akas:
                         logger.warning("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
-                                    (authorid, authorname, ol_name))
+                                       (authorid, authorname, ol_name))
                         akas.append(ol_name)
                     author['AKA'] = ', '.join(akas)
 
@@ -332,7 +332,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 if dbauthor:
                     if dbauthor['AuthorID'] != authorid:
                         logger.warning("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
-                                    (authorname, authorid, dbauthor['AuthorID']))
+                                       (authorname, authorid, dbauthor['AuthorID']))
                         db.action("PRAGMA foreign_keys = OFF")
                         db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
                                   (authorid, dbauthor['authorid']))
@@ -379,7 +379,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                         if unaccented_bytes(dbauthor['authorname']) != unaccented_bytes(authorname):
                             authorname = dbauthor['authorname']
                             logger.warning("Authorname mismatch for %s [%s][%s]" %
-                                        (authorid, dbauthor['authorname'], author['authorname']))
+                                           (authorid, dbauthor['authorname'], author['authorname']))
 
                 new_value_dict["AuthorName"] = authorname
 
@@ -463,14 +463,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                         akas = get_list(dbauthor['AKA'], ',')
                         if author['authorname'] not in akas:
                             logger.warning("Conflicting authorname for %s [%s][%s] setting AKA" %
-                                        (authorid, author['authorname'], dbauthor['authorname']))
+                                           (authorid, author['authorname'], dbauthor['authorname']))
                             akas.append(author['authorname'])
                             db.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), authorid))
                         authorname = dbauthor['authorname']
                     if author['authorid'] != authorid:
                         # GoodReads may have altered authorid?
                         logger.warning("Conflicting authorid for %s (%s:%s) Moving to new authorid" %
-                                    (authorname, author['authorid'], authorid))
+                                       (authorname, author['authorid'], authorid))
                         db.action("PRAGMA foreign_keys = OFF")
                         db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
                                   (author['authorid'], authorid))

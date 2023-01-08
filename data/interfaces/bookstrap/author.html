@@ -109,7 +109,7 @@
         <div id="authorhead_menu">
             <h1><a href="${author['AuthorLink']}" target="_blank" rel="noreferrer">${author['AuthorName']}</a>
             %if perm&lazylibrarian.perm_edit:
-            <a href="edit_author?authorid=${author['AuthorID']}" target="_new"><small><i>Edit</i></small></a>
+            <a href="edit_author?authorid=${author['AuthorID']}"><small><i>Edit</i></small></a>
             %endif
             </h1>
             %if author['AuthorDeath']:

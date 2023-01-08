@@ -378,7 +378,7 @@ def get_capabilities(provider: ConfigDict, force=False):
                 # or might be provider doesn't do caps
                 logger.debug('Using default capabilities for %s' % provider['HOST'])
                 for key in ['GENERALSEARCH', 'EXTENDED', 'BOOKCAT', 'AUDIOCAT', 'COMICCAT', 'MAGCAT',
-                    'BOOKSEARCH', 'MAGSEARCH', 'AUDIOSEARCH', 'COMICSEARCH']:
+                            'BOOKSEARCH', 'MAGSEARCH', 'AUDIOSEARCH', 'COMICSEARCH']:
                     item = provider.get_item(key)
                     if item:
                         item.reset_to_default()
@@ -403,7 +403,7 @@ def get_capabilities(provider: ConfigDict, force=False):
             #  set some defaults
             #
             for key in ['GENERALSEARCH', 'EXTENDED', 'BOOKCAT', 'AUDIOCAT', 'COMICCAT', 'MAGCAT',
-                'BOOKSEARCH', 'MAGSEARCH', 'AUDIOSEARCH', 'COMICSEARCH']:
+                        'BOOKSEARCH', 'MAGSEARCH', 'AUDIOSEARCH', 'COMICSEARCH']:
                 item = provider.get_item(key)
                 if item:
                     item.reset_to_default()
@@ -448,7 +448,7 @@ def get_capabilities(provider: ConfigDict, force=False):
                             provider['BOOKSEARCH'] = 'book'
                         else:
                             # looks like nZEDb, probably no book-search
-                            provider['BOOKSEARCH'] = ''                        # but check in case we got some settings back
+                            provider['BOOKSEARCH'] = ''  # but check in case we got some settings back
                         search = data.find('searching/book-search')
                         if search:
                             # noinspection PyUnresolvedReferences
@@ -506,7 +506,8 @@ def iterate_over_newznab_sites(book=None, search_type=None):
     providers = 0
 
     for provider in CONFIG.providers('NEWZNAB'):
-        iterateproviderslogger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
+        iterateproviderslogger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'],
+                                                             provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
             if BLOCKHANDLER.is_blocked(provider['HOST']):
@@ -532,7 +533,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                         res = 0
                     if res >= provider.get_int('APILIMIT'):
                         BLOCKHANDLER.BLOCKHANDLER.block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
-                                       provider['APILIMIT'], delay=seconds_to_midnight())
+                                                                 provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
                         provider.set_int('APICOUNT', res + 1)
 
@@ -551,7 +552,8 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
 
     for provider in CONFIG.providers('TORZNAB'):
-        iterateproviderslogger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
+        iterateproviderslogger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'],
+                                                             provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
             if BLOCKHANDLER.is_blocked(provider['HOST']):
@@ -577,7 +579,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                         res = 0
                     if res >= provider.get_int('APILIMIT'):
                         BLOCKHANDLER.BLOCKHANDLER.block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
-                                       provider['APILIMIT'], delay=seconds_to_midnight())
+                                                                 provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
                         provider.set_int('APICOUNT', res + 1)
 
@@ -904,7 +906,8 @@ def iterate_over_irc_sites(book=None, search_type=None):
     providers = 0
     try:
         for provider in CONFIG.providers('IRC'):
-            iterateproviderslogger.debug("DLTYPES: %s: %s %s" % (provider['DISPNAME'], provider['ENABLED'], provider['DLTYPES']))
+            iterateproviderslogger.debug("DLTYPES: %s: %s %s" % (provider['DISPNAME'], provider['ENABLED'],
+                                                                 provider['DLTYPES']))
             if provider['ENABLED']:
                 ignored = False
                 if BLOCKHANDLER.is_blocked(provider['SERVER']):
@@ -1841,7 +1844,7 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict):
     return False
 
 
-def newznab_plus(book:Dict, provider:ConfigDict, search_type:str, search_mode=None, test=False):
+def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode=None, test=False):
     """
     Generic NewzNabplus query function
     takes in host+key+type and returns the result set regardless of who
@@ -1955,7 +1958,8 @@ def newznab_plus(book:Dict, provider:ConfigDict, search_type:str, search_mode=No
                 maxage = CONFIG.get_int('USENET_RETENTION')
                 for nzb in resultxml:
                     try:
-                        thisnzb = return_results_by_search_type(book, nzb, host, search_mode, provider.get_int('DLPRIORITY'))
+                        thisnzb = return_results_by_search_type(book, nzb, host, search_mode, provider.
+                                                                get_int('DLPRIORITY'))
                         thisnzb['dispname'] = provider['DISPNAME']
                         if search_type in ['book', 'shortbook', 'titlebook']:
                             thisnzb['booksearch'] = provider['BOOKSEARCH']
@@ -1987,7 +1991,7 @@ def newznab_plus(book:Dict, provider:ConfigDict, search_type:str, search_mode=No
                                                                      int(parts[1])))
                                 except Exception as e:
                                     logger.warning('Unable to get age from [%s] %s %s' %
-                                                (thisnzb['nzbdate'], type(e).__name__, str(e)))
+                                                   (thisnzb['nzbdate'], type(e).__name__, str(e)))
                                     nzbage = 0
                                 if nzbage <= maxage:
                                     nzbcount += 1

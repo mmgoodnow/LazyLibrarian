@@ -5,28 +5,32 @@ import logging
 import logging.config
 import configparser
 from bottle import Bottle, request, response
-import telemetrydb, telemetryweb
+import telemetrydb
+import telemetryweb
 
 import datetime
 from functools import wraps
 
+
 def bottle_to_logger(fn):
     """ Helper function, making Bottle logging go to our logger """
+
     @wraps(fn)
     def _log_to_logger(*args, **kwargs):
         request_time = datetime.datetime.now()
         actual_response = fn(*args, **kwargs)
         # modify this to log exactly what you need:
         _logger.info('BOB %s %s %s %s %s' % (request.remote_addr,
-                                        request_time,
-                                        request.method,
-                                        request.url,
-                                        response.status))
+                                             request_time,
+                                             request.method,
+                                             request.url,
+                                             response.status))
         return actual_response
+
     return _log_to_logger
 
 
-class TelemetryServer():
+class TelemetryServer:
     config: configparser.ConfigParser
 
     def initialize(self):
@@ -35,7 +39,6 @@ class TelemetryServer():
         self.config = configparser.ConfigParser()
         self.config.read('telemetry.ini')
 
-
         self._initlogger()
         app = Bottle()
         app.install(bottle_to_logger)
@@ -43,8 +46,8 @@ class TelemetryServer():
     def _initlogger(self):
         with open("tslogging.yaml", "r") as stream:
             try:
-               logsettings = yaml.safe_load(stream)
-               logging.config.dictConfig(logsettings)
+                logsettings = yaml.safe_load(stream)
+                logging.config.dictConfig(logsettings)
             except yaml.YAMLError as exc:
                 print(f"YAML error reading logging config: {str(exc)}")
             except Exception as e:
@@ -63,6 +66,7 @@ class TelemetryServer():
 
     def stop(self):
         self.logger.debug('Stopping server')
-        self._telemetry_db = None # Closes the database
+        self._telemetry_db = None  # Closes the database
+
 
 _logger = logging.getLogger(__name__)

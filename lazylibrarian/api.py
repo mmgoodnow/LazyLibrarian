@@ -380,7 +380,6 @@ class Api(object):
                              }
         return
 
-
     def _provider_array(self, prov_type):
         # convert provider config values to a regular array of dicts with correct types
         array = CONFIG.providers(prov_type)
@@ -396,7 +395,6 @@ class Api(object):
                     thisprov[key] = provider.get_str(key)
             providers.append(thisprov)
         return providers
-
 
     def _listproviders(self):
         TELEMETRY.record_usage_data()
@@ -489,7 +487,6 @@ class Api(object):
             mydict[name] = CONFIG.get_int(name)
         providers.append(mydict)
         mydict = {'NAME': 'BFI', 'ENABLED': CONFIG.get_bool('BFI')}
-        mydict['NAME']
         for item in ['HOST', 'DLTYPES']:
             name = "%s_%s" % ('BFI', item)
             mydict[name] = CONFIG.get_str(name)
@@ -748,7 +745,8 @@ class Api(object):
         if os.name == 'nt':
             ok, self.data = get_process_memory()
             if not ok:
-                self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Needs psutil module installed'}}
+                self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501,
+                                                                     'Message': 'Needs psutil module installed'}}
         else:
             with open('/proc/self/status') as f:
                 memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
@@ -758,7 +756,8 @@ class Api(object):
         TELEMETRY.record_usage_data()
         ok, self.data = get_cpu_use()
         if not ok:
-            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Needs psutil module installed'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501,
+                                                                 'Message': 'Needs psutil module installed'}}
 
     def _nice(self):
         TELEMETRY.record_usage_data()

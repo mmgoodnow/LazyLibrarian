@@ -189,7 +189,7 @@ def search_book(books=None, library=None):
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
                     logger.warning('eBook %s %s already marked snatched in wanted table' %
-                                (searchbook['AuthorName'], searchbook['BookName']))
+                                   (searchbook['AuthorName'], searchbook['BookName']))
                 else:
                     searchlist.append(
                         {"bookid": searchbook['BookID'],
@@ -204,7 +204,7 @@ def search_book(books=None, library=None):
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
                     logger.warning('AudioBook %s %s already marked snatched in wanted table' %
-                                (searchbook['AuthorName'], searchbook['BookName']))
+                                   (searchbook['AuthorName'], searchbook['BookName']))
                 else:
                     searchlist.append(
                         {"bookid": searchbook['BookID'],
