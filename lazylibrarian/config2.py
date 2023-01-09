@@ -5,11 +5,12 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
+import io
+import logging
 import os
 import re
 import shutil
 import sys
-import logging
 from collections import Counter
 from configparser import ConfigParser
 from os import path, sep
@@ -239,49 +240,60 @@ class LLConfigHandler(ConfigDict):
             ok = self.config['TELEMETRY_ENABLE'].get_bool()
         return ok
 
-    def save_config(self, filename: str, save_all: bool = False):
-        """
-        Save the configuration to a new file. Return number of items stored, -1 if error.
-        If save_all, saves all possible config items. If False, saves only changed items
-        """
+    def save_config_to_string(self, save_all: bool = False, redact: bool = False) -> (int, str):
 
         def add_to_parser(aparser: ConfigParser, asectionname: str, aitem: ConfigItem) -> int:
             """ Add item to parser, return 1 if added, 0 if ignored """
             if aitem.do_persist() and (save_all or not aitem.is_default()):
                 if asectionname not in aparser:
                     aparser[asectionname] = {}
-                aparser[asectionname][key] = aitem.get_save_str()
+                save_str = aitem.get_save_str()
+                if redact:
+                    for word in self.REDACTLIST:
+                        if word in save_str:
+                            save_str = save_str.replace(word, '[redacted]')
+                aparser[asectionname][key] = save_str
                 return 1
             else:
                 return 0
 
-        for _, array in self.arrays.items():
-            array.cleanup_for_save()
+        parser = ConfigParser()
+        parser.optionxform = lambda optionstr: optionstr.lower()
+
+        count = 0
+        for key, item in self.config.items():
+            count += add_to_parser(parser, item.section, item)
+
+        for name, array in self.arrays.items():
+            for inx in range(0, len(array)):
+                config = array[inx]
+                sectionname = array.get_section_str(inx)
+                for key, item in config.items():
+                    count += add_to_parser(parser, sectionname, item)
         try:
-            parser = ConfigParser()
-            parser.optionxform = lambda optionstr: optionstr.lower()
+            output = io.StringIO()
+            parser.write(output)
+            return count, output.getvalue()
+        except Exception as e:
+            self.logger.warning(f'Error saving config: {type(e).__name__} {str(e)}')
+            return -1
 
-            count = 0
-            for key, item in self.config.items():
-                count += add_to_parser(parser, item.section, item)
-
-            for name, array in self.arrays.items():
-                for inx in range(0, len(array)):
-                    config = array[inx]
-                    sectionname = array.get_section_str(inx)
-                    for key, item in config.items():
-                        count += add_to_parser(parser, sectionname, item)
-
-            try:
-                with open(filename, "w") as configfile:
-                    parser.write(configfile)
-                return count
-            except Exception as e:
-                self.logger.warning(f'Error saving config file {filename}: {type(e).__name__} {str(e)}')
-                return -1
+    def save_config_to_filename(self, filename: str, save_all: bool = False, redact: bool = False) -> int:
+        """
+        Save the configuration to a new file. Return number of items stored, -1 if error.
+        If save_all, saves all possible config items. If False, saves only changed items
+        """
+        try:
+            count, configstr = self.save_config_to_string(save_all=save_all, redact=redact)
+            with open(filename, "w") as configfile:
+                configfile.write(configstr)
+        except Exception as e:
+            self.logger.warning(f'Error saving config file {filename}: {type(e).__name__} {str(e)}')
+            count = -1
         finally:
             for _, array in self.arrays.items():
                 array.ensure_empty_end_item()
+        return count
 
     def save_config_and_backup_old(self, save_all: bool = False, section: Optional[str] = None,
                                    restart_jobs: bool = False) -> int:
@@ -298,7 +310,7 @@ class LLConfigHandler(ConfigDict):
         thread_name("CONFIG2_WRITE")
         try:
             self.logger.debug(f'Saving configuration to {self.configfilename}')
-            savecount = self.save_config(syspath(self.configfilename + '.new'), save_all)
+            savecount = self.save_config_to_filename(syspath(self.configfilename + '.new'), save_all)
             if savecount == 0:
                 return 0
             else:

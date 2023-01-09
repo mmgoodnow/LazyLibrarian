@@ -41,7 +41,7 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header, pwd_generator, pwd_check, \
+from lazylibrarian.common import create_support_zip, log_header, pwd_generator, pwd_check, \
     is_valid_email, mime_type, zip_audio, run_script, get_calibre_id
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
@@ -5733,6 +5733,16 @@ class WebInterface(object):
         result = LOGCONFIG.delete_log_files((CONFIG['LOGDIR']))
         logger.info(result)
         raise cherrypy.HTTPRedirect("logs")
+
+    @cherrypy.expose
+    def get_support_zip(self):
+        # Save the redacted log and config to a zipfile
+        self.label_thread('SAVELOG')
+        logger = logging.getLogger(__name__)
+        msg, zipfile = create_support_zip()
+        logger.info(msg)
+        return cherrypy.lib.static.serve_file(zipfile, 'application/x-download', 'attachment', os.path.basename(zipfile))
+        # raise cherrypy.HTTPRedirect("logs")
 
     @cherrypy.expose
     def log_header(self):

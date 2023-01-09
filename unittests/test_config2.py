@@ -428,7 +428,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
 
         testfile = DIRS.get_tmpfilename('test-fixed.ini')
         try:
-            count = cfg.save_config(testfile, False)  # Save only non-default values
+            count = cfg.save_config_to_filename(testfile, False)  # Save only non-default values
             self.assertTrue(count > 20, 'Saving default config.ini has unexpected # of changes')
             cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
             self.assertTrue(are_equivalent(cfg, cfgnew),
@@ -512,7 +512,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         testfile = DIRS.get_tmpfilename('test-small.ini')
         try:
-            count = cfg.save_config(testfile, False)  # Save only non-default values
+            count = cfg.save_config_to_filename(testfile, False)  # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
             cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
             self.assertTrue(are_equivalent(cfg, cfgnew),
@@ -522,11 +522,11 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
 
         cfg = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=self.COMPLEX_INI_FILE)
         with self.assertLogs(self.logger, level='WARN'):
-            count = cfg.save_config('?*/\\invalid<>file', False)  # Save only non-default values
+            count = cfg.save_config_to_filename('?*/\\invalid<>file', False)  # Save only non-default values
         self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
         try:
             testfile = DIRS.get_tmpfilename('test-changed.ini')
-            count = cfg.save_config(testfile, False)  # Save only non-default values
+            count = cfg.save_config_to_filename(testfile, False)  # Save only non-default values
             self.assertEqual(count, 39, 'Saving config.ini has unexpected # of non-default items')
             cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
             self.assertTrue(are_equivalent(cfg, cfgnew),
@@ -536,7 +536,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
 
         try:
             testfile = DIRS.get_tmpfilename('test-all.ini')
-            _ = cfg.save_config(testfile, True)  # Save everything.
+            _ = cfg.save_config_to_filename(testfile, True)  # Save everything.
             cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
             self.assertTrue(are_equivalent(cfg, cfgnew),
                             f'Save error: {testfile} is not the same as original file!')
@@ -551,7 +551,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
         cfg.set_int('Unpersisted_test', 17)
         testfile = DIRS.get_tmpfilename('test-small.ini')
         try:
-            count = cfg.save_config(testfile, False)  # Save only non-default values
+            count = cfg.save_config_to_filename(testfile, False)  # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
             cfgnew = LLConfigHandler(defaults=BASE_DEFAULTS, configfile=testfile)
             with self.assertLogs(self.logger, level='WARN'):

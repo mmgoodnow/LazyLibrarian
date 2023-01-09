@@ -36,7 +36,7 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header
+from lazylibrarian.common import log_header, create_support_zip
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
@@ -91,6 +91,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'getDebug': 'show debug log header',
             'getModules': 'show installed modules',
             'checkModules': 'Check using lazylibrarian library modules',
+            'createSupportZip': 'Create support.zip. Requires that LOGFILEREDACT is enabled',
             'clearLogs': 'clear current log',
             'getMagazines': 'list magazines',
             'getIssues': '&name= list issues of named magazine',
@@ -1201,6 +1202,11 @@ class Api(object):
         TELEMETRY.record_usage_data()
         LOGCONFIG.clear_ui_log()
         self.data = LOGCONFIG.delete_log_files(CONFIG['LOGDIR'])
+
+    def _createsupportzip(self):
+        TELEMETRY.record_usage_data()
+        msg, filename = create_support_zip()
+        self.data = f'{msg}\nFile created is {filename}'
 
     def _getindex(self):
         TELEMETRY.record_usage_data()

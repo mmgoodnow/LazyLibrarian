@@ -11,6 +11,9 @@
       <a href="clear_log" class="button btn btn-sm btn-primary"><i class="far fa-square"></i> Clear screen Log </a>
       <a href="toggle_detailed_logs" class="button btn btn-sm btn-primary"><i class="fa fa-list-ul"></i> Toggle detail/summary </a>
       <a href="delete_logs" class="button btn btn-sm btn-primary"><i class="far fa-square"></i> Delete Log Files </a>
+      %if CONFIG.get_bool('LOGFILEREDACT'):
+      <a href="get_support_zip" class="button btn btn-sm btn-primary"><i class="fa fa-save"></i> Get Support ZIP </a>
+      %endif
     </div>
   </div>
 </%def>

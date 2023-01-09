@@ -228,6 +228,9 @@ class LogConfig:
                 handler.baseFilename = self.get_full_filename(self.basefilename, redact)
                 if redact:
                     handler.addFilter(self.redact_filter)
+                    handler.mode = 'w'  # Start new file
+                else:
+                    handler.mode = 'a'  # Append to existing file
 
     def get_ui_loghandler(self) -> RecentMemoryHandler:
         return self._memorybuffer
@@ -421,6 +424,16 @@ class LogConfig:
             basefilename, ext = os.path.splitext(justfilename)
             filename = f"{basefilename}-redacted{ext}"
         return DIRS.get_logfile(filename)
+
+    def get_redacted_logfilenames(self) -> List[str]:
+        """ Return list of redacted log file names currently in use """
+        names = []
+        logger = logging.getLogger()
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                if any(filter == self.redact_filter for filter in handler.filters):
+                    names.append(handler.baseFilename)
+        return names
 
     @staticmethod
     def delete_log_files(logdir: str) -> str:

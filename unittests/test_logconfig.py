@@ -264,3 +264,22 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
             self.assertFalse(logger.isEnabledFor(logging.DEBUG),
                              f'Special logger {shortname} is disabled, but enabled for DEBUG')
 
+    def test_get_redacted_logfilenames(self):
+        LOGCONFIG.set_file_redact_filter(redact=False)
+        redactednames = LOGCONFIG.get_redacted_logfilenames()
+        self.assertEqual([], redactednames, 'Expected no redacted names when redact is off')
+
+        LOGCONFIG.set_file_redact_filter(redact=True)
+        redactednames = LOGCONFIG.get_redacted_logfilenames()
+        self.assertTrue(len(redactednames) > 0, 'Expected at least one redacted name when redact is on')
+
+    def test_change_logfileredact(self):
+        """ Same as test_get_redacted_logfilenames, except we're enabling and disabling
+        redact as if it was done from config """
+        LOGCONFIG.change_logfileredact('0')
+        redactednames = LOGCONFIG.get_redacted_logfilenames()
+        self.assertEqual([], redactednames, 'Expected no redacted names when redact is off')
+
+        LOGCONFIG.change_logfileredact('1')
+        redactednames = LOGCONFIG.get_redacted_logfilenames()
+        self.assertTrue(len(redactednames) > 0, 'Expected at least one redacted name when redact is on')

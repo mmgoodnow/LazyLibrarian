@@ -45,6 +45,7 @@ from lazylibrarian.configdefs import CONFIG_GIT
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.filesystem import DIRS, syspath, path_exists, remove_file, \
     listdir, walk, setperm
+from lazylibrarian.logconfig import LOGCONFIG
 
 
 def get_user_agent() -> str:
@@ -210,8 +211,37 @@ def get_calibre_id(data):
     return calibre_id
 
 
+def create_support_zip() -> (str, str):
+    """ Create a zip file for support purposes.
+    Returns a status message and the full name of the zip file """
+    outfile = DIRS.get_tmpfilename('support.zip')
+    with zipfile.ZipFile(outfile, 'w', compression=zipfile.ZIP_DEFLATED) as myzip:
+        try:
+            # Add logfiles
+            logfiles = LOGCONFIG.get_redacted_logfilenames()
+            if not logfiles:
+                msg = 'No redacted log files included. Please enable redacted log files.'
+            else:
+                for logfile in logfiles:
+                    myzip.write(logfile, arcname=os.path.basename(logfile))
+                msg = f'Included {len(logfiles)} redacted logfiles.'
+            # Add 'log header'
+            header = log_header()
+            myzip.writestr('systeminfo.txt', header)
+            # Add config.ini, redacted
+            count, configstr = CONFIG.save_config_to_string(save_all=False, redact=True)
+            myzip.writestr('config-redacted.ini', configstr)
+            msg += f'  Included systeminfo.txt and {count} items of redacted config.ini.'
+        except IOError as e:
+            msg = f'Error creating support.zip file: {type(e).__name__}, {str(e)}'
+        finally:
+            myzip.close()
+
+    return msg, outfile
+
+
 # noinspection PyUnresolvedReferences,PyPep8Naming
-def log_header(online=True):
+def log_header(online=True) -> str:
     logger = logging.getLogger(__name__)
     popen_list = [sys.executable, DIRS.FULL_PATH]
     popen_list += DIRS.ARGS
