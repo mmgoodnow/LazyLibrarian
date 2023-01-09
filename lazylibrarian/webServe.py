@@ -1675,11 +1675,16 @@ class WebInterface(object):
         else:  # legacy interface, no log_type
             newloglevel = int(kwargs.get('loglevel', logging.INFO))
 
-        # Temporarily enable/disable special loggers based on UI
+        # Enable/disable special loggers based on UI
+        specials = []
         for logger in LOGCONFIG.get_special_logger_list():
             shortname = LOGCONFIG.get_short_special_logger_name(logger.name)
-            uiname = f'log_{shortname}'  # Name starts with 'special.'
-            LOGCONFIG.enable_special_logger(shortname, uiname in kwargs)
+            uiname = f'log_{shortname}'
+            if uiname in kwargs:
+                specials.append(shortname)
+        specialcsv = ','.join(specials)
+        LOGCONFIG.enable_only_these_special_debuglogs(specialcsv)
+        CONFIG.set_csv('LOGSPECIALDEBUG', specialcsv)
 
         # Cherrypy logger gets special treatment
         cherrypylogger = logging.getLogger('cherrypy')

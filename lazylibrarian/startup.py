@@ -218,6 +218,7 @@ class StartupLazyLibrarian:
                 max_number=CONFIG.get_int('LOGFILES'),
                 redactui=CONFIG.get_bool('LOGREDACT'),
                 redactfiles=CONFIG.get_bool('LOGFILEREDACT'))
+            LOGCONFIG.enable_only_these_special_debuglogs(CONFIG['LOGSPECIALDEBUG'])
         self.logger = logging.getLogger(__name__)
 
     def init_misc(self, config: ConfigDict):

@@ -181,13 +181,18 @@ class LogConfig:
     def initialize_log_config(self, max_size: int, max_number: int, redactui: bool, redactfiles: bool) -> Dict:
         """ Apply a fresh configuration """
         settings = self.get_default_logconfig(console_only=False)
+        # Apply LOGDIR and LOGSIZE to all file-based loggers
         for name, handler in settings['handlers'].items():
             if 'FileHandler' in handler['class']:
                 handler['filename'] = self.get_full_filename(self.basefilename, redactfiles)
                 handler['maxBytes'] = max_size
                 handler['backupCount'] = max_number
+        # Set the configuration
         logging.config.dictConfig(settings)
         self.ensure_memoryhandler_for_ui(capacity_lines=-1, redact=redactui)
+        # Make sure all special loggers are initialized
+        for name in settings['loggers']:
+            _ = logging.getLogger(name)
 
         self.set_file_redact_filter(redactfiles)
         return settings
@@ -247,7 +252,7 @@ class LogConfig:
         return rows, len(handler.buffer)
 
     #
-    # Event handlers for when CONFIG changes
+    # Event handlers for when CONFIG changes - onchange methods
     #
 
     @staticmethod
@@ -279,7 +284,9 @@ class LogConfig:
             else:
                 logger.info('Started unredacted logging.')
 
+    #
     # Methods for dealing with normal loggers
+    #
 
     @staticmethod
     def change_root_loglevel(value: str, reason: OnChangeReason = OnChangeReason.SETTING):
@@ -375,6 +382,20 @@ class LogConfig:
     def get_short_special_logger_name(fullname: str) -> str:
         """ Return the name of the logger without 'special.' at the beginning """
         return fullname[8:]
+
+    @staticmethod
+    def enable_only_these_special_debuglogs(speciallist: str):
+        """ Uses the LOGSPECIALDEBUG setting. The speciallist string is expected to hold a comma-separated
+        list of 'short names' for special loggers, like 'fuzz, configwrite'
+        All special loggers in the list will be enabled, all others disabled """
+        specialsenabled = [item.strip() for item in speciallist.split(',')]
+        allspecials = LogConfig.get_special_logger_list()
+        for logger in allspecials:
+            shortname = LogConfig.get_short_special_logger_name(logger.name)
+            enableit = shortname in specialsenabled
+            logger = LogConfig.enable_special_logger(shortname=shortname, enabled=enableit)
+            if enableit:
+                logger.debug(f'Beginning logging with special logger {logger.name}')
 
     # Other methods for log management
 

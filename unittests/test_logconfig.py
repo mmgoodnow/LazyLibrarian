@@ -240,3 +240,27 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         res = LogConfig.delete_log_files('/logs')
         self.assertEqual(2, mock_remove.call_count)
         self.assertEqual(f"2 log file(s) deleted from /logs", res)
+
+    def test_enable_only_these_special_debuglogs(self):
+        # Enable all of them!
+        fulllist = ''
+        loggers = LOGCONFIG.get_special_logger_list()
+        fulllist = ','.join(LOGCONFIG.get_short_special_logger_name(logger.name) for logger in loggers)
+        LogConfig.enable_only_these_special_debuglogs(fulllist)
+        for logger in loggers:
+            shortname = LOGCONFIG.get_short_special_logger_name(logger.name)
+            self.assertTrue(LOGCONFIG.is_special_logger_enabled(shortname),
+                            f'All special loggers should be enabled; {shortname} is not')
+            self.assertTrue(logger.isEnabledFor(logging.DEBUG),
+                             f'Result is not consistent for {shortname}')
+
+        # Disable all special loggers
+        LogConfig.enable_only_these_special_debuglogs('')
+        loggers = LOGCONFIG.get_special_logger_list()
+        for logger in loggers:
+            shortname = LOGCONFIG.get_short_special_logger_name(logger.name)
+            self.assertFalse(LOGCONFIG.is_special_logger_enabled(shortname),
+                             f'Special logger {shortname} is not disabled')
+            self.assertFalse(logger.isEnabledFor(logging.DEBUG),
+                             f'Special logger {shortname} is disabled, but enabled for DEBUG')
+
