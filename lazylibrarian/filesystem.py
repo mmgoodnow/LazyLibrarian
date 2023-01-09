@@ -154,7 +154,7 @@ def syspath(path: str, prefix: bool = True) -> str:
     prefix on Windows, set `prefix` to False---but only do this if you
     *really* know what you're doing.
     """
-    DIRS.permlogger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
+    DIRS.permlogger.debug("%s:%s [%s] %s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
 
     if os.path.__name__ != 'ntpath':
         return path

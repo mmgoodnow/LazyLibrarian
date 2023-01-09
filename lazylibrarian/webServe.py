@@ -1686,16 +1686,6 @@ class WebInterface(object):
         LOGCONFIG.enable_only_these_special_debuglogs(specialcsv)
         CONFIG.set_csv('LOGSPECIALDEBUG', specialcsv)
 
-        # Cherrypy logger gets special treatment
-        cherrypylogger = logging.getLogger('cherrypy')
-        if 'log_cherrypy' in kwargs:
-            cherrypylogger.disabled = False
-            cherrypylogger.propagate = True
-            cherrypylogger.setLevel(logging.DEBUG)
-        else:
-            cherrypylogger.disabled = True
-            cherrypylogger.propagate = False
-
         # Store this in CONFIG so it's persisted. OnChange triggers event to activate.
         CONFIG.set_int('LOGLEVEL', newloglevel)
         CONFIG.save_config_and_backup_old(restart_jobs=True)

@@ -128,7 +128,7 @@ class LogConfig:
             "special.requests": {"level": "INFO"},
             "special.searching": {"level": "INFO"},
             "special.serverside": {"level": "INFO"},
-            "cherrypy": {"level": "INFO", "propagate": False},
+            "special.cherrypy": {"level": "INFO", "propagate": False},
             "unittest": {"level": "INFO"},
         },
         "root": {"handlers": ["console", "logfile"]},
@@ -396,6 +396,16 @@ class LogConfig:
             logger = LogConfig.enable_special_logger(shortname=shortname, enabled=enableit)
             if enableit:
                 logger.debug(f'Beginning logging with special logger {logger.name}')
+            if shortname == 'cherrypy':
+                # Cherrypy logger gets special treatment as it has its own logger we need to control
+                cherrypylogger = logging.getLogger('cherrypy')
+                if enableit:
+                    cherrypylogger.disabled = False
+                    cherrypylogger.propagate = True
+                    cherrypylogger.setLevel(logging.DEBUG)
+                else:
+                    cherrypylogger.disabled = True
+                    cherrypylogger.propagate = False
 
     # Other methods for log management
 

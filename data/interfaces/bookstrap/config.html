@@ -251,7 +251,7 @@
                       </div>
                       <div class="row checkbox">
                         <div class="col-md-6">
-                          <% checked = 'checked="checked"' if LOGCONFIG.is_logger_enabled_for('cherrypy', logging.DEBUG) else '' %>
+                          <% checked = 'checked="checked"' if LOGCONFIG.is_special_logger_enabled('cherrypy') else '' %>
                           <label for="log_cherrypy" class="control-label">
                           <input type="checkbox" id="log_cherrypy" name="log_cherrypy" value="1" ${checked} />
                           Cherrypy Webserver</label>
