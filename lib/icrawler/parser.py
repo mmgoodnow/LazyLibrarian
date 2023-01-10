@@ -7,7 +7,7 @@ from threading import current_thread
 import queue
 from urllib.parse import urlsplit
 
-from icrawler.utils import ThreadPool
+from lib.icrawler.utils import ThreadPool
 
 USER_AGENT = f'LazyLibrarian on {platform.system()}-{platform.release()}'
 

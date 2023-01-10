@@ -36,7 +36,7 @@ except ImportError:
     PIL = None
 if PIL:
     from PIL import Image as PILImage
-    from icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
+    from lib.icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
 else:
     GoogleImageCrawler = None
     BingImageCrawler = None

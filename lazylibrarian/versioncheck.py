@@ -486,7 +486,7 @@ def update():
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
             zf = tarfile.open(backup_file, mode='w:gz')
-            prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 'icrawler',
+            prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 
                             'telemetryserver', 'unittests']
             # these library folders are optional, might not exist
             lib_folders = ['bs4', 'cherrypy', 'deluge_client', 'html5lib', 'httpagentparser', 'magic',

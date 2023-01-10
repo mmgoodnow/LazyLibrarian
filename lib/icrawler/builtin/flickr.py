@@ -7,7 +7,7 @@ import os
 
 from urllib.parse import urlencode
 
-from icrawler import Crawler, Feeder, Parser, ImageDownloader
+from lib.icrawler import Crawler, Feeder, Parser, ImageDownloader
 
 
 class FlickrFeeder(Feeder):

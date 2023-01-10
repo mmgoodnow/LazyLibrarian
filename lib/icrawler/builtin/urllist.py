@@ -2,7 +2,7 @@ import threading
 
 import queue
 
-from icrawler import Crawler, Parser, UrlListFeeder, ImageDownloader
+from lib.icrawler import Crawler, Parser, UrlListFeeder, ImageDownloader
 
 
 class PseudoParser(Parser):

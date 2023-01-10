@@ -333,7 +333,7 @@ def log_header(online=True) -> str:
         import PIL
         vers = getattr(PIL, '__version__', None)
         header += "python imaging: %s\n" % vers
-        import icrawler
+        import lib.icrawler as icrawler
         header += "icrawler: %s\n" % getattr(icrawler, '__version__', None)
     except ImportError:
         header += "python imaging: not found, unable to use icrawler\n"

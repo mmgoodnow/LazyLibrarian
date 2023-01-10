@@ -2,8 +2,8 @@
 
 import json
 
-from icrawler import Crawler, Feeder, Parser, ImageDownloader
-from icrawler.builtin.filter import Filter
+from lib.icrawler import Crawler, Feeder, Parser, ImageDownloader
+from lib.icrawler.builtin.filter import Filter
 
 
 class BaiduFeeder(Feeder):
