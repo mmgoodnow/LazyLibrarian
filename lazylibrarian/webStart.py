@@ -94,11 +94,11 @@ def initialize(options=None):
         },
         '/interfaces': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'interfaces')
+            'tools.staticdir.dir': 'interfaces'
         },
         '/images': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'images')
+            'tools.staticdir.dir': 'images'
         },
         '/cache': {
             'tools.staticdir.on': True,
@@ -106,11 +106,11 @@ def initialize(options=None):
         },
         '/css': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'css')
+            'tools.staticdir.dir': 'css'
         },
         '/js': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'js')
+            'tools.staticdir.dir': 'js'
         },
         '/favicon.ico': {
             'tools.staticfile.on': True,

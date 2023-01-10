@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import logging
+import signal
 import sys
 import time
 
@@ -47,6 +48,15 @@ if sys.version_info < MIN_PYTHON_VERSION:
     sys.stderr.write("This version of Lazylibrarian requires Python %d.%d or later.\n" % MIN_PYTHON_VERSION)
     exit(0)
 
+
+def sig_shutdown(signum, stack):
+    lazylibrarian.SIGNAL = 'shutdown'
+
+def sig_update(signum, stack):
+    lazylibrarian.SIGNAL = 'update'
+
+def sig_restart(signum, stack):
+    lazylibrarian.SIGNAL = 'restart'
 
 def main():
     # rename this thread
@@ -112,6 +122,10 @@ def main():
                                lazylibrarian.config2.CONFIG['HTTP_ROOT'])
 
     starter.start_schedulers()
+
+    signal.signal(signal.SIGTERM, sig_shutdown)
+    signal.signal(signal.SIGUSR1, sig_restart)
+    signal.signal(signal.SIGUSR2, sig_update)
 
     while True:
         if not lazylibrarian.SIGNAL:

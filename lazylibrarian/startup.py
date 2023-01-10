@@ -677,7 +677,7 @@ class StartupLazyLibrarian:
 
     def shutdown(self, restart=False, update=False, quit=False, testing=False):
         if not testing:
-            cherrypy.engine.exit()
+            cherrypy.engine.stop()
             time.sleep(2)
             state = str(cherrypy.engine.state)
             self.logger.info("Cherrypy state %s" % state)
@@ -764,9 +764,13 @@ class StartupLazyLibrarian:
                                                       'Restarting LazyLibrarian with ' + str(popen_list)))
                     subprocess.Popen(popen_list, cwd=os.getcwd())
 
+                    time.sleep(4)
+                    quit = True
                     if 'HTTP_HOST' in CONFIG:
                         # updating a running instance, not an --update
                         # wait for it to open the httpserver
+                        cherrypy.engine.stop()
+                        cherrypy.server.httpserver = None                
                         host = CONFIG['HTTP_HOST']
                         if '0.0.0.0' in host:
                             host = 'localhost'  # windows doesn't like 0.0.0.0
@@ -796,6 +800,7 @@ class StartupLazyLibrarian:
                                 r = requests.get(server1)
                                 res = r.status_code
                                 if res == 200 or res == 401:
+                                    quit = True
                                     break
                             except Exception:
                                 r = None
@@ -806,6 +811,7 @@ class StartupLazyLibrarian:
                                     r = requests.get(server2)
                                     res = r.status_code
                                     if res == 200 or res == 401:
+                                        quit = True
                                         break
                                 except Exception:
                                     pass
@@ -813,11 +819,11 @@ class StartupLazyLibrarian:
                             print("Waiting... %s %s" % (pawse, res))
                             time.sleep(5)
                             pawse -= 1
-
                         if update:
                             archivename = 'backup.tgz'
                             if success:
                                 msg = 'Reached webserver page %s, deleting backup' % res
+                                quit = True
                                 if updated:
                                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
                                 self.logger.info(msg)
@@ -832,6 +838,7 @@ class StartupLazyLibrarian:
                                 msg = 'Webserver failed to start, reverting update'
                                 upgradelog.write("%s %s\n" % (time.ctime(), msg))
                                 self.logger.info(msg)
+                                cherrypy.engine.start()
                                 if tarfile.is_tarfile(archivename):
                                     try:
                                         with tarfile.open(archivename) as tar:
