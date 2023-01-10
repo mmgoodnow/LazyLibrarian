@@ -12,7 +12,7 @@ from typing import List
 
 from lazylibrarian.filesystem import DIRS
 from lazylibrarian.images import get_book_cover, crawl_image
-from unittesthelpers import LLTestCaseWithStartup
+from unittests.unittesthelpers import LLTestCaseWithStartup
 
 
 class TestImages(LLTestCaseWithStartup):
