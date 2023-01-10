@@ -479,6 +479,16 @@ def get_book_cover(bookid=None, src=None):
 
 
 def crawl_image(crawler_name, src, cachedir, bookid, safeparams):
+    """ Searches for images, finds at most one image.
+      crawler_name: baidu, bing, flickr or google
+      src: Used to name the file. Same as crawler, or googleimage
+      cachedir: Files found will be stored in a subdir of this
+      bookid: ID of the book
+      safeparams: Search used in the search
+    Returns
+      None, src if the search is unsuccessful
+      coverlink, crawler_name if successful
+    """
     logger = logging.getLogger(__name__)
     icrawlerdir = os.path.join(cachedir, 'icrawler', bookid)
     if crawler_name == 'baidu':

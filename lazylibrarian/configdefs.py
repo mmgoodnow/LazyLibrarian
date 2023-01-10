@@ -502,8 +502,9 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('rss', 'RSS_PODCAST', 1),
     ConfigStr('rss', 'RSS_HOST', ''),
     ConfigInt('General', 'PREF_UNRARLIB', 1),
-    ConfigStr('General', 'USER_AGENT', 'Mozilla/5.0 (X11; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0'),
+    ConfigStr('General', 'USER_AGENT', ''),
     ConfigBool('General', 'RATESTARS', 1),
+
     ConfigStr('Preprocess', 'EBOOK_WANTED_FORMATS', ''),
     ConfigBool('Preprocess', 'DELETE_OTHER_FORMATS', 0),
     ConfigStr('Preprocess', 'EBOOK_CONVERT', 'ebook-convert'),

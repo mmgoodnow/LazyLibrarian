@@ -2,8 +2,6 @@
 #
 # Purpose:
 #   Testing the logconfig module.
-# Constraints:
-#   Do not use the standard unittesthelper; this needs to run standalone
 
 import logging
 import os

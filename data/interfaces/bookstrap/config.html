@@ -64,7 +64,7 @@
                       <label for="http_host" class="input-group-addon">Host</label>
                       <input type="text" id="http_host" name="http_host" value="${CONFIG['HTTP_HOST']}" class="form-control" placeholder="Hostname">
                       <label for="http_port" class="input-group-addon">Port</label>
-                      <input type="number" id="http_port" name="http_port" value="${CONFIG['HTTP_PORT']}" class="form-control" placeholder="Port Number (Default 5299)">
+                      <input type="number" id="http_port" name="http_port" value="${CONFIG['HTTP_PORT']}" class="form-control" placeholder="5299">
                     </div>
                     <div class="input-group">
                       <label for="http_root" class="input-group-addon">Web Root</label>
@@ -72,7 +72,7 @@
                     </div>
                     <div class="input-group">
                       <label for="user_agent" class="input-group-addon">User Agent</label>
-                      <input type="text" id="user_agent" name="user_agent" value="${CONFIG['USER_AGENT']}" class="form-control" placeholder="">
+                      <input type="text" id="user_agent" name="user_agent" value="${CONFIG['USER_AGENT']}" class="form-control" placeholder="LazyLibrarian">
                     </div>
                   </fieldset>
                   <fieldset>
@@ -146,7 +146,7 @@
                           <% checked = 'checked="checked"' if CONFIG['LOGREDACT'] else '' %>
                           <label for="logredact" class="control-label">
                           <input type="checkbox" id="logredact" name="logredact" value="1" ${checked} />
-                          Redact information in screen log</label>
+                          Redact on-screen log</label>
                         </div>
                         <div class="col-md-6">
                           <% checked = 'checked="checked"' if CONFIG['HOSTREDACT'] else '' %>
