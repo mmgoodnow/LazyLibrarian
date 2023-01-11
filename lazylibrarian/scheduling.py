@@ -71,7 +71,7 @@ def shutdownscheduler():
         pass
 
 
-def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
+def next_run_time(when_run: str, test_now: Optional[datetime.datetime] = None):
     """
     Returns a readable approximation of how long until a job will be run,
     given a string representing the last time it was run
@@ -219,34 +219,48 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
     if target == '':
         return
 
+    stopjob = None
+    startjob = None
     logger = logging.getLogger(__name__)
     if action in [SchedulerCommand.STOP, SchedulerCommand.RESTART]:
         for job in SCHED.get_jobs():
             if target in str(job):
-                SCHED.unschedule_job(job)
-                logger.debug(f"Stop {target} job")
+                stopjob = job
                 break
 
     if action in [SchedulerCommand.START, SchedulerCommand.RESTART, SchedulerCommand.STARTNOW]:
-        for job in SCHED.get_jobs():
-            if target in str(job):
-                logger.debug("%s %s job, already scheduled" % (action.value, target))
-                return  # return if already running, if not, start a new one
+        if not stopjob:
+            for job in SCHED.get_jobs():
+                if target in str(job):
+                    logger.debug("%s %s job, already scheduled" % (action.value, target))
+                    return  # return if already running, if not, start a new one
 
         schedule = CONFIG.get_configscheduler(target)
         if schedule:
             if CONFIG.scheduler_can_run(schedule):
                 # Perform local adjustments to the schedule before proceeding
                 adjust_schedule(schedule)
-                hours, minutes = schedule.get_hour_min_interval()
-                startdate = get_next_run_time(schedule.run_name, minutes + hours * 60, action)
-                method = schedule.get_method()
-                if method:
-                    SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
-                else:
-                    logger.error(f'Cannot find method {schedule.method_name} for scheduled job {target}')
+                startjob = schedule
         else:
             logger.error(f'Could not find scheduler for job {target}')
+
+    if stopjob and startjob:
+        # Make sure we only stop and start jobs where the interval has changed
+        hours, minutes = startjob.get_hour_min_interval()
+        if stopjob.trigger.interval_length - 60*(hours*60+minutes) < 2:
+            stopjob = startjob = None  # 2 seconds tolerance: No change
+
+    if stopjob:
+        logger.debug(f"Stop {target} job")
+        SCHED.unschedule_job(stopjob)
+    if startjob:
+        method = startjob.get_method()
+        if method:
+            hours, minutes = startjob.get_hour_min_interval()
+            startdate = get_next_run_time(startjob.run_name, minutes + hours * 60, action)
+            SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
+        else:
+            logger.error(f'Cannot find method {startjob.method_name} for scheduled job {target}')
 
 
 def author_update(restart=True, only_overdue=True):
@@ -352,14 +366,10 @@ def restart_jobs(command=SchedulerCommand.RESTART):
         schedule_job(command, scheduler.get_schedule_name())
 
 
-def ensure_running(jobname):
+def ensure_running(jobname: str):
+    """ Ensure that the job named jobname is running """
     lazylibrarian.STOPTHREADS = False
-    found = False
-    for job in SCHED.get_jobs():
-        if jobname in str(job):
-            found = True
-            break
-    if not found:
+    if not any(jobname in str(job) for job in SCHED.get_jobs()):
         schedule_job(SchedulerCommand.START, jobname)
 
 

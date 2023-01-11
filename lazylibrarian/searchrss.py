@@ -143,106 +143,91 @@ def search_wishlist():
     try:
         db = database.DBConnection()
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
-        resultlist, wishproviders = iterate_over_wishlists()
-        if not wishproviders:
-            logger.debug('No wishlists are set')
-            schedule_job(action=SchedulerCommand.STOP, target='search_wishlist')
-            return  # No point in continuing
+        try:
+            resultlist, wishproviders = iterate_over_wishlists()
+            if not wishproviders:
+                logger.debug('No wishlists are set')
+                schedule_job(action=SchedulerCommand.STOP, target='search_wishlist')
+                return  # No point in continuing
 
-        # for each item in resultlist, add to database if necessary, and mark as wanted
-        logger.debug('Processing %s %s in wishlists' % (len(resultlist), plural(len(resultlist), "item")))
-        for book in resultlist:
-            # we get rss_author, rss_title, maybe rss_isbn, rss_bookid (goodreads bookid)
-            # we can just use bookid if goodreads, or try isbn and name matching on author/title if not
-            # eg NYTimes wishlist
-            if lazylibrarian.STOPTHREADS and thread_name() == "SEARCHWISHLIST":
-                logger.debug("Aborting SEARCHWISHLIST")
-                break
+            # for each item in resultlist, add to database if necessary, and mark as wanted
+            logger.debug('Processing %s %s in wishlists' % (len(resultlist), plural(len(resultlist), "item")))
+            for book in resultlist:
+                # we get rss_author, rss_title, maybe rss_isbn, rss_bookid (goodreads bookid)
+                # we can just use bookid if goodreads, or try isbn and name matching on author/title if not
+                # eg NYTimes wishlist
+                if lazylibrarian.STOPTHREADS and thread_name() == "SEARCHWISHLIST":
+                    logger.debug("Aborting SEARCHWISHLIST")
+                    break
 
-            if 'E' in book['types']:
-                ebook_status = "Wanted"
-            else:
-                ebook_status = "Skipped"
-            if 'A' in book['types']:
-                audio_status = "Wanted"
-            else:
-                audio_status = "Skipped"
-
-            item = {'Title': book['rss_title']}
-            if book.get('rss_bookid'):
-                item['BookID'] = book['rss_bookid']
-            if book.get('rss_isbn'):
-                item['ISBN'] = book['rss_isbn']
-
-            bookmatch = finditem(item, book['rss_author'], reason="wishlist: %s" % book['dispname'])
-            if bookmatch:  # it's in the database
-                want_book, want_audio = want_existing(bookmatch, book, search_start, ebook_status, audio_status)
-                if want_book:
-                    new_books.append({"bookid": bookmatch['BookID']})
-                if want_audio:
-                    new_audio.append({"bookid": bookmatch['BookID']})
-            else:  # not in database yet
-                results = []
-                authorname = format_author_name(book['rss_author'], postfix=CONFIG.get_list('NAME_POSTFIX'))
-                authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
-                if authmatch:
-                    logger.debug("Author %s found in database, %s" % (authorname, authmatch['Status']))
-                    if authmatch['Status'] == 'Ignored':
-                        authorname = ''
+                if 'E' in book['types']:
+                    ebook_status = "Wanted"
                 else:
-                    logger.debug("Author %s not found" % authorname)
-                    newauthor, _, _ = add_author_name_to_db(author=authorname, addbooks=False,
-                                                            reason="wishlist: %s" % book['rss_title'],
-                                                            title=book['rss_title'])
-                    if newauthor and newauthor != authorname:
-                        logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
-                        authorname = newauthor
-                    if not newauthor:
-                        logger.warning("Authorname %s not added to database" % authorname)
-                        authorname = ''
+                    ebook_status = "Skipped"
+                if 'A' in book['types']:
+                    audio_status = "Wanted"
+                else:
+                    audio_status = "Skipped"
 
-                if authorname and book['rss_isbn']:
-                    results = search_for(book['rss_isbn'])
-                    for result in results:
-                        if result['isbn_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
-                            logger.info("Found %s (%s%%) %s: %s" %
-                                        (result['bookid'], result['isbn_fuzz'], result['authorname'],
-                                         result['bookname']))
-                            if result['authorname'] != authorname:
-                                logger.debug("isbn authorname mismatch %s:%s" % (result['authorname'], authorname))
-                                authorname = result['authorname']
-                                bookmatch = finditem(item, result['authorname'],
-                                                     reason="wishlist: %s" % book['dispname'])
-                                if bookmatch:  # it's in the database under isbn authorname
-                                    want_book, want_audio = want_existing(bookmatch, book, search_start,
-                                                                          ebook_status, audio_status)
-                                    if want_book:
-                                        new_books.append({"bookid": bookmatch['BookID']})
-                                    if want_audio:
-                                        new_audio.append({"bookid": bookmatch['BookID']})
-                                    authorname = None  # to skip adding it again
-                            else:
-                                bookmatch = result
-                            break
+                item = {'Title': book['rss_title']}
+                if book.get('rss_bookid'):
+                    item['BookID'] = book['rss_bookid']
+                if book.get('rss_isbn'):
+                    item['ISBN'] = book['rss_isbn']
 
-                if authorname and not bookmatch:
-                    searchterm = "%s <ll> %s" % (book['rss_title'], authorname)
-                    results = search_for(unaccented(searchterm, only_ascii=False))
-                    for result in results:
-                        if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
-                                and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
-                            logger.info("Found %s (%s%% %s%%) %s: %s" %
-                                        (result['bookid'], result['author_fuzz'], result['book_fuzz'],
-                                         result['authorname'], result['bookname']))
-                            bookmatch = result
-                            break
+                bookmatch = finditem(item, book['rss_author'], reason="wishlist: %s" % book['dispname'])
+                if bookmatch:  # it's in the database
+                    want_book, want_audio = want_existing(bookmatch, book, search_start, ebook_status, audio_status)
+                    if want_book:
+                        new_books.append({"bookid": bookmatch['BookID']})
+                    if want_audio:
+                        new_audio.append({"bookid": bookmatch['BookID']})
+                else:  # not in database yet
+                    results = []
+                    authorname = format_author_name(book['rss_author'], postfix=CONFIG.get_list('NAME_POSTFIX'))
+                    authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
+                    if authmatch:
+                        logger.debug("Author %s found in database, %s" % (authorname, authmatch['Status']))
+                        if authmatch['Status'] == 'Ignored':
+                            authorname = ''
+                    else:
+                        logger.debug("Author %s not found" % authorname)
+                        newauthor, _, _ = add_author_name_to_db(author=authorname, addbooks=False,
+                                                                reason="wishlist: %s" % book['rss_title'],
+                                                                title=book['rss_title'])
+                        if newauthor and newauthor != authorname:
+                            logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
+                            authorname = newauthor
+                        if not newauthor:
+                            logger.warning("Authorname %s not added to database" % authorname)
+                            authorname = ''
 
-                if authorname and not bookmatch:
-                    # no match on full searchterm, try splitting out subtitle and series
-                    newtitle, _, _ = split_title(authorname, book['rss_title'])
-                    if newtitle != book['rss_title']:
-                        title = newtitle
-                        searchterm = "%s <ll> %s" % (title, authorname)
+                    if authorname and book['rss_isbn']:
+                        results = search_for(book['rss_isbn'])
+                        for result in results:
+                            if result['isbn_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
+                                logger.info("Found %s (%s%%) %s: %s" %
+                                            (result['bookid'], result['isbn_fuzz'], result['authorname'],
+                                             result['bookname']))
+                                if result['authorname'] != authorname:
+                                    logger.debug("isbn authorname mismatch %s:%s" % (result['authorname'], authorname))
+                                    authorname = result['authorname']
+                                    bookmatch = finditem(item, result['authorname'],
+                                                         reason="wishlist: %s" % book['dispname'])
+                                    if bookmatch:  # it's in the database under isbn authorname
+                                        want_book, want_audio = want_existing(bookmatch, book, search_start,
+                                                                              ebook_status, audio_status)
+                                        if want_book:
+                                            new_books.append({"bookid": bookmatch['BookID']})
+                                        if want_audio:
+                                            new_audio.append({"bookid": bookmatch['BookID']})
+                                        authorname = None  # to skip adding it again
+                                else:
+                                    bookmatch = result
+                                break
+
+                    if authorname and not bookmatch:
+                        searchterm = "%s <ll> %s" % (book['rss_title'], authorname)
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:
                             if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
@@ -253,36 +238,52 @@ def search_wishlist():
                                 bookmatch = result
                                 break
 
-                if authorname and bookmatch:
-                    import_book(bookmatch['bookid'], ebook_status, audio_status,
-                                reason="Added from wishlist %s" % book["dispname"])
-                    if ebook_status == 'Wanted':
-                        new_books.append({"bookid": bookmatch['bookid']})
-                    if audio_status == 'Wanted':
-                        new_audio.append({"bookid": bookmatch['bookid']})
-                    new_value_dict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
-                    control_value_dict = {"BookID": bookmatch['bookid']}
-                    db.upsert("books", new_value_dict, control_value_dict)
+                    if authorname and not bookmatch:
+                        # no match on full searchterm, try splitting out subtitle and series
+                        newtitle, _, _ = split_title(authorname, book['rss_title'])
+                        if newtitle != book['rss_title']:
+                            title = newtitle
+                            searchterm = "%s <ll> %s" % (title, authorname)
+                            results = search_for(unaccented(searchterm, only_ascii=False))
+                            for result in results:
+                                if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
+                                        and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
+                                    logger.info("Found %s (%s%% %s%%) %s: %s" %
+                                                (result['bookid'], result['author_fuzz'], result['book_fuzz'],
+                                                 result['authorname'], result['bookname']))
+                                    bookmatch = result
+                                    break
 
-                elif authorname is not None:
-                    msg = "Skipping book %s by %s" % (book['rss_title'], book['rss_author'])
-                    if not results:
-                        msg += ', No results returned'
-                        logger.warning(msg)
-                    else:
-                        msg += ', No match found'
-                        logger.warning(msg)
-                        logger.warning("Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
-                                                                             results[0]['book_fuzz'],
-                                                                             results[0]['authorname'],
-                                                                             results[0]['bookname']))
-        if new_books or new_audio:
-            tot = len(new_books) + len(new_audio)
-            logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "item")))
-        else:
-            logger.debug("Wishlist marked no new items as Wanted")
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+                    if authorname and bookmatch:
+                        import_book(bookmatch['bookid'], ebook_status, audio_status,
+                                    reason="Added from wishlist %s" % book["dispname"])
+                        if ebook_status == 'Wanted':
+                            new_books.append({"bookid": bookmatch['bookid']})
+                        if audio_status == 'Wanted':
+                            new_audio.append({"bookid": bookmatch['bookid']})
+                        new_value_dict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
+                        control_value_dict = {"BookID": bookmatch['bookid']}
+                        db.upsert("books", new_value_dict, control_value_dict)
 
+                    elif authorname is not None:
+                        msg = "Skipping book %s by %s" % (book['rss_title'], book['rss_author'])
+                        if not results:
+                            msg += ', No results returned'
+                            logger.warning(msg)
+                        else:
+                            msg += ', No match found'
+                            logger.warning(msg)
+                            logger.warning("Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
+                                                                                 results[0]['book_fuzz'],
+                                                                                 results[0]['authorname'],
+                                                                                 results[0]['bookname']))
+            if new_books or new_audio:
+                tot = len(new_books) + len(new_audio)
+                logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "item")))
+            else:
+                logger.debug("Wishlist marked no new items as Wanted")
+        finally:
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
     except Exception:
         logger.error('Unhandled exception in search_wishlist: %s' % traceback.format_exc())
     finally:

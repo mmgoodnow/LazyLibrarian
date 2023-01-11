@@ -238,6 +238,8 @@ class LLConfigHandler(ConfigDict):
             ok = self.get_bool('GR_SYNC')
         if ok and scheduler.run_name == 'TELEMETRYSEND':  # Special case for telemetry
             ok = self.config['TELEMETRY_ENABLE'].get_bool()
+        if ok and scheduler.run_name == 'SEARCHALLRSS':  # Special case for RSS
+            ok = self.use_rss()
         return ok
 
     def save_config_to_string(self, save_all: bool = False, redact: bool = False) -> (int, str):
