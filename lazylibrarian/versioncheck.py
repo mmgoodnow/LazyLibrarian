@@ -462,7 +462,8 @@ def update_version_file(new_version_id):
 def update():
     TELEMETRY.record_usage_data('Version/Update')
     logger = logging.getLogger(__name__)
-    with open(syspath(DIRS.get_logfile('upgrade.log')), 'a') as upgradelog:
+    logdir = DIRS.ensure_data_subdir('Logs')
+    with open(os.path.join(logdir, 'upgrade.log'), 'a') as upgradelog:
         if CONFIG['INSTALL_TYPE'] == 'win':
             msg = 'Windows .exe updating not supported yet.'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
@@ -474,11 +475,11 @@ def update():
             logger.info(msg)
             return False
         if lazylibrarian.DOCKER:
-            msg = 'Docker does not officially allow upgrading the program inside the container,'
-            msg += ' but we\'ll try anyway...'
+            msg = 'Docker does not allow upgrading the program inside the container,'
+            msg += ' please rebuild your docker container instead'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
-
+            return False
         try:
             # try to create a backup in case the upgrade is faulty...
             backup_file = os.path.join(DIRS.PROG_DIR, "backup.tgz")
