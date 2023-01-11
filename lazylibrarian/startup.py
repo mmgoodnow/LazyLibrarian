@@ -676,11 +676,6 @@ class StartupLazyLibrarian:
             restart_jobs(command=SchedulerCommand.START)
 
     def shutdown(self, restart=False, update=False, quit=False, testing=False):
-        if not testing:
-            cherrypy.engine.stop()
-            time.sleep(2)
-            state = str(cherrypy.engine.state)
-            self.logger.info("Cherrypy state %s" % state)
         shutdownscheduler()
         if not testing:
             if self.logger.isEnabledFor(logging.DEBUG):  # TODO add a separate setting
@@ -766,7 +761,7 @@ class StartupLazyLibrarian:
 
                     time.sleep(4)
                     quit = True
-                    if 'HTTP_HOST' in CONFIG:
+                    if cherrypy.server.httpserver is not None:
                         # updating a running instance, not an --update
                         # wait for it to open the httpserver
                         cherrypy.engine.stop()
