@@ -318,7 +318,7 @@ class Config2Test(LLTestCaseWithConfigandDIRS):
                           'search_wishlist', 'search_comics', 'check_for_updates', 'sync_to_goodreads', 'clean_cache',
                           'author_update', 'series_update'])
         self.assertEqual(persistcount, 9)
-        self.assertEqual(canruncount, 7)
+        self.assertEqual(canruncount, 6)
 
     def test_force_lower(self):
         """ Test various string configss that have force_lower and make sure they are. """

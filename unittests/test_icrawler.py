@@ -8,7 +8,7 @@ import shutil
 import tempfile
 import unittest
 
-from icrawler.builtin import (BaiduImageCrawler, BingImageCrawler,
+from lib.icrawler.builtin import (BaiduImageCrawler, BingImageCrawler,
                               GoogleImageCrawler, GreedyImageCrawler,
                               UrlListCrawler)
 
