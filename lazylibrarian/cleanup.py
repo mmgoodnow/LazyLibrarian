@@ -14,32 +14,33 @@ import shutil
 import importlib
 
 
-def unbundle_libraries():
+dependencies = [
+    # pip name, bundled name, aka
+    ('bs4', '', ''),
+    ('html5lib', '', ''),
+    ('webencodings', '', ''),
+    ('requests', '', ''), 
+    ('urllib3', '', ''),
+    ('pyOpenSSL', None, 'OpenSSL'),
+    ('cherrypy', '', ''),
+    ('cherrypy_cors', 'cherrypy_cors.py', ''),
+    ('httpagentparser', '', ''),
+    ('mako', '', ''),
+    ('httplib2', '', ''),
+    ('Pillow', None, 'PIL'),
+    ('apprise', None, ''),
+    ('PyPDF3', '', ''),
+    ('python_magic', 'magic', 'magic'),
+    ('thefuzz', '', ''),
+    ('Levenshtein', None, ''),
+    ('deluge_client', '', ''),
+]
+
+def unbundle_libraries(dependencies, testing=False):
     docker = '/config' in sys.argv and sys.argv[0].startswith('/app/')
     bypass_file = os.path.join(os.getcwd(), 'unbundled.libs')
-    if not docker and not os.path.isfile(bypass_file):
-        dependencies = [
-            # pip name, bundled name, aka
-            ('bs4', '', ''),
-            ('html5lib', '', ''),
-            ('webencodings', '', ''),
-            ('requests', '', ''), 
-            ('urllib3', '', ''),
-            ('pyOpenSSL', None, 'OpenSSL'),
-            ('cherrypy', '', ''),
-            ('cherrypy_cors', 'cherrypy_cors.py', ''),
-            ('httpagentparser', '', ''),
-            ('mako', '', ''),
-            ('httplib2', '', ''),
-            ('Pillow', None, 'PIL'),
-            ('apprise', None, ''),
-            ('PyPDF3', '', ''),
-            ('python_magic', 'magic', 'magic'),
-            ('thefuzz', '', ''),
-            ('Levenshtein', None, ''),
-            ('deluge_client', '', ''),
-        ]
-
+    removed = []
+    if not docker and (testing or not os.path.isfile(bypass_file)):
         bundled = {}
         distro = {}
         missing = []
@@ -88,18 +89,21 @@ def unbundle_libraries():
                     deletable.append(item[1] if item[1] else item[0])
 
         cwd = os.getcwd()
-        removed = []
         for item in deletable:
             f = os.path.join(cwd, item)
             # might have already been deleted
             if os.path.isdir(f):
-                shutil.rmtree(f)
+                if not testing:
+                    shutil.rmtree(f)
                 print("Removed bundled", item)
                 removed.append(item)
             if os.path.isfile(f):
-                os.remove(f)
+                if not testing:
+                    os.remove(f)
                 print("Removed bundled", item)
                 removed.append(item)
-        with open(bypass_file, 'w') as f:
-            f.write(str(removed))
+        if not testing:
+            with open(bypass_file, 'w') as f:
+                f.write(str(removed))
         sys.path.insert(0, current_dir)
+    return removed
