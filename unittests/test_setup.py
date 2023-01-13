@@ -1,19 +1,23 @@
 #  This file is part of Lazylibrarian.
 #
 # Purpose:
-#   Testing the library file cleanup
+#   Testing the startup sequence
 
-from lazylibrarian.cleanup import unbundle_libraries
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.notifiers import APPRISE_VER
+from unittests.unittesthelpers import LLTestCase
 
 
-class CleanupTest(LLTestCase):
+class SetupTest(LLTestCase):
 
-    def testCleanup(self):
-        # Validate that we don't remove a library that isn't bundled
-        lib = [('apprise', None, '')]
-        res = unbundle_libraries(lib, testing=True)
-        self.assertEqual([], res)
-        # validate that we correctly remove a bundled library that can be system version
-        lib = [('cherrypy_cors', 'cherrypy_cors.py', '')]
-        res = unbundle_libraries(lib, testing=True)
-        self.assertEqual(['cherrypy_cors.py'], res)
+    def testConfig(self):
+        # Validate that basic global objects and configs have run
+        self.assertIsNotNone(CONFIG)
+        self.assertIsInstance(CONFIG.get_int('LOGLIMIT'), int)
+
+    def testApprise(self):
+        # Validate that APPRISE is defined properly; it's set up as a global in notifiers,
+        # copied from the value received during load in apprise_notify. This allows us to
+        # avoid circular dependencies.
+        self.assertIsNotNone(APPRISE_VER)
+
