@@ -3,10 +3,11 @@
 # Purpose:
 #   Testing the library file cleanup
 
+from unittest import TestCase
 from lazylibrarian.cleanup import unbundle_libraries
 
 
-class CleanupTest():
+class CleanupTest(TestCase):
 
     def testCleanup(self):
         # Validate that we don't remove a library that isn't bundled
