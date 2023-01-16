@@ -31,12 +31,12 @@ db_lock = threading.Lock()
 class DBConnection:
     def __init__(self):
         try:
-            self.connection = sqlite3.connect(DIRS.get_dbfile(), 20)
-            # journal disabled since we never do rollbacks
+            self.connection = sqlite3.connect(DIRS.get_dbfile(), 20,)
+            # Use write-ahead logging to do fewer disk writes
             self.connection.execute("PRAGMA journal_mode = WAL")
             # sync less often as using WAL mode
             self.connection.execute("PRAGMA synchronous = NORMAL")
-            # 32mb of cache
+            # 32,384 pages of cache
             self.connection.execute("PRAGMA cache_size=-%s" % (32 * 1024))
             # for cascade deletes
             self.connection.execute("PRAGMA foreign_keys = ON")
@@ -45,14 +45,24 @@ class DBConnection:
             self.dblog = syspath(DIRS.get_logfile('database.log'))
             self.logger = logging.getLogger(__name__)
             self.dbcommslogger = logging.getLogger('special.dbcomms')
+            self.dbcommslogger.debug('open')
+            self.opened = 1
         except Exception as e:
-            self.logger.debug(str(e))
-            self.logger.debug(DIRS.get_dbfile())
-            self.logger.debug(str(os.stat(DIRS.get_dbfile())))
+            logger = logging.getLogger(__name__)
+            logger.debug(str(e))
+            logger.debug(DIRS.get_dbfile())
+            logger.debug(str(os.stat(DIRS.get_dbfile())))
+            self.connection.close()
+            raise e
+
+    def __del__(self):
+        if self.opened > 0:
+            self.close()
 
     def close(self):
         self.dbcommslogger.debug('close')
         with db_lock:
+            self.opened -= 1
             self.connection.close()
 
     def commit(self):
@@ -61,7 +71,7 @@ class DBConnection:
             self.connection.commit()
 
     # wrapper function with lock
-    def action(self, query, args=None, suppress=None):
+    def action(self, query: str, args=None, suppress=None):
         if not query:
             return None
         with db_lock:

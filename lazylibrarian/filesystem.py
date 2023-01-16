@@ -25,6 +25,7 @@ class DirectoryHolder:
     TMPDIR: str  # Where LL will store temporary files
     FULL_PATH: str  # Fully qualified name of executable running
     PROG_DIR = ''  # The path of LazyLibrarian
+    DBFILENAME = 'lazylibrarian.db'
     ARGS: str  # Command line arguments
     config: ConfigDict  # A reference to the config being used
     logger: logging.Logger
@@ -103,7 +104,7 @@ class DirectoryHolder:
 
     def get_dbfile(self):
         """ Return the name of the LL database file """
-        return os.path.join(self.DATADIR, 'lazylibrarian.db')
+        return os.path.join(self.DATADIR, self.DBFILENAME)
 
     def get_logfile(self, filename: str) -> str:
         """ Return the full name of filename in the LOG directory """
