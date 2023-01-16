@@ -36,6 +36,7 @@ dependencies = [
     ('deluge_client', '', ''),
 ]
 
+
 def unbundle_libraries(dependencies, testing=False):
     docker = '/config' in sys.argv and sys.argv[0].startswith('/app/')
     bypass_file = os.path.join(os.getcwd(), 'unbundled.libs')
@@ -64,7 +65,7 @@ def unbundle_libraries(dependencies, testing=False):
                 for finder in sys.meta_path:
                     if hasattr(finder, 'find_spec'):
                         spec = finder.find_spec(importlib.util.resolve_name(name, None), None)
-                        if spec is not None:
+                        if spec is not None and not spec.origin.startswith(current_dir):
                             distro[name] = spec.origin
                             break
                 if not spec:
