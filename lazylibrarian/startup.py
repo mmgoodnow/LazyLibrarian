@@ -716,7 +716,7 @@ class StartupLazyLibrarian:
             self.logger.info('Removing pidfile %s' % lazylibrarian.PIDFILE)
             os.remove(syspath(lazylibrarian.PIDFILE))
 
-        if restart and not quit:
+        if not quit:
             self.logger.info('LazyLibrarian is restarting ...')
             if not lazylibrarian.DOCKER:
                 # Try to use the currently running python executable, as it is known to work
@@ -757,12 +757,12 @@ class StartupLazyLibrarian:
                     if updated:
                         upgradelog.write("%s %s\n" % (time.ctime(),
                                                       'Restarting LazyLibrarian with ' + str(popen_list)))
-                    subprocess.Popen(popen_list, cwd=os.getcwd())
 
+                    subprocess.Popen(popen_list, cwd=os.getcwd())
                     quit = True
                     if cherrypy.server.httpserver is not None:
                         # updating a running instance, not an --update
-                        # wait for it to open the httpserver
+                        # wait for the new instance to open the httpserver
                         cherrypy.engine.stop()
                         cherrypy.server.httpserver = None                
                         host = CONFIG['HTTP_HOST']
