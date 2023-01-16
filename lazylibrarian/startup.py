@@ -759,7 +759,6 @@ class StartupLazyLibrarian:
                                                       'Restarting LazyLibrarian with ' + str(popen_list)))
                     subprocess.Popen(popen_list, cwd=os.getcwd())
 
-                    time.sleep(4)
                     quit = True
                     if cherrypy.server.httpserver is not None:
                         # updating a running instance, not an --update
@@ -856,4 +855,5 @@ class StartupLazyLibrarian:
 
         if quit:
             self.logger.info('Lazylibrarian (pid %s) is exiting now' % os.getpid())
+            cherrypy.engine.stop()
             sys.exit(0)
