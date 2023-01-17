@@ -277,6 +277,14 @@
                           Config Write Value</label>
                         </div>
                       </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <% checked = 'checked="checked"' if LOGCONFIG.is_special_logger_enabled('iterateproviders') else '' %>
+                          <label for="log_iterateproviders" class="control-label">
+                          <input type="checkbox" id="log_iterateproviders" name="log_iterateproviders" value="1" ${checked} />
+                          Iterating providers</label>
+                        </div>
+                      </div>
                     </fieldset>
                   </fieldset>
                   <br>
