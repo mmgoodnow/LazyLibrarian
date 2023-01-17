@@ -26,7 +26,7 @@ import time
 import lazylibrarian
 from lazylibrarian import startup, webStart
 from lazylibrarian.formatter import thread_name
-from lazylibrarian.cleanup import unbundle_libraries, dependencies
+from lazylibrarian.cleanup import unbundle_libraries
 
 # The following should probably be made configurable at the settings level
 # This fix is put in place for systems with broken SSL (like QNAP)
@@ -138,5 +138,5 @@ def main():
 
 
 if __name__ == "__main__":
-    _ = unbundle_libraries(dependencies)
+    _ = unbundle_libraries()
     main()
