@@ -19,9 +19,9 @@ class CleanupTest(TestCase):
     def test_get_library_locations(self):
         # Validate that we know this library isn't bundled
         lib = [('apprise', '', '')]
-        bundled, distro = get_library_locations(lib)
+        bundled, distro = get_library_locations(basedir='/test', dependencies=lib)
         self.assertTrue(lib[0][0] not in bundled)
-        self.assertLessEqual(1, len(distro), 'Expect to find at most 1 item in distro')
+        self.assertLessEqual(len(distro), 1, 'Expect to find at most 1 item in distro')
         if distro:
             self.assertTrue(lib[0][0] in distro, 'Expect to find the key for the lib we looked for')
 
@@ -76,16 +76,16 @@ class CleanupTest(TestCase):
     def test_delete_libraries(self, mock_shutil_rmtree, mock_os_path_isfile, mock_os_path_isdir, mock_os_remove):
         cwd = os.getcwd()
         libraries = []
-        removed = delete_libraries(libraries)
+        removed = delete_libraries('', libraries)
         self.assertEqual([], removed, 'We removed libraries when none were supplied')
 
         # Test removing a file
         mock_os_path_isdir.return_value = False
         mock_os_path_isfile.return_value = True
         libraries = ['somefile']
-        removed = delete_libraries(libraries)
+        removed = delete_libraries('/test', libraries)
         self.assertEqual(['somefile'], removed, 'Expected to remove the file supplied')
-        expect = os.path.join(cwd, 'somefile')
+        expect = os.path.join('/test', 'somefile')
         mock_os_path_isdir.assert_called_with(expect)
         mock_os_remove.assert_called_with(expect)
 
@@ -93,8 +93,8 @@ class CleanupTest(TestCase):
         mock_os_path_isdir.return_value = True
         mock_os_path_isfile.return_value = False
         libraries = ['somedir']
-        removed = delete_libraries(libraries)
+        removed = delete_libraries('/test', libraries)
         self.assertEqual(['somedir'], removed, 'Expected to remove the dir supplied')
-        expect = os.path.join(cwd, 'somedir')
+        expect = os.path.join('/test', 'somedir')
         mock_os_path_isdir.assert_called_with(expect)
         mock_shutil_rmtree.assert_called_with(expect)

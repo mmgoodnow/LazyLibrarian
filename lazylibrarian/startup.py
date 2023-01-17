@@ -205,9 +205,6 @@ class StartupLazyLibrarian:
         config.post_load_fixup()
         DIRS.ensure_log_dir()
 
-        if options.nolaunch:
-            config.set_bool('LAUNCH_BROWSER', False)
-
     def init_loggers(self, console_only: bool):
         """ Initialize log files. Until this is done, do not use the logger """
         if console_only:
