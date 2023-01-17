@@ -375,6 +375,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigCSV('Comics', 'REJECT_COMIC', 'epub, mobi', force_lower=True),
     ConfigInt('Comics', 'REJECT_MAXCOMIC', 0),
     ConfigInt('Comics', 'REJECT_MINCOMIC', 0),
+    ConfigStr('Comics', 'CV_APIKEY', ''),  # ComicVine API key
 
     ConfigBool('Magazines', 'MAG_IMG', 1),
     ConfigBool('Magazines', 'MAG_TAB', 1),
@@ -470,7 +471,6 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigCSV('Email', 'EMAIL_SEND_TYPE', '', force_lower=True),
     ConfigStr('API', 'BOOK_API', 'OpenLibrary'),
     ConfigStr('API', 'LT_DEVKEY', ''),
-    ConfigStr('API', 'CV_APIKEY', ''),
     ConfigBool('API', 'CV_WEBSEARCH', 0),
     ConfigStr('API', 'GR_API', 'ckvsiSDsuqh7omh74ZZ6Q'),
     ConfigBool('API', 'GR_SYNC', 0),

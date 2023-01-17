@@ -112,7 +112,7 @@ def cv_identify(fname, best=True):
         # don't nag. Show warning message no more than every 20 mins
         timenow = int(time.time())
         if check_int(lazylibrarian.TIMERS['NO_CV_MSG'], 0) + 1200 < timenow:
-            logger.warning("Please obtain an apikey from https://comicvine.gamespot.com/api/")
+            logger.warning("Please obtain an apikey from https://comicvine.gamespot.com/api/ and add as CV_APIKEY in config.ini")
             lazylibrarian.TIMERS['NO_CV_MSG'] = timenow
         return []
 
