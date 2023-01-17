@@ -10,8 +10,7 @@ from unittest import TestCase
 
 import mock
 
-from lazylibrarian.cleanup import ll_dependencies, get_library_locations, calc_libraries_to_delete, \
-    install_missing_libraries, delete_libraries
+from lazylibrarian.cleanup import UNBUNDLER, ll_dependencies
 
 
 class CleanupTest(TestCase):
@@ -19,7 +18,7 @@ class CleanupTest(TestCase):
     def test_get_library_locations(self):
         # Validate that we know this library isn't bundled
         lib = [('apprise', '', '')]
-        bundled, distro = get_library_locations(basedir='/test', dependencies=lib)
+        bundled, distro = UNBUNDLER._get_library_locations(dependencies=lib)
         self.assertTrue(lib[0][0] not in bundled)
         self.assertLessEqual(len(distro), 1, 'Expect to find at most 1 item in distro')
         if distro:
@@ -32,14 +31,14 @@ class CleanupTest(TestCase):
         # Most basic case: Nothing bundled, nothing in distro
         distro = {}
         bundled = {}
-        newdistro = install_missing_libraries(bundled, distro)
+        newdistro = UNBUNDLER._install_missing_libraries(bundled, distro)
         self.assertEqual({}, newdistro, 'Expect empty list of distro')
 
         # Install two fake libraries successfully:
         distro = {}
         bundled = {'abc': 'somewhere', 'def': 'somewhereelse'}
         mock_subprocess_run.stdout = 'Success'
-        newdistro = install_missing_libraries(bundled, distro)
+        newdistro = UNBUNDLER._install_missing_libraries(bundled, distro)
         self.assertEqual({'abc': 'new install', 'def': 'new install'}, newdistro, 'Libs did not install as expected')
 
         # Fake failing at installing a library
@@ -47,26 +46,34 @@ class CleanupTest(TestCase):
         bundled = {'abc': 'somewhere'}
         mock_subprocess_run.stdout = 'Error installing abc...'
         mock_subprocess_run.side_effect = mock.Mock(side_effect=subprocess.CalledProcessError(17, 'pip', 'Error'))
-        newdistro = install_missing_libraries(bundled, distro)
+        newdistro = UNBUNDLER._install_missing_libraries(bundled, distro)
         self.assertEqual({}, newdistro, 'Expected empty distro list after error installing')
 
     def test_calc_libraries_to_delete(self):
         # Test that we calculate the list of libraries to delete correctly
         distro = {}
-        todel = calc_libraries_to_delete(ll_dependencies, distro)
+        bundled = {}
+        todel = UNBUNDLER._calc_libraries_to_delete(ll_dependencies, bundled, distro)
         self.assertListEqual([], todel, 'Expect no deletions when distro list is empty')
 
         # Test 3 libraries to use pipname and aka:
         distro = {'urllib3': 'somepath',
                   'PIL': 'xyz',
                   'cherrypy_cors': 'abc'}
-        todel = calc_libraries_to_delete(ll_dependencies, distro)
+        bundled = {}
+        todel = UNBUNDLER._calc_libraries_to_delete(ll_dependencies, bundled, distro)
+        self.assertListEqual([], todel, 'Expect no deletions when bundled list is empty')
+
+        bundled = {'urllib3': 'xyz',
+                   'Pillow': 'abs',
+                   'cherrypy_cors': 'test'}
+        todel = UNBUNDLER._calc_libraries_to_delete(ll_dependencies, bundled, distro)
         self.assertEqual(len(distro), len(todel), 'Expect to see delete list same len as distro')
         self.assertListEqual(['urllib3', 'cherrypy_cors.py', 'Pillow'], todel, 'Did not get expected list of deletions')
 
         # Test for library that doesn't exist
         distro = {'randomlib': '', }
-        todel = calc_libraries_to_delete(ll_dependencies, distro)
+        todel = UNBUNDLER._calc_libraries_to_delete(ll_dependencies, bundled, distro)
         self.assertEqual(0, len(todel), 'Expect to see no deletions')
 
     @mock.patch.object(os, 'remove')
@@ -74,18 +81,17 @@ class CleanupTest(TestCase):
     @mock.patch.object(os.path, 'isfile')
     @mock.patch.object(shutil, 'rmtree')
     def test_delete_libraries(self, mock_shutil_rmtree, mock_os_path_isfile, mock_os_path_isdir, mock_os_remove):
-        cwd = os.getcwd()
         libraries = []
-        removed = delete_libraries('', libraries)
+        removed = UNBUNDLER._delete_libraries(libraries)
         self.assertEqual([], removed, 'We removed libraries when none were supplied')
 
         # Test removing a file
         mock_os_path_isdir.return_value = False
         mock_os_path_isfile.return_value = True
         libraries = ['somefile']
-        removed = delete_libraries('/test', libraries)
+        removed = UNBUNDLER._delete_libraries(libraries)
         self.assertEqual(['somefile'], removed, 'Expected to remove the file supplied')
-        expect = os.path.join('/test', 'somefile')
+        expect = os.path.join(UNBUNDLER.basedir, 'somefile')
         mock_os_path_isdir.assert_called_with(expect)
         mock_os_remove.assert_called_with(expect)
 
@@ -93,8 +99,8 @@ class CleanupTest(TestCase):
         mock_os_path_isdir.return_value = True
         mock_os_path_isfile.return_value = False
         libraries = ['somedir']
-        removed = delete_libraries('/test', libraries)
+        removed = UNBUNDLER._delete_libraries(libraries)
         self.assertEqual(['somedir'], removed, 'Expected to remove the dir supplied')
-        expect = os.path.join('/test', 'somedir')
+        expect = os.path.join(UNBUNDLER.basedir, 'somedir')
         mock_os_path_isdir.assert_called_with(expect)
         mock_shutil_rmtree.assert_called_with(expect)

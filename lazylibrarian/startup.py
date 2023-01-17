@@ -37,6 +37,7 @@ import lazylibrarian
 from lazylibrarian import database, versioncheck
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.cleanup import UNBUNDLER
 from lazylibrarian.common import log_header
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.configtypes import ConfigDict
@@ -851,6 +852,8 @@ class StartupLazyLibrarian:
                                     subprocess.Popen(popen_list, cwd=os.getcwd())
 
         if quit and not testing:
-            self.logger.info('Lazylibrarian (pid %s) is exiting now' % os.getpid())
+            self.logger.info('Lazylibrarian (pid %s) is exiting' % os.getpid())
             cherrypy.engine.stop()
+            # Do this as the last step before existing
+            UNBUNDLER.remove_bundled_modules()
             sys.exit(0)
