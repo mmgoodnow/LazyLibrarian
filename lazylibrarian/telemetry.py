@@ -274,8 +274,8 @@ def telemetry_send() -> str:
         thread_name("TELEMETRYSEND")
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
     try:
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         TELEMETRY.set_install_data(CONFIG, testing=False)
         TELEMETRY.set_config_data(CONFIG)
         if CONFIG['TELEMETRY_SERVER'] == '':
@@ -290,5 +290,6 @@ def telemetry_send() -> str:
         logger.debug(f'Telemetry data sending: {result}, {status}')
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        db.close()
         thread_name(threadname)
     return result

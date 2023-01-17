@@ -485,10 +485,10 @@ def sync_to_gr():
     new_books = []
     new_audio = []
 
+    thread_name('GRSync')
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        thread_name('GRSync')
-        db = database.DBConnection()
         db.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
         if CONFIG.get_bool('GR_SYNCUSER'):
             user = db.match("SELECT * from users WHERE UserID=?", (CONFIG['GR_USER'],))
@@ -581,15 +581,11 @@ def sync_to_gr():
                         msg += "%s %s to Audio Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
 
         logger.info(msg.strip('\n').replace('\n', ', '))
-        db = database.DBConnection()
         db.upsert("jobs", {"Finish": time.time()}, {"Name": "GRSYNC"})
     except Exception:
         logger.error("Exception in sync_to_gr: %s" % traceback.format_exc())
     finally:
-        # schedule_job("Stop", "search_book")
-        # schedule_job("StartNow", "search_book")
-        # schedule_job("Stop", "search_rss_book")
-        # schedule_job("StartNow", "search_rss_book")
+        db.close()
         if new_books:
             threading.Thread(target=lazylibrarian.searchrss.search_rss_book, name='GRSYNCRSSBOOKS',
                              args=[new_books, 'eBook']).start()
@@ -607,7 +603,10 @@ def sync_to_gr():
 
 def grfollow(authorid, follow=True):
     db = database.DBConnection()
-    match = db.match('SELECT AuthorName,GRfollow from authors WHERE authorid=?', (authorid,))
+    try:
+        match = db.match('SELECT AuthorName,GRfollow from authors WHERE authorid=?', (authorid,))
+    finally:
+        db.close()
     if match:
         if follow:
             action = 'Follow'
@@ -635,8 +634,8 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
     loggergrsync = logging.getLogger('special.grsync')
-    db = database.DBConnection()
     dstatus = status
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
         usershelf = None
@@ -1041,3 +1040,5 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
     except Exception:
         logger.error('Unhandled exception in grsync: %s' % traceback.format_exc())
         return 0, []
+    finally:
+        db.close()

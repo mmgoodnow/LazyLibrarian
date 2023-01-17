@@ -215,14 +215,16 @@ def check_for_updates():
         thread_name("CRON-VERSIONCHECK")
         auto_update = CONFIG.get_bool('AUTO_UPDATE')
     # noinspection PyBroadException
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         columns = db.match('PRAGMA table_info(jobs)')
         if columns:
             db.upsert("jobs", {"Start": time.time()}, {"Name": "VERSIONCHECK"})
     except Exception:
         # jobs table might not exist yet
         pass
+    finally:
+        db.close()
 
     logger.debug('Setting Install Type, Current & Latest Version and Commit status')
     get_install_type()
@@ -265,14 +267,16 @@ def check_for_updates():
 
     logger.debug('Update check complete')
     # noinspection PyBroadException
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         columns = db.match('PRAGMA table_info(jobs)')
         if columns:
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "VERSIONCHECK"})
     except Exception:
         # jobs table might not exist yet
         pass
+    finally:
+        db.close()
 
 
 def get_latest_version():

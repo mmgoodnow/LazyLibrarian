@@ -79,78 +79,80 @@ def use_label(source, library):
 def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider: str = ''):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    source = provider
-    msg = ''
-    logger.debug("Starting IRC Download for [%s]" % dl_title)
-    fname = ""
-    data = None
-    myprov = None
+    try:
+        source = provider
+        msg = ''
+        logger.debug("Starting IRC Download for [%s]" % dl_title)
+        fname = ""
+        data = None
+        myprov = None
 
-    for item in CONFIG.providers('IRC'):
-        if item['NAME'] == provider or item['DISPNAME'] == provider:
-            myprov = item
-            break
+        for item in CONFIG.providers('IRC'):
+            if item['NAME'] == provider or item['DISPNAME'] == provider:
+                myprov = item
+                break
 
-    if not myprov:
-        msg = "%s server not found" % provider
-    else:
-        myprov.set_connection(None)  # new download, start a new connection
-        irc = irc_connect(myprov)
-        if not irc:
-            msg = "Failed to connect"
-            myprov.set_connection(None)
+        if not myprov:
+            msg = "%s server not found" % provider
         else:
-            fname, data = irc_search(myprov, dl_title, cmd=dl_url, cache=False)
-            if not fname:
+            myprov.set_connection(None)  # new download, start a new connection
+            irc = irc_connect(myprov)
+            if not irc:
+                msg = "Failed to connect"
                 myprov.set_connection(None)
+            else:
+                fname, data = irc_search(myprov, dl_title, cmd=dl_url, cache=False)
+                if not fname:
+                    myprov.set_connection(None)
 
-    # noinspection PyTypeChecker
-    download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
+        # noinspection PyTypeChecker
+        download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 
-    if fname and data:
-        fname = sanitize(fname)
-        destdir = os.path.join(get_directory('Download'), fname)
-        if not path_isdir(destdir):
-            _ = make_dirs(destdir)
+        if fname and data:
+            fname = sanitize(fname)
+            destdir = os.path.join(get_directory('Download'), fname)
+            if not path_isdir(destdir):
+                _ = make_dirs(destdir)
 
-        destfile = os.path.join(destdir, fname)
+            destfile = os.path.join(destdir, fname)
 
-        try:
-            with open(syspath(destfile), 'wb') as bookfile:
-                bookfile.write(data)
-            setperm(destfile)
-        except Exception as e:
-            msg = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
-            logger.error(msg)
-            return False, msg
+            try:
+                with open(syspath(destfile), 'wb') as bookfile:
+                    bookfile.write(data)
+                setperm(destfile)
+            except Exception as e:
+                msg = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
+                logger.error(msg)
+                return False, msg
 
-        logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
-        if library == 'eBook':
-            db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-        elif library == 'AudioBook':
-            db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-        db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
-                  (source, download_id, dl_url, dl_title))
-        record_usage_data('Download/IRC/Success')
-        return True, ''
+            logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+            if library == 'eBook':
+                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+            elif library == 'AudioBook':
+                db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
+                      (source, download_id, dl_url, dl_title))
+            record_usage_data('Download/IRC/Success')
+            return True, ''
 
-    elif not fname:
-        msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
-        msg += 'WHERE NZBurl=? and NZBtitle=?'
-        if not data:
-            data = 'Failed'
-        db.action(msg, (source, download_id, data, dl_url, dl_title))
-        msg = data
-        if 'timed out' in data:  # need to reconnect
-            if myprov:
-                myprov.set_connection(None)
-            logger.error(msg)
+        elif not fname:
+            msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
+            msg += 'WHERE NZBurl=? and NZBtitle=?'
+            if not data:
+                data = 'Failed'
+            db.action(msg, (source, download_id, data, dl_url, dl_title))
+            msg = data
+            if 'timed out' in data:  # need to reconnect
+                if myprov:
+                    myprov.set_connection(None)
+                logger.error(msg)
+    finally:
+        db.close()
     return False, msg
 
 
 def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', label=''):
     logger = logging.getLogger(__name__)
-    db = database.DBConnection()
     source = ''
     download_id = ''
 
@@ -242,13 +244,17 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         return False, res
 
     if download_id:
-        logger.debug('Nzbfile has been downloaded from ' + str(nzburl))
-        if library == 'eBook':
-            db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-        elif library == 'AudioBook':
-            db.action('UPDATE books SET audiostatus = "Snatched" WHERE BookID=?', (bookid,))
-        db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
-                  (source, download_id, nzburl))
+        db = database.DBConnection()
+        try:
+            logger.debug('Nzbfile has been downloaded from ' + str(nzburl))
+            if library == 'eBook':
+                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+            elif library == 'AudioBook':
+                db.action('UPDATE books SET audiostatus = "Snatched" WHERE BookID=?', (bookid,))
+            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
+                      (source, download_id, nzburl))
+        finally:
+            db.close()
         record_usage_data('Download/NZB/Success')
         return True, ''
     else:
@@ -259,7 +265,6 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
 
 def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=''):
     logger = logging.getLogger(__name__)
-    db = database.DBConnection()
     source = "DIRECT"
     logger.debug("Starting Direct Download for [%s]" % dl_title)
     proxies = proxy_list()
@@ -400,14 +405,18 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     bookfile.write(r.content)
                 setperm(destfile)
                 download_id = hashid
-                logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
-                if library == 'eBook':
-                    db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-                elif library == 'AudioBook':
-                    db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-                cmd = 'UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, '
-                cmd += 'completed=? WHERE BookID=? and NZBProv=?'
-                db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
+                db = database.DBConnection()
+                try:
+                    logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+                    if library == 'eBook':
+                        db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+                    elif library == 'AudioBook':
+                        db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+                    cmd = 'UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, '
+                    cmd += 'completed=? WHERE BookID=? and NZBProv=?'
+                    db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
+                finally:
+                    db.close()
                 record_usage_data('Download/Direct/Success')
                 return True, ''
             except Exception as e:
@@ -488,7 +497,6 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
 def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', label=''):
     logger = logging.getLogger(__name__)
-    db = database.DBConnection()
     download_id = False
     source = ''
     torrent = ''
@@ -778,51 +786,55 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
         return False, res
 
     if download_id:
-        if tor_title:
-            if make_unicode(download_id).upper() in make_unicode(tor_title).upper():
-                logger.warning('%s: name contains hash, probably unresolved magnet' % source)
-            else:
-                tor_title = unaccented(tor_title, only_ascii=False)
-                # need to check against reject words list again as the name may have changed
-                # library = magazine eBook AudioBook to determine which reject list,
-                # but we can't easily do the per-magazine rejects
-                if library == 'magazine':
-                    reject_list = get_list(CONFIG['REJECT_MAGS'], ',')
-                elif library == 'eBook':
-                    reject_list = get_list(CONFIG['REJECT_WORDS'], ',')
-                elif library == 'AudioBook':
-                    reject_list = get_list(CONFIG['REJECT_AUDIO'], ',')
-                elif library == 'Comic':
-                    reject_list = get_list(CONFIG['REJECT_COMIC'], ',')
+        db = database.DBConnection()
+        try:
+            if tor_title:
+                if make_unicode(download_id).upper() in make_unicode(tor_title).upper():
+                    logger.warning('%s: name contains hash, probably unresolved magnet' % source)
                 else:
-                    logger.debug("Invalid library [%s] in tor_dl_method" % library)
-                    reject_list = []
+                    tor_title = unaccented(tor_title, only_ascii=False)
+                    # need to check against reject words list again as the name may have changed
+                    # library = magazine eBook AudioBook to determine which reject list,
+                    # but we can't easily do the per-magazine rejects
+                    if library == 'magazine':
+                        reject_list = get_list(CONFIG['REJECT_MAGS'], ',')
+                    elif library == 'eBook':
+                        reject_list = get_list(CONFIG['REJECT_WORDS'], ',')
+                    elif library == 'AudioBook':
+                        reject_list = get_list(CONFIG['REJECT_AUDIO'], ',')
+                    elif library == 'Comic':
+                        reject_list = get_list(CONFIG['REJECT_COMIC'], ',')
+                    else:
+                        logger.debug("Invalid library [%s] in tor_dl_method" % library)
+                        reject_list = []
 
-                rejected = False
-                lower_title = tor_title.lower()
-                for word in reject_list:
-                    if word in lower_title:
-                        rejected = "Rejecting torrent name %s, contains %s" % (tor_title, word)
-                        logger.debug(rejected)
-                        break
-                if not rejected:
-                    rejected = check_contents(source, download_id, library, tor_title)
-                if rejected:
-                    db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
-                              (rejected, full_url))
-                    if CONFIG.get_bool('DEL_FAILED'):
-                        delete_task(source, download_id, True)
-                    return False, rejected
-                else:
-                    logger.debug('%s setting torrent name to [%s]' % (source, tor_title))
-                    db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
+                    rejected = False
+                    lower_title = tor_title.lower()
+                    for word in reject_list:
+                        if word in lower_title:
+                            rejected = "Rejecting torrent name %s, contains %s" % (tor_title, word)
+                            logger.debug(rejected)
+                            break
+                    if not rejected:
+                        rejected = check_contents(source, download_id, library, tor_title)
+                    if rejected:
+                        db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                                  (rejected, full_url))
+                        if CONFIG.get_bool('DEL_FAILED'):
+                            delete_task(source, download_id, True)
+                        return False, rejected
+                    else:
+                        logger.debug('%s setting torrent name to [%s]' % (source, tor_title))
+                        db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
 
-        if library == 'eBook':
-            db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-        elif library == 'AudioBook':
-            db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-        db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
-                  (source, download_id, full_url))
+            if library == 'eBook':
+                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+            elif library == 'AudioBook':
+                db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
+                      (source, download_id, full_url))
+        finally:
+            db.close()
         record_usage_data('Download/TOR/Success')
         return True, ''
 

@@ -374,6 +374,7 @@ class GoodReads:
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
                          entrystatus='Active', refresh=False, reason='gr.get_author_books'):
         # noinspection PyBroadException
+        db = database.DBConnection()
         try:
             entryreason = reason
             api_hits = 0
@@ -384,7 +385,6 @@ class GoodReads:
             not_cached = 0
 
             # Artist is loading
-            db = database.DBConnection()
             control_value_dict = {"AuthorID": authorid}
             new_value_dict = {"Status": "Loading"}
             db.upsert("authors", new_value_dict, control_value_dict)
@@ -1117,144 +1117,148 @@ class GoodReads:
             if refresh:
                 self.logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
                                  (authorname, added_count, plural(added_count, "book"),
-                                 updated_count, plural(updated_count, "book")))
+                                  updated_count, plural(updated_count, "book")))
             else:
                 self.logger.info("[%s] Book processing complete: Added %s %s to the database" %
                                  (authorname, added_count, plural(added_count, "book")))
 
         except Exception:
             self.logger.error('Unhandled exception in GR.get_author_books: %s' % traceback.format_exc())
+        finally:
+            db.close()
 
     def verify_ids(self, authorid):
         """ GoodReads occasionally consolidates bookids/workids and renumbers so check if changed... """
         db = database.DBConnection()
-        cmd = "select BookID,gr_id,BookName from books WHERE AuthorID=? and gr_id is not NULL"
-        books = db.select(cmd, (authorid,))
-        counter = 0
-        self.logger.debug('Checking BookID/WorkID for %s %s' % (len(books), plural(len(books), "book")))
-        page = ''
-        pages = []
-        for book in books:
-            bookid = book['gr_id']
-            if not bookid:
-                self.logger.warning("No gr_id for %s" % book['BookName'])
-            else:
-                if page:
-                    page = page + ','
-                page = page + bookid
-                counter += 1
-                if counter == 50:
-                    counter = 0
-                    pages.append(page)
-                    page = ''
-        if page:
-            pages.append(page)
-
-        found = 0
-        differ = 0
-        notfound = []
-        pagecount = 0
-        for page in pages:
-            pagecount += 1
-            url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' +
-                            urlencode(self.params)])
-            try:
-                self.loggersearching.debug(url)
-                rootxml, _ = gr_xml_request(url, use_cache=False)
-                if rootxml is None:
-                    self.logger.debug("Error requesting id_to_work_id page")
+        try:
+            cmd = "select BookID,gr_id,BookName from books WHERE AuthorID=? and gr_id is not NULL"
+            books = db.select(cmd, (authorid,))
+            counter = 0
+            self.logger.debug('Checking BookID/WorkID for %s %s' % (len(books), plural(len(books), "book")))
+            page = ''
+            pages = []
+            for book in books:
+                bookid = book['gr_id']
+                if not bookid:
+                    self.logger.warning("No gr_id for %s" % book['BookName'])
                 else:
-                    resultxml = rootxml.find('work-ids')
-                    if len(resultxml):
-                        ids = resultxml.iter('item')
-                        books = get_list(page)
-                        cnt = 0
-                        for item in ids:
-                            workid = item.text
-                            if not workid:
-                                notfound.append(books[cnt])
-                                self.logger.debug("No workid returned for %s" % books[cnt])
-                            else:
-                                found += 1
-                                res = db.match("SELECT WorkID from books WHERE bookid=?", (books[cnt],))
-                                if res:
-                                    if res['WorkID'] != workid:
-                                        differ += 1
-                                        self.logger.debug("Updating workid for %s from [%s] to [%s]" % (
-                                                     books[cnt], res['WorkID'], workid))
-                                        control_value_dict = {"gr_id": books[cnt]}
-                                        new_value_dict = {"WorkID": workid}
-                                        db.upsert("books", new_value_dict, control_value_dict)
+                    if page:
+                        page = page + ','
+                    page = page + bookid
+                    counter += 1
+                    if counter == 50:
+                        counter = 0
+                        pages.append(page)
+                        page = ''
+            if page:
+                pages.append(page)
+
+            found = 0
+            differ = 0
+            notfound = []
+            pagecount = 0
+            for page in pages:
+                pagecount += 1
+                url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' +
+                                urlencode(self.params)])
+                try:
+                    self.loggersearching.debug(url)
+                    rootxml, _ = gr_xml_request(url, use_cache=False)
+                    if rootxml is None:
+                        self.logger.debug("Error requesting id_to_work_id page")
+                    else:
+                        resultxml = rootxml.find('work-ids')
+                        if len(resultxml):
+                            ids = resultxml.iter('item')
+                            books = get_list(page)
+                            cnt = 0
+                            for item in ids:
+                                workid = item.text
+                                if not workid:
+                                    notfound.append(books[cnt])
+                                    self.logger.debug("No workid returned for %s" % books[cnt])
+                                else:
+                                    found += 1
+                                    res = db.match("SELECT WorkID from books WHERE bookid=?", (books[cnt],))
+                                    if res:
+                                        if res['WorkID'] != workid:
+                                            differ += 1
+                                            self.logger.debug("Updating workid for %s from [%s] to [%s]" % (
+                                                         books[cnt], res['WorkID'], workid))
+                                            control_value_dict = {"gr_id": books[cnt]}
+                                            new_value_dict = {"WorkID": workid}
+                                            db.upsert("books", new_value_dict, control_value_dict)
+                                cnt += 1
+
+                except Exception as e:
+                    self.logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
+            self.logger.debug("BookID/WorkID Found %d, Differ %d, Missing %d" % (found, differ, len(notfound)))
+
+            cnt = 0
+            for bookid in notfound:
+                res = db.match("SELECT BookName,Status,AudioStatus from books WHERE gr_id=?", (bookid,))
+                if res:
+                    if CONFIG.get_bool('FULL_SCAN'):
+                        if res['Status'] in ['Wanted', 'Open', 'Have']:
+                            self.logger.warning("Keeping unknown goodreads bookid %s: %s, Status is %s" %
+                                                (bookid, res['BookName'], res['Status']))
+                        elif res['AudioStatus'] in ['Wanted', 'Open', 'Have']:
+                            self.logger.warning("Keeping unknown goodreads bookid %s: %s, AudioStatus is %s" %
+                                                (bookid, res['BookName'], res['Status']))
+                        else:
+                            self.logger.debug("Deleting unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
+                            db.action("DELETE from books WHERE gr_id=?", (bookid,))
                             cnt += 1
-
-            except Exception as e:
-                self.logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
-        self.logger.debug("BookID/WorkID Found %d, Differ %d, Missing %d" % (found, differ, len(notfound)))
-
-        cnt = 0
-        for bookid in notfound:
-            res = db.match("SELECT BookName,Status,AudioStatus from books WHERE gr_id=?", (bookid,))
-            if res:
-                if CONFIG.get_bool('FULL_SCAN'):
-                    if res['Status'] in ['Wanted', 'Open', 'Have']:
-                        self.logger.warning("Keeping unknown goodreads bookid %s: %s, Status is %s" %
-                                            (bookid, res['BookName'], res['Status']))
-                    elif res['AudioStatus'] in ['Wanted', 'Open', 'Have']:
-                        self.logger.warning("Keeping unknown goodreads bookid %s: %s, AudioStatus is %s" %
-                                            (bookid, res['BookName'], res['Status']))
                     else:
-                        self.logger.debug("Deleting unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
-                        db.action("DELETE from books WHERE gr_id=?", (bookid,))
-                        cnt += 1
-                else:
-                    self.logger.warning("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
-        if cnt:
-            self.logger.warning("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
+                        self.logger.warning("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
+            if cnt:
+                self.logger.warning("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
 
-        # Check for any duplicate titles for this author in the library
-        cmd = "select count('bookname'),bookname from books where authorid=? "
-        cmd += "group by bookname having ( count(bookname) > 1 )"
-        res = db.select(cmd, (authorid,))
-        dupes = len(res)
-        if dupes:
-            for item in res:
-                cmd = "select BookID,BookSub,Status,AudioStatus from books where bookname=? and authorid=?"
-                dupe_books = db.select(cmd, (item['bookname'], authorid))
-                cnt = len(dupe_books)
-                booksubs = []
-                for dupe in dupe_books:
-                    cnt -= 1
-                    if dupe['Status'] not in ['Ignored', 'Skipped'] \
-                            or dupe['AudioStatus'] not in ['Ignored', 'Skipped']:
-                        # this one is important (owned/wanted/snatched)
-                        self.logger.debug("Keeping bookid %s (%s/%s)" %
-                                          (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
-                    elif dupe['BookSub'] not in booksubs:
-                        booksubs.append(dupe['BookSub'])
-                        self.logger.debug("Keeping bookid %s [%s][%s]" %
-                                          (dupe['BookID'], item['bookname'], dupe['BookSub']))
-                    elif cnt:
-                        self.logger.debug("Removing bookid %s (%s/%s) %s" %
-                                          (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
-                    else:
-                        self.logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
-                                          (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
+            # Check for any duplicate titles for this author in the library
+            cmd = "select count('bookname'),bookname from books where authorid=? "
+            cmd += "group by bookname having ( count(bookname) > 1 )"
+            res = db.select(cmd, (authorid,))
+            dupes = len(res)
+            if dupes:
+                for item in res:
+                    cmd = "select BookID,BookSub,Status,AudioStatus from books where bookname=? and authorid=?"
+                    dupe_books = db.select(cmd, (item['bookname'], authorid))
+                    cnt = len(dupe_books)
+                    booksubs = []
+                    for dupe in dupe_books:
+                        cnt -= 1
+                        if dupe['Status'] not in ['Ignored', 'Skipped'] \
+                                or dupe['AudioStatus'] not in ['Ignored', 'Skipped']:
+                            # this one is important (owned/wanted/snatched)
+                            self.logger.debug("Keeping bookid %s (%s/%s)" %
+                                              (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
+                        elif dupe['BookSub'] not in booksubs:
+                            booksubs.append(dupe['BookSub'])
+                            self.logger.debug("Keeping bookid %s [%s][%s]" %
+                                              (dupe['BookID'], item['bookname'], dupe['BookSub']))
+                        elif cnt:
+                            self.logger.debug("Removing bookid %s (%s/%s) %s" %
+                                              (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
+                        else:
+                            self.logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
+                                              (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
 
-        # Warn about any remaining unignored dupes
-        cmd = "select count('bookname'),bookname from books where authorid=? and "
-        cmd += "( Status != 'Ignored' or AudioStatus != 'Ignored' ) group by bookname having ( count(bookname) > 1 )"
-        res = db.select(cmd, (authorid,))
-        dupes = len(res)
-        if dupes:
-            author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
-            self.logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
-                                author['AuthorName']))
-            for item in res:
-                self.logger.debug("%02d: %s" % (item[0], item[1]))
+            # Warn about any remaining unignored dupes
+            cmd = "select count('bookname'),bookname from books where authorid=? and "
+            cmd += "( Status != 'Ignored' or AudioStatus != 'Ignored' ) group by bookname having ( count(bookname) > 1 )"
+            res = db.select(cmd, (authorid,))
+            dupes = len(res)
+            if dupes:
+                author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
+                self.logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
+                                    author['AuthorName']))
+                for item in res:
+                    self.logger.debug("%02d: %s" % (item[0], item[1]))
+        finally:
+            db.close()
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
         self.logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
-        db = database.DBConnection()
         url = '/'.join([CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(self.params)])
         try:
             self.loggersearching.debug(url)
@@ -1372,164 +1376,168 @@ class GoodReads:
         bookpages = rootxml.find('.book/num_pages').text
         workid = rootxml.find('.book/work/id').text
 
-        match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
-        if match:
-            author = {'authorid': authorid, 'authorname': match['AuthorName']}
-        else:
-            match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
+        db = database.DBConnection()
+        try:
+            match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
             if match:
-                self.logger.debug('%s: Changing authorid from %s to %s' %
-                                  (authorname, authorid, match['AuthorID']))
-                author = {'authorid': match['AuthorID'], 'authorname': authorname}
+                author = {'authorid': authorid, 'authorname': match['AuthorName']}
             else:
-                gr = GoodReads(authorname)
-                author = gr.find_author_id()
-        if author:
-            author_id = author['authorid']
-            match = db.match('SELECT * from authors WHERE AuthorID=?', (author_id,))
-            if not match:
-                # no author but request to add book, add author with newauthor status
-                # User hit "add book" button from a search, or a wishlist import, or api call
-                newauthor_status = 'Active'
-                if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
-                    newauthor_status = 'Paused'
-                # also pause author if adding as a series contributor/wishlist/grsync
-                if reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason:
-                    newauthor_status = 'Paused'
-                control_value_dict = {"AuthorID": author_id}
-                new_value_dict = {
-                    "AuthorName": author['authorname'],
-                    "AuthorImg": author['authorimg'],
-                    "AuthorLink": author['authorlink'],
-                    "AuthorBorn": author['authorborn'],
-                    "AuthorDeath": author['authordeath'],
-                    "DateAdded": today(),
-                    "Updated": int(time.time()),
-                    "Status": newauthor_status,
-                    "Reason": reason
-                }
-                self.logger.debug("Adding author %s %s, %s" % (author_id, author['authorname'], newauthor_status))
-                # cmd = 'insert into authors (AuthorID, AuthorName, AuthorImg, AuthorLink, AuthorBorn,'
-                # cmd += ' AuthorDeath, DateAdded, Updated, Status, Reason) values (?,?,?,?,?,?,?,?,?,?)'
-                # db.action(cmd, (AuthorID, author['authorname'], author['authorimg'], author['authorlink'],
-                #                   author['authorborn'], author['authordeath'], today(), int(time.time()),
-                #                   newauthor_status, reason))
-
-                db.upsert("authors", new_value_dict, control_value_dict)
-                db.commit()  # shouldn't really be necessary as context manager commits?
-                authorname = author['authorname']
-                if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
-                    self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
-                                          reason=reason)
-        else:
-            self.logger.warning("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
-            return
-
-        # bookname = unaccented(bookname, only_ascii=False)
-        bookname, booksub, bookseries = split_title(authorname, bookname)
-        dic = {':': '.', '"': ''}
-        bookname = replace_all(bookname, dic).strip()
-        booksub = replace_all(booksub, dic).strip()
-        if bookseries:
-            series, series_num = book_series(bookseries)
-        elif booksub:
-            series, series_num = book_series(booksub)
-        else:
-            series, series_num = book_series(bookname)
-
-        if not bookisbn:
-            try:
-                res = isbn_from_words(bookname + ' ' + unaccented(authorname, only_ascii=False))
-            except Exception as e:
-                res = None
-                self.logger.warning("Error from isbn: %s" % e)
-            if res:
-                self.logger.debug("isbn found %s for %s" % (res, bookname))
-                bookisbn = res
-
-        bookgenre = ''
-        genres, _ = get_gr_genres(bookid)
-        if genres:
-            bookgenre = ', '.join(genres)
-        if not bookdesc:
-            infodict = get_gb_info(isbn=bookisbn, author=authorname, title=bookname, expire=False)
-            if infodict is not None:  # None if api blocked
-                if infodict and infodict['desc']:
-                    bookdesc = infodict['desc']
+                match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
+                if match:
+                    self.logger.debug('%s: Changing authorid from %s to %s' %
+                                      (authorname, authorid, match['AuthorID']))
+                    author = {'authorid': match['AuthorID'], 'authorname': authorname}
                 else:
-                    bookdesc = 'No Description'
-                if not bookgenre:
-                    if infodict and infodict['genre']:
-                        bookgenre = genre_filter(infodict['genre'])
+                    gr = GoodReads(authorname)
+                    author = gr.find_author_id()
+            if author:
+                author_id = author['authorid']
+                match = db.match('SELECT * from authors WHERE AuthorID=?', (author_id,))
+                if not match:
+                    # no author but request to add book, add author with newauthor status
+                    # User hit "add book" button from a search, or a wishlist import, or api call
+                    newauthor_status = 'Active'
+                    if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
+                        newauthor_status = 'Paused'
+                    # also pause author if adding as a series contributor/wishlist/grsync
+                    if reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason:
+                        newauthor_status = 'Paused'
+                    control_value_dict = {"AuthorID": author_id}
+                    new_value_dict = {
+                        "AuthorName": author['authorname'],
+                        "AuthorImg": author['authorimg'],
+                        "AuthorLink": author['authorlink'],
+                        "AuthorBorn": author['authorborn'],
+                        "AuthorDeath": author['authordeath'],
+                        "DateAdded": today(),
+                        "Updated": int(time.time()),
+                        "Status": newauthor_status,
+                        "Reason": reason
+                    }
+                    self.logger.debug("Adding author %s %s, %s" % (author_id, author['authorname'], newauthor_status))
+                    # cmd = 'insert into authors (AuthorID, AuthorName, AuthorImg, AuthorLink, AuthorBorn,'
+                    # cmd += ' AuthorDeath, DateAdded, Updated, Status, Reason) values (?,?,?,?,?,?,?,?,?,?)'
+                    # db.action(cmd, (AuthorID, author['authorname'], author['authorimg'], author['authorlink'],
+                    #                   author['authorborn'], author['authordeath'], today(), int(time.time()),
+                    #                   newauthor_status, reason))
+
+                    db.upsert("authors", new_value_dict, control_value_dict)
+                    db.commit()  # shouldn't really be necessary as context manager commits?
+                    authorname = author['authorname']
+                    if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
+                        self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
+                                              reason=reason)
+            else:
+                self.logger.warning("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
+                return
+
+            # bookname = unaccented(bookname, only_ascii=False)
+            bookname, booksub, bookseries = split_title(authorname, bookname)
+            dic = {':': '.', '"': ''}
+            bookname = replace_all(bookname, dic).strip()
+            booksub = replace_all(booksub, dic).strip()
+            if bookseries:
+                series, series_num = book_series(bookseries)
+            elif booksub:
+                series, series_num = book_series(booksub)
+            else:
+                series, series_num = book_series(bookname)
+
+            if not bookisbn:
+                try:
+                    res = isbn_from_words(bookname + ' ' + unaccented(authorname, only_ascii=False))
+                except Exception as e:
+                    res = None
+                    self.logger.warning("Error from isbn: %s" % e)
+                if res:
+                    self.logger.debug("isbn found %s for %s" % (res, bookname))
+                    bookisbn = res
+
+            bookgenre = ''
+            genres, _ = get_gr_genres(bookid)
+            if genres:
+                bookgenre = ', '.join(genres)
+            if not bookdesc:
+                infodict = get_gb_info(isbn=bookisbn, author=authorname, title=bookname, expire=False)
+                if infodict is not None:  # None if api blocked
+                    if infodict and infodict['desc']:
+                        bookdesc = infodict['desc']
                     else:
-                        bookgenre = 'Unknown'
+                        bookdesc = 'No Description'
+                    if not bookgenre:
+                        if infodict and infodict['genre']:
+                            bookgenre = genre_filter(infodict['genre'])
+                        else:
+                            bookgenre = 'Unknown'
 
-        threadname = thread_name()
-        reason = "[%s] %s" % (threadname, reason)
-        match = db.match("SELECT * from authors where AuthorID=?", (author_id,))
-        if not match:
-            self.logger.warning("Authorid %s not found in database, unable to add %s" % (author_id, bookname))
-        else:
-            control_value_dict = {"BookID": bookid}
-            new_value_dict = {
-                "AuthorID": author_id,
-                "BookName": bookname,
-                "BookSub": booksub,
-                "BookDesc": bookdesc,
-                "BookIsbn": bookisbn,
-                "BookPub": bookpub,
-                "BookGenre": bookgenre,
-                "BookImg": bookimg,
-                "BookLink": booklink,
-                "BookRate": bookrate,
-                "BookPages": bookpages,
-                "BookDate": bookdate,
-                "BookLang": book_language,
-                "Status": bookstatus,
-                "AudioStatus": audiostatus,
-                "BookAdded": today(),
-                "WorkID": workid,
-                "gr_id": bookid,
-                "ScanResult": reason,
-                "OriginalPubDate": originalpubdate
-            }
-
-            db.upsert("books", new_value_dict, control_value_dict)
-            self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus,
-                                                                              audiostatus))
-
-            if 'nocover' in bookimg or 'nophoto' in bookimg:
-                # try to get a cover from another source
-                workcover, source = get_book_cover(bookid)
-                if workcover:
-                    self.logger.debug('Updated cover for %s using %s' % (bookname, source))
-                    control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"BookImg": workcover}
-                    db.upsert("books", new_value_dict, control_value_dict)
-
-            elif bookimg and bookimg.startswith('http'):
-                link, success, _ = cache_img("book", bookid, bookimg)
-                if success:
-                    control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"BookImg": link}
-                    db.upsert("books", new_value_dict, control_value_dict)
-                else:
-                    self.logger.debug('Failed to cache image for %s' % bookimg)
-
-            serieslist = []
-            if series:
-                serieslist = [('', series_num, clean_name(series, '&/'))]
-            if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
-                newserieslist = get_work_series(workid, 'GR', reason=reason)
-                if newserieslist:
-                    serieslist = newserieslist
-                    self.logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-                set_series(serieslist, bookid, reason=reason)
-
-            set_genres(get_list(bookgenre, ','), bookid)
-
-            worklink = get_work_page(bookid)
-            if worklink:
+            threadname = thread_name()
+            reason = "[%s] %s" % (threadname, reason)
+            match = db.match("SELECT * from authors where AuthorID=?", (author_id,))
+            if not match:
+                self.logger.warning("Authorid %s not found in database, unable to add %s" % (author_id, bookname))
+            else:
                 control_value_dict = {"BookID": bookid}
-                new_value_dict = {"WorkPage": worklink}
+                new_value_dict = {
+                    "AuthorID": author_id,
+                    "BookName": bookname,
+                    "BookSub": booksub,
+                    "BookDesc": bookdesc,
+                    "BookIsbn": bookisbn,
+                    "BookPub": bookpub,
+                    "BookGenre": bookgenre,
+                    "BookImg": bookimg,
+                    "BookLink": booklink,
+                    "BookRate": bookrate,
+                    "BookPages": bookpages,
+                    "BookDate": bookdate,
+                    "BookLang": book_language,
+                    "Status": bookstatus,
+                    "AudioStatus": audiostatus,
+                    "BookAdded": today(),
+                    "WorkID": workid,
+                    "gr_id": bookid,
+                    "ScanResult": reason,
+                    "OriginalPubDate": originalpubdate
+                }
+
                 db.upsert("books", new_value_dict, control_value_dict)
+                self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus,
+                                                                                  audiostatus))
+
+                if 'nocover' in bookimg or 'nophoto' in bookimg:
+                    # try to get a cover from another source
+                    workcover, source = get_book_cover(bookid)
+                    if workcover:
+                        self.logger.debug('Updated cover for %s using %s' % (bookname, source))
+                        control_value_dict = {"BookID": bookid}
+                        new_value_dict = {"BookImg": workcover}
+                        db.upsert("books", new_value_dict, control_value_dict)
+
+                elif bookimg and bookimg.startswith('http'):
+                    link, success, _ = cache_img("book", bookid, bookimg)
+                    if success:
+                        control_value_dict = {"BookID": bookid}
+                        new_value_dict = {"BookImg": link}
+                        db.upsert("books", new_value_dict, control_value_dict)
+                    else:
+                        self.logger.debug('Failed to cache image for %s' % bookimg)
+
+                serieslist = []
+                if series:
+                    serieslist = [('', series_num, clean_name(series, '&/'))]
+                if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
+                    newserieslist = get_work_series(workid, 'GR', reason=reason)
+                    if newserieslist:
+                        serieslist = newserieslist
+                        self.logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
+                    set_series(serieslist, bookid, reason=reason)
+
+                set_genres(get_list(bookgenre, ','), bookid)
+
+                worklink = get_work_page(bookid)
+                if worklink:
+                    control_value_dict = {"BookID": bookid}
+                    new_value_dict = {"WorkPage": worklink}
+                    db.upsert("books", new_value_dict, control_value_dict)
+        finally:
+            db.close()

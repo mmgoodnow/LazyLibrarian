@@ -378,58 +378,61 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                       '-metadata', 'track="1/1"']
 
             db = database.DBConnection()
-            match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
-            audio_path = os.path.join(bookfolder, parts[0][3])
-            if match:
-                id3r = id3read(audio_path)
-                if not match['Narrator'] and id3r['narrator']:
-                    db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
-                # noinspection PyUnusedLocal
-                artist = id3r['artist']
-                # noinspection PyUnusedLocal
-                composer = id3r['composer']
-                # noinspection PyUnusedLocal
-                album_artist = id3r['albumartist']
-                # noinspection PyUnusedLocal
-                album = id3r['album']
-                # title = id3r.title
-                # "unused" locals are used in eval() statement below
-                # noinspection PyUnusedLocal
-                comment = id3r['comment']
-                # noinspection PyUnusedLocal
-                author = authorname
-                # noinspection PyUnusedLocal
-                media_type = "Audiobook"
-                # noinspection PyUnusedLocal
-                genre = match['BookGenre']
-                # noinspection PyUnusedLocal
-                description = match['BookDesc']
-                # noinspection PyUnusedLocal
-                date = match['BookDate']
-                if date == '0000':
+            try:
+                match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
+                audio_path = os.path.join(bookfolder, parts[0][3])
+                if match:
+                    id3r = id3read(audio_path)
+                    if not match['Narrator'] and id3r['narrator']:
+                        db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
                     # noinspection PyUnusedLocal
-                    date = ''
+                    artist = id3r['artist']
+                    # noinspection PyUnusedLocal
+                    composer = id3r['composer']
+                    # noinspection PyUnusedLocal
+                    album_artist = id3r['albumartist']
+                    # noinspection PyUnusedLocal
+                    album = id3r['album']
+                    # title = id3r.title
+                    # "unused" locals are used in eval() statement below
+                    # noinspection PyUnusedLocal
+                    comment = id3r['comment']
+                    # noinspection PyUnusedLocal
+                    author = authorname
+                    # noinspection PyUnusedLocal
+                    media_type = "Audiobook"
+                    # noinspection PyUnusedLocal
+                    genre = match['BookGenre']
+                    # noinspection PyUnusedLocal
+                    description = match['BookDesc']
+                    # noinspection PyUnusedLocal
+                    date = match['BookDate']
+                    if date == '0000':
+                        # noinspection PyUnusedLocal
+                        date = ''
 
-                if bookfile:
-                    title = bookfile
+                    if bookfile:
+                        title = bookfile
+                    else:
+                        title = "%s - %s" % (authorname, bookname)
+                        if match['SeriesDisplay']:
+                            series = match['SeriesDisplay'].split('<br>')[0].strip()
+                            if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
+                                title = "%s (%s)" % (title, series)
+                                outfile, extn = os.path.splitext(outfile)
+                                outfile = "%s (%s)%s" % (outfile, series, extn)
+                    params.extend(['-metadata', "title=%s" % title])
+                    for item in ['artist', 'album_artist', 'composer', 'album', 'author',
+                                 'date', 'comment', 'description', 'genre', 'media_type']:
+                        value = eval(item)
+                        if value:
+                            params.extend(['-metadata', "%s=%s" % (item, value)])
                 else:
-                    title = "%s - %s" % (authorname, bookname)
-                    if match['SeriesDisplay']:
-                        series = match['SeriesDisplay'].split('<br>')[0].strip()
-                        if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
-                            title = "%s (%s)" % (title, series)
-                            outfile, extn = os.path.splitext(outfile)
-                            outfile = "%s (%s)%s" % (outfile, series, extn)
-                params.extend(['-metadata', "title=%s" % title])
-                for item in ['artist', 'album_artist', 'composer', 'album', 'author',
-                             'date', 'comment', 'description', 'genre', 'media_type']:
-                    value = eval(item)
-                    if value:
-                        params.extend(['-metadata', "%s=%s" % (item, value)])
-            else:
-                params.extend(['-metadata', "album=%s" % bookname,
-                               '-metadata', "artist=%s" % authorname,
-                               '-metadata', "title=%s" % bookfile])
+                    params.extend(['-metadata', "album=%s" % bookname,
+                                   '-metadata', "artist=%s" % authorname,
+                                   '-metadata', "title=%s" % bookfile])
+            finally:
+                db.close()
 
             tempfile = os.path.join(bookfolder, "tempaudio%s" % extn)
             if extn == '.m4b':

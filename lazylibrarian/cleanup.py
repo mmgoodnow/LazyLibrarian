@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+from importlib import invalidate_caches
 from importlib.util import resolve_name
 from pathlib import Path
 from typing import Dict, List, Tuple

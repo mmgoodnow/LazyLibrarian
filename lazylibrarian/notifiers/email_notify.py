@@ -212,10 +212,13 @@ class EmailNotifier:
                             preftype = typelist[0]
                             logger.debug('Default preferred filetype = %s' % preftype)
                     else:
-                        db = database.DBConnection()
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
-                            res = db.match('SELECT BookType from users where UserID=?', (cookie['ll_uid'].value,))
+                            db = database.DBConnection()
+                            try:
+                                res = db.match('SELECT BookType from users where UserID=?', (cookie['ll_uid'].value,))
+                            finally:
+                                db.close()
                             if res and res['BookType']:
                                 preftype = res['BookType']
                                 logger.debug('User preferred filetype = %s' % preftype)
@@ -228,71 +231,74 @@ class EmailNotifier:
                             logger.debug('Default preferred filetype = %s' % preftype)
 
                     db = database.DBConnection()
-                    data = db.match('SELECT BookFile,BookName from books where BookID=?', (bookid,))
-                    if data:
-                        bookfile = data['BookFile']
-                        types = []
-                        if bookfile and path_isfile(bookfile):
-                            basename, extn = os.path.splitext(bookfile)
-                            for item in set(
-                                    typelist + custom_typelist):
-                                # Search download and email formats for existing book formats
-                                target = basename + '.' + item
-                                if path_isfile(target):
-                                    types.append(item)
-
-                            logger.debug('Available filetypes: %s' % str(types))
-
-                            # if the format we want to send is available, select it
-                            if preftype in types:
-                                filename = basename + '.' + preftype
-                                logger.debug('Found preferred filetype %s' % preftype)
-                            # if the format is not available, see if it's a type we want to convert,
-                            # otherwise send the first available format
-                            else:
-                                # if there is a type we want to convert from in the available formats,
-                                # convert it
-                                for convertable_format in get_list(CONFIG['EMAIL_CONVERT_FROM']):
-                                    if convertable_format in types:
-                                        logger.debug('Converting %s to preferred filetype %s' %
-                                                     (convertable_format, preftype))
-                                        # noinspection PyBroadException
-                                        try:
-                                            filename = ebook_convert.convert(basename + '.' + convertable_format,
-                                                                             preftype)
-                                            logger.debug('Converted %s to preferred filetype %s' %
-                                                         (convertable_format, preftype))
-                                            break
-                                        except Exception:
-                                            logger.debug("Conversion %s to %s failed" % (convertable_format, preftype))
-                                            continue
-                                # If no convertable formats found, revert to default behavior of sending
-                                # first available format
-                                else:
-                                    logger.debug('Preferred filetype %s not found, sending %s' % (preftype, types[0]))
-                                    filename = basename + '.' + types[0]
-
-                        if force:
-                            event = title
-                            if filename:
-                                title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
-                                    '{method}', ' is attached').replace('{link}', '')
-                            else:
-                                title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
-                                    '{method}', ' is not available').replace('{link}', '')
-                        else:
-                            title = data['BookName']
-                        logger.debug('Found %s for bookid %s' % (filename, bookid))
-                    else:
-                        logger.debug('[%s] is not a valid bookid' % bookid)
-                        data = db.match('SELECT IssueFile,Title,IssueDate from issues where IssueID=?', (bookid,))
+                    try:
+                        data = db.match('SELECT BookFile,BookName from books where BookID=?', (bookid,))
                         if data:
-                            filename = data['IssueFile']
-                            title = "%s - %s" % (data['Title'], data['IssueDate'])
-                            logger.debug('Found %s for issueid %s' % (filename, bookid))
+                            bookfile = data['BookFile']
+                            types = []
+                            if bookfile and path_isfile(bookfile):
+                                basename, extn = os.path.splitext(bookfile)
+                                for item in set(
+                                        typelist + custom_typelist):
+                                    # Search download and email formats for existing book formats
+                                    target = basename + '.' + item
+                                    if path_isfile(target):
+                                        types.append(item)
+
+                                logger.debug('Available filetypes: %s' % str(types))
+
+                                # if the format we want to send is available, select it
+                                if preftype in types:
+                                    filename = basename + '.' + preftype
+                                    logger.debug('Found preferred filetype %s' % preftype)
+                                # if the format is not available, see if it's a type we want to convert,
+                                # otherwise send the first available format
+                                else:
+                                    # if there is a type we want to convert from in the available formats,
+                                    # convert it
+                                    for convertable_format in get_list(CONFIG['EMAIL_CONVERT_FROM']):
+                                        if convertable_format in types:
+                                            logger.debug('Converting %s to preferred filetype %s' %
+                                                         (convertable_format, preftype))
+                                            # noinspection PyBroadException
+                                            try:
+                                                filename = ebook_convert.convert(basename + '.' + convertable_format,
+                                                                                 preftype)
+                                                logger.debug('Converted %s to preferred filetype %s' %
+                                                             (convertable_format, preftype))
+                                                break
+                                            except Exception:
+                                                logger.debug("Conversion %s to %s failed" % (convertable_format, preftype))
+                                                continue
+                                    # If no convertable formats found, revert to default behavior of sending
+                                    # first available format
+                                    else:
+                                        logger.debug('Preferred filetype %s not found, sending %s' % (preftype, types[0]))
+                                        filename = basename + '.' + types[0]
+
+                            if force:
+                                event = title
+                                if filename:
+                                    title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
+                                        '{method}', ' is attached').replace('{link}', '')
+                                else:
+                                    title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
+                                        '{method}', ' is not available').replace('{link}', '')
+                            else:
+                                title = data['BookName']
+                            logger.debug('Found %s for bookid %s' % (filename, bookid))
                         else:
-                            logger.debug('[%s] is not a valid issueid' % bookid)
-                            filename = ''
+                            logger.debug('[%s] is not a valid bookid' % bookid)
+                            data = db.match('SELECT IssueFile,Title,IssueDate from issues where IssueID=?', (bookid,))
+                            if data:
+                                filename = data['IssueFile']
+                                title = "%s - %s" % (data['Title'], data['IssueDate'])
+                                logger.debug('Found %s for issueid %s' % (filename, bookid))
+                            else:
+                                logger.debug('[%s] is not a valid issueid' % bookid)
+                                filename = ''
+                    finally:
+                        db.close()
                     if filename:
                         files = [filename]  # could add cover_image, opf
                         event = "LazyLibrarian Download"
@@ -302,7 +308,10 @@ class EmailNotifier:
     def test_notify(self, title='This is a test notification from LazyLibrarian'):
         if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
             db = database.DBConnection()
-            data = db.match('SELECT bookid from books where bookfile <> ""')
+            try:
+                data = db.match('SELECT bookid from books where bookfile <> ""')
+            finally:
+                db.close()
             if data:
                 return self.notify_download(title=title, bookid=data['bookid'], force=True)
         return self.notify_download(title=title, bookid=None, force=True)

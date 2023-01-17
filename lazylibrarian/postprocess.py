@@ -61,12 +61,15 @@ from thefuzz import fuzz
 
 def update_downloads(provider):
     db = database.DBConnection()
-    entry = db.match('SELECT Count FROM downloads where Provider=?', (provider,))
-    if entry:
-        counter = int(entry['Count'])
-        db.action('UPDATE downloads SET Count=? WHERE Provider=?', (counter + 1, provider))
-    else:
-        db.action('INSERT into downloads (Count, Provider) VALUES  (?, ?)', (1, provider))
+    try:
+        entry = db.match('SELECT Count FROM downloads where Provider=?', (provider,))
+        if entry:
+            counter = int(entry['Count'])
+            db.action('UPDATE downloads SET Count=? WHERE Provider=?', (counter + 1, provider))
+        else:
+            db.action('INSERT into downloads (Count, Provider) VALUES  (?, ?)', (1, provider))
+    finally:
+        db.close()
 
 
 def process_mag_from_file(source_file=None, title=None, issuenum=None):
@@ -190,6 +193,8 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
     except Exception:
         logger.error('Unhandled exception in import_mag: %s' % traceback.format_exc())
         return False
+    finally:
+        db.close()
 
 
 def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automerge=False):
@@ -239,6 +244,8 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
     except Exception:
         logger.error('Unhandled exception in import_book: %s' % traceback.format_exc())
         return False
+    finally:
+        db.close()
 
 
 def process_issues(source_dir=None, title=''):
@@ -263,9 +270,12 @@ def process_issues(source_dir=None, title=''):
             if path_isdir(subdir):
                 process_issues(subdir, title)
 
-        db = database.DBConnection()
         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
-        res = db.match('SELECT Reject,DateType from magazines WHERE Title=?', (title,))
+        db = database.DBConnection()
+        try:
+            res = db.match('SELECT Reject,DateType from magazines WHERE Title=?', (title,))
+        finally:
+            db.close()
         if not res:
             logger.error("%s not found in database" % title)
             return False
@@ -434,117 +444,120 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             authorname = metadata['creator']
             bookname = metadata['title']
             db = database.DBConnection()
-            authorid = ''
-            bookid = ''
-            authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
+            try:
+                authorid = ''
+                bookid = ''
+                authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
-            if not authmatch:
-                # try goodreads/openlibrary preferred authorname
-                if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-                    logger.debug("Checking OpenLibrary for [%s]" % authorname)
-                    ol = OpenLibrary(authorname)
-                    try:
-                        author_gr = ol.find_author_id()
-                    except Exception as e:
-                        author_gr = {}
-                        logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
+                if not authmatch:
+                    # try goodreads/openlibrary preferred authorname
+                    if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+                        logger.debug("Checking OpenLibrary for [%s]" % authorname)
+                        ol = OpenLibrary(authorname)
+                        try:
+                            author_gr = ol.find_author_id()
+                        except Exception as e:
+                            author_gr = {}
+                            logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
+                    else:
+                        logger.debug("Checking GoodReads for [%s]" % authorname)
+                        gr = GoodReads(authorname)
+                        try:
+                            author_gr = gr.find_author_id()
+                        except Exception as e:
+                            author_gr = {}
+                            logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
+                    if author_gr:
+                        grauthorname = author_gr['authorname']
+                        authorid = author_gr['authorid']
+                        logger.debug("Found [%s] for [%s]" % (grauthorname, authorname))
+                        authorname = grauthorname
+                        authmatch = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+
+                if authmatch:
+                    logger.debug("Author %s found in database" % authorname)
+                    authorid = authmatch['authorid']
                 else:
-                    logger.debug("Checking GoodReads for [%s]" % authorname)
-                    gr = GoodReads(authorname)
-                    try:
-                        author_gr = gr.find_author_id()
-                    except Exception as e:
-                        author_gr = {}
-                        logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
-                if author_gr:
-                    grauthorname = author_gr['authorname']
-                    authorid = author_gr['authorid']
-                    logger.debug("Found [%s] for [%s]" % (grauthorname, authorname))
-                    authorname = grauthorname
-                    authmatch = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                    logger.debug("Author %s not found, adding to database" % authorname)
+                    if authorid:
+                        add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
+                                         reason="process_alternate: %s" % bookname)
+                    else:
+                        aname, authorid, _ = add_author_name_to_db(author=authorname,
+                                                                   reason="process_alternate: %s" % bookname,
+                                                                   title=bookname)
+                        if aname and aname != authorname:
+                            authorname = aname
+                        if not aname:
+                            authorid = ''
 
-            if authmatch:
-                logger.debug("Author %s found in database" % authorname)
-                authorid = authmatch['authorid']
-            else:
-                logger.debug("Author %s not found, adding to database" % authorname)
                 if authorid:
-                    add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
-                                     reason="process_alternate: %s" % bookname)
-                else:
-                    aname, authorid, _ = add_author_name_to_db(author=authorname,
-                                                               reason="process_alternate: %s" % bookname,
-                                                               title=bookname)
-                    if aname and aname != authorname:
-                        authorname = aname
-                    if not aname:
-                        authorid = ''
+                    bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
+                                                reason="process_alternate: %s" % bookname)
+                results = []
+                if authorid and not bookid:
+                    # new book, or new author where we didn't want to load their back catalog
+                    searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                                 unaccented(authorname, only_ascii=False))
+                    match = {}
+                    results = search_for(searchterm)
+                    for result in results:
+                        if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
+                                and result['authorid'] == authorid:
+                            match = result
+                            break
+                    if not match:  # no match on full searchterm, try splitting out subtitle and series
+                        newtitle, _, _ = split_title(authorname, bookname)
+                        if newtitle != bookname:
+                            bookname = newtitle
+                            searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                                         unaccented(authorname, only_ascii=False))
+                            results = search_for(searchterm)
+                            for result in results:
+                                if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
+                                        and result['authorid'] == authorid:
+                                    match = result
+                                    break
+                    if match:
+                        logger.info("Found (%s%%) %s: %s for %s: %s" %
+                                    (match['book_fuzz'], match['authorname'], match['bookname'],
+                                     authorname, bookname))
+                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
+                                    reason="Added from alternate dir")
+                        imported = db.match('select * from books where BookID=?', (match['bookid'],))
+                        if imported:
+                            bookid = match['bookid']
+                            update_totals(authorid)
 
-            if authorid:
-                bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
-                                            reason="process_alternate: %s" % bookname)
-            results = []
-            if authorid and not bookid:
-                # new book, or new author where we didn't want to load their back catalog
-                searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
-                                             unaccented(authorname, only_ascii=False))
-                match = {}
-                results = search_for(searchterm)
-                for result in results:
-                    if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
-                            and result['authorid'] == authorid:
-                        match = result
-                        break
-                if not match:  # no match on full searchterm, try splitting out subtitle and series
-                    newtitle, _, _ = split_title(authorname, bookname)
-                    if newtitle != bookname:
-                        bookname = newtitle
-                        searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
-                                                     unaccented(authorname, only_ascii=False))
-                        results = search_for(searchterm)
-                        for result in results:
-                            if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
-                                    and result['authorid'] == authorid:
-                                match = result
-                                break
-                if match:
-                    logger.info("Found (%s%%) %s: %s for %s: %s" %
-                                (match['book_fuzz'], match['authorname'], match['bookname'],
-                                 authorname, bookname))
-                    import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
-                                reason="Added from alternate dir")
-                    imported = db.match('select * from books where BookID=?', (match['bookid'],))
-                    if imported:
-                        bookid = match['bookid']
-                        update_totals(authorid)
-
-            if bookid:
-                if library == 'eBook':
-                    res = db.match("SELECT Status from books WHERE BookID=?", (bookid,))
-                    if res and res['Status'] == 'Ignored':
-                        logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
-                                       (library, bookname, authorname))
+                if bookid:
+                    if library == 'eBook':
+                        res = db.match("SELECT Status from books WHERE BookID=?", (bookid,))
+                        if res and res['Status'] == 'Ignored':
+                            logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
+                                           (library, bookname, authorname))
+                    else:
+                        res = db.match("SELECT AudioStatus,Narrator from books WHERE BookID=?", (bookid,))
+                        if metadata.get('narrator', '') and res and not res['Narrator']:
+                            db.action("update books set narrator=? where bookid=?", (metadata['narrator'], bookid))
+                        if res and res['AudioStatus'] == 'Ignored':
+                            logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
+                                           (library, bookname, authorname))
+                    return process_book(source_dir, bookid, library, automerge=automerge)
                 else:
-                    res = db.match("SELECT AudioStatus,Narrator from books WHERE BookID=?", (bookid,))
-                    if metadata.get('narrator', '') and res and not res['Narrator']:
-                        db.action("update books set narrator=? where bookid=?", (metadata['narrator'], bookid))
-                    if res and res['AudioStatus'] == 'Ignored':
-                        logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
-                                       (library, bookname, authorname))
-                return process_book(source_dir, bookid, library, automerge=automerge)
-            else:
-                msg = "%s %s by %s not found in database" % (library, bookname, authorname)
-                if not results:
-                    msg += ', No results returned'
-                    logger.warning(msg)
-                else:
-                    msg += ', No match found'
-                    logger.warning(msg)
-                    msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'], results[0]['book_fuzz'],
-                                                                results[0]['authorname'], results[0]['bookname'])
-                    if results[0]['authorid'] != authorid:
-                        msg += ' wrong authorid'
-                    logger.warning(msg)
+                    msg = "%s %s by %s not found in database" % (library, bookname, authorname)
+                    if not results:
+                        msg += ', No results returned'
+                        logger.warning(msg)
+                    else:
+                        msg += ', No match found'
+                        logger.warning(msg)
+                        msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'], results[0]['book_fuzz'],
+                                                                    results[0]['authorname'], results[0]['bookname'])
+                        if results[0]['authorid'] != authorid:
+                            msg += ' wrong authorid'
+                        logger.warning(msg)
+            finally:
+                db.close()
         else:
             logger.warning('%s %s has no metadata' % (library, new_book))
             res = check_residual(source_dir)
@@ -1608,8 +1621,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             status['action'] = 'Restarted'
     except Exception:
         logger.error('Unhandled exception in process_dir: %s' % traceback.format_exc())
-
     finally:
+        db.close()
         logger.debug('Returning %s' % status)
         thread_name(threadname)
         return status
@@ -1730,53 +1743,56 @@ def check_residual(download_dir):
     logger = logging.getLogger(__name__)
     loggerpostprocess = logging.getLogger('special.postprocess')
     db = database.DBConnection()
-    skipped_extensions = get_list(CONFIG['SKIPPED_EXT'])
-    ppcount = 0
-    downloads = listdir(download_dir)
-    loggerpostprocess.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
-                                                                   plural(len(downloads), 'entry'), download_dir))
-    TELEMETRY.record_usage_data('Process/Residual')
-    for entry in downloads:
-        if "LL.(" in entry:
-            _, extn = os.path.splitext(entry)
-            if not extn or extn.strip('.') not in skipped_extensions:
-                book_id = entry.split("LL.(")[1].split(")")[0]
-                logger.debug("Book with id: %s found in download directory" % book_id)
-                pp_path = os.path.join(download_dir, entry)
-                # At this point we don't know if we want audio or ebook or both since it wasn't snatched
-                is_audio = (book_file(pp_path, "audiobook", config=CONFIG) != '')
-                is_ebook = (book_file(pp_path, "ebook", config=CONFIG) != '')
-                logger.debug("Contains ebook=%s audio=%s" % (is_ebook, is_audio))
-                data = db.match('SELECT BookFile,AudioFile from books WHERE BookID=?', (book_id,))
-                have_ebook = (data and data['BookFile'] and path_isfile(data['BookFile']))
-                have_audio = (data and data['AudioFile'] and path_isfile(data['AudioFile']))
-                logger.debug("Already have ebook=%s audio=%s" % (have_ebook, have_audio))
+    try:
+        skipped_extensions = get_list(CONFIG['SKIPPED_EXT'])
+        ppcount = 0
+        downloads = listdir(download_dir)
+        loggerpostprocess.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
+                                                                       plural(len(downloads), 'entry'), download_dir))
+        TELEMETRY.record_usage_data('Process/Residual')
+        for entry in downloads:
+            if "LL.(" in entry:
+                _, extn = os.path.splitext(entry)
+                if not extn or extn.strip('.') not in skipped_extensions:
+                    book_id = entry.split("LL.(")[1].split(")")[0]
+                    logger.debug("Book with id: %s found in download directory" % book_id)
+                    pp_path = os.path.join(download_dir, entry)
+                    # At this point we don't know if we want audio or ebook or both since it wasn't snatched
+                    is_audio = (book_file(pp_path, "audiobook", config=CONFIG) != '')
+                    is_ebook = (book_file(pp_path, "ebook", config=CONFIG) != '')
+                    logger.debug("Contains ebook=%s audio=%s" % (is_ebook, is_audio))
+                    data = db.match('SELECT BookFile,AudioFile from books WHERE BookID=?', (book_id,))
+                    have_ebook = (data and data['BookFile'] and path_isfile(data['BookFile']))
+                    have_audio = (data and data['AudioFile'] and path_isfile(data['AudioFile']))
+                    logger.debug("Already have ebook=%s audio=%s" % (have_ebook, have_audio))
 
-                if have_ebook and have_audio:
-                    exists = True
-                elif have_ebook and not CONFIG.get_bool('AUDIO_TAB'):
-                    exists = True
+                    if have_ebook and have_audio:
+                        exists = True
+                    elif have_ebook and not CONFIG.get_bool('AUDIO_TAB'):
+                        exists = True
+                    else:
+                        exists = False
+
+                    if exists:
+                        logger.debug('Skipping BookID %s, already exists' % book_id)
+                    else:
+                        loggerpostprocess.debug("Checking type of %s" % pp_path)
+
+                        if path_isfile(pp_path):
+                            loggerpostprocess.debug("%s is a file" % pp_path)
+                            pp_path = os.path.join(download_dir)
+
+                        if path_isdir(pp_path):
+                            loggerpostprocess.debug("%s is a dir" % pp_path)
+                            if process_book(pp_path, book_id):
+                                loggerpostprocess.debug("Imported %s" % pp_path)
+                                ppcount += 1
                 else:
-                    exists = False
-
-                if exists:
-                    logger.debug('Skipping BookID %s, already exists' % book_id)
-                else:
-                    loggerpostprocess.debug("Checking type of %s" % pp_path)
-
-                    if path_isfile(pp_path):
-                        loggerpostprocess.debug("%s is a file" % pp_path)
-                        pp_path = os.path.join(download_dir)
-
-                    if path_isdir(pp_path):
-                        loggerpostprocess.debug("%s is a dir" % pp_path)
-                        if process_book(pp_path, book_id):
-                            loggerpostprocess.debug("Imported %s" % pp_path)
-                            ppcount += 1
+                    loggerpostprocess.debug("Skipping extn %s" % entry)
             else:
-                loggerpostprocess.debug("Skipping extn %s" % entry)
-        else:
-            loggerpostprocess.debug("Skipping (no LL bookid) %s" % entry)
+                loggerpostprocess.debug("Skipping (no LL bookid) %s" % entry)
+    finally:
+        db.close()
     return ppcount
 
 
@@ -1820,8 +1836,11 @@ def get_download_name(title, source, downloadid):
                 res, _ = sabnzbd.sab_nzbd(nzburl='queue', nzo_ids=downloadid)
             else:
                 db = database.DBConnection()
-                cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
-                data = db.match(cmd, (downloadid, source))
+                try:
+                    cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+                    data = db.match(cmd, (downloadid, source))
+                finally:
+                    db.close()
                 if data and data['NZBtitle']:
                     res, _ = sabnzbd.sab_nzbd(nzburl='queue', search=data['NZBtitle'])
                 else:
@@ -1940,8 +1959,11 @@ def get_download_folder(source, downloadid):
                 res, _ = sabnzbd.sab_nzbd(nzburl='queue', nzo_ids=downloadid)
             else:
                 db = database.DBConnection()
-                cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
-                data = db.match(cmd, (downloadid, source))
+                try:
+                    cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+                    data = db.match(cmd, (downloadid, source))
+                finally:
+                    db.close()
                 if data and data['NZBtitle']:
                     res, _ = sabnzbd.sab_nzbd(nzburl='queue', search=data['NZBtitle'])
                 else:
@@ -2032,7 +2054,6 @@ def get_download_progress(source, downloadid):
             if lazylibrarian.SAB_VER > (3, 2, 0):
                 res, _ = sabnzbd.sab_nzbd(nzburl='queue', nzo_ids=downloadid)
             else:
-                db = database.DBConnection()
                 cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
                 data = db.match(cmd, (downloadid, source))
                 if data and data['NZBtitle']:
@@ -2219,6 +2240,8 @@ def get_download_progress(source, downloadid):
         logger.warning("Failed to get download progress from %s for %s" % (source, downloadid))
         logger.error('Unhandled exception in get_download_progress: %s' % traceback.format_exc())
         return 0, False
+    finally:
+        db.close()
 
 
 def delete_task(source, download_id, remove_data):
@@ -2435,6 +2458,8 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
     except Exception:
         logger.error('Unhandled exception in process_book: %s' % traceback.format_exc())
         return False
+    finally:
+        db.close()
 
 
 def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBook"):
@@ -2450,31 +2475,33 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
 
     TELEMETRY.record_usage_data('Process/Extras')
     db = database.DBConnection()
+    try:
+        control_value_dict = {"BookID": bookid}
+        if booktype == 'AudioBook':
+            new_value_dict = {"AudioFile": dest_file, "AudioStatus": CONFIG['FOUND_STATUS'],
+                              "AudioLibrary": now()}
+            db.upsert("books", new_value_dict, control_value_dict)
+            if CONFIG['AUDIOBOOK_DEST_FILE']:
+                book_filename = audio_rename(bookid, rename=True, playlist=True)
+                if dest_file != book_filename:
+                    db.action('UPDATE books set AudioFile=? where BookID=?', (book_filename, bookid))
+        else:
+            new_value_dict = {"Status": CONFIG['FOUND_STATUS'], "BookFile": dest_file, "BookLibrary": now()}
+            db.upsert("books", new_value_dict, control_value_dict)
 
-    control_value_dict = {"BookID": bookid}
-    if booktype == 'AudioBook':
-        new_value_dict = {"AudioFile": dest_file, "AudioStatus": CONFIG['FOUND_STATUS'],
-                          "AudioLibrary": now()}
-        db.upsert("books", new_value_dict, control_value_dict)
-        if CONFIG['AUDIOBOOK_DEST_FILE']:
-            book_filename = audio_rename(bookid, rename=True, playlist=True)
-            if dest_file != book_filename:
-                db.action('UPDATE books set AudioFile=? where BookID=?', (book_filename, bookid))
-    else:
-        new_value_dict = {"Status": CONFIG['FOUND_STATUS'], "BookFile": dest_file, "BookLibrary": now()}
-        db.upsert("books", new_value_dict, control_value_dict)
+        # update authors book counts
+        match = db.match('SELECT AuthorID FROM books WHERE BookID=?', (bookid,))
+        if match:
+            update_totals(match['AuthorID'])
 
-    # update authors book counts
-    match = db.match('SELECT AuthorID FROM books WHERE BookID=?', (bookid,))
-    if match:
-        update_totals(match['AuthorID'])
+        elif booktype != 'eBook':  # only do autoadd/img/opf for ebooks
+            return
 
-    elif booktype != 'eBook':  # only do autoadd/img/opf for ebooks
-        return
-
-    cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,'
-    cmd += 'Narrator from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
-    data = db.match(cmd, (bookid,))
+        cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,'
+        cmd += 'Narrator from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+        data = db.match(cmd, (bookid,))
+    finally:
+        db.close()
     if not data:
         logger.error('No data found for bookid %s' % bookid)
         return
@@ -2561,7 +2588,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             preprocess_audio(pp_path, bookid, authorname, bookname)
         elif booktype == 'magazine':
             db = database.DBConnection()
-            res = db.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))
+            try:
+                res = db.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))
+            finally:
+                db.close()
             cover = 0
             if res:
                 cover = check_int(res['CoverPage'], 0)
@@ -2666,9 +2696,12 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 logger.warning('Calibre failed to import %s %s, already exists, marking book as "Have"' %
                                (authorname, bookname))
                 db = database.DBConnection()
-                control_value_dict = {"BookID": bookid}
-                new_value_dict = {"Status": "Have"}
-                db.upsert("books", new_value_dict, control_value_dict)
+                try:
+                    control_value_dict = {"BookID": bookid}
+                    new_value_dict = {"Status": "Have"}
+                    db.upsert("books", new_value_dict, control_value_dict)
+                finally:
+                    db.close()
                 return True, '', pp_path
             # Answer should look like "Added book ids : bookID" (string may be translated!)
             try:
@@ -2686,17 +2719,20 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if not CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'):
                 # we can pass an opf with all the info, and a cover image
                 db = database.DBConnection()
-                if booktype in ['ebook', 'audiobook']:
-                    cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
-                    cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors '
-                    cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
-                    data = db.match(cmd, (bookid,))
-                elif booktype == 'comic':
-                    cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
-                    cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
-                    cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
-                    data = db.match(cmd, (issueid, comicid))
-                    bookid = "%s_%s" % (comicid, issueid)
+                try:
+                    if booktype in ['ebook', 'audiobook']:
+                        cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
+                        cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors '
+                        cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+                        data = db.match(cmd, (bookid,))
+                    elif booktype == 'comic':
+                        cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
+                        cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
+                        cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
+                        data = db.match(cmd, (issueid, comicid))
+                        bookid = "%s_%s" % (comicid, issueid)
+                finally:
+                    db.close()
 
                 if not data:
                     logger.error('No data found for bookid %s' % bookid)
@@ -2949,7 +2985,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors '
             cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
             db = database.DBConnection()
-            data = db.match(cmd, (bookid,))
+            try:
+                data = db.match(cmd, (bookid,))
+            finally:
+                db.close()
             process_img(pp_path, bookid, data['BookImg'], make_unicode(global_name), 'book')
             _ = create_opf(pp_path, data, make_unicode(global_name), True)
 
@@ -3000,7 +3039,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
                 cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
                 db = database.DBConnection()
-                data = db.match(cmd, (issueid, comicid))
+                try:
+                    data = db.match(cmd, (issueid, comicid))
+                finally:
+                    db.close()
                 bookid = "%s_%s" % (comicid, issueid)
                 if data:
                     process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
@@ -3240,41 +3282,44 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
     if 'Series_index' not in data:
         # no series details passed in data dictionary, look them up in db
         db = database.DBConnection()
-        res = {}
-        if 'LT_WorkID' in data and data['LT_WorkID']:
-            cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
-            res = db.match(cmd, (data['LT_WorkID'],))
-        if not res and 'WorkID' in data and data['WorkID']:
-            cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
-            res = db.match(cmd, (data['WorkID'],))
-        if not res:
-            cmd = 'SELECT SeriesID,SeriesNum from member WHERE bookid=?'
-            res = db.match(cmd, (bookid,))
-        if res:
-            seriesid = res['SeriesID']
-            serieslist = get_list(res['SeriesNum'])
-            # might be "Book 3.5" or similar, just get the numeric part
-            while serieslist:
-                seriesnum = serieslist.pop()
-                try:
-                    _ = float(seriesnum)
-                    break
-                except ValueError:
-                    seriesnum = ''
-                    pass
-
-            if not seriesnum:
-                # couldn't figure out number, keep everything we got, could be something like "Book Two"
-                serieslist = res['SeriesNum']
-
-            cmd = 'SELECT SeriesName from series WHERE seriesid=?'
-            res = db.match(cmd, (seriesid,))
+        try:
+            res = {}
+            if 'LT_WorkID' in data and data['LT_WorkID']:
+                cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
+                res = db.match(cmd, (data['LT_WorkID'],))
+            if not res and 'WorkID' in data and data['WorkID']:
+                cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
+                res = db.match(cmd, (data['WorkID'],))
+            if not res:
+                cmd = 'SELECT SeriesID,SeriesNum from member WHERE bookid=?'
+                res = db.match(cmd, (bookid,))
             if res:
-                seriesname = res['SeriesName']
+                seriesid = res['SeriesID']
+                serieslist = get_list(res['SeriesNum'])
+                # might be "Book 3.5" or similar, just get the numeric part
+                while serieslist:
+                    seriesnum = serieslist.pop()
+                    try:
+                        _ = float(seriesnum)
+                        break
+                    except ValueError:
+                        seriesnum = ''
+                        pass
+
                 if not seriesnum:
-                    # add what we got to series name and set seriesnum to 1 so user can sort it out manually
-                    seriesname = "%s %s" % (seriesname, serieslist)
-                    seriesnum = 1
+                    # couldn't figure out number, keep everything we got, could be something like "Book Two"
+                    serieslist = res['SeriesNum']
+
+                cmd = 'SELECT SeriesName from series WHERE seriesid=?'
+                res = db.match(cmd, (seriesid,))
+                if res:
+                    seriesname = res['SeriesName']
+                    if not seriesnum:
+                        # add what we got to series name and set seriesnum to 1 so user can sort it out manually
+                        seriesname = "%s %s" % (seriesname, serieslist)
+                        seriesnum = 1
+        finally:
+            db.close()
 
     opfinfo = '<?xml version="1.0"  encoding="UTF-8"?>\n\
 <package version="2.0" xmlns="http://www.idpf.org/2007/opf" >\n\

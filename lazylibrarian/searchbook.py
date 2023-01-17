@@ -518,4 +518,5 @@ def search_book(books=None, library=None):
         logger.error('Unhandled exception in search_book: %s' % traceback.format_exc())
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        db.close()
         thread_name("WEBSERVER")

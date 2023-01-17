@@ -161,8 +161,8 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
     logger = logging.getLogger(__name__)
     with open(syspath(DIRS.get_logfile('dbupgrade.log')), 'a') as upgradelog:
         # noinspection PyBroadException
+        db = database.DBConnection()
         try:
-            db = database.DBConnection()
             db_version = get_db_version(db)
 
             check = db.match('PRAGMA integrity_check')
@@ -176,7 +176,6 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
 
             db_changes = 0
             if db_version < current_version:
-                db = database.DBConnection()
                 if db_version:
                     lazylibrarian.UPDATE_MSG = 'Updating database to version %s, current version is %s' % (
                         current_version, db_version)
@@ -309,13 +308,15 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
             upgradelog.write("%s: %s\n" % (time.ctime(), msg))
             logger.error(msg)
             lazylibrarian.UPDATE_MSG = ''
+        finally:
+            db.close()
 
 
 def check_db(upgradelog=None):
     logger = logging.getLogger(__name__)
-    db = database.DBConnection()
     cnt = 0
     closefile = False
+    db = database.DBConnection()
     try:
         if not upgradelog:
             upgradelog = open(DIRS.get_logfile('dbupgrade.log'), 'a')

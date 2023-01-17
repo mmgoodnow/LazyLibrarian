@@ -57,7 +57,6 @@ class GoogleBooks:
             If this token isn't present, it's an isbn or searchterm as supplied by user
         """
         try:
-            db = database.DBConnection()
             resultlist = []
             # See if we should check ISBN field, otherwise ignore it
             api_strings = ['inauthor:', 'intitle:']
@@ -188,10 +187,14 @@ class GoogleBooks:
 
                             author_id = ''
                             if book['author']:
-                                match = db.match(
-                                    'SELECT AuthorID FROM authors WHERE AuthorName=?', (book['author'],))
-                                if match:
-                                    author_id = match['AuthorID']
+                                db = database.DBConnection()
+                                try:
+                                    match = db.match(
+                                        'SELECT AuthorID FROM authors WHERE AuthorName=?', (book['author'],))
+                                    if match:
+                                        author_id = match['AuthorID']
+                                finally:
+                                    db.close()
 
                             resultlist.append({
                                 'authorname': book['author'],
@@ -237,8 +240,9 @@ class GoogleBooks:
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped",
                          audiostatus="Skipped", entrystatus='Active', refresh=False, reason='gb.get_author_books'):
         # noinspection PyBroadException
+        self.logger.debug('[%s] Now processing books with Google Books API' % authorname)
+        db = database.DBConnection()
         try:
-            self.logger.debug('[%s] Now processing books with Google Books API' % authorname)
             # google doesnt like accents in author names
             set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname, only_ascii=False))
             entryreason = reason
@@ -261,7 +265,6 @@ class GoogleBooks:
 
             valid_langs = get_list(CONFIG['IMP_PREFLANG'])
             # Artist is loading
-            db = database.DBConnection()
             control_value_dict = {"AuthorID": authorid}
             new_value_dict = {"Status": "Loading"}
             db.upsert("authors", new_value_dict, control_value_dict)
@@ -293,7 +296,7 @@ class GoogleBooks:
                         break
                     else:
                         self.logger.debug('Found %s %s for %s' % (number_results, plural(number_results, "result"),
-                                          authorname))
+                                                                  authorname))
 
                     startindex += 40
 
@@ -438,7 +441,7 @@ class GoogleBooks:
                                 rejected = 'got', 'Already got this book in database'
                             else:
                                 msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
-                                       bookid, authorname, bookname, match['Status'])
+                                    bookid, authorname, bookname, match['Status'])
                                 if CONFIG.get_bool('AUDIO_TAB'):
                                     msg += ",%s" % match['AudioStatus']
                                 msg += " %s" % match['ScanResult']
@@ -641,9 +644,10 @@ class GoogleBooks:
 
         except Exception:
             self.logger.error('Unhandled exception in GB.get_author_books: %s' % traceback.format_exc())
+        finally:
+            db.close()
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gb.find_book'):
-        db = database.DBConnection()
         if not CONFIG['GB_API']:
             self.logger.warning('No GoogleBooks API key, check config')
         url = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes/' +
@@ -713,105 +717,107 @@ class GoogleBooks:
                 if reason.startswith("Series:"):
                     return
 
-        authorname = book['author']
-        ol = OpenLibrary(authorname)
-        author = ol.find_author_id()
-        if author:
-            author_id = author['authorid']
-            match = db.match('SELECT AuthorID from authors WHERE AuthorID=?', (author_id,))
-            if not match:
-                match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (author['authorname'],))
-                if match:
-                    self.logger.debug('%s: Changing authorid from %s to %s' %
-                                      (author['authorname'], author_id, match['AuthorID']))
-                    author_id = match['AuthorID']  # we have a different authorid for that authorname
-                else:  # no author but request to add book, add author with newauthor status
-                    # User hit "add book" button from a search or a wishlist import
-                    newauthor_status = 'Active'
-                    if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
-                        newauthor_status = 'Paused'
-                    # also set paused if adding author as a series contributor
-                    if reason.startswith('Series:'):
-                        newauthor_status = 'Paused'
-                    control_value_dict = {"AuthorID": author_id}
-                    new_value_dict = {
-                        "AuthorName": author['authorname'],
-                        "AuthorImg": author['authorimg'],
-                        "AuthorLink": author['authorlink'],
-                        "AuthorBorn": author['authorborn'],
-                        "AuthorDeath": author['authordeath'],
-                        "DateAdded": today(),
-                        "Updated": int(time.time()),
-                        "Status": newauthor_status,
-                        "Reason": reason
-                    }
-                    authorname = author['authorname']
-                    db.upsert("authors", new_value_dict, control_value_dict)
-                    if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
-                        self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
-                                              reason=reason)
-        else:
-            self.logger.warning("No AuthorID for %s, unable to add book %s" % (book['author'], bookname))
-            return
+        db = database.DBConnection()
+        try:
+            authorname = book['author']
+            ol = OpenLibrary(authorname)
+            author = ol.find_author_id()
+            if author:
+                author_id = author['authorid']
+                match = db.match('SELECT AuthorID from authors WHERE AuthorID=?', (author_id,))
+                if not match:
+                    match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (author['authorname'],))
+                    if match:
+                        self.logger.debug('%s: Changing authorid from %s to %s' %
+                                          (author['authorname'], author_id, match['AuthorID']))
+                        author_id = match['AuthorID']  # we have a different authorid for that authorname
+                    else:  # no author but request to add book, add author with newauthor status
+                        # User hit "add book" button from a search or a wishlist import
+                        newauthor_status = 'Active'
+                        if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
+                            newauthor_status = 'Paused'
+                        # also set paused if adding author as a series contributor
+                        if reason.startswith('Series:'):
+                            newauthor_status = 'Paused'
+                        control_value_dict = {"AuthorID": author_id}
+                        new_value_dict = {
+                            "AuthorName": author['authorname'],
+                            "AuthorImg": author['authorimg'],
+                            "AuthorLink": author['authorlink'],
+                            "AuthorBorn": author['authorborn'],
+                            "AuthorDeath": author['authordeath'],
+                            "DateAdded": today(),
+                            "Updated": int(time.time()),
+                            "Status": newauthor_status,
+                            "Reason": reason
+                        }
+                        authorname = author['authorname']
+                        db.upsert("authors", new_value_dict, control_value_dict)
+                        if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
+                            self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
+                                                  reason=reason)
+            else:
+                self.logger.warning("No AuthorID for %s, unable to add book %s" % (book['author'], bookname))
+                return
 
-        reason = "[%s] %s" % (thread_name(), reason)
-        control_value_dict = {"BookID": bookid}
-        new_value_dict = {
-            "AuthorID": author_id,
-            "BookName": bookname,
-            "BookSub": book['sub'],
-            "BookDesc": book['desc'],
-            "BookIsbn": book['isbn'],
-            "BookPub": book['pub'],
-            "BookGenre": book['genre'],
-            "BookImg": book['img'],
-            "BookLink": book['link'],
-            "BookRate": float(book['rate']),
-            "BookPages": book['pages'],
-            "BookDate": book['date'],
-            "BookLang": book['lang'],
-            "Status": bookstatus,
-            "AudioStatus": audiostatus,
-            "ScanResult": reason,
-            "BookAdded": today()
-        }
-
-        db.upsert("books", new_value_dict, control_value_dict)
-        self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname,
-                                                                          bookstatus, audiostatus))
-
-        if 'nocover' in book['img'] or 'nophoto' in book['img']:
-            # try to get a cover from another source
-            workcover, source = get_book_cover(bookid)
-            if workcover:
-                self.logger.debug('Updated cover for %s using %s' % (bookname, source))
-                control_value_dict = {"BookID": bookid}
-                new_value_dict = {"BookImg": workcover}
-                db.upsert("books", new_value_dict, control_value_dict)
-
-            elif book['img'] and book['img'].startswith('http'):
-                link, success, _ = cache_img("book", bookid, book['img'])
-                if success:
-                    control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"BookImg": link}
-                    db.upsert("books", new_value_dict, control_value_dict)
-                else:
-                    self.logger.debug('Failed to cache image for %s' % book['img'])
-
-        serieslist = []
-        if book['series']:
-            serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]
-        if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
-            newserieslist = get_work_series(bookid, 'LT', reason=reason)
-            if newserieslist:
-                serieslist = newserieslist
-                self.logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-            set_series(serieslist, bookid, reason=reason)
-
-        worklink = get_work_page(bookid)
-        if worklink:
+            reason = "[%s] %s" % (thread_name(), reason)
             control_value_dict = {"BookID": bookid}
-            new_value_dict = {"WorkPage": worklink}
+            new_value_dict = {
+                "AuthorID": author_id,
+                "BookName": bookname,
+                "BookSub": book['sub'],
+                "BookDesc": book['desc'],
+                "BookIsbn": book['isbn'],
+                "BookPub": book['pub'],
+                "BookGenre": book['genre'],
+                "BookImg": book['img'],
+                "BookLink": book['link'],
+                "BookRate": float(book['rate']),
+                "BookPages": book['pages'],
+                "BookDate": book['date'],
+                "BookLang": book['lang'],
+                "Status": bookstatus,
+                "AudioStatus": audiostatus,
+                "ScanResult": reason,
+                "BookAdded": today()
+            }
+
             db.upsert("books", new_value_dict, control_value_dict)
+            self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname,
+                                                                              bookstatus, audiostatus))
 
+            if 'nocover' in book['img'] or 'nophoto' in book['img']:
+                # try to get a cover from another source
+                workcover, source = get_book_cover(bookid)
+                if workcover:
+                    self.logger.debug('Updated cover for %s using %s' % (bookname, source))
+                    control_value_dict = {"BookID": bookid}
+                    new_value_dict = {"BookImg": workcover}
+                    db.upsert("books", new_value_dict, control_value_dict)
 
+                elif book['img'] and book['img'].startswith('http'):
+                    link, success, _ = cache_img("book", bookid, book['img'])
+                    if success:
+                        control_value_dict = {"BookID": bookid}
+                        new_value_dict = {"BookImg": link}
+                        db.upsert("books", new_value_dict, control_value_dict)
+                    else:
+                        self.logger.debug('Failed to cache image for %s' % book['img'])
+
+            serieslist = []
+            if book['series']:
+                serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]
+            if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
+                newserieslist = get_work_series(bookid, 'LT', reason=reason)
+                if newserieslist:
+                    serieslist = newserieslist
+                    self.logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
+                set_series(serieslist, bookid, reason=reason)
+
+            worklink = get_work_page(bookid)
+            if worklink:
+                control_value_dict = {"BookID": bookid}
+                new_value_dict = {"WorkPage": worklink}
+                db.upsert("books", new_value_dict, control_value_dict)
+        finally:
+            db.close()

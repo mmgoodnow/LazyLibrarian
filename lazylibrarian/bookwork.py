@@ -36,19 +36,22 @@ import requests
 def set_all_book_authors():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    db.action('drop table if exists bookauthors')
-    db.action('create table bookauthors (AuthorID TEXT, BookID TEXT, Role TEXT, UNIQUE (AuthorID, BookID, Role))')
-    books = db.select('SELECT AuthorID,BookID from books')
-    for item in books:
-        db.action('insert into bookauthors (AuthorID, BookID, Role) values (?, ?, ?)',
-                  (item['AuthorID'], item['BookID'], ''), suppress='UNIQUE')
-    totalauthors = 0
-    totalrefs = 0
-    books = db.select('select bookid,bookname,authorid from books where workpage is not null and workpage != ""')
-    for book in books:
-        newauthors, newrefs = set_book_authors(book)
-        totalauthors += newauthors
-        totalrefs += newrefs
+    try:
+        db.action('drop table if exists bookauthors')
+        db.action('create table bookauthors (AuthorID TEXT, BookID TEXT, Role TEXT, UNIQUE (AuthorID, BookID, Role))')
+        books = db.select('SELECT AuthorID,BookID from books')
+        for item in books:
+            db.action('insert into bookauthors (AuthorID, BookID, Role) values (?, ?, ?)',
+                      (item['AuthorID'], item['BookID'], ''), suppress='UNIQUE')
+        totalauthors = 0
+        totalrefs = 0
+        books = db.select('select bookid,bookname,authorid from books where workpage is not null and workpage != ""')
+        for book in books:
+            newauthors, newrefs = set_book_authors(book)
+            totalauthors += newauthors
+            totalrefs += newrefs
+    finally:
+        db.close()
     msg = "Added %s new authors to database, %s new bookauthors" % (totalauthors, totalrefs)
     logger.debug(msg)
     return totalauthors, totalrefs
@@ -56,55 +59,61 @@ def set_all_book_authors():
 
 def set_book_authors(book):
     db = database.DBConnection()
-    newauthors = 0
-    newrefs = 0
     try:
-        authorlist = get_book_authors(book['bookid'])
-        for author in authorlist:
-            role = ''
-            if 'id' in author:
-                # it's a goodreads data source
-                authorname = author['name']
-                exists = db.match('select authorid from authors where authorid=?', (author['id'],))
-                if 'role' in author:
-                    role = author['role']
-            else:
-                # it's a librarything data source
-                authorname = format_author_name(author['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
-                exists = db.match('select authorid from authors where authorname=?', (authorname,))
-                if 'type' in author:
-                    authtype = author['type']
-                    if authtype in ['primary author', 'main author', 'secondary author']:
-                        role = authtype
-                    elif author['role'] in ['Author', '&mdash;'] and author['work'] == 'all editions':
-                        role = 'Author'
-            if exists:
-                authorid = exists['authorid']
-            else:
-                # try to add new author to database by name
-                reason = "set_book_authors: %s" % book['bookname']
-                authorname, authorid, new = lazylibrarian.importer.add_author_name_to_db(authorname,
-                                                                                         refresh=False,
-                                                                                         addbooks=False,
-                                                                                         reason=reason,
-                                                                                         title=book['bookname'])
-                if new and authorid:
-                    newauthors += 1
-            if authorid:
-                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                          (authorid, book['bookid'], role), suppress='UNIQUE')
-                newrefs += 1
-    except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error("Error parsing authorlist for %s: %s %s" % (book['bookname'], type(e).__name__, str(e)))
+        newauthors = 0
+        newrefs = 0
+        try:
+            authorlist = get_book_authors(book['bookid'])
+            for author in authorlist:
+                role = ''
+                if 'id' in author:
+                    # it's a goodreads data source
+                    authorname = author['name']
+                    exists = db.match('select authorid from authors where authorid=?', (author['id'],))
+                    if 'role' in author:
+                        role = author['role']
+                else:
+                    # it's a librarything data source
+                    authorname = format_author_name(author['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
+                    exists = db.match('select authorid from authors where authorname=?', (authorname,))
+                    if 'type' in author:
+                        authtype = author['type']
+                        if authtype in ['primary author', 'main author', 'secondary author']:
+                            role = authtype
+                        elif author['role'] in ['Author', '&mdash;'] and author['work'] == 'all editions':
+                            role = 'Author'
+                if exists:
+                    authorid = exists['authorid']
+                else:
+                    # try to add new author to database by name
+                    reason = "set_book_authors: %s" % book['bookname']
+                    authorname, authorid, new = lazylibrarian.importer.add_author_name_to_db(authorname,
+                                                                                             refresh=False,
+                                                                                             addbooks=False,
+                                                                                             reason=reason,
+                                                                                             title=book['bookname'])
+                    if new and authorid:
+                        newauthors += 1
+                if authorid:
+                    db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                              (authorid, book['bookid'], role), suppress='UNIQUE')
+                    newrefs += 1
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error("Error parsing authorlist for %s: %s %s" % (book['bookname'], type(e).__name__, str(e)))
+    finally:
+        db.close()
     return newauthors, newrefs
 
 
 def set_all_book_series():
     """ Try to set series details for all books """
-    db = database.DBConnection()
     logger = logging.getLogger(__name__)
-    books = db.select('select BookID,WorkID,BookName from books where Manual is not "1"')
+    db = database.DBConnection()
+    try:
+        books = db.select('select BookID,WorkID,BookName from books where Manual is not "1"')
+    finally:
+        db.close()
     counter = 0
     if books:
         logger.info('Checking series for %s %s' % (len(books), plural(len(books), "book")))
@@ -139,74 +148,76 @@ def set_series(serieslist=None, bookid=None, reason=""):
         and a displayable summary in book table
         serieslist is a tuple (SeriesID, SeriesNum, SeriesName)
         Return how many api hits and the original publication date if known """
-    db = database.DBConnection()
     logger = logging.getLogger(__name__)
-    api_hits = 0
-    originalpubdate = ''
-    newserieslist = []
-    if bookid:
-        # delete any old series-member entries
-        db.action('DELETE from member WHERE BookID=?', (bookid,))
-        for item in serieslist:
-            match = db.match('SELECT SeriesID from series where SeriesName=? COLLATE NOCASE', (item[2],))
-            if match:
-                seriesid = match['SeriesID']
-                members, _api_hits = get_series_members(seriesid, item[2])
-                api_hits += _api_hits
-            else:
-                # new series, need to set status and get SeriesID
-                if item[0]:
-                    seriesid = item[0]
+    db = database.DBConnection()
+    try:
+        api_hits = 0
+        originalpubdate = ''
+        newserieslist = []
+        if bookid:
+            # delete any old series-member entries
+            db.action('DELETE from member WHERE BookID=?', (bookid,))
+            for item in serieslist:
+                match = db.match('SELECT SeriesID from series where SeriesName=? COLLATE NOCASE', (item[2],))
+                if match:
+                    seriesid = match['SeriesID']
                     members, _api_hits = get_series_members(seriesid, item[2])
                     api_hits += _api_hits
                 else:
-                    # no seriesid so generate it (row count + 1)
-                    cnt = db.match("select count(*) as counter from series")
-                    res = check_int(cnt['counter'], 0)
-                    seriesid = str(res + 1)
-                    members = []
-                if len(members) < 2 and CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
-                    logger.debug("Ignoring unknown single-book-series %s" % item[2])
-                    continue
-                else:
-                    newserieslist.append(item)
-                    if not reason:
-                        program, method, lineno = get_info_on_caller(depth=1)
-                        reason = "%s:%s:%s" % (program, method, lineno)
+                    # new series, need to set status and get SeriesID
+                    if item[0]:
+                        seriesid = item[0]
+                        members, _api_hits = get_series_members(seriesid, item[2])
+                        api_hits += _api_hits
+                    else:
+                        # no seriesid so generate it (row count + 1)
+                        cnt = db.match("select count(*) as counter from series")
+                        res = check_int(cnt['counter'], 0)
+                        seriesid = str(res + 1)
+                        members = []
+                    if len(members) < 2 and CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
+                        logger.debug("Ignoring unknown single-book-series %s" % item[2])
+                        continue
+                    else:
+                        newserieslist.append(item)
+                        if not reason:
+                            program, method, lineno = get_info_on_caller(depth=1)
+                            reason = "%s:%s:%s" % (program, method, lineno)
 
-                    reason = "Bookid %s: %s" % (bookid, reason)
-                    db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                              (seriesid, item[2], CONFIG['NEWSERIES_STATUS'],
-                               0, 0, 0, reason, ''), suppress='UNIQUE')
+                        reason = "Bookid %s: %s" % (bookid, reason)
+                        db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                  (seriesid, item[2], CONFIG['NEWSERIES_STATUS'],
+                                   0, 0, 0, reason, ''), suppress='UNIQUE')
 
-            book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
-            authorid = book['AuthorID']
-            workid = book['WorkID']
-            if not workid:
-                workid = book['LT_WorkID']
+                book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
+                authorid = book['AuthorID']
+                workid = book['WorkID']
+                if not workid:
+                    workid = book['LT_WorkID']
 
-            control_value_dict = {"BookID": bookid, "SeriesID": seriesid}
-            new_value_dict = {"SeriesNum": item[1]}
-            if workid:
-                new_value_dict['WorkID'] = workid
-            db.upsert("member", new_value_dict, control_value_dict)
+                control_value_dict = {"BookID": bookid, "SeriesID": seriesid}
+                new_value_dict = {"SeriesNum": item[1]}
+                if workid:
+                    new_value_dict['WorkID'] = workid
+                db.upsert("member", new_value_dict, control_value_dict)
 
-            if workid:
-                for member in members:
-                    if member[3] == workid:
-                        if check_year(member[5], past=1800, future=0):
-                            bookdate = member[5]
-                            if check_int(member[6], 0) and check_int(member[7], 0):
-                                bookdate = "%s-%s-%s" % (member[5], member[6], member[7])
-                            control_value_dict = {"BookID": bookid}
-                            new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
-                            db.upsert("books", new_value_dict, control_value_dict)
-                            originalpubdate = bookdate
+                if workid:
+                    for member in members:
+                        if member[3] == workid:
+                            if check_year(member[5], past=1800, future=0):
+                                bookdate = member[5]
+                                if check_int(member[6], 0) and check_int(member[7], 0):
+                                    bookdate = "%s-%s-%s" % (member[5], member[6], member[7])
+                                control_value_dict = {"BookID": bookid}
+                                new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
+                                db.upsert("books", new_value_dict, control_value_dict)
+                                originalpubdate = bookdate
 
-            db.action('INSERT INTO seriesauthors ("SeriesID", "AuthorID") VALUES (?, ?)',
-                      (seriesid, authorid), suppress='UNIQUE')
-
-        return api_hits, originalpubdate
+                db.action('INSERT INTO seriesauthors ("SeriesID", "AuthorID") VALUES (?, ?)',
+                          (seriesid, authorid), suppress='UNIQUE')
+    finally:
+        db.close()
+    return api_hits, originalpubdate
 
 
 def get_status(bookid=None, serieslist=None, default=None, adefault=None, authstatus=None):
@@ -214,44 +225,47 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
         defaults are passed in as newbook or newauthor status """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    match = db.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
-    if not match:
-        return default, adefault
+    try:
+        match = db.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
+        if not match:
+            return default, adefault
 
-    new_status = ''
-    new_astatus = ''
-    authorid = match['AuthorID']
-    bookname = match['BookName']
-    threadname = thread_name()
-    # Is the book part of any series we want or don't want?
-    for item in serieslist:
-        match = db.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
-        if match and match['Status'] in ['Wanted', 'Skipped', 'Ignored']:
-            if CONFIG.get_bool('EBOOK_TAB'):
-                new_status = match['Status']
-            if CONFIG.get_bool('AUDIO_TAB'):
-                new_astatus = match['Status']
-            if new_status or new_astatus:
-                logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
-                msg = "[%s] Series (%s) is %s" % (threadname, item[2], match['Status'])
-                db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
-                break
+        new_status = ''
+        new_astatus = ''
+        authorid = match['AuthorID']
+        bookname = match['BookName']
+        threadname = thread_name()
+        # Is the book part of any series we want or don't want?
+        for item in serieslist:
+            match = db.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
+            if match and match['Status'] in ['Wanted', 'Skipped', 'Ignored']:
+                if CONFIG.get_bool('EBOOK_TAB'):
+                    new_status = match['Status']
+                if CONFIG.get_bool('AUDIO_TAB'):
+                    new_astatus = match['Status']
+                if new_status or new_astatus:
+                    logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
+                    msg = "[%s] Series (%s) is %s" % (threadname, item[2], match['Status'])
+                    db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
+                    break
 
-    if not new_status and not new_astatus:
-        # Author we want or don't want?
-        if authstatus in ['Paused', 'Ignored', 'Wanted']:
-            wanted_status = 'Skipped'
-            if authstatus == 'Wanted':
-                wanted_status = authstatus
-            if CONFIG.get_bool('EBOOK_TAB'):
-                new_status = wanted_status
-            if CONFIG.get_bool('AUDIO_TAB'):
-                new_astatus = wanted_status
-            if new_status or new_astatus:
-                logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
-                match = db.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
-                msg = "[%s] Author (%s) is %s" % (threadname, match['AuthorName'], authstatus)
-                db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
+        if not new_status and not new_astatus:
+            # Author we want or don't want?
+            if authstatus in ['Paused', 'Ignored', 'Wanted']:
+                wanted_status = 'Skipped'
+                if authstatus == 'Wanted':
+                    wanted_status = authstatus
+                if CONFIG.get_bool('EBOOK_TAB'):
+                    new_status = wanted_status
+                if CONFIG.get_bool('AUDIO_TAB'):
+                    new_astatus = wanted_status
+                if new_status or new_astatus:
+                    logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
+                    match = db.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
+                    msg = "[%s] Author (%s) is %s" % (threadname, match['AuthorName'], authstatus)
+                    db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
+    finally:
+        db.close()
 
     if new_status:
         default = new_status
@@ -266,14 +280,17 @@ def delete_empty_series():
     """ remove any series from series table that have no entries in member table, return how many deleted """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    series = db.select('SELECT SeriesID,SeriesName from series')
-    count = 0
-    for item in series:
-        match = db.match('SELECT BookID from member where SeriesID=?', (item['SeriesID'],))
-        if not match:
-            logger.debug('Deleting empty series %s' % item['SeriesName'])
-            count += 1
-            db.action('DELETE from series where SeriesID=?', (item['SeriesID'],))
+    try:
+        series = db.select('SELECT SeriesID,SeriesName from series')
+        count = 0
+        for item in series:
+            match = db.match('SELECT BookID from member where SeriesID=?', (item['SeriesID'],))
+            if not match:
+                logger.debug('Deleting empty series %s' % item['SeriesName'])
+                count += 1
+                db.action('DELETE from series where SeriesID=?', (item['SeriesID'],))
+    finally:
+        db.close()
     return count
 
 
@@ -281,63 +298,65 @@ def set_work_id(books=None):
     """ Set the goodreads workid for any books that don't already have one
         books is a comma separated list of bookids or if empty, select from database
         Paginate requests to reduce api hits """
-
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    pages = []
-    if books:
-        page = books
-        pages.append(page)
-    else:
-        cmd = "select BookID,BookName from books where WorkID='' or WorkID is null"
-        books = db.select(cmd)
+    try:
+        pages = []
         if books:
-            counter = 0
-            logger.debug('Setting WorkID for %s %s' % (len(books), plural(len(books), "book")))
-            page = ''
-            for book in books:
-                bookid = book['BookID']
-                if not bookid:
-                    logger.debug("No bookid for %s" % book['BookName'])
+            page = books
+            pages.append(page)
+        else:
+            cmd = "select BookID,BookName from books where WorkID='' or WorkID is null"
+            books = db.select(cmd)
+            if books:
+                counter = 0
+                logger.debug('Setting WorkID for %s %s' % (len(books), plural(len(books), "book")))
+                page = ''
+                for book in books:
+                    bookid = book['BookID']
+                    if not bookid:
+                        logger.debug("No bookid for %s" % book['BookName'])
+                    else:
+                        if page:
+                            page = page + ','
+                        page = page + bookid
+                        counter += 1
+                        if counter == 50:
+                            counter = 0
+                            pages.append(page)
+                            page = ''
+                if page:
+                    pages.append(page)
+
+        counter = 0
+        params = {"key": CONFIG['GR_API']}
+        for page in pages:
+            url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' + urlencode(params)])
+            try:
+                rootxml, _ = gr_xml_request(url, use_cache=False)
+                if rootxml is None:
+                    logger.debug("Error requesting id_to_work_id page")
                 else:
-                    if page:
-                        page = page + ','
-                    page = page + bookid
-                    counter += 1
-                    if counter == 50:
-                        counter = 0
-                        pages.append(page)
-                        page = ''
-            if page:
-                pages.append(page)
+                    resultxml = rootxml.find('work-ids')
+                    if len(resultxml):
+                        ids = resultxml.iter('item')
+                        books = get_list(page)
+                        cnt = 0
+                        for item in ids:
+                            workid = item.text
+                            if not workid:
+                                logger.debug("No workid returned for %s" % books[cnt])
+                            else:
+                                counter += 1
+                                control_value_dict = {"BookID": books[cnt]}
+                                new_value_dict = {"WorkID": workid}
+                                db.upsert("books", new_value_dict, control_value_dict)
+                            cnt += 1
 
-    counter = 0
-    params = {"key": CONFIG['GR_API']}
-    for page in pages:
-        url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' + urlencode(params)])
-        try:
-            rootxml, _ = gr_xml_request(url, use_cache=False)
-            if rootxml is None:
-                logger.debug("Error requesting id_to_work_id page")
-            else:
-                resultxml = rootxml.find('work-ids')
-                if len(resultxml):
-                    ids = resultxml.iter('item')
-                    books = get_list(page)
-                    cnt = 0
-                    for item in ids:
-                        workid = item.text
-                        if not workid:
-                            logger.debug("No workid returned for %s" % books[cnt])
-                        else:
-                            counter += 1
-                            control_value_dict = {"BookID": books[cnt]}
-                            new_value_dict = {"WorkID": workid}
-                            db.upsert("books", new_value_dict, control_value_dict)
-                        cnt += 1
-
-        except Exception as e:
-            logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
+            except Exception as e:
+                logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
+    finally:
+        db.close()
 
     msg = 'Updated %s %s' % (counter, plural(counter, "id"))
     logger.debug("set_work_id complete: " + msg)
@@ -375,15 +394,19 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
         return None
 
     db = database.DBConnection()
-    if bookid:
-        cmd = 'select BookName,AuthorName,BookISBN from books,authors where bookID=? or books.gr_id=?'
-        cmd += ' and books.AuthorID = authors.AuthorID'
-        cache_location = "WorkCache"
-        item = db.match(cmd, (bookid, bookid))
-    else:
-        cmd = 'select SeriesName from series where SeriesID=?'
-        cache_location = "SeriesCache"
-        item = db.match(cmd, (seriesid,))
+    try:
+        if bookid:
+            cmd = 'select BookName,AuthorName,BookISBN from books,authors where bookID=? or books.gr_id=?'
+            cmd += ' and books.AuthorID = authors.AuthorID'
+            cache_location = "WorkCache"
+            item = db.match(cmd, (bookid, bookid))
+        else:
+            cmd = 'select SeriesName from series where SeriesID=?'
+            cache_location = "SeriesCache"
+            item = db.match(cmd, (seriesid,))
+    finally:
+        db.close()
+
     if item:
         cache_location = os.path.join(DIRS.CACHEDIR, cache_location)
         if bookid:
@@ -504,28 +527,32 @@ def set_work_pages():
     global LAST_NEW
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    cmd = 'select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4'
-    cmd += ' and books.AuthorID = authors.AuthorID'
-    books = db.select(cmd)
-    if books:
-        logger.debug('Setting WorkPage for %s %s' % (len(books), plural(len(books), "book")))
-        counter = 0
-        for book in books:
-            bookid = book['BookID']
-            worklink = get_work_page(bookid)
-            if worklink:
-                control_value_dict = {"BookID": bookid}
-                new_value_dict = {"WorkPage": worklink}
-                db.upsert("books", new_value_dict, control_value_dict)
-                counter += 1
-            else:
-                if check_int(LAST_NEW, 0) + 43200 < time.time():
-                    logger.debug('No WorkPage found for %s: %s' % (book['AuthorName'], book['BookName']))
-        msg = 'Updated %s %s' % (counter, plural(counter, "page"))
-        logger.debug("set_work_pages complete: " + msg)
-    else:
-        msg = 'No missing WorkPages'
-        logger.debug(msg)
+    try:
+        cmd = 'select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4'
+        cmd += ' and books.AuthorID = authors.AuthorID'
+        books = db.select(cmd)
+        if books:
+            logger.debug('Setting WorkPage for %s %s' % (len(books), plural(len(books), "book")))
+            counter = 0
+            for book in books:
+                bookid = book['BookID']
+                worklink = get_work_page(bookid)
+                if worklink:
+                    control_value_dict = {"BookID": bookid}
+                    new_value_dict = {"WorkPage": worklink}
+                    db.upsert("books", new_value_dict, control_value_dict)
+                    counter += 1
+                else:
+                    if check_int(LAST_NEW, 0) + 43200 < time.time():
+                        logger.debug('No WorkPage found for %s: %s' % (book['AuthorName'], book['BookName']))
+            msg = 'Updated %s %s' % (counter, plural(counter, "page"))
+            logger.debug("set_work_pages complete: " + msg)
+        else:
+            msg = 'No missing WorkPages'
+            logger.debug(msg)
+    finally:
+        db.close()
+
     return msg
 
 
@@ -551,7 +578,10 @@ def get_all_series_authors():
         and import those authors (but NOT their books) into the database """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    series = db.select('select SeriesID from series')
+    try:
+        series = db.select('select SeriesID from series')
+    finally:
+        db.close()
     if series:
         logger.debug('Getting series authors for %s series' % len(series))
         counter = 0
@@ -640,11 +670,11 @@ def add_series_members(seriesid, refresh=False):
     count = 0
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    series = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
-    if not series:
-        logger.error("Error getting series name for %s" % seriesid)
-        return 0
     try:
+        series = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
+        if not series:
+            logger.error("Error getting series name for %s" % seriesid)
+            return 0
         lazylibrarian.SERIES_UPDATE = True
         seriesname = series['SeriesName']
         logger.debug("Updating series members for %s:%s" % (seriesid, seriesname))
@@ -713,6 +743,7 @@ def add_series_members(seriesid, refresh=False):
         logger.error("%s adding series %s: %s" % (type(e).__name__, seriesid, str(e)))
         logger.error('%s' % traceback.format_exc())
     finally:
+        db.close()
         lazylibrarian.SERIES_UPDATE = False
         return count
 
@@ -723,76 +754,41 @@ def get_series_authors(seriesid):
         Return how many authors you added """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    result = db.match("select count(*) as counter from authors")
-    start = int(result['counter'])
-    result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
-    if not result:
-        logger.error("Error getting series name for %s" % seriesid)
-        return 0
-    if result['Status'] in ['Paused', 'Ignored']:
-        logger.debug("Not getting additional series authors for %s, status is %s" %
-                     (result['SeriesName'], result['Status']))
-        return 0
+    try:
+        result = db.match("select count(*) as counter from authors")
+        start = int(result['counter'])
+        result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
+        if not result:
+            logger.error("Error getting series name for %s" % seriesid)
+            return 0
+        if result['Status'] in ['Paused', 'Ignored']:
+            logger.debug("Not getting additional series authors for %s, status is %s" %
+                         (result['SeriesName'], result['Status']))
+            return 0
 
-    seriesname = result['SeriesName']
-    members, api_hits = get_series_members(seriesid, seriesname)
+        seriesname = result['SeriesName']
+        members, api_hits = get_series_members(seriesid, seriesname)
 
-    if members:
-        for member in members:
-            # order = member[0]
-            bookname = member[1]
-            authorname = member[2]
-            # workid = member[3]
-            authorid = member[4]
-            # pubyear = member[5]
-            # pubmonth = member[6]
-            # pubday = member[7]
-            # bookid = member[8]
-            bookname = replace_all(bookname, quotes)
-            if not authorid:
-                # goodreads gives us all the info we need, librarything/google doesn't
-                base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
-                params = {"key": CONFIG['GR_API']}
-                searchname = "%s %s" % (clean_name(bookname), clean_name(authorname))
-                searchterm = quote_plus(make_utf8bytes(searchname)[0])
-                set_url = base_url + searchterm + '&' + urlencode(params)
-                try:
-                    rootxml, in_cache = gr_xml_request(set_url)
-                    if not in_cache:
-                        api_hits += 1
-                    if rootxml is None:
-                        logger.warning('Error getting XML for %s' % searchname)
-                    else:
-                        resultxml = rootxml.iter('work')
-                        for item in resultxml:
-                            try:
-                                booktitle = item.find('./best_book/title').text
-                                booktitle = replace_all(booktitle, quotes)
-                            except (KeyError, AttributeError):
-                                booktitle = ""
-                            book_fuzz = fuzz.token_set_ratio(booktitle, bookname)
-                            if book_fuzz >= 98:
-                                try:
-                                    author = item.find('./best_book/author/name').text
-                                except (KeyError, AttributeError):
-                                    author = ""
-                                # try:
-                                #     workid = item.find('./work/id').text
-                                # except (KeyError, AttributeError):
-                                #     workid = ""
-                                try:
-                                    authorid = item.find('./best_book/author/id').text
-                                except (KeyError, AttributeError):
-                                    authorid = ""
-                                logger.debug("Author Search found %s %s, authorid %s" %
-                                             (author, booktitle, authorid))
-                                break
-                    if not authorid:  # try again with title only
-                        searchname = clean_name(bookname)
-                        if not searchname:
-                            searchname = bookname
-                        searchterm = quote_plus(make_utf8bytes(searchname)[0])
-                        set_url = base_url + searchterm + '&' + urlencode(params)
+        if members:
+            for member in members:
+                # order = member[0]
+                bookname = member[1]
+                authorname = member[2]
+                # workid = member[3]
+                authorid = member[4]
+                # pubyear = member[5]
+                # pubmonth = member[6]
+                # pubday = member[7]
+                # bookid = member[8]
+                bookname = replace_all(bookname, quotes)
+                if not authorid:
+                    # goodreads gives us all the info we need, librarything/google doesn't
+                    base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
+                    params = {"key": CONFIG['GR_API']}
+                    searchname = "%s %s" % (clean_name(bookname), clean_name(authorname))
+                    searchterm = quote_plus(make_utf8bytes(searchname)[0])
+                    set_url = base_url + searchterm + '&' + urlencode(params)
+                    try:
                         rootxml, in_cache = gr_xml_request(set_url)
                         if not in_cache:
                             api_hits += 1
@@ -801,8 +797,11 @@ def get_series_authors(seriesid):
                         else:
                             resultxml = rootxml.iter('work')
                             for item in resultxml:
-                                booktitle = item.find('./best_book/title').text
-                                booktitle = replace_all(booktitle, quotes)
+                                try:
+                                    booktitle = item.find('./best_book/title').text
+                                    booktitle = replace_all(booktitle, quotes)
+                                except (KeyError, AttributeError):
+                                    booktitle = ""
                                 book_fuzz = fuzz.token_set_ratio(booktitle, bookname)
                                 if book_fuzz >= 98:
                                     try:
@@ -817,19 +816,54 @@ def get_series_authors(seriesid):
                                         authorid = item.find('./best_book/author/id').text
                                     except (KeyError, AttributeError):
                                         authorid = ""
-                                    logger.debug("Title Search found %s %s, authorid %s" %
+                                    logger.debug("Author Search found %s %s, authorid %s" %
                                                  (author, booktitle, authorid))
                                     break
-                    if not authorid:
-                        logger.warning("GoodReads doesn't know about %s %s" % (authorname, bookname))
-                except Exception as e:
-                    logger.error("Error finding goodreads results: %s %s" % (type(e).__name__, str(e)))
+                        if not authorid:  # try again with title only
+                            searchname = clean_name(bookname)
+                            if not searchname:
+                                searchname = bookname
+                            searchterm = quote_plus(make_utf8bytes(searchname)[0])
+                            set_url = base_url + searchterm + '&' + urlencode(params)
+                            rootxml, in_cache = gr_xml_request(set_url)
+                            if not in_cache:
+                                api_hits += 1
+                            if rootxml is None:
+                                logger.warning('Error getting XML for %s' % searchname)
+                            else:
+                                resultxml = rootxml.iter('work')
+                                for item in resultxml:
+                                    booktitle = item.find('./best_book/title').text
+                                    booktitle = replace_all(booktitle, quotes)
+                                    book_fuzz = fuzz.token_set_ratio(booktitle, bookname)
+                                    if book_fuzz >= 98:
+                                        try:
+                                            author = item.find('./best_book/author/name').text
+                                        except (KeyError, AttributeError):
+                                            author = ""
+                                        # try:
+                                        #     workid = item.find('./work/id').text
+                                        # except (KeyError, AttributeError):
+                                        #     workid = ""
+                                        try:
+                                            authorid = item.find('./best_book/author/id').text
+                                        except (KeyError, AttributeError):
+                                            authorid = ""
+                                        logger.debug("Title Search found %s %s, authorid %s" %
+                                                     (author, booktitle, authorid))
+                                        break
+                        if not authorid:
+                            logger.warning("GoodReads doesn't know about %s %s" % (authorname, bookname))
+                    except Exception as e:
+                        logger.error("Error finding goodreads results: %s %s" % (type(e).__name__, str(e)))
 
-            if authorid:
-                lazylibrarian.importer.add_author_to_db(refresh=False, authorid=authorid, addbooks=False,
-                                                        reason="get_series_authors: %s" % seriesname)
+                if authorid:
+                    lazylibrarian.importer.add_author_to_db(refresh=False, authorid=authorid, addbooks=False,
+                                                            reason="get_series_authors: %s" % seriesname)
 
-    result = db.match("select count(*) as counter from authors")
+        result = db.match("select count(*) as counter from authors")
+    finally:
+        db.close()
     finish = int(result['counter'])
     newauth = finish - start
     logger.info("Added %s new %s for %s" % (newauth, plural(newauth, "author"), seriesname))
@@ -845,86 +879,89 @@ def get_series_members(seriesid=None, seriesname=None):
     api_hits = 0
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
-    if result:
-        if result['Status'] in ['Paused', 'Ignored']:
-            logger.debug("Not getting additional series members for %s, status is %s" %
-                         (result['SeriesName'], result['Status']))
-            return results, api_hits
+    try:
+        result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
+        if result:
+            if result['Status'] in ['Paused', 'Ignored']:
+                logger.debug("Not getting additional series members for %s, status is %s" %
+                             (result['SeriesName'], result['Status']))
+                return results, api_hits
 
-    if CONFIG['BOOK_API'] == 'GoodReads':
-        params = {"format": "xml", "key": CONFIG['GR_API']}
-        url = '/'.join([CONFIG['GR_URL'], 'series/%s?%s' % (seriesid, urlencode(params))])
-        try:
-            rootxml, in_cache = gr_xml_request(url)
-            if not in_cache:
-                api_hits += 1
-            if rootxml is None:
-                logger.debug("Series %s:%s not recognised at goodreads" % (seriesid, seriesname))
+        if CONFIG['BOOK_API'] == 'GoodReads':
+            params = {"format": "xml", "key": CONFIG['GR_API']}
+            url = '/'.join([CONFIG['GR_URL'], 'series/%s?%s' % (seriesid, urlencode(params))])
+            try:
+                rootxml, in_cache = gr_xml_request(url)
+                if not in_cache:
+                    api_hits += 1
+                if rootxml is None:
+                    logger.debug("Series %s:%s not recognised at goodreads" % (seriesid, seriesname))
+                    return [], api_hits
+            except Exception as e:
+                logger.error("%s finding series %s: %s" % (type(e).__name__, seriesid, str(e)))
                 return [], api_hits
-        except Exception as e:
-            logger.error("%s finding series %s: %s" % (type(e).__name__, seriesid, str(e)))
-            return [], api_hits
 
-        works = rootxml.find('series/series_works')
-        books = works.iter('series_work')
-        if books is None:
-            logger.warning('No books found for %s' % seriesid)
-            return [], api_hits
-        for book in books:
-            mydict = {}
-            for mykey, location in [('order', 'user_position'),
-                                    ('bookname', 'work/best_book/title'),
-                                    ('authorname', 'work/best_book/author/name'),
-                                    ('workid', 'work/id'),
-                                    ('authorid', 'work/best_book/author/id'),
-                                    ('pubyear', 'work/original_publication_year'),
-                                    ('pubmonth', 'work/original_publication_month'),
-                                    ('pubday', 'work/original_publication_day'),
-                                    ('bookid', 'work/best_book/id')
-                                    ]:
-                if book.find(location) is not None:
-                    mydict[mykey] = book.find(location).text
-                else:
-                    mydict[mykey] = ""
-            results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
-                            mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
-                            mydict['pubday'], mydict['bookid']])
+            works = rootxml.find('series/series_works')
+            books = works.iter('series_work')
+            if books is None:
+                logger.warning('No books found for %s' % seriesid)
+                return [], api_hits
+            for book in books:
+                mydict = {}
+                for mykey, location in [('order', 'user_position'),
+                                        ('bookname', 'work/best_book/title'),
+                                        ('authorname', 'work/best_book/author/name'),
+                                        ('workid', 'work/id'),
+                                        ('authorid', 'work/best_book/author/id'),
+                                        ('pubyear', 'work/original_publication_year'),
+                                        ('pubmonth', 'work/original_publication_month'),
+                                        ('pubday', 'work/original_publication_day'),
+                                        ('bookid', 'work/best_book/id')
+                                        ]:
+                    if book.find(location) is not None:
+                        mydict[mykey] = book.find(location).text
+                    else:
+                        mydict[mykey] = ""
+                results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
+                                mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
+                                mydict['pubday'], mydict['bookid']])
 
-    else:  # googlebooks and openlibrary
-        api_hits = 0
-        results = []
-        # noinspection PyUnresolvedReferences
-        ol = lazylibrarian.ol.OpenLibrary(seriesid)
-        res = ol.get_series_members(seriesid, seriesname)
-        if res:
-            for item in res:
-                book = db.match("SELECT authorid,bookid from books WHERE LT_WorkID=?", (item[4],))
-                if book:
-                    results.append([item[0], item[1], item[2], item[4], book[0], '', '', '', book[1]])
-                else:
-                    results.append([item[0], item[1], item[2], item[4], '', '', '', '', ''])
-        if not results:
-            data = get_bookwork(None, "SeriesPage", seriesid)
-            if data:
-                try:
-                    table = data.split('class="worksinseries"')[1].split('</table>')[0]
-                    rows = table.split('<tr')
-                    for row in rows:
-                        if 'href=' in row:
-                            booklink = row.split('href="')[1]
-                            bookname = booklink.split('">')[1].split('<')[0]
-                            # booklink = booklink.split('"')[0]
-                            try:
-                                authorlink = row.split('href="')[2]
-                                authorname = authorlink.split('">')[1].split('<')[0]
-                                order = row.split('class="order">')[1].split('<')[0]
-                                results.append([order, bookname, authorname, '', '', '', '', '', ''])
-                            except IndexError:
-                                logger.debug('Incomplete data in series table for series %s' % seriesid)
-                except IndexError:
-                    if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
-                        logger.debug('Error in series table for series %s' % seriesid)
+        else:  # googlebooks and openlibrary
+            api_hits = 0
+            results = []
+            # noinspection PyUnresolvedReferences
+            ol = lazylibrarian.ol.OpenLibrary(seriesid)
+            res = ol.get_series_members(seriesid, seriesname)
+            if res:
+                for item in res:
+                    book = db.match("SELECT authorid,bookid from books WHERE LT_WorkID=?", (item[4],))
+                    if book:
+                        results.append([item[0], item[1], item[2], item[4], book[0], '', '', '', book[1]])
+                    else:
+                        results.append([item[0], item[1], item[2], item[4], '', '', '', '', ''])
+            if not results:
+                data = get_bookwork(None, "SeriesPage", seriesid)
+                if data:
+                    try:
+                        table = data.split('class="worksinseries"')[1].split('</table>')[0]
+                        rows = table.split('<tr')
+                        for row in rows:
+                            if 'href=' in row:
+                                booklink = row.split('href="')[1]
+                                bookname = booklink.split('">')[1].split('<')[0]
+                                # booklink = booklink.split('"')[0]
+                                try:
+                                    authorlink = row.split('href="')[2]
+                                    authorname = authorlink.split('">')[1].split('<')[0]
+                                    order = row.split('class="order">')[1].split('<')[0]
+                                    results.append([order, bookname, authorname, '', '', '', '', '', ''])
+                                except IndexError:
+                                    logger.debug('Incomplete data in series table for series %s' % seriesid)
+                    except IndexError:
+                        if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
+                            logger.debug('Error in series table for series %s' % seriesid)
+    finally:
+        db.close()
     first = False
     filtered = []
     for item in results:
@@ -1114,7 +1151,6 @@ def get_work_series(bookid=None, source='GR', reason=""):
     """ Return the series names and numbers in series for the given id as a list of tuples
         For goodreads the id is a WorkID, for librarything it's a BookID """
     logger = logging.getLogger(__name__)
-    db = database.DBConnection()
     serieslist = []
     if not bookid:
         logger.error("get_work_series - No bookID")
@@ -1152,26 +1188,30 @@ def get_work_series(bookid=None, source='GR', reason=""):
                     if seriesname:
                         seriesnum = clean_name(seriesnum)
                         serieslist.append((seriesid, seriesnum, seriesname))
-                        match = db.match('SELECT SeriesID from series WHERE SeriesName=?', (seriesname,))
-                        if not match:
-                            match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
+                        db = database.DBConnection()
+                        try:
+                            match = db.match('SELECT SeriesID from series WHERE SeriesName=?', (seriesname,))
                             if not match:
-                                reason = "Bookid %s: %s" % (bookid, reason)
-                                db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                                          (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
-                                           0, 0, 0, reason, ''))
-                            else:
-                                logger.warning("Name mismatch for series %s, [%s][%s]" % (
-                                            seriesid, seriesname, match['SeriesName']))
-                        elif str(match['SeriesID']) != str(seriesid):
-                            logger.warning("SeriesID mismatch for series %s, [%s][%s] assume different series?" % (
-                                        seriesname, seriesid, match['SeriesID']))
-                            match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
-                            if not match:
-                                reason = "Bookid %s: %s" % (bookid, reason)
-                                db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                                          (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
-                                           0, 0, 0, reason, ''))
+                                match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
+                                if not match:
+                                    reason = "Bookid %s: %s" % (bookid, reason)
+                                    db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                              (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
+                                               0, 0, 0, reason, ''))
+                                else:
+                                    logger.warning("Name mismatch for series %s, [%s][%s]" % (
+                                                seriesid, seriesname, match['SeriesName']))
+                            elif str(match['SeriesID']) != str(seriesid):
+                                logger.warning("SeriesID mismatch for series %s, [%s][%s] assume different series?" % (
+                                            seriesname, seriesid, match['SeriesID']))
+                                match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
+                                if not match:
+                                    reason = "Bookid %s: %s" % (bookid, reason)
+                                    db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                              (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
+                                               0, 0, 0, reason, ''))
+                        finally:
+                            db.close()
     else:
         work = get_bookwork(bookid, "Series")
         if work:
@@ -1201,24 +1241,27 @@ def get_work_series(bookid=None, source='GR', reason=""):
 def set_genres(genrelist=None, bookid=None):
     """ set genre details in genres/genrebooks tables from the supplied list
         and a displayable summary in book table """
-    db = database.DBConnection()
     if bookid:
-        # delete any old genrebooks entries
-        db.action('DELETE from genrebooks WHERE BookID=?', (bookid,))
-        for item in genrelist:
-            match = db.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
-            if not match:
-                db.action('INSERT into genres (GenreName) VALUES (?)', (item,), suppress='UNIQUE')
-                match = db.match('SELECT GenreID from genres where GenreName=?', (item,))
-            db.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
-                      (match['GenreID'], bookid), suppress='UNIQUE')
-        if CONFIG.get_bool('WISHLIST_GENRES'):
-            book = db.match('SELECT Requester,AudioRequester from books WHERE BookID=?', (bookid,))
-            if book['Requester'] is not None and book['Requester'] not in genrelist:
-                genrelist.insert(0, book['Requester'])
-            if book['AudioRequester'] is not None and book['AudioRequester'] not in genrelist:
-                genrelist.insert(0, book['AudioRequester'])
-        db.action('UPDATE books set BookGenre=? WHERE BookID=?', (', '.join(genrelist), bookid))
+        db = database.DBConnection()
+        try:
+            # delete any old genrebooks entries
+            db.action('DELETE from genrebooks WHERE BookID=?', (bookid,))
+            for item in genrelist:
+                match = db.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
+                if not match:
+                    db.action('INSERT into genres (GenreName) VALUES (?)', (item,), suppress='UNIQUE')
+                    match = db.match('SELECT GenreID from genres where GenreName=?', (item,))
+                db.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
+                          (match['GenreID'], bookid), suppress='UNIQUE')
+            if CONFIG.get_bool('WISHLIST_GENRES'):
+                book = db.match('SELECT Requester,AudioRequester from books WHERE BookID=?', (bookid,))
+                if book['Requester'] is not None and book['Requester'] not in genrelist:
+                    genrelist.insert(0, book['Requester'])
+                if book['AudioRequester'] is not None and book['AudioRequester'] not in genrelist:
+                    genrelist.insert(0, book['AudioRequester'])
+            db.action('UPDATE books set BookGenre=? WHERE BookID=?', (', '.join(genrelist), bookid))
+        finally:
+            db.close()
 
 
 def genre_filter(genre):
@@ -1264,13 +1307,16 @@ def genre_filter(genre):
     words = genre.replace('-', ' ').rsplit(None, 1)
     if len(words) == 2:
         db = database.DBConnection()
-        res = db.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
-                       ("%s %s" % (words[0], words[1]),))
-        if len(res):
-            return ""
+        try:
+            res = db.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
+                           ("%s %s" % (words[0], words[1]),))
+            if len(res):
+                return ""
 
-        res = db.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
-                       ("%s %s" % (words[1], words[0]),))
+            res = db.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
+                           ("%s %s" % (words[1], words[0]),))
+        finally:
+            db.close()
         if len(res):
             return ""
     return genre
@@ -1409,41 +1455,44 @@ def isbn_from_words(words):
         Store the results in the database """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    res = db.match("SELECT ISBN from isbn WHERE Words=?", (words,))
-    if res:
-        logger.debug('Found cached ISBN for %s' % words)
-        return res['ISBN']
+    try:
+        res = db.match("SELECT ISBN from isbn WHERE Words=?", (words,))
+        if res:
+            logger.debug('Found cached ISBN for %s' % words)
+            return res['ISBN']
 
-    baseurl = "http://www.google.com/search?q=ISBN+"
-    search_url = baseurl + quote(words.replace(' ', '+'))
+        baseurl = "http://www.google.com/search?q=ISBN+"
+        search_url = baseurl + quote(words.replace(' ', '+'))
 
-    headers = {'User-Agent': 'w3m/0.5.3',
-               'Content-Type': 'text/plain; charset="UTF-8"',
-               'Content-Transfer-Encoding': 'Quoted-Printable',
-               }
-    content, _ = fetch_url(search_url, headers=headers)
-    # noinspection Annotator
-    re_isbn13 = re.compile(r'97[89](?:-?\d){10,16}|97[89][- 0-9]{10,16}')
-    re_isbn10 = re.compile(r'ISBN\x20(?=.{13}$)\d{1,5}([- ])\d{1,7}\1\d{1,6}\1(\d|X)$|[- 0-9X]{10,16}')
+        headers = {'User-Agent': 'w3m/0.5.3',
+                   'Content-Type': 'text/plain; charset="UTF-8"',
+                   'Content-Transfer-Encoding': 'Quoted-Printable',
+                   }
+        content, _ = fetch_url(search_url, headers=headers)
+        # noinspection Annotator
+        re_isbn13 = re.compile(r'97[89](?:-?\d){10,16}|97[89][- 0-9]{10,16}')
+        re_isbn10 = re.compile(r'ISBN\x20(?=.{13}$)\d{1,5}([- ])\d{1,7}\1\d{1,6}\1(\d|X)$|[- 0-9X]{10,16}')
 
-    # take the first valid looking answer
-    res = re_isbn13.findall(content)
-    logger.debug('Found %s ISBN13 for %s' % (len(res), words))
-    for item in res:
-        if len(item) > 13:
-            item = item.replace('-', '').replace(' ', '')
-        if len(item) == 13:
-            db.action("INSERT into isbn (Words, ISBN) VALUES (?, ?)", (words, item))
-            return item
+        # take the first valid looking answer
+        res = re_isbn13.findall(content)
+        logger.debug('Found %s ISBN13 for %s' % (len(res), words))
+        for item in res:
+            if len(item) > 13:
+                item = item.replace('-', '').replace(' ', '')
+            if len(item) == 13:
+                db.action("INSERT into isbn (Words, ISBN) VALUES (?, ?)", (words, item))
+                return item
 
-    res = re_isbn10.findall(content)
-    logger.debug('Found %s ISBN10 for %s' % (len(res), words))
-    for item in res:
-        if len(item) > 10:
-            item = item.replace('-', '').replace(' ', '')
-        if len(item) == 10:
-            db.action("INSERT into isbn (Words, ISBN) VALUES (?, ?)", (words, item))
-            return item
+        res = re_isbn10.findall(content)
+        logger.debug('Found %s ISBN10 for %s' % (len(res), words))
+        for item in res:
+            if len(item) > 10:
+                item = item.replace('-', '').replace(' ', '')
+            if len(item) == 10:
+                db.action("INSERT into isbn (Words, ISBN) VALUES (?, ?)", (words, item))
+                return item
+    finally:
+        db.close()
 
     logger.debug('No valid ISBN found for %s' % words)
     return None

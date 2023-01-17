@@ -33,8 +33,8 @@ def comic_scan(comicid=None):
     lazylibrarian.COMIC_UPDATE = 1
     title = ''
     # noinspection PyBroadException
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         if comicid:
             mags = db.match('select Title from comics WHERE ComicID=?', (comicid,))
             if mags:
@@ -307,7 +307,8 @@ def comic_scan(comicid=None):
         else:
             logger.info("Comic scan complete")
         lazylibrarian.COMIC_UPDATE = 0
-
     except Exception:
         lazylibrarian.COMIC_UPDATE = 0
         logger.error('Unhandled exception in comic_scan: %s' % traceback.format_exc())
+    finally:
+        db.close()

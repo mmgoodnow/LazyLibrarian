@@ -49,8 +49,11 @@ def search_item(comicid=None):
         return results
 
     db = database.DBConnection()
-    cmd = 'SELECT Title,SearchTerm from comics WHERE Status="Active" and ComicID=?'
-    match = db.match(cmd, (comicid,))
+    try:
+        cmd = 'SELECT Title,SearchTerm from comics WHERE Status="Active" and ComicID=?'
+        match = db.match(cmd, (comicid,))
+    finally:
+        db.close()
     if not match:
         logger.debug("No comic match for %s" % comicid)
         return results
@@ -199,15 +202,15 @@ def search_comics(comicid=None):
     logger = logging.getLogger(__name__)
     loggersearching = logging.getLogger('special.searching')
     # noinspection PyBroadException
-    try:
-        threadname = thread_name()
-        if "Thread-" in threadname:
-            if not comicid:
-                thread_name("SEARCHALLCOMICS")
-            else:
-                thread_name("SEARCHCOMIC")
+    threadname = thread_name()
+    if "Thread-" in threadname:
+        if not comicid:
+            thread_name("SEARCHALLCOMICS")
+        else:
+            thread_name("SEARCHCOMIC")
 
-        db = database.DBConnection()
+    db = database.DBConnection()
+    try:
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         cmd = "SELECT ComicID,Title, aka from comics WHERE Status='Active'"
         if comicid:
@@ -277,6 +280,7 @@ def search_comics(comicid=None):
     except Exception:
         logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())
     finally:
+        db.close()
         thread_name("WEBSERVER")
 
 
@@ -284,64 +288,67 @@ def download_comiclist(foundissues):
     logger = logging.getLogger(__name__)
     loggesearching = logging.getLogger('special.searching')
     db = database.DBConnection()
-    snatched = 0
-    for issue in foundissues:
-        item = foundissues[issue]
-        match = db.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
-                         (item['title'], item['provider']))
-        if match:
-            loggesearching.debug('%s is already marked %s' % (item['title'], match['Status']))
-        else:
-            bookid = "%s_%s" % (item['bookid'], issue)
-            control_value_dict = {
-                "NZBtitle": item['title'],
-                "NZBprov": item['provider']
-            }
-            new_value_dict = {
-                "NZBurl": item['url'],
-                "BookID": bookid,
-                "NZBdate": item['date'],
-                "AuxInfo": "comic",
-                "Status": "Matched",
-                "NZBsize": item['size'],
-                "NZBmode": item['mode']
-            }
-            db.upsert("wanted", new_value_dict, control_value_dict)
-
-            if item['mode'] in ["torznab", "torrent", "magnet"]:
-                snatch, res = tor_dl_method(
-                    bookid,
-                    item['title'],
-                    item['url'],
-                    'comic')
-            elif item['mode'] == 'direct':
-                snatch, res = direct_dl_method(
-                    bookid,
-                    item['title'],
-                    item['url'],
-                    'comic',
-                    item['provider'])
-            elif item['mode'] == 'nzb':
-                snatch, res = nzb_dl_method(
-                    bookid,
-                    item['title'],
-                    item['url'],
-                    'comic')
+    try:
+        snatched = 0
+        for issue in foundissues:
+            item = foundissues[issue]
+            match = db.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
+                             (item['title'], item['provider']))
+            if match:
+                loggesearching.debug('%s is already marked %s' % (item['title'], match['Status']))
             else:
-                res = 'Unhandled mode [%s] for %s' % (item['mode'], item["url"])
-                logger.error(res)
-                snatch = 0
+                bookid = "%s_%s" % (item['bookid'], issue)
+                control_value_dict = {
+                    "NZBtitle": item['title'],
+                    "NZBprov": item['provider']
+                }
+                new_value_dict = {
+                    "NZBurl": item['url'],
+                    "BookID": bookid,
+                    "NZBdate": item['date'],
+                    "AuxInfo": "comic",
+                    "Status": "Matched",
+                    "NZBsize": item['size'],
+                    "NZBmode": item['mode']
+                }
+                db.upsert("wanted", new_value_dict, control_value_dict)
 
-            if snatch:
-                snatched += 1
-                logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
-                db.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
-                custom_notify_snatch("%s %s" % (bookid, item['url']))
-                notify_snatch("Comic %s from %s at %s" %
-                              (unaccented(item['title'], only_ascii=False),
-                               CONFIG.disp_name(item["provider"]), now()))
-            else:
-                db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
-                          (res, item["url"]))
+                if item['mode'] in ["torznab", "torrent", "magnet"]:
+                    snatch, res = tor_dl_method(
+                        bookid,
+                        item['title'],
+                        item['url'],
+                        'comic')
+                elif item['mode'] == 'direct':
+                    snatch, res = direct_dl_method(
+                        bookid,
+                        item['title'],
+                        item['url'],
+                        'comic',
+                        item['provider'])
+                elif item['mode'] == 'nzb':
+                    snatch, res = nzb_dl_method(
+                        bookid,
+                        item['title'],
+                        item['url'],
+                        'comic')
+                else:
+                    res = 'Unhandled mode [%s] for %s' % (item['mode'], item["url"])
+                    logger.error(res)
+                    snatch = 0
+
+                if snatch:
+                    snatched += 1
+                    logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
+                    db.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
+                    custom_notify_snatch("%s %s" % (bookid, item['url']))
+                    notify_snatch("Comic %s from %s at %s" %
+                                  (unaccented(item['title'], only_ascii=False),
+                                   CONFIG.disp_name(item["provider"]), now()))
+                else:
+                    db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                              (res, item["url"]))
+    finally:
+        db.close()
     if snatched:
         schedule_job(SchedulerCommand.START, target='PostProcessor')

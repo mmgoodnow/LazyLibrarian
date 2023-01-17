@@ -89,48 +89,50 @@ def id3read(filename):
             composer = ''
 
         db = database.DBConnection()
-
-        # Commonly used tags, eg plex:
-        # ARTIST  Author or Author, Narrator
-        # ALBUMARTIST     Author
-        # COMPOSER    Narrator
-        author = ''
-        narrator = ''
-        if albumartist:
-            author = albumartist
-            if composer:
+        try:
+            # Commonly used tags, eg plex:
+            # ARTIST  Author or Author, Narrator
+            # ALBUMARTIST     Author
+            # COMPOSER    Narrator
+            author = ''
+            narrator = ''
+            if albumartist:
+                author = albumartist
+                if composer:
+                    narrator = composer
+            elif len(artist.split(',')) == 2:
+                author, narrator = artist.split(',')
+            elif artist and composer and artist != composer:
+                author = artist
                 narrator = composer
-        elif len(artist.split(',')) == 2:
-            author, narrator = artist.split(',')
-        elif artist and composer and artist != composer:
-            author = artist
-            narrator = composer
 
-        # finally override with any opf values found
-        opffile = opf_file(os.path.dirname(filename))
-        if os.path.exists(opffile):
-            opf_template, replaces = opf_read(opffile)
-            remove_file(opf_template)
-            for item in replaces:
-                if item[0] == 'author':
-                    author = item[1]
-                elif item[0] == 'narrator':
-                    narrator = item[1]
+            # finally override with any opf values found
+            opffile = opf_file(os.path.dirname(filename))
+            if os.path.exists(opffile):
+                opf_template, replaces = opf_read(opffile)
+                remove_file(opf_template)
+                for item in replaces:
+                    if item[0] == 'author':
+                        author = item[1]
+                    elif item[0] == 'narrator':
+                        narrator = item[1]
 
-        if not author:
-            # if artist exists in library, probably author, though might get one author narrating anothers books?
-            if artist and db.match("select * from authors where authorname=?", (artist,)):
-                author = artist
-            elif albumartist and db.match("select * from authors where authorname=?", (albumartist,)):
-                author = albumartist
-            elif composer and db.match("select * from authors where authorname=?", (composer,)):
-                author = composer
-            elif artist:
-                author = artist
-            elif albumartist:
-                author = albumartist
-            elif composer:
-                author = composer
+            if not author:
+                # if artist exists in library, probably author, though might get one author narrating anothers books?
+                if artist and db.match("select * from authors where authorname=?", (artist,)):
+                    author = artist
+                elif albumartist and db.match("select * from authors where authorname=?", (albumartist,)):
+                    author = albumartist
+                elif composer and db.match("select * from authors where authorname=?", (composer,)):
+                    author = composer
+                elif artist:
+                    author = artist
+                elif albumartist:
+                    author = albumartist
+                elif composer:
+                    author = composer
+        finally:
+            db.close()
 
         if author and type(author) is list:
             lst = ', '.join(author)
@@ -337,8 +339,11 @@ def audio_rename(bookid, rename=False, playlist=False):
             return ''
 
     db = database.DBConnection()
-    cmd = 'select AuthorName,BookName,AudioFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
-    exists = db.match(cmd, (bookid,))
+    try:
+        cmd = 'select AuthorName,BookName,AudioFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
+        exists = db.match(cmd, (bookid,))
+    finally:
+        db.close()
     if exists:
         book_filename = exists['AudioFile']
         if book_filename:
@@ -465,8 +470,11 @@ def stripspaces(pathname):
 def book_rename(bookid):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    cmd = 'select AuthorName,BookName,BookFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
-    exists = db.match(cmd, (bookid,))
+    try:
+        cmd = 'select AuthorName,BookName,BookFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
+        exists = db.match(cmd, (bookid,))
+    finally:
+        db.close()
 
     if not exists:
         msg = "Invalid bookid in book_rename %s" % bookid
@@ -582,149 +590,151 @@ def name_vars(bookid, abridged=''):
     seriesname = ''
 
     db = database.DBConnection()
-
-    if bookid == 'test':
-        seriesid = '66175'
-        serieslist = ['3']
-        pubyear = '1955'
-        seryear = '1954'
-        seriesname = 'The Lord of the Rings'
-        mydict['Author'] = 'J.R.R. Tolkien'
-        mydict['Title'] = 'The Fellowship of the Ring'
-        mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
-        mydict['SortTitle'] = sort_definite(mydict['Title'], articles=CONFIG.get_list('NAME_DEFINITE'))
-        mydict['Part'] = '1'
-        mydict['Total'] = '3'
-        res = {}
-    else:
-        cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
-        res = db.match(cmd, (bookid,))
-        if res:
-            seriesid = res['SeriesID']
-            serieslist = get_list(res['SeriesNum'])
-
-            cmd = 'SELECT BookDate from member,books WHERE books.bookid = member.bookid and SeriesNum=1 and SeriesID=?'
-            res_date = db.match(cmd, (seriesid,))
-            if res_date:
-                seryear = res_date['BookDate']
-                if not seryear or seryear == '0000':
-                    seryear = ''
-                seryear = seryear[:4]
-            else:
-                seryear = ''
-        else:
-            seriesid = ''
-            serieslist = []
-            seryear = ''
-
-        cmd = 'SELECT BookDate from books WHERE bookid=?'
-        res_date = db.match(cmd, (bookid,))
-        if res_date:
-            pubyear = res_date['BookDate']
-            if not pubyear or pubyear == '0000':
-                pubyear = ''
-            pubyear = pubyear[:4]  # googlebooks sometimes has month or full date
-        else:
-            pubyear = ''
-
-    # might be "Book 3.5" or similar, just get the numeric part
-    while serieslist:
-        seriesnum = serieslist.pop()
-        seriesnum = seriesnum.lstrip('#')
-        try:
-            _ = float(seriesnum)
-            break
-        except ValueError:
-            seriesnum = ''
-            pass
-
-    padnum = ''
-    if res and seriesnum == '':
-        # couldn't figure out number, keep everything we got, could be something like "Book Two"
-        serieslist = res['SeriesNum']
-    elif seriesnum.isdigit():
-        padnum = str(int(seriesnum)).zfill(2)
-    else:
-        try:
-            padnum = str(float(seriesnum))
-            if padnum[1] == '.':
-                padnum = '0' + padnum
-        except (ValueError, IndexError):
-            padnum = ''
-
-    if seriesid and bookid != 'test':
-        cmd = 'SELECT SeriesName from series WHERE seriesid=?'
-        res = db.match(cmd, (seriesid,))
-        if res:
-            seriesname = res['SeriesName']
-            if seriesnum == '':
-                # add what we got back to end of series name
-                if seriesname and serieslist:
-                    seriesname = "%s %s" % (seriesname, serieslist)
-
-    seriesname = ' '.join(seriesname.split())  # strip extra spaces
-    if only_punctuation(seriesname):  # but don't return just whitespace or punctuation
-        seriesname = ''
-
-    if seriesname:
-        fmtname = CONFIG['FMT_SERNAME'].replace('$SerName', seriesname).replace(
-                                                              '$PubYear', pubyear).replace(
-                                                              '$SerYear', seryear).replace(
-                                                              '$$', ' ')
-    else:
-        fmtname = ''
-
-    if only_punctuation(fmtname):
-        fmtname = ''
-
-    if seriesnum != '':  # allow 0
-        fmtnum = CONFIG['FMT_SERNUM'].replace('$SerNum', seriesnum).replace(
-                                                            '$PubYear', pubyear).replace(
-                                                            '$SerYear', seryear).replace(
-                                                            '$PadNum', padnum).replace('$$', ' ')
-    else:
-        fmtnum = ''
-
-    if only_punctuation(fmtnum):
-        fmtnum = ''
-
-    if fmtnum != '' or fmtname:
-        fmtseries = CONFIG['FMT_SERIES'].replace('$SerNum', seriesnum).replace(
-                                                             '$SerName', seriesname).replace(
-                                                             '$PadNum', padnum).replace(
-                                                             '$PubYear', pubyear).replace(
-                                                             '$SerYear', seryear).replace(
-                                                             '$FmtName', fmtname).replace(
-                                                             '$FmtNum', fmtnum).replace('$$', ' ')
-    else:
-        fmtseries = ''
-
-    if only_punctuation(fmtseries):
-        fmtseries = ''
-
-    mydict['FmtName'] = fmtname
-    mydict['FmtNum'] = fmtnum
-    mydict['Series'] = fmtseries
-    mydict['PadNum'] = padnum
-    mydict['SerName'] = seriesname
-    mydict['SerNum'] = seriesnum
-    mydict['PubYear'] = pubyear
-    mydict['SerYear'] = seryear
-    mydict['Abridged'] = abridged
-
-    if bookid != 'test':
-        cmd = 'select AuthorName,BookName from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
-        exists = db.match(cmd, (bookid,))
-        if exists:
-            mydict['Author'] = exists['AuthorName']
-            mydict['Title'] = exists['BookName']
+    try:
+        if bookid == 'test':
+            seriesid = '66175'
+            serieslist = ['3']
+            pubyear = '1955'
+            seryear = '1954'
+            seriesname = 'The Lord of the Rings'
+            mydict['Author'] = 'J.R.R. Tolkien'
+            mydict['Title'] = 'The Fellowship of the Ring'
             mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
             mydict['SortTitle'] = sort_definite(mydict['Title'], articles=CONFIG.get_list('NAME_DEFINITE'))
+            mydict['Part'] = '1'
+            mydict['Total'] = '3'
+            res = {}
         else:
-            mydict['Author'] = ''
-            mydict['Title'] = ''
-            mydict['SortAuthor'] = ''
-            mydict['SortTitle'] = ''
+            cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
+            res = db.match(cmd, (bookid,))
+            if res:
+                seriesid = res['SeriesID']
+                serieslist = get_list(res['SeriesNum'])
+
+                cmd = 'SELECT BookDate from member,books WHERE books.bookid = member.bookid and SeriesNum=1 and SeriesID=?'
+                res_date = db.match(cmd, (seriesid,))
+                if res_date:
+                    seryear = res_date['BookDate']
+                    if not seryear or seryear == '0000':
+                        seryear = ''
+                    seryear = seryear[:4]
+                else:
+                    seryear = ''
+            else:
+                seriesid = ''
+                serieslist = []
+                seryear = ''
+
+            cmd = 'SELECT BookDate from books WHERE bookid=?'
+            res_date = db.match(cmd, (bookid,))
+            if res_date:
+                pubyear = res_date['BookDate']
+                if not pubyear or pubyear == '0000':
+                    pubyear = ''
+                pubyear = pubyear[:4]  # googlebooks sometimes has month or full date
+            else:
+                pubyear = ''
+
+        # might be "Book 3.5" or similar, just get the numeric part
+        while serieslist:
+            seriesnum = serieslist.pop()
+            seriesnum = seriesnum.lstrip('#')
+            try:
+                _ = float(seriesnum)
+                break
+            except ValueError:
+                seriesnum = ''
+                pass
+
+        padnum = ''
+        if res and seriesnum == '':
+            # couldn't figure out number, keep everything we got, could be something like "Book Two"
+            serieslist = res['SeriesNum']
+        elif seriesnum.isdigit():
+            padnum = str(int(seriesnum)).zfill(2)
+        else:
+            try:
+                padnum = str(float(seriesnum))
+                if padnum[1] == '.':
+                    padnum = '0' + padnum
+            except (ValueError, IndexError):
+                padnum = ''
+
+        if seriesid and bookid != 'test':
+            cmd = 'SELECT SeriesName from series WHERE seriesid=?'
+            res = db.match(cmd, (seriesid,))
+            if res:
+                seriesname = res['SeriesName']
+                if seriesnum == '':
+                    # add what we got back to end of series name
+                    if seriesname and serieslist:
+                        seriesname = "%s %s" % (seriesname, serieslist)
+
+        seriesname = ' '.join(seriesname.split())  # strip extra spaces
+        if only_punctuation(seriesname):  # but don't return just whitespace or punctuation
+            seriesname = ''
+
+        if seriesname:
+            fmtname = CONFIG['FMT_SERNAME'].replace('$SerName', seriesname).replace(
+                                                                  '$PubYear', pubyear).replace(
+                                                                  '$SerYear', seryear).replace(
+                                                                  '$$', ' ')
+        else:
+            fmtname = ''
+
+        if only_punctuation(fmtname):
+            fmtname = ''
+
+        if seriesnum != '':  # allow 0
+            fmtnum = CONFIG['FMT_SERNUM'].replace('$SerNum', seriesnum).replace(
+                                                                '$PubYear', pubyear).replace(
+                                                                '$SerYear', seryear).replace(
+                                                                '$PadNum', padnum).replace('$$', ' ')
+        else:
+            fmtnum = ''
+
+        if only_punctuation(fmtnum):
+            fmtnum = ''
+
+        if fmtnum != '' or fmtname:
+            fmtseries = CONFIG['FMT_SERIES'].replace('$SerNum', seriesnum).replace(
+                                                                 '$SerName', seriesname).replace(
+                                                                 '$PadNum', padnum).replace(
+                                                                 '$PubYear', pubyear).replace(
+                                                                 '$SerYear', seryear).replace(
+                                                                 '$FmtName', fmtname).replace(
+                                                                 '$FmtNum', fmtnum).replace('$$', ' ')
+        else:
+            fmtseries = ''
+
+        if only_punctuation(fmtseries):
+            fmtseries = ''
+
+        mydict['FmtName'] = fmtname
+        mydict['FmtNum'] = fmtnum
+        mydict['Series'] = fmtseries
+        mydict['PadNum'] = padnum
+        mydict['SerName'] = seriesname
+        mydict['SerNum'] = seriesnum
+        mydict['PubYear'] = pubyear
+        mydict['SerYear'] = seryear
+        mydict['Abridged'] = abridged
+
+        if bookid != 'test':
+            cmd = 'select AuthorName,BookName from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
+            exists = db.match(cmd, (bookid,))
+            if exists:
+                mydict['Author'] = exists['AuthorName']
+                mydict['Title'] = exists['BookName']
+                mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
+                mydict['SortTitle'] = sort_definite(mydict['Title'], articles=CONFIG.get_list('NAME_DEFINITE'))
+            else:
+                mydict['Author'] = ''
+                mydict['Title'] = ''
+                mydict['SortAuthor'] = ''
+                mydict['SortTitle'] = ''
+    finally:
+        db.close()
 
     mydict['FolderName'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FOLDER'],
                                                             mydict)))

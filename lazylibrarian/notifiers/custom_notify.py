@@ -36,32 +36,35 @@ class CustomNotifier:
         logger.debug('Custom Event: %s' % event)
         logger.debug('Custom Message: %s' % message)
         db = database.DBConnection()
-        if event == "Test":
-            # grab the first entry in the book table and wanted table
-            book = db.match('SELECT * from books')
-            wanted = db.match('SELECT * from wanted')
-            ident = 'eBook'
-        else:
-            # message is a bookid followed by type (eBook/AudioBook)
-            # or a magazine title followed by it's NZBUrl
-            words = message.split()
-            ident = words[-1]
-            bookid = " ".join(words[:-1])
-            book = db.match('SELECT * from books where BookID=?', (bookid,))
-            if not book:
-                book = db.match('SELECT * from magazines where Title=?', (bookid,))
-
-            if event == 'Added to Library':
-                wanted_status = 'Processed'
+        try:
+            if event == "Test":
+                # grab the first entry in the book table and wanted table
+                book = db.match('SELECT * from books')
+                wanted = db.match('SELECT * from wanted')
+                ident = 'eBook'
             else:
-                wanted_status = 'Snatched'
+                # message is a bookid followed by type (eBook/AudioBook)
+                # or a magazine title followed by it's NZBUrl
+                words = message.split()
+                ident = words[-1]
+                bookid = " ".join(words[:-1])
+                book = db.match('SELECT * from books where BookID=?', (bookid,))
+                if not book:
+                    book = db.match('SELECT * from magazines where Title=?', (bookid,))
 
-            if ident in ['eBook', 'AudioBook']:
-                wanted = db.match('SELECT * from wanted where BookID=? AND AuxInfo=? AND Status=?',
-                                  (bookid, ident, wanted_status))
-            else:
-                wanted = db.match('SELECT * from wanted where BookID=? AND NZBUrl=? AND Status=?',
-                                  (bookid, ident, wanted_status))
+                if event == 'Added to Library':
+                    wanted_status = 'Processed'
+                else:
+                    wanted_status = 'Snatched'
+
+                if ident in ['eBook', 'AudioBook']:
+                    wanted = db.match('SELECT * from wanted where BookID=? AND AuxInfo=? AND Status=?',
+                                      (bookid, ident, wanted_status))
+                else:
+                    wanted = db.match('SELECT * from wanted where BookID=? AND NZBUrl=? AND Status=?',
+                                      (bookid, ident, wanted_status))
+        finally:
+            db.close()
 
         if book:
             # noinspection PyTypeChecker

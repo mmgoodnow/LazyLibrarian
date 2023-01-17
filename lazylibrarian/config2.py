@@ -437,8 +437,10 @@ class LLConfigHandler(ConfigDict):
         if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():
             self.logger.debug("Deleting single-book series from database")
             db = database.DBConnection()
-            db.action('DELETE from series where total=1')
-            db.close()
+            try:
+                db.action('DELETE from series where total=1')
+            finally:
+                db.close()
 
         # Update the redact list since things may have changed
         self._update_redactlist()

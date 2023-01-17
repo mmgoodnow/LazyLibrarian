@@ -164,233 +164,236 @@ class OPDS(object):
 
     def _root(self, **kwargs):
         db = database.DBConnection()
-        feed = {'title': 'LazyLibrarian OPDS', 'id': 'OPDSRoot', 'updated': now()}
-        links = []
-        entries = []
+        try:
+            feed = {'title': 'LazyLibrarian OPDS', 'id': 'OPDSRoot', 'updated': now()}
+            links = []
+            entries = []
 
-        userid = ''
-        if 'user' in kwargs:
-            userid = '&amp;user=%s' % kwargs['user']
+            userid = ''
+            if 'user' in kwargs:
+                userid = '&amp;user=%s' % kwargs['user']
 
-        links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
-                             rel='start', title='Home'))
-        links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
-                             rel='self'))
-        links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
-                             ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
+            links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+                                 rel='start', title='Home'))
+            links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+                                 rel='self'))
+            links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
+                                 ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
 
-        res = db.match("select count(*) as counter from books where Status='Open'")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Recent eBooks (%i)' % res['counter'],
-                    'id': 'RecentBooks',
-                    'updated': now(),
-                    'content': 'Recently Added eBooks',
-                    'href': '%s?cmd=RecentBooks%s' % (self.opdsroot, userid),
-                    'kind': 'acquisition',
-                    'rel': 'subsection',
-                }
-            )
-
-        res = db.match("select count(*) as counter from books where AudioStatus='Open'")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Recent AudioBooks (%i)' % res['counter'],
-                    'id': 'RecentAudio',
-                    'updated': now(),
-                    'content': 'Recently Added AudioBooks',
-                    'href': '%s?cmd=RecentAudio%s' % (self.opdsroot, userid),
-                    'kind': 'acquisition',
-                    'rel': 'subsection',
-                }
-            )
-
-        res = db.match("SELECT count(*) as counter from comics WHERE LastAcquired != ''")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Recent Comics (%i)' % res['counter'],
-                    'id': 'RecentComics',
-                    'updated': now(),
-                    'content': 'Recently Added Comic Issues',
-                    'href': '%s?cmd=RecentComics%s' % (self.opdsroot, userid),
-                    'kind': 'acquisition',
-                    'rel': 'subsection',
-                }
-            )
-
-        res = db.match("select count(*) as counter from issues where IssueFile != ''")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Recent Magazine Issues (%i)' % res['counter'],
-                    'id': 'RecentMags',
-                    'updated': now(),
-                    'content': 'Recently Added Magazine Issues',
-                    'href': '%s?cmd=RecentMags%s' % (self.opdsroot, userid),
-                    'kind': 'acquisition',
-                    'rel': 'subsection',
-                }
-            )
-
-        res = db.match("select count(*) as counter from books where Status='Open' and CAST(BookRate AS INTEGER) > 0")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Best Rated eBooks (%i)' % res['counter'],
-                    'id': 'RatedBooks',
-                    'updated': now(),
-                    'content': 'Best Rated eBooks',
-                    'href': '%s?cmd=RatedBooks%s' % (self.opdsroot, userid),
-                    'kind': 'acquisition',
-                    'rel': 'subsection',
-                }
-            )
-
-        cmd = "select count(*) as counter from books"
-        cmd += " where AudioStatus='Open' and CAST(BookRate AS INTEGER) > 0"
-        res = db.match(cmd)
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Best Rated AudioBooks (%i)' % res['counter'],
-                    'id': 'RatedAudio',
-                    'updated': now(),
-                    'content': 'Best Rated AudioBooks',
-                    'href': '%s?cmd=RatedAudio%s' % (self.opdsroot, userid),
-                    'kind': 'acquisition',
-                    'rel': 'subsection',
-                }
-            )
-
-        if userid:
-            res = db.match('SELECT HaveRead,ToRead from users where userid=?', (kwargs['user'],))
-            if res:
-                readfilter = get_list(res['HaveRead'])
-            else:
-                readfilter = []
-
-            if len(readfilter) > 0:
+            res = db.match("select count(*) as counter from books where Status='Open'")
+            if res['counter'] > 0:
                 entries.append(
                     {
-                        'title': 'Read Books (%i)' % len(readfilter),
-                        'id': 'ReadBooks',
+                        'title': 'Recent eBooks (%i)' % res['counter'],
+                        'id': 'RecentBooks',
                         'updated': now(),
-                        'content': 'Books marked as Read',
-                        'href': '%s?cmd=ReadBooks%s' % (self.opdsroot, userid),
+                        'content': 'Recently Added eBooks',
+                        'href': '%s?cmd=RecentBooks%s' % (self.opdsroot, userid),
                         'kind': 'acquisition',
                         'rel': 'subsection',
                     }
                 )
 
-            if res:
-                readfilter = get_list(res['ToRead'])
-            else:
-                readfilter = []
-
-            if len(readfilter) > 0:
+            res = db.match("select count(*) as counter from books where AudioStatus='Open'")
+            if res['counter'] > 0:
                 entries.append(
                     {
-                        'title': 'To Read Books (%i)' % len(readfilter),
-                        'id': 'ToReadBooks',
+                        'title': 'Recent AudioBooks (%i)' % res['counter'],
+                        'id': 'RecentAudio',
                         'updated': now(),
-                        'content': 'Books marked as To-Read',
-                        'href': '%s?cmd=ToReadBooks%s' % (self.opdsroot, userid),
+                        'content': 'Recently Added AudioBooks',
+                        'href': '%s?cmd=RecentAudio%s' % (self.opdsroot, userid),
                         'kind': 'acquisition',
                         'rel': 'subsection',
                     }
                 )
 
-        cmd = "SELECT count(*) as counter from authors WHERE Status != 'Ignored' and HaveEBooks > 0"
-        res = db.match(cmd)
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Ebook Authors (%i)' % res['counter'],
-                    'id': 'EAuthors',
-                    'updated': now(),
-                    'content': 'List of Ebook Authors',
-                    'href': '%s?cmd=EAuthors%s' % (self.opdsroot, userid),
-                    'kind': 'navigation',
-                    'rel': 'subsection',
-                }
-            )
+            res = db.match("SELECT count(*) as counter from comics WHERE LastAcquired != ''")
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Recent Comics (%i)' % res['counter'],
+                        'id': 'RecentComics',
+                        'updated': now(),
+                        'content': 'Recently Added Comic Issues',
+                        'href': '%s?cmd=RecentComics%s' % (self.opdsroot, userid),
+                        'kind': 'acquisition',
+                        'rel': 'subsection',
+                    }
+                )
 
-        cmd = "SELECT count(*) as counter from authors WHERE Status != 'Ignored' and HaveAudioBooks > 0"
-        res = db.match(cmd)
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Audiobook Authors (%i)' % res['counter'],
-                    'id': 'AAuthors',
-                    'updated': now(),
-                    'content': 'List of Audiobook Authors',
-                    'href': '%s?cmd=AAuthors%s' % (self.opdsroot, userid),
-                    'kind': 'navigation',
-                    'rel': 'subsection',
-                }
-            )
+            res = db.match("select count(*) as counter from issues where IssueFile != ''")
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Recent Magazine Issues (%i)' % res['counter'],
+                        'id': 'RecentMags',
+                        'updated': now(),
+                        'content': 'Recently Added Magazine Issues',
+                        'href': '%s?cmd=RecentMags%s' % (self.opdsroot, userid),
+                        'kind': 'acquisition',
+                        'rel': 'subsection',
+                    }
+                )
 
-        res = db.match("SELECT count(*) as counter from series WHERE CAST(Have AS INTEGER) > 0")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Series (%i)' % res['counter'],
-                    'id': 'Series',
-                    'updated': now(),
-                    'content': 'List of Series',
-                    'href': '%s?cmd=Series%s' % (self.opdsroot, userid),
-                    'kind': 'navigation',
-                    'rel': 'subsection',
-                }
-            )
-        cmd = 'select genrename,(select count(*) as counter from genrebooks,books where '
-        cmd += 'genrebooks.genreid = genres.genreid and books.status="Open" '
-        cmd += 'and books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0'
-        # cmd = "select distinct BookGenre from books where Status='Open' and BookGenre != '' and BookGenre !='Unknown'"
-        res = db.select(cmd)
-        if res and len(res) > 0:
-            entries.append(
-                {
-                    'title': 'Genres (%i)' % len(res),
-                    'id': 'Genres',
-                    'updated': now(),
-                    'content': 'Genres',
-                    'href': '%s?cmd=Genres%s' % (self.opdsroot, userid),
-                    'kind': 'acquisition',
-                    'rel': 'subsection',
-                }
-            )
+            res = db.match("select count(*) as counter from books where Status='Open' and CAST(BookRate AS INTEGER) > 0")
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Best Rated eBooks (%i)' % res['counter'],
+                        'id': 'RatedBooks',
+                        'updated': now(),
+                        'content': 'Best Rated eBooks',
+                        'href': '%s?cmd=RatedBooks%s' % (self.opdsroot, userid),
+                        'kind': 'acquisition',
+                        'rel': 'subsection',
+                    }
+                )
 
-        res = db.match("SELECT count(*) as counter from magazines WHERE LastAcquired != ''")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Magazines (%i)' % res['counter'],
-                    'id': 'Magazines',
-                    'updated': now(),
-                    'content': 'List of Magazines',
-                    'href': '%s?cmd=Magazines%s' % (self.opdsroot, userid),
-                    'kind': 'navigation',
-                    'rel': 'subsection',
-                }
-            )
+            cmd = "select count(*) as counter from books"
+            cmd += " where AudioStatus='Open' and CAST(BookRate AS INTEGER) > 0"
+            res = db.match(cmd)
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Best Rated AudioBooks (%i)' % res['counter'],
+                        'id': 'RatedAudio',
+                        'updated': now(),
+                        'content': 'Best Rated AudioBooks',
+                        'href': '%s?cmd=RatedAudio%s' % (self.opdsroot, userid),
+                        'kind': 'acquisition',
+                        'rel': 'subsection',
+                    }
+                )
 
-        res = db.match("SELECT count(*) as counter from comics WHERE LastAcquired != ''")
-        if res['counter'] > 0:
-            entries.append(
-                {
-                    'title': 'Comics (%i)' % res['counter'],
-                    'id': 'Comics',
-                    'updated': now(),
-                    'content': 'List of Comics',
-                    'href': '%s?cmd=Comics%s' % (self.opdsroot, userid),
-                    'kind': 'navigation',
-                    'rel': 'subsection',
-                }
-            )
+            if userid:
+                res = db.match('SELECT HaveRead,ToRead from users where userid=?', (kwargs['user'],))
+                if res:
+                    readfilter = get_list(res['HaveRead'])
+                else:
+                    readfilter = []
+
+                if len(readfilter) > 0:
+                    entries.append(
+                        {
+                            'title': 'Read Books (%i)' % len(readfilter),
+                            'id': 'ReadBooks',
+                            'updated': now(),
+                            'content': 'Books marked as Read',
+                            'href': '%s?cmd=ReadBooks%s' % (self.opdsroot, userid),
+                            'kind': 'acquisition',
+                            'rel': 'subsection',
+                        }
+                    )
+
+                if res:
+                    readfilter = get_list(res['ToRead'])
+                else:
+                    readfilter = []
+
+                if len(readfilter) > 0:
+                    entries.append(
+                        {
+                            'title': 'To Read Books (%i)' % len(readfilter),
+                            'id': 'ToReadBooks',
+                            'updated': now(),
+                            'content': 'Books marked as To-Read',
+                            'href': '%s?cmd=ToReadBooks%s' % (self.opdsroot, userid),
+                            'kind': 'acquisition',
+                            'rel': 'subsection',
+                        }
+                    )
+
+            cmd = "SELECT count(*) as counter from authors WHERE Status != 'Ignored' and HaveEBooks > 0"
+            res = db.match(cmd)
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Ebook Authors (%i)' % res['counter'],
+                        'id': 'EAuthors',
+                        'updated': now(),
+                        'content': 'List of Ebook Authors',
+                        'href': '%s?cmd=EAuthors%s' % (self.opdsroot, userid),
+                        'kind': 'navigation',
+                        'rel': 'subsection',
+                    }
+                )
+
+            cmd = "SELECT count(*) as counter from authors WHERE Status != 'Ignored' and HaveAudioBooks > 0"
+            res = db.match(cmd)
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Audiobook Authors (%i)' % res['counter'],
+                        'id': 'AAuthors',
+                        'updated': now(),
+                        'content': 'List of Audiobook Authors',
+                        'href': '%s?cmd=AAuthors%s' % (self.opdsroot, userid),
+                        'kind': 'navigation',
+                        'rel': 'subsection',
+                    }
+                )
+
+            res = db.match("SELECT count(*) as counter from series WHERE CAST(Have AS INTEGER) > 0")
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Series (%i)' % res['counter'],
+                        'id': 'Series',
+                        'updated': now(),
+                        'content': 'List of Series',
+                        'href': '%s?cmd=Series%s' % (self.opdsroot, userid),
+                        'kind': 'navigation',
+                        'rel': 'subsection',
+                    }
+                )
+            cmd = 'select genrename,(select count(*) as counter from genrebooks,books where '
+            cmd += 'genrebooks.genreid = genres.genreid and books.status="Open" '
+            cmd += 'and books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0'
+            # cmd = "select distinct BookGenre from books where Status='Open' and BookGenre != '' and BookGenre !='Unknown'"
+            res = db.select(cmd)
+            if res and len(res) > 0:
+                entries.append(
+                    {
+                        'title': 'Genres (%i)' % len(res),
+                        'id': 'Genres',
+                        'updated': now(),
+                        'content': 'Genres',
+                        'href': '%s?cmd=Genres%s' % (self.opdsroot, userid),
+                        'kind': 'acquisition',
+                        'rel': 'subsection',
+                    }
+                )
+
+            res = db.match("SELECT count(*) as counter from magazines WHERE LastAcquired != ''")
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Magazines (%i)' % res['counter'],
+                        'id': 'Magazines',
+                        'updated': now(),
+                        'content': 'List of Magazines',
+                        'href': '%s?cmd=Magazines%s' % (self.opdsroot, userid),
+                        'kind': 'navigation',
+                        'rel': 'subsection',
+                    }
+                )
+
+            res = db.match("SELECT count(*) as counter from comics WHERE LastAcquired != ''")
+            if res['counter'] > 0:
+                entries.append(
+                    {
+                        'title': 'Comics (%i)' % res['counter'],
+                        'id': 'Comics',
+                        'updated': now(),
+                        'content': 'List of Comics',
+                        'href': '%s?cmd=Comics%s' % (self.opdsroot, userid),
+                        'kind': 'navigation',
+                        'rel': 'subsection',
+                    }
+                )
+        finally:
+            db.close()
 
         feed['links'] = links
         feed['entries'] = entries
@@ -409,7 +412,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Genres', 'id': 'Genres', 'updated': now()}
         links = []
         entries = []
@@ -426,7 +428,11 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += " and genrename LIKE '%" + kwargs['query'] + "%'"
         cmd += ' order by cnt DESC,genrename ASC'
-        results = db.select(cmd)
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -476,60 +482,63 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         if 'genre' not in kwargs:
             self.data = self._error_with_message('No Genre Provided')
             return
         links = []
         entries = []
 
-        cmd = "SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID "
-        cmd += "from genrebooks,genres,books WHERE (books.Status='Open' or books.AudioStatus='Open') "
-        cmd += "AND books.Bookid=genrebooks.BookID AND genrebooks.genreid=genres.genreid AND genrename=?"
-        cmd += "order by BookName"
-        results = db.select(cmd, (kwargs['genre'],))
-        if not len(results):
-            self.data = self._error_with_message('No results for Genre "%s"' % kwargs['genre'])
-            return
+        db = database.DBConnection()
+        try:
+            cmd = "SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID "
+            cmd += "from genrebooks,genres,books WHERE (books.Status='Open' or books.AudioStatus='Open') "
+            cmd += "AND books.Bookid=genrebooks.BookID AND genrebooks.genreid=genres.genreid AND genrename=?"
+            cmd += "order by BookName"
+            results = db.select(cmd, (kwargs['genre'],))
+            if not len(results):
+                self.data = self._error_with_message('No results for Genre "%s"' % kwargs['genre'])
+                return
 
-        if limit:
-            page = results[index:(index + limit)]
-        else:
-            page = results
-            limit = len(page)
-        for book in page:
-            mimetype = None
-            rel = 'file'
-            if book['BookFile']:
-                mimetype = self.multi_link(book['BookFile'], book['BookID'])
+            if limit:
+                page = results[index:(index + limit)]
+            else:
+                page = results
+                limit = len(page)
+            for book in page:
+                mimetype = None
+                rel = 'file'
+                if book['BookFile']:
+                    mimetype = self.multi_link(book['BookFile'], book['BookID'])
+                    if mimetype:
+                        rel = 'multi'
+                    else:
+                        mimetype = mime_type(book['BookFile'])
+
+                elif book['AudioFile']:
+                    mimetype = mime_type(book['AudioFile'])
                 if mimetype:
-                    rel = 'multi'
-                else:
-                    mimetype = mime_type(book['BookFile'])
+                    cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND '
+                    cmd += 'books.bookid=?'
+                    res = db.match(cmd, (book['BookID'],))
+                    author = res['AuthorName']
+                    entry = {'title': escape('%s' % book['BookName']),
+                             'id': escape('book:%s' % book['BookID']),
+                             'updated': opdstime(book['BookAdded']),
+                             'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, book['BookID'], userid),
+                             'kind': 'acquisition',
+                             'rel': rel,
+                             'author': escape("%s" % author),
+                             'type': mimetype}
 
-            elif book['AudioFile']:
-                mimetype = mime_type(book['AudioFile'])
-            if mimetype:
-                cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND '
-                cmd += 'books.bookid=?'
-                res = db.match(cmd, (book['BookID'],))
-                author = res['AuthorName']
-                entry = {'title': escape('%s' % book['BookName']),
-                         'id': escape('book:%s' % book['BookID']),
-                         'updated': opdstime(book['BookAdded']),
-                         'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, book['BookID'], userid),
-                         'kind': 'acquisition',
-                         'rel': rel,
-                         'author': escape("%s" % author),
-                         'type': mimetype}
-
-                if CONFIG.get_bool('OPDS_METAINFO'):
-                    entry['image'] = self.searchroot + '/' + book['BookImg']
-                    entry['thumbnail'] = entry['image']
-                    entry['content'] = escape('%s %s' % (book['BookName'], book['BookDesc']))
-                else:
-                    entry['content'] = escape('%s %s' % (book['BookName'], book['BookAdded']))
-                entries.append(entry)
+                    if CONFIG.get_bool('OPDS_METAINFO'):
+                        entry['image'] = self.searchroot + '/' + book['BookImg']
+                        entry['thumbnail'] = entry['image']
+                        entry['content'] = escape('%s %s' % (book['BookName'], book['BookDesc']))
+                    else:
+                        entry['content'] = escape('%s %s' % (book['BookName'], book['BookAdded']))
+                    entries.append(entry)
+        finally:
+            db.close()
 
         feed = {'title': 'LazyLibrarian OPDS - Genre %s' % escape(kwargs['genre']),
                 'id': 'genre:%s' % escape(kwargs['genre']), 'updated': now()}
@@ -577,7 +586,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Ebook Authors', 'id': 'EAuthors', 'updated': now()}
         links = []
         entries = []
@@ -591,7 +599,11 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += "AuthorName LIKE '%" + kwargs['query'] + "%' AND "
         cmd += "HaveEBooks > 0 order by AuthorName"
-        results = db.select(cmd)
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -651,7 +663,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Audiobook Authors', 'id': 'AAuthors', 'updated': now()}
         links = []
         entries = []
@@ -665,7 +676,11 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += "AuthorName LIKE '%" + kwargs['query'] + "%' AND "
         cmd += "HaveAudioBooks > 0 order by AuthorName"
-        results = db.select(cmd)
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -722,7 +737,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Comics', 'id': 'Comics', 'updated': now()}
         links = []
         entries = []
@@ -737,7 +751,11 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += "WHERE comics.title LIKE '%" + kwargs['query'] + "%' "
         cmd += 'order by comics.title'
-        results = db.select(cmd)
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -792,7 +810,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Magazines', 'id': 'Magazines', 'updated': now()}
         links = []
         entries = []
@@ -807,7 +824,11 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += "WHERE magazines.title LIKE '%" + kwargs['query'] + "%' "
         cmd += 'order by magazines.title'
-        results = db.select(cmd)
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -862,7 +883,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Series', 'id': 'Series', 'updated': now()}
         links = []
         entries = []
@@ -876,36 +896,40 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += "AND SeriesName LIKE '%" + kwargs['query'] + "%' "
         cmd += "order by SeriesName"
-        results = db.select(cmd)
-        if limit:
-            page = results[index:(index + limit)]
-        else:
-            page = results
-            limit = len(page)
-        for series in page:
-            cmd = "SELECT books.BookID,SeriesNum from books,member where SeriesID=? "
-            cmd += "and books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)"
-            firstbook = db.match(cmd, (series['SeriesID'],))
-            if firstbook:
-                cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND books.bookid=?'
-                res = db.match(cmd, (firstbook['BookID'],))
-                author = res['AuthorName']
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+            if limit:
+                page = results[index:(index + limit)]
             else:
-                author = 'Unknown'
-            totalbooks = check_int(series['Total'], 0)
-            havebooks = check_int(series['Have'], 0)
-            sername = make_unicode(series['SeriesName'])
-            entries.append(
-                {
-                    'title': escape('%s (%s/%s) %s' % (sername, havebooks, totalbooks, author)),
-                    'id': escape('series:%s' % series['SeriesID']),
-                    'updated': now(),
-                    'content': escape('%s (%s)' % (sername, havebooks)),
-                    'href': '%s?cmd=Members&amp;seriesid=%s%s' % (self.opdsroot, series['SeriesID'], userid),
-                    'kind': 'navigation',
-                    'rel': 'subsection',
-                }
-            )
+                page = results
+                limit = len(page)
+            for series in page:
+                cmd = "SELECT books.BookID,SeriesNum from books,member where SeriesID=? "
+                cmd += "and books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)"
+                firstbook = db.match(cmd, (series['SeriesID'],))
+                if firstbook:
+                    cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND books.bookid=?'
+                    res = db.match(cmd, (firstbook['BookID'],))
+                    author = res['AuthorName']
+                else:
+                    author = 'Unknown'
+                totalbooks = check_int(series['Total'], 0)
+                havebooks = check_int(series['Have'], 0)
+                sername = make_unicode(series['SeriesName'])
+                entries.append(
+                    {
+                        'title': escape('%s (%s/%s) %s' % (sername, havebooks, totalbooks, author)),
+                        'id': escape('series:%s' % series['SeriesID']),
+                        'updated': now(),
+                        'content': escape('%s (%s)' % (sername, havebooks)),
+                        'href': '%s?cmd=Members&amp;seriesid=%s%s' % (self.opdsroot, series['SeriesID'], userid),
+                        'kind': 'navigation',
+                        'rel': 'subsection',
+                    }
+                )
+        finally:
+            db.close()
 
         if len(results) > (index + limit):
             links.append(
@@ -934,19 +958,22 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         if 'magid' not in kwargs:
             self.data = self._error_with_message('No ComicID Provided')
             return
         links = []
         entries = []
         title = ''
-        comic = db.match("SELECT Title from comics WHERE ComicID=?", (kwargs['magid'],))
-        if comic:
-            title = make_unicode(comic['Title'])
-        cmd = "SELECT IssueID,IssueAcquired,IssueFile from comicissues "
-        cmd += "WHERE ComicID=? order by IssueID DESC"
-        results = db.select(cmd, (kwargs['magid'],))
+        db = database.DBConnection()
+        try:
+            comic = db.match("SELECT Title from comics WHERE ComicID=?", (kwargs['magid'],))
+            if comic:
+                title = make_unicode(comic['Title'])
+            cmd = "SELECT IssueID,IssueAcquired,IssueFile from comicissues "
+            cmd += "WHERE ComicID=? order by IssueID DESC"
+            results = db.select(cmd, (kwargs['magid'],))
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -1009,7 +1036,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         if 'magid' not in kwargs:
             self.data = self._error_with_message('No Magazine Provided')
             return
@@ -1018,7 +1044,11 @@ class OPDS(object):
         title = ''
         cmd = "SELECT Title,IssueID,IssueDate,IssueAcquired,IssueFile from issues "
         cmd += "WHERE Title='%s' order by IssueDate DESC"
-        results = db.select(cmd % kwargs['magid'])
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd % kwargs['magid'])
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -1081,7 +1111,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         if 'authorid' not in kwargs:
             self.data = self._error_with_message('No Author Provided')
             return
@@ -1089,13 +1118,17 @@ class OPDS(object):
         entries = []
         links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
-        author = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (kwargs['authorid'],))
-        author = make_unicode(author['AuthorName'])
-        cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,BookFile from books WHERE "
-        if 'query' in kwargs:
-            cmd += "BookName LIKE '%" + kwargs['query'] + "%' AND "
-        cmd += "Status='Open' and AuthorID=? order by BookDate DESC"
-        results = db.select(cmd, (kwargs['authorid'],))
+        db = database.DBConnection()
+        try:
+            author = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (kwargs['authorid'],))
+            author = make_unicode(author['AuthorName'])
+            cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,BookFile from books WHERE "
+            if 'query' in kwargs:
+                cmd += "BookName LIKE '%" + kwargs['query'] + "%' AND "
+            cmd += "Status='Open' and AuthorID=? order by BookDate DESC"
+            results = db.select(cmd, (kwargs['authorid'],))
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -1171,7 +1204,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         if 'authorid' not in kwargs:
             self.data = self._error_with_message('No Author Provided')
             return
@@ -1179,13 +1211,17 @@ class OPDS(object):
         entries = []
         links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
-        author = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (kwargs['authorid'],))
-        author = make_unicode(author['AuthorName'])
-        cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,AudioFile from books WHERE "
-        if 'query' in kwargs:
-            cmd += "BookName LIKE '%" + kwargs['query'] + "%' AND "
-        cmd += "AudioStatus='Open' and AuthorID=? order by BookDate DESC"
-        results = db.select(cmd, (kwargs['authorid'],))
+        db = database.DBConnection()
+        try:
+            author = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (kwargs['authorid'],))
+            author = make_unicode(author['AuthorName'])
+            cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,AudioFile from books WHERE "
+            if 'query' in kwargs:
+                cmd += "BookName LIKE '%" + kwargs['query'] + "%' AND "
+            cmd += "AudioStatus='Open' and AuthorID=? order by BookDate DESC"
+            results = db.select(cmd, (kwargs['authorid'],))
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -1257,20 +1293,23 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         if 'seriesid' not in kwargs:
             self.data = self._error_with_message('No Series Provided')
             return
         links = []
         entries = []
-        series = db.match("SELECT SeriesName from Series WHERE SeriesID=?", (kwargs['seriesid'],))
-        cmd = "SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID,SeriesNum "
-        cmd += "from books,member where (Status='Open' or AudioStatus='Open') and SeriesID=? "
-        cmd += "and books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)"
-        results = db.select(cmd, (kwargs['seriesid'],))
-        cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND '
-        cmd += 'books.bookid=?'
-        res = db.match(cmd, (results[0]['BookID'],))
+        db = database.DBConnection()
+        try:
+            series = db.match("SELECT SeriesName from Series WHERE SeriesID=?", (kwargs['seriesid'],))
+            cmd = "SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID,SeriesNum "
+            cmd += "from books,member where (Status='Open' or AudioStatus='Open') and SeriesID=? "
+            cmd += "and books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)"
+            results = db.select(cmd, (kwargs['seriesid'],))
+            cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND '
+            cmd += 'books.bookid=?'
+            res = db.match(cmd, (results[0]['BookID'],))
+        finally:
+            db.close()
         author = res['AuthorName']
         if limit:
             page = results[index:(index + limit)]
@@ -1353,7 +1392,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Recent Magazines', 'id': 'Recent Magazines', 'updated': now()}
         links = []
         entries = []
@@ -1368,7 +1406,11 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += "AND Title LIKE '%" + kwargs['query'] + "%' "
         cmd += "order by IssueAcquired DESC"
-        results = db.select(cmd)
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -1418,7 +1460,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - Recent Comics', 'id': 'Recent Comics', 'updated': now()}
         links = []
         entries = []
@@ -1433,7 +1474,11 @@ class OPDS(object):
         if 'query' in kwargs:
             cmd += "AND Title LIKE '%" + kwargs['query'] + "%' "
         cmd += "order by IssueAcquired DESC"
-        results = db.select(cmd)
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+        finally:
+            db.close()
         if limit:
             page = results[index:(index + limit)]
         else:
@@ -1502,7 +1547,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - %s Books' % sorder, 'id': '%s Books' % sorder, 'updated': now()}
         links = []
         entries = []
@@ -1521,81 +1565,85 @@ class OPDS(object):
         if sorder == 'Rated':
             cmd += "and CAST(BookRate AS INTEGER) > 0 order by BookRate DESC, BookDate DESC"
 
-        results = db.select(cmd)
-        self.loggerdlcomms.debug("Initial select found %s" % len(results))
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+            self.loggerdlcomms.debug("Initial select found %s" % len(results))
 
-        readfilter = None
-        if sorder == 'Read' and 'user' in kwargs:
-            res = db.match('SELECT HaveRead from users where userid=?', (kwargs['user'],))
-            if res:
-                readfilter = get_list(res['HaveRead'])
+            readfilter = None
+            if sorder == 'Read' and 'user' in kwargs:
+                res = db.match('SELECT HaveRead from users where userid=?', (kwargs['user'],))
+                if res:
+                    readfilter = get_list(res['HaveRead'])
+                else:
+                    readfilter = []
+            if sorder == 'ToRead' and 'user' in kwargs:
+                res = db.match('SELECT ToRead from users where userid=?', (kwargs['user'],))
+                if res:
+                    readfilter = get_list(res['ToRead'])
+                else:
+                    readfilter = []
+
+            if readfilter is not None:
+                self.loggerdlcomms.debug("Filter length %s" % len(readfilter))
+                filtered = []
+                for res in results:
+                    if res['BookID'] in readfilter:
+                        filtered.append(res)
+                results = filtered
+                self.loggerdlcomms.debug("Filter matches %s" % len(results))
+
+            if limit:
+                page = results[index:(index + limit)]
             else:
-                readfilter = []
-        if sorder == 'ToRead' and 'user' in kwargs:
-            res = db.match('SELECT ToRead from users where userid=?', (kwargs['user'],))
-            if res:
-                readfilter = get_list(res['ToRead'])
-            else:
-                readfilter = []
+                page = results
+                limit = len(page)
+            for book in page:
+                mimetype = None
+                rel = 'file'
+                if book['BookFile']:
+                    mimetype = self.multi_link(book['BookFile'], book['BookID'])
+                    if mimetype:
+                        rel = 'multi'
+                    else:
+                        mimetype = mime_type(book['BookFile'])
 
-        if readfilter is not None:
-            self.loggerdlcomms.debug("Filter length %s" % len(readfilter))
-            filtered = []
-            for res in results:
-                if res['BookID'] in readfilter:
-                    filtered.append(res)
-            results = filtered
-            self.loggerdlcomms.debug("Filter matches %s" % len(results))
-
-        if limit:
-            page = results[index:(index + limit)]
-        else:
-            page = results
-            limit = len(page)
-        for book in page:
-            mimetype = None
-            rel = 'file'
-            if book['BookFile']:
-                mimetype = self.multi_link(book['BookFile'], book['BookID'])
+                elif book['AudioFile']:
+                    mimetype = mime_type(book['AudioFile'])
                 if mimetype:
-                    rel = 'multi'
-                else:
-                    mimetype = mime_type(book['BookFile'])
+                    title = make_unicode(book['BookName'])
+                    if sorder == 'Rated':
+                        dispname = escape("%s (%s)" % (title, book['BookRate']))
+                    else:
+                        dispname = escape(title)
+                    entry = {'title': dispname,
+                             'id': escape('book:%s' % book['BookID']),
+                             'updated': opdstime(book['BookLibrary']),
+                             'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, quote_plus(book['BookID']), userid),
+                             'kind': 'acquisition',
+                             'rel': rel,
+                             'type': mimetype}
 
-            elif book['AudioFile']:
-                mimetype = mime_type(book['AudioFile'])
-            if mimetype:
-                title = make_unicode(book['BookName'])
-                if sorder == 'Rated':
-                    dispname = escape("%s (%s)" % (title, book['BookRate']))
-                else:
-                    dispname = escape(title)
-                entry = {'title': dispname,
-                         'id': escape('book:%s' % book['BookID']),
-                         'updated': opdstime(book['BookLibrary']),
-                         'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, quote_plus(book['BookID']), userid),
-                         'kind': 'acquisition',
-                         'rel': rel,
-                         'type': mimetype}
+                    if CONFIG.get_bool('OPDS_METAINFO'):
+                        auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
+                        if auth:
+                            author = make_unicode(auth['AuthorName'])
+                            entry['image'] = self.searchroot + '/' + book['BookImg']
+                            entry['thumbnail'] = entry['image']
+                            entry['content'] = escape('%s - %s' % (title, book['BookDesc']))
+                            entry['author'] = escape('%s' % author)
+                    else:
+                        entry['content'] = escape('%s (%s)' % (title, book['BookAdded']))
+                    entries.append(entry)
 
-                if CONFIG.get_bool('OPDS_METAINFO'):
-                    auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
-                    if auth:
-                        author = make_unicode(auth['AuthorName'])
-                        entry['image'] = self.searchroot + '/' + book['BookImg']
-                        entry['thumbnail'] = entry['image']
-                        entry['content'] = escape('%s - %s' % (title, book['BookDesc']))
-                        entry['author'] = escape('%s' % author)
-                else:
-                    entry['content'] = escape('%s (%s)' % (title, book['BookAdded']))
-                entries.append(entry)
-
-            """
-                <link type="application/epub+zip" rel="http://opds-spec.org/acquisition"
-                title="EPUB (no images)" length="18552" href="//www.gutenberg.org/ebooks/57490.epub.noimages"/>
-                <link type="application/x-mobipocket-ebook" rel="http://opds-spec.org/acquisition"
-                title="Kindle (no images)" length="110360" href="//www.gutenberg.org/ebooks/57490.kindle.noimages"/>
-            """
+                """
+                    <link type="application/epub+zip" rel="http://opds-spec.org/acquisition"
+                    title="EPUB (no images)" length="18552" href="//www.gutenberg.org/ebooks/57490.epub.noimages"/>
+                    <link type="application/x-mobipocket-ebook" rel="http://opds-spec.org/acquisition"
+                    title="Kindle (no images)" length="110360" href="//www.gutenberg.org/ebooks/57490.kindle.noimages"/>
+                """
+        finally:
+            db.close()
 
         if len(results) > (index + limit):
             links.append(
@@ -1631,7 +1679,6 @@ class OPDS(object):
         if 'user' in kwargs:
             userid = '&amp;user=%s' % kwargs['user']
 
-        db = database.DBConnection()
         feed = {'title': 'LazyLibrarian OPDS - %s AudioBooks' % sorder, 'id': '%s AudioBooks' % sorder,
                 'updated': now()}
         links = []
@@ -1652,37 +1699,40 @@ class OPDS(object):
             cmd += " order by AudioLibrary DESC, BookName ASC"
         if sorder == 'Rated':
             cmd += " order by BookRate DESC, BookDate DESC"
-        results = db.select(cmd)
-
-        if limit:
-            page = results[index:(index + limit)]
-        else:
-            page = results
-            limit = len(page)
-        for book in page:
-            title = make_unicode(book['BookName'])
-            if sorder == 'Rated':
-                dispname = escape("%s (%s)" % (title, book['BookRate']))
+        db = database.DBConnection()
+        try:
+            results = db.select(cmd)
+            if limit:
+                page = results[index:(index + limit)]
             else:
-                dispname = escape(title)
-            entry = {'title': dispname,
-                     'id': escape('audio:%s' % book['BookID']),
-                     'updated': opdstime(book['AudioLibrary']),
-                     'href': '%s?cmd=Serve&amp;audioid=%s%s' % (self.opdsroot, quote_plus(book['BookID']), userid),
-                     'kind': 'acquisition',
-                     'rel': 'file',
-                     'type': mime_type("we_send.zip")}
-            if CONFIG.get_bool('OPDS_METAINFO'):
-                auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
-                if auth:
-                    author = make_unicode(auth['AuthorName'])
-                    entry['image'] = self.searchroot + '/' + book['BookImg']
-                    entry['thumbnail'] = entry['image']
-                    entry['content'] = escape('%s - %s' % (title, book['BookDesc']))
-                    entry['author'] = escape('%s' % author)
-            else:
-                entry['content'] = escape('%s (%s)' % (title, book['BookAdded']))
-            entries.append(entry)
+                page = results
+                limit = len(page)
+            for book in page:
+                title = make_unicode(book['BookName'])
+                if sorder == 'Rated':
+                    dispname = escape("%s (%s)" % (title, book['BookRate']))
+                else:
+                    dispname = escape(title)
+                entry = {'title': dispname,
+                         'id': escape('audio:%s' % book['BookID']),
+                         'updated': opdstime(book['AudioLibrary']),
+                         'href': '%s?cmd=Serve&amp;audioid=%s%s' % (self.opdsroot, quote_plus(book['BookID']), userid),
+                         'kind': 'acquisition',
+                         'rel': 'file',
+                         'type': mime_type("we_send.zip")}
+                if CONFIG.get_bool('OPDS_METAINFO'):
+                    auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
+                    if auth:
+                        author = make_unicode(auth['AuthorName'])
+                        entry['image'] = self.searchroot + '/' + book['BookImg']
+                        entry['thumbnail'] = entry['image']
+                        entry['content'] = escape('%s - %s' % (title, book['BookDesc']))
+                        entry['author'] = escape('%s' % author)
+                else:
+                    entry['content'] = escape('%s (%s)' % (title, book['BookAdded']))
+                entries.append(entry)
+        finally:
+            db.close()
 
         if len(results) > (index + limit):
             links.append(
@@ -1711,7 +1761,10 @@ class OPDS(object):
                 fmt = ''
             myid = kwargs['bookid']
             db = database.DBConnection()
-            res = db.match('SELECT BookFile,BookName from books where bookid=?', (myid,))
+            try:
+                res = db.match('SELECT BookFile,BookName from books where bookid=?', (myid,))
+            finally:
+                db.close()
             bookfile = res['BookFile']
             if fmt:
                 bookfile = os.path.splitext(bookfile)[0] + '.' + fmt
@@ -1721,26 +1774,35 @@ class OPDS(object):
         elif 'issueid' in kwargs:
             myid = kwargs['issueid']
             db = database.DBConnection()
-            res = db.match('SELECT IssueFile from issues where issueid=?', (myid,))
+            try:
+                res = db.match('SELECT IssueFile from issues where issueid=?', (myid,))
+            finally:
+                db.close()
             self.filepath = res['IssueFile']
             self.filename = os.path.split(res['IssueFile'])[1]
             return
         elif 'comicissueid' in kwargs:
             myid = kwargs['comicissueid']
-            db = database.DBConnection()
             try:
                 comicid, issueid = myid.split('_')
             except ValueError:
                 return
-            res = db.match('SELECT IssueFile from comicissues where comicid=? and issueid=?',
-                           (comicid, issueid))
+            db = database.DBConnection()
+            try:
+                res = db.match('SELECT IssueFile from comicissues where comicid=? and issueid=?',
+                               (comicid, issueid))
+            finally:
+                db.close()
             self.filepath = res['IssueFile']
             self.filename = os.path.split(res['IssueFile'])[1]
             return
         elif 'audioid' in kwargs:
             myid = kwargs['audioid']
             db = database.DBConnection()
-            res = db.match('SELECT AudioFile,BookName from books where BookID=?', (myid,))
+            try:
+                res = db.match('SELECT AudioFile,BookName from books where BookID=?', (myid,))
+            finally:
+                db.close()
             basefile = res['AudioFile']
             # see if we need to zip up all the audiobook parts
             if basefile and path_isfile(basefile):

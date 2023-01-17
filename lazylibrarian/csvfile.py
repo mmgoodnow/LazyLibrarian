@@ -73,11 +73,12 @@ def dump_table(table, savedir=None, status=None):
             msg = "Exported %s %s to %s" % (count, plural(count, "item"), csvfile)
             logger.info(msg)
         return count
-
     except Exception:
         msg = 'Unhandled exception in dump_table: %s' % traceback.format_exc()
         logger.error(msg)
         return 0
+    finally:
+        db.close()
 
 
 def restore_table(table, savedir=None, status=None):
@@ -148,6 +149,8 @@ def restore_table(table, savedir=None, status=None):
         msg = 'Unhandled exception in restore_table: %s' % traceback.format_exc()
         logger.error(msg)
         return 0
+    finally:
+        db.close()
 
 
 def export_csv(search_dir=None, status="Wanted", library=''):
@@ -177,13 +180,15 @@ def export_csv(search_dir=None, status="Wanted", library=''):
         csvfile = os.path.join(search_dir, "%s %s - %s.csv" % (status, library, now().replace(':', '-')))
 
         db = database.DBConnection()
-
-        cmd = 'SELECT BookID,AuthorName,BookName,BookIsbn,books.AuthorID FROM books,authors '
-        if library == 'eBook':
-            cmd += 'WHERE books.Status=? and books.AuthorID = authors.AuthorID'
-        else:
-            cmd += 'WHERE AudioStatus=? and books.AuthorID = authors.AuthorID'
-        find_status = db.select(cmd, (status,))
+        try:
+            cmd = 'SELECT BookID,AuthorName,BookName,BookIsbn,books.AuthorID FROM books,authors '
+            if library == 'eBook':
+                cmd += 'WHERE books.Status=? and books.AuthorID = authors.AuthorID'
+            else:
+                cmd += 'WHERE AudioStatus=? and books.AuthorID = authors.AuthorID'
+            find_status = db.select(cmd, (status,))
+        finally:
+            db.close()
 
         if not find_status:
             msg = "No %s marked as %s" % (library, status)
@@ -219,40 +224,43 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     Return database entry, or False if not found
     """
     db = database.DBConnection()
-    bookmatch = ""
-    isbn10 = ""
-    isbn13 = ""
-    bookid = ""
-    bookname = item['Title']
+    try:
+        bookmatch = ""
+        isbn10 = ""
+        isbn13 = ""
+        bookid = ""
+        bookname = item['Title']
 
-    bookname = make_unicode(bookname)
-    if 'ISBN' in item:
-        isbn10 = item['ISBN']
-    if 'ISBN13' in item:
-        isbn13 = item['ISBN13']
-    if 'BookID' in item:
-        bookid = item['BookID']
+        bookname = make_unicode(bookname)
+        if 'ISBN' in item:
+            isbn10 = item['ISBN']
+        if 'ISBN13' in item:
+            isbn13 = item['ISBN13']
+        if 'BookID' in item:
+            bookid = item['BookID']
 
-    # try to find book in our database using bookid or isbn, or if that fails, name matching
-    cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus,Requester,'
-    cmd += 'AudioRequester FROM books,authors where books.AuthorID = authors.AuthorID '
-    if bookid:
-        fullcmd = cmd + 'and BookID=?'
-        bookmatch = db.match(fullcmd, (bookid,))
-    if not bookmatch:
-        if is_valid_isbn(isbn10):
-            fullcmd = cmd + 'and BookIsbn=?'
-            bookmatch = db.match(fullcmd, (isbn10,))
-    if not bookmatch:
-        if is_valid_isbn(isbn13):
-            fullcmd = cmd + 'and BookIsbn=?'
-            bookmatch = db.match(fullcmd, (isbn13,))
-    if not bookmatch:
-        bookid, _ = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library,
-                                    reason=reason)
+        # try to find book in our database using bookid or isbn, or if that fails, name matching
+        cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus,Requester,'
+        cmd += 'AudioRequester FROM books,authors where books.AuthorID = authors.AuthorID '
         if bookid:
             fullcmd = cmd + 'and BookID=?'
             bookmatch = db.match(fullcmd, (bookid,))
+        if not bookmatch:
+            if is_valid_isbn(isbn10):
+                fullcmd = cmd + 'and BookIsbn=?'
+                bookmatch = db.match(fullcmd, (isbn10,))
+        if not bookmatch:
+            if is_valid_isbn(isbn13):
+                fullcmd = cmd + 'and BookIsbn=?'
+                bookmatch = db.match(fullcmd, (isbn13,))
+        if not bookmatch:
+            bookid, _ = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library,
+                                        reason=reason)
+            if bookid:
+                fullcmd = cmd + 'and BookID=?'
+                bookmatch = db.match(fullcmd, (bookid,))
+    finally:
+        db.close()
     return bookmatch
 
 
@@ -266,22 +274,22 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
     msg = 'Import CSV'
     if not library:
         library = 'audio' if CONFIG.get_bool('AUDIO_TAB') else 'eBook'
-    # noinspection PyBroadException
-    try:
-        if not search_dir:
-            msg = "Alternate Directory not configured"
-            logger.warning(msg)
-            return msg
-        elif not path_isdir(search_dir):
-            msg = "Alternate Directory [%s] not found" % search_dir
-            logger.warning(msg)
-            return msg
+    if not search_dir:
+        msg = "Alternate Directory not configured"
+        logger.warning(msg)
+        return msg
+    elif not path_isdir(search_dir):
+        msg = "Alternate Directory [%s] not found" % search_dir
+        logger.warning(msg)
+        return msg
 
+    # noinspection PyBroadException
+    db = database.DBConnection()
+    try:
         csvfile = csv_file(search_dir, library=library)
 
         headers = None
 
-        db = database.DBConnection()
         bookcount = 0
         authcount = 0
         skipcount = 0
@@ -448,4 +456,5 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
         msg = 'Unhandled exception in import_csv: %s' % traceback.format_exc()
         logger.error(msg)
     finally:
+        db.close()
         return msg

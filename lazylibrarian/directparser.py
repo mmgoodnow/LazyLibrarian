@@ -702,10 +702,12 @@ def direct_gen(book=None, prov=None, test=False):
 
 def bok_dlcount() -> (int, int):
     db = database.DBConnection()
-    yesterday = time.time() - 24*60*60
-    grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
-                      (yesterday,))
-    db.close()
+    try:
+        yesterday = time.time() - 24*60*60
+        grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
+                          (yesterday,))
+    finally:
+        db.close()
     if grabs:
         return len(grabs), grabs[0]['completed']
     return 0, 0

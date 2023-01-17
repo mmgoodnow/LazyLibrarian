@@ -319,8 +319,8 @@ class StartupLazyLibrarian:
 
     def init_database(self, config: LLConfigHandler):
         # Initialize the database
+        db = database.DBConnection()
         try:
-            db = database.DBConnection()
             result = db.match('PRAGMA user_version')
             check = db.match('PRAGMA integrity_check')
             if result:
@@ -331,6 +331,8 @@ class StartupLazyLibrarian:
         except Exception as e:
             self.logger.error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
             sys.exit(0)
+        finally:
+            db.close()
 
         curr_ver = upgrade_needed()
         if curr_ver:

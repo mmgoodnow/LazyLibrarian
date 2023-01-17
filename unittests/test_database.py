@@ -52,6 +52,7 @@ class DatabaseTest(LLTestCaseWithConfigandDIRS):
         self.assertEqual(result[0], 77, 'Unit tests developed for v77; please upgrade')
         check = db.match('PRAGMA integrity_check')
         self.assertEqual('ok', check[0], 'Database integrity check failed')
+        db.close()
 
     @staticmethod
     def get_table_list(db):

@@ -41,16 +41,16 @@ def search_magazines(mags=None, reset=False):
     TELEMETRY.record_usage_data('Search/Magazine')
     logger = logging.getLogger(__name__)
     loggersearching = logging.getLogger('special.searching')
+    threadname = thread_name()
+    if "Thread-" in threadname:
+        if not mags:
+            thread_name("SEARCHALLMAG")
+            threadname = "SEARCHALLMAG"
+        else:
+            thread_name("SEARCHMAG")
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        threadname = thread_name()
-        if "Thread-" in threadname:
-            if not mags:
-                thread_name("SEARCHALLMAG")
-                threadname = "SEARCHALLMAG"
-            else:
-                thread_name("SEARCHMAG")
 
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         searchlist = []
@@ -518,14 +518,15 @@ def search_magazines(mags=None, reset=False):
         logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        db.close()
         thread_name("WEBSERVER")
 
 
 def download_maglist(maglist, table='wanted'):
     logger = logging.getLogger(__name__)
     snatched = 0
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         for magazine in maglist:
             if magazine['nzbmode'] in ["torznab", "torrent", "magnet"]:
                 snatch, res = tor_dl_method(
@@ -564,6 +565,7 @@ def download_maglist(maglist, table='wanted'):
     except Exception as e:
         logger.error(str(e))
     finally:
+        db.close()
         if snatched:
             schedule_job(action=SchedulerCommand.START, target='PostProcessor')
 

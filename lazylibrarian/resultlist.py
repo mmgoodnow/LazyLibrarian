@@ -61,8 +61,8 @@ def find_best_result(resultlist, book, searchtype, source):
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
     loggerfuzz = logging.getLogger('special.fuzz')
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
         dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
                     ',': ' ', '*': '', '(': '', ')': '', '[': '', ']': '', '#': '', '\'': '',
@@ -290,6 +290,8 @@ def find_best_result(resultlist, book, searchtype, source):
         return None
     except Exception:
         logger.error('Unhandled exception in find_best_result: %s' % traceback.format_exc())
+    finally:
+        db.close()
 
 
 def download_result(match, book):
@@ -301,9 +303,8 @@ def download_result(match, book):
     """
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
-
         new_value_dict = match[1]
         control_value_dict = match[2]
 
@@ -369,3 +370,5 @@ def download_result(match, book):
     except Exception:
         logger.error('Unhandled exception in download_result: %s' % traceback.format_exc())
         return 0
+    finally:
+        db.close()

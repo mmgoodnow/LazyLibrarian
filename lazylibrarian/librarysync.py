@@ -74,20 +74,23 @@ def get_book_meta(fdir, reason="get_book_meta"):
                             break
         if bookid:
             db = database.DBConnection()
-            cmd = 'SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID'
-            cmd += ' and books.BookID=?'
-            existing_book = db.match(cmd, (bookid,))
-            if not existing_book:
-                if CONFIG['BOOK_API'] == "GoogleBooks":
-                    gb = GoogleBooks(bookid)
-                    gb.find_book(bookid, None, None, reason)
-                elif CONFIG['BOOK_API'] == "GoodReads":
-                    gr = GoodReads(bookid)
-                    gr.find_book(bookid, None, None, reason)
-                elif CONFIG['BOOK_API'] == "OpenLibrary":
-                    ol = OpenLibrary(bookid)
-                    ol.find_book(bookid, None, None, reason)
+            try:
+                cmd = 'SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID'
+                cmd += ' and books.BookID=?'
                 existing_book = db.match(cmd, (bookid,))
+                if not existing_book:
+                    if CONFIG['BOOK_API'] == "GoogleBooks":
+                        gb = GoogleBooks(bookid)
+                        gb.find_book(bookid, None, None, reason)
+                    elif CONFIG['BOOK_API'] == "GoodReads":
+                        gr = GoodReads(bookid)
+                        gr.find_book(bookid, None, None, reason)
+                    elif CONFIG['BOOK_API'] == "OpenLibrary":
+                        ol = OpenLibrary(bookid)
+                        ol.find_book(bookid, None, None, reason)
+                    existing_book = db.match(cmd, (bookid,))
+            finally:
+                db.close()
             if existing_book:
                 return existing_book['AuthorName'], existing_book['BookName']
     except Exception:
@@ -238,242 +241,246 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     loggerfuzz = logging.getLogger('special.fuzz')
     logger.debug('Searching database for [%s] by [%s]' % (book, author))
     db = database.DBConnection()
-    check_exist_author = db.match('SELECT AuthorID FROM authors where AuthorName=? COLLATE NOCASE', (author,))
-    if check_exist_author:
-        authorid = check_exist_author['AuthorID']
-    else:
-        newauthor, authorid, new = add_author_name_to_db(author, False, reason=reason, title=book)
-        if newauthor and newauthor != author:
-            if new:
-                logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
-            else:
-                logger.debug("Authorname changed from [%s] to existing [%s]" % (author, newauthor))
-                check_exist_author = {'AuthorID': authorid}
-            author = make_unicode(newauthor)
-        if not newauthor:
-            authorid = 0
-
-    if not authorid:
-        logger.warning("Author [%s] not recognised" % author)
-        return 0, ''
-
-    cmd = 'SELECT BookID,books.Status,AudioStatus FROM books,authors where books.AuthorID = authors.AuthorID'
-    cmd += ' and authors.AuthorID=? and BookName=? COLLATE NOCASE'
-    res = db.select(cmd, (authorid, book))
-
-    whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
-
-    loggerfuzz.debug("Found %s exact match" % len(res))
-    for item in res:
-        loggerfuzz.debug("%s [%s]" % (book, item[whichstatus]))
-
-    match = None
-    for item in res:
-        if item[whichstatus] == 'Have':
-            match = item
-            break
-    if not match:
-        for item in res:
-            if item[whichstatus] == 'Open':
-                match = item
-                break
-    if not match:
-        for item in res:
-            if item[whichstatus] != 'Ignored':
-                match = item
-                break
-    if not match:
-        for item in res:
-            if item[whichstatus] == 'Ignored':
-                match = item
-                break
-    if match:
-        logger.debug('Exact match [%s] %s' % (book, match['BookID']))
-        return match['BookID'], match
-
-    # Try a more complex fuzzy match against each book in the db by this author
-    cmd = 'SELECT BookID,BookName,BookSub,BookISBN,books.Status,AudioStatus FROM books,authors'
-    cmd += ' where books.AuthorID = authors.AuthorID '
-    ign = ''
-    if library == 'eBook':
-        if ignored is True:
-            cmd += 'and books.Status = "Ignored" '
-            ign = 'ignored '
-        elif ignored is False:
-            cmd += 'and books.Status != "Ignored" '
-    else:
-        if ignored is True:
-            cmd += 'and AudioStatus = "Ignored" '
-            ign = 'ignored '
-        elif ignored is False:
-            cmd += 'and AudioStatus != "Ignored" '
-
-    cmd += 'and authors.AuthorID=?'
-    books = db.select(cmd, (authorid,))
-
-    if not len(books):
-        logger.warning("No books by %s in database" % author)
-        return 0, ''
-
-    loggerfuzz.debug(cmd)
-
-    best_ratio = 0
-    best_partial = 0
-    best_partname = 0
-    have_prefix = False
-    ratio_name = ""
-    partial_name = ""
-    partname_name = ""
-    prefix_name = ""
-    ratio_id = 0
-    partial_id = 0
-    partname_id = 0
-    prefix_id = 0
-    partname = 0
-    best_type = ''
-    partial_type = ''
-    partname_type = ''
-    prefix_type = ''
-
-    book_lower = unaccented(book.lower(), only_ascii=False)
-    book_lower = replace_quotes_with(book_lower, '')
-    book_partname, book_sub, _ = split_title(author, book_lower)
-
-    # We want to match a book on disk with a subtitle to a shorter book in the DB
-    # - Strict prefix match with a : followed by junk is allowed
-    # - Strict prefix match with a ()ed remainder is allowed
-    # But the leading : is removed by has_clean_subtitle, so we allow all non (): subtitles
-    has_clean_subtitle = re.search(r"^\s+([^:()]+|\([^)]+\))$", book_sub) is not None
-
-    logger.debug('Searching %s %s%s by [%s] in database for [%s]' %
-                 (len(books), ign, plural(len(books), "book"), author, book))
-    loggerfuzz.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
-    if book_partname == book_lower:
-        book_partname = ''
-
-    # translations: eg allow "fire & fury" to match "fire and fury"
-    translates = [
-        [' & ', ' and '],
-        [' + ', ' plus '],
-    ]
-
-    for a_book in books:
-        a_bookname = a_book['BookName']
-        if a_book['BookSub']:
-            a_bookname += ' ' + a_book['BookSub']
-        loggerfuzz.debug("Checking [%s]" % a_bookname)
-        # tidy up everything to raise fuzziness scores
-        # still need to lowercase for matching against partial_name later on
-        a_book_lower = unaccented(a_bookname.lower(), only_ascii=False)
-        a_book_lower = replace_quotes_with(a_book_lower, '')
-
-        for entry in translates:
-            if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
-                a_book_lower = a_book_lower.replace(entry[0], entry[1])
-            if entry[1] in a_book_lower and entry[1] not in book_lower and entry[0] in book_lower:
-                a_book_lower = a_book_lower.replace(entry[1], entry[0])
-        #
-        # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
-        ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
-        loggerfuzz.debug("Ratio %s [%s][%s]" % (ratio, book_lower, a_book_lower))
-        # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
-        partial = fuzz.partial_ratio(book_lower, a_book_lower)
-        loggerfuzz.debug("PartialRatio %s [%s][%s]" % (partial, book_lower, a_book_lower))
-        if book_partname:
-            # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
-            partname = fuzz.partial_ratio(book_partname, a_book_lower)
-            loggerfuzz.debug("PartName %s [%s][%s]" % (partname, book_partname, a_book_lower))
-
-        # lose a point for each extra word in the fuzzy matches so we get the closest match
-        # this should also stop us matching single books against omnibus editions
-        words = len(get_list(book_lower))
-        words -= len(get_list(a_book_lower))
-        # lose points if the difference is just digits so we don't match "book 2" and "book 3"
-        # or "some book" and "some book 2"
-        set1 = set(book_lower)
-        set2 = set(a_book_lower)
-        difference = set1.symmetric_difference(set2)
-        digits = sum(c.isdigit() for c in difference)
-        if digits == len(difference):
-            # make sure we are below match threshold
-            ratio = CONFIG.get_int('NAME_RATIO') - 1
-            partial = CONFIG.get_int('NAME_PARTIAL') - 1
-            partname = CONFIG.get_int('NAME_PARTNAME') - 1
+    try:
+        check_exist_author = db.match('SELECT AuthorID FROM authors where AuthorName=? COLLATE NOCASE', (author,))
+        if check_exist_author:
+            authorid = check_exist_author['AuthorID']
         else:
-            ratio -= abs(words)
-            partial -= abs(words)
-            partname -= abs(words)
+            newauthor, authorid, new = add_author_name_to_db(author, False, reason=reason, title=book)
+            if newauthor and newauthor != author:
+                if new:
+                    logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
+                else:
+                    logger.debug("Authorname changed from [%s] to existing [%s]" % (author, newauthor))
+                    check_exist_author = {'AuthorID': authorid}
+                author = make_unicode(newauthor)
+            if not newauthor:
+                authorid = 0
 
-        def isitbest(aratio, abest_ratio, aratio_name, abest_type, astatus):
-            use_it = False
-            if aratio > abest_ratio:
-                use_it = True
-            elif aratio == abest_ratio:
-                use_it = astatus == 'Have'
-                if not use_it:
-                    want_words = get_list(book_lower)
-                    best_words = get_list(aratio_name.lower())
-                    new_words = get_list(a_bookname.lower())
-                    best_cnt = 0
-                    new_cnt = 0
-                    for word in want_words:
-                        if word in best_words:
-                            best_cnt += 1
-                        if word in new_words:
-                            new_cnt += 1
-                    if new_cnt > best_cnt:
-                        use_it = True
-                if not use_it and abest_type == 'Ignored':
-                    use_it = astatus != 'Ignored'
-            return use_it
+        if not authorid:
+            logger.warning("Author [%s] not recognised" % author)
+            return 0, ''
 
-        if isitbest(ratio, best_ratio, ratio_name, best_type, a_book[whichstatus]):
-            best_ratio = ratio
-            best_type = a_book[whichstatus]
-            ratio_name = a_book['BookName']
-            ratio_id = a_book['BookID']
+        cmd = 'SELECT BookID,books.Status,AudioStatus FROM books,authors where books.AuthorID = authors.AuthorID'
+        cmd += ' and authors.AuthorID=? and BookName=? COLLATE NOCASE'
+        res = db.select(cmd, (authorid, book))
 
-        if isitbest(partial, best_partial, partial_name, partial_type, a_book[whichstatus]):
-            best_partial = partial
-            partial_type = a_book[whichstatus]
-            partial_name = a_book['BookName']
-            partial_id = a_book['BookID']
+        whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
 
-        if isitbest(partname, best_partname, partname_name, partname_type, a_book[whichstatus]):
-            best_partname = partname
-            partname_type = a_book[whichstatus]
-            partname_name = a_book['BookName']
-            partname_id = a_book['BookID']
+        loggerfuzz.debug("Found %s exact match" % len(res))
+        for item in res:
+            loggerfuzz.debug("%s [%s]" % (book, item[whichstatus]))
 
-        if a_book_lower == book_partname and has_clean_subtitle:
-            have_prefix = True
-            prefix_type = a_book[whichstatus]
-            prefix_name = a_book['BookName']
-            prefix_id = a_book['BookID']
+        match = None
+        for item in res:
+            if item[whichstatus] == 'Have':
+                match = item
+                break
+        if not match:
+            for item in res:
+                if item[whichstatus] == 'Open':
+                    match = item
+                    break
+        if not match:
+            for item in res:
+                if item[whichstatus] != 'Ignored':
+                    match = item
+                    break
+        if not match:
+            for item in res:
+                if item[whichstatus] == 'Ignored':
+                    match = item
+                    break
+        if match:
+            logger.debug('Exact match [%s] %s' % (book, match['BookID']))
+            return match['BookID'], match
 
-    if best_ratio >= CONFIG.get_int('NAME_RATIO'):
-        logger.debug("Fuzz match ratio [%d] [%s] [%s] %s" % (best_ratio, book, ratio_name, ratio_id))
-        return ratio_id, best_type
-    if best_partial >= CONFIG.get_int('NAME_PARTIAL'):
-        logger.debug("Fuzz match partial [%d] [%s] [%s] %s" % (best_partial, book, partial_name, partial_id))
-        return partial_id, partial_type
-    if best_partname >= CONFIG.get_int('NAME_PARTNAME'):
-        logger.debug("Fuzz match partname [%d] [%s] [%s] %s" % (best_partname, book, partname_name, partname_id))
-        return partname_id, partname_type
+        # Try a more complex fuzzy match against each book in the db by this author
+        cmd = 'SELECT BookID,BookName,BookSub,BookISBN,books.Status,AudioStatus FROM books,authors'
+        cmd += ' where books.AuthorID = authors.AuthorID '
+        ign = ''
+        if library == 'eBook':
+            if ignored is True:
+                cmd += 'and books.Status = "Ignored" '
+                ign = 'ignored '
+            elif ignored is False:
+                cmd += 'and books.Status != "Ignored" '
+        else:
+            if ignored is True:
+                cmd += 'and AudioStatus = "Ignored" '
+                ign = 'ignored '
+            elif ignored is False:
+                cmd += 'and AudioStatus != "Ignored" '
 
-    if have_prefix:
-        logger.debug("Fuzz match prefix [%s] [%s] %s" % (book, prefix_name, prefix_id))
-        return prefix_id, prefix_type
+        cmd += 'and authors.AuthorID=?'
+        books = db.select(cmd, (authorid,))
 
-    if books:
-        logger.debug(
-            'Fuzz failed [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
-            (author, book, best_ratio, ratio_name, ratio_id, best_partial, partial_name, partial_id,
-             best_partname, partname_name, partname_id))
+        if not len(books):
+            logger.warning("No books by %s in database" % author)
+            return 0, ''
 
-    if not check_exist_author:
-        # we auto-added a new author but they don't have the book so we should remove them again
-        db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+        loggerfuzz.debug(cmd)
+
+        best_ratio = 0
+        best_partial = 0
+        best_partname = 0
+        have_prefix = False
+        ratio_name = ""
+        partial_name = ""
+        partname_name = ""
+        prefix_name = ""
+        ratio_id = 0
+        partial_id = 0
+        partname_id = 0
+        prefix_id = 0
+        partname = 0
+        best_type = ''
+        partial_type = ''
+        partname_type = ''
+        prefix_type = ''
+
+        book_lower = unaccented(book.lower(), only_ascii=False)
+        book_lower = replace_quotes_with(book_lower, '')
+        book_partname, book_sub, _ = split_title(author, book_lower)
+
+        # We want to match a book on disk with a subtitle to a shorter book in the DB
+        # - Strict prefix match with a : followed by junk is allowed
+        # - Strict prefix match with a ()ed remainder is allowed
+        # But the leading : is removed by has_clean_subtitle, so we allow all non (): subtitles
+        has_clean_subtitle = re.search(r"^\s+([^:()]+|\([^)]+\))$", book_sub) is not None
+
+        logger.debug('Searching %s %s%s by [%s] in database for [%s]' %
+                     (len(books), ign, plural(len(books), "book"), author, book))
+        loggerfuzz.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
+        if book_partname == book_lower:
+            book_partname = ''
+
+        # translations: eg allow "fire & fury" to match "fire and fury"
+        translates = [
+            [' & ', ' and '],
+            [' + ', ' plus '],
+        ]
+
+        for a_book in books:
+            a_bookname = a_book['BookName']
+            if a_book['BookSub']:
+                a_bookname += ' ' + a_book['BookSub']
+            loggerfuzz.debug("Checking [%s]" % a_bookname)
+            # tidy up everything to raise fuzziness scores
+            # still need to lowercase for matching against partial_name later on
+            a_book_lower = unaccented(a_bookname.lower(), only_ascii=False)
+            a_book_lower = replace_quotes_with(a_book_lower, '')
+
+            for entry in translates:
+                if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
+                    a_book_lower = a_book_lower.replace(entry[0], entry[1])
+                if entry[1] in a_book_lower and entry[1] not in book_lower and entry[0] in book_lower:
+                    a_book_lower = a_book_lower.replace(entry[1], entry[0])
+            #
+            # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
+            ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
+            loggerfuzz.debug("Ratio %s [%s][%s]" % (ratio, book_lower, a_book_lower))
+            # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
+            partial = fuzz.partial_ratio(book_lower, a_book_lower)
+            loggerfuzz.debug("PartialRatio %s [%s][%s]" % (partial, book_lower, a_book_lower))
+            if book_partname:
+                # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
+                partname = fuzz.partial_ratio(book_partname, a_book_lower)
+                loggerfuzz.debug("PartName %s [%s][%s]" % (partname, book_partname, a_book_lower))
+
+            # lose a point for each extra word in the fuzzy matches so we get the closest match
+            # this should also stop us matching single books against omnibus editions
+            words = len(get_list(book_lower))
+            words -= len(get_list(a_book_lower))
+            # lose points if the difference is just digits so we don't match "book 2" and "book 3"
+            # or "some book" and "some book 2"
+            set1 = set(book_lower)
+            set2 = set(a_book_lower)
+            difference = set1.symmetric_difference(set2)
+            digits = sum(c.isdigit() for c in difference)
+            if digits == len(difference):
+                # make sure we are below match threshold
+                ratio = CONFIG.get_int('NAME_RATIO') - 1
+                partial = CONFIG.get_int('NAME_PARTIAL') - 1
+                partname = CONFIG.get_int('NAME_PARTNAME') - 1
+            else:
+                ratio -= abs(words)
+                partial -= abs(words)
+                partname -= abs(words)
+
+            def isitbest(aratio, abest_ratio, aratio_name, abest_type, astatus):
+                use_it = False
+                if aratio > abest_ratio:
+                    use_it = True
+                elif aratio == abest_ratio:
+                    use_it = astatus == 'Have'
+                    if not use_it:
+                        want_words = get_list(book_lower)
+                        best_words = get_list(aratio_name.lower())
+                        new_words = get_list(a_bookname.lower())
+                        best_cnt = 0
+                        new_cnt = 0
+                        for word in want_words:
+                            if word in best_words:
+                                best_cnt += 1
+                            if word in new_words:
+                                new_cnt += 1
+                        if new_cnt > best_cnt:
+                            use_it = True
+                    if not use_it and abest_type == 'Ignored':
+                        use_it = astatus != 'Ignored'
+                return use_it
+
+            if isitbest(ratio, best_ratio, ratio_name, best_type, a_book[whichstatus]):
+                best_ratio = ratio
+                best_type = a_book[whichstatus]
+                ratio_name = a_book['BookName']
+                ratio_id = a_book['BookID']
+
+            if isitbest(partial, best_partial, partial_name, partial_type, a_book[whichstatus]):
+                best_partial = partial
+                partial_type = a_book[whichstatus]
+                partial_name = a_book['BookName']
+                partial_id = a_book['BookID']
+
+            if isitbest(partname, best_partname, partname_name, partname_type, a_book[whichstatus]):
+                best_partname = partname
+                partname_type = a_book[whichstatus]
+                partname_name = a_book['BookName']
+                partname_id = a_book['BookID']
+
+            if a_book_lower == book_partname and has_clean_subtitle:
+                have_prefix = True
+                prefix_type = a_book[whichstatus]
+                prefix_name = a_book['BookName']
+                prefix_id = a_book['BookID']
+
+        if best_ratio >= CONFIG.get_int('NAME_RATIO'):
+            logger.debug("Fuzz match ratio [%d] [%s] [%s] %s" % (best_ratio, book, ratio_name, ratio_id))
+            return ratio_id, best_type
+        if best_partial >= CONFIG.get_int('NAME_PARTIAL'):
+            logger.debug("Fuzz match partial [%d] [%s] [%s] %s" % (best_partial, book, partial_name, partial_id))
+            return partial_id, partial_type
+        if best_partname >= CONFIG.get_int('NAME_PARTNAME'):
+            logger.debug("Fuzz match partname [%d] [%s] [%s] %s" % (best_partname, book, partname_name, partname_id))
+            return partname_id, partname_type
+
+        if have_prefix:
+            logger.debug("Fuzz match prefix [%s] [%s] %s" % (book, prefix_name, prefix_id))
+            return prefix_id, prefix_type
+
+        if books:
+            logger.debug(
+                'Fuzz failed [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
+                (author, book, best_ratio, ratio_name, ratio_id, best_partial, partial_name, partial_id,
+                 best_partname, partname_name, partname_id))
+
+        if not check_exist_author:
+            # we auto-added a new author but they don't have the book so we should remove them again
+            db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+    finally:
+        db.close()
+
     return 0, ''
 
 
@@ -1405,3 +1412,5 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     control_value_dict = {"AuthorID": authid}
                     new_value_dict = {"Status": "Active"}
                     db.upsert("authors", new_value_dict, control_value_dict)
+    finally:
+        db.close()

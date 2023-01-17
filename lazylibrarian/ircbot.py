@@ -66,7 +66,10 @@ class IRC:
         self.logger = logging.getLogger(__name__)
         self.dlcommslogger = logging.getLogger('special.dlcomms')
         db = database.DBConnection()
-        res = db.match('SELECT name,email from users where username="Admin" COLLATE NOCASE')
+        try:
+            res = db.match('SELECT name,email from users where username="Admin" COLLATE NOCASE')
+        finally:
+            db.close()
         if res:
             self.email = res['email']
             if not self.email:

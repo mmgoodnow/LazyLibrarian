@@ -71,12 +71,15 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             return res
 
         db = database.DBConnection()
-        if authorid:
-            results = db.select(cmd, (authorid, limit))
-        elif onetitle:
-            results = db.select(cmd, (unquote_plus(onetitle).replace('&amp;', '&'), limit))
-        else:
-            results = db.select(cmd, (limit,))
+        try:
+            if authorid:
+                results = db.select(cmd, (authorid, limit))
+            elif onetitle:
+                results = db.select(cmd, (unquote_plus(onetitle).replace('&amp;', '&'), limit))
+            else:
+                results = db.select(cmd, (limit,))
+        finally:
+            db.close()
         items = []
         logger.debug("Found %s %s" % (len(results), ftype))
 

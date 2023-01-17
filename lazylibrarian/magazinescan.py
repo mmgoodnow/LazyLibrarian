@@ -39,9 +39,9 @@ def magazine_scan(title=None):
     loggermatching = logging.getLogger('special.matching')
     lazylibrarian.MAG_UPDATE = 1
 
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        db = database.DBConnection()
         mag_path = CONFIG['MAG_DEST_FOLDER']
         if CONFIG.get_bool('MAG_RELATIVE'):
             mag_path = os.path.join(get_directory('eBook'), mag_path)
@@ -366,3 +366,5 @@ def magazine_scan(title=None):
     except Exception:
         lazylibrarian.MAG_UPDATE = 0
         logger.error('Unhandled exception in magazine_scan: %s' % traceback.format_exc())
+    finally:
+        db.close()

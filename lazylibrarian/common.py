@@ -267,7 +267,10 @@ def log_header(online=True) -> str:
 
     db_version = 0
     db = database.DBConnection()
-    result = db.match('PRAGMA user_version')
+    try:
+        result = db.match('PRAGMA user_version')
+    finally:
+        db.close()
     if result and result[0]:
         value = str(result[0])
         if value.isdigit():

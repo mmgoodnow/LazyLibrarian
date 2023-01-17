@@ -156,33 +156,36 @@ def get_author_images():
     """ Try to get an author image for all authors without one"""
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    cmd = 'select AuthorID, AuthorName from authors where (AuthorImg like "%nophoto%" or AuthorImg is null)'
-    cmd += ' and Manual is not "1"'
-    authors = db.select(cmd)
-    if authors:
-        logger.info('Checking images for %s %s' % (len(authors), plural(len(authors), "author")))
-        counter = 0
-        for author in authors:
-            authorid = author['AuthorID']
-            imagelink = get_author_image(authorid)
-            new_value_dict = {}
-            if not imagelink:
-                logger.debug('No image found for %s' % author['AuthorName'])
-                new_value_dict = {"AuthorImg": 'images/nophoto.png'}
-            elif 'nophoto' not in imagelink:
-                logger.debug('Updating %s image to %s' % (author['AuthorName'], imagelink))
-                new_value_dict = {"AuthorImg": imagelink}
+    try:
+        cmd = 'select AuthorID, AuthorName from authors where (AuthorImg like "%nophoto%" or AuthorImg is null)'
+        cmd += ' and Manual is not "1"'
+        authors = db.select(cmd)
+        if authors:
+            logger.info('Checking images for %s %s' % (len(authors), plural(len(authors), "author")))
+            counter = 0
+            for author in authors:
+                authorid = author['AuthorID']
+                imagelink = get_author_image(authorid)
+                new_value_dict = {}
+                if not imagelink:
+                    logger.debug('No image found for %s' % author['AuthorName'])
+                    new_value_dict = {"AuthorImg": 'images/nophoto.png'}
+                elif 'nophoto' not in imagelink:
+                    logger.debug('Updating %s image to %s' % (author['AuthorName'], imagelink))
+                    new_value_dict = {"AuthorImg": imagelink}
 
-            if new_value_dict:
-                counter += 1
-                control_value_dict = {"AuthorID": authorid}
-                db.upsert("authors", new_value_dict, control_value_dict)
+                if new_value_dict:
+                    counter += 1
+                    control_value_dict = {"AuthorID": authorid}
+                    db.upsert("authors", new_value_dict, control_value_dict)
 
-        msg = 'Updated %s %s' % (counter, plural(counter, "image"))
-        logger.info('Author Image check complete: ' + msg)
-    else:
-        msg = 'No missing author images'
-        logger.debug(msg)
+            msg = 'Updated %s %s' % (counter, plural(counter, "image"))
+            logger.info('Author Image check complete: ' + msg)
+        else:
+            msg = 'No missing author images'
+            logger.debug(msg)
+    finally:
+        db.close()
     return msg
 
 
@@ -191,29 +194,32 @@ def get_book_covers():
 
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    cmd = 'select BookID,BookImg from books where BookImg like "%nocover%" '
-    cmd += 'or BookImg like "%nophoto%" and Manual is not "1"'
-    books = db.select(cmd)
-    if books:
-        logger.info('Checking covers for %s %s' % (len(books), plural(len(books), "book")))
-        counter = 0
-        for book in books:
-            bookid = book['BookID']
-            coverlink, _ = get_book_cover(bookid)
-            if coverlink and "nocover" not in coverlink and "nophoto" not in coverlink:
-                control_value_dict = {"BookID": bookid}
-                new_value_dict = {"BookImg": coverlink}
-                db.upsert("books", new_value_dict, control_value_dict)
-                counter += 1
-            if not coverlink and "http" in book['BookImg']:
-                control_value_dict = {"BookID": bookid}
-                new_value_dict = {"BookImg": "images/nocover.png"}
-                db.upsert("books", new_value_dict, control_value_dict)
-        msg = 'Updated %s %s' % (counter, plural(counter, "cover"))
-        logger.info('Cover check complete: ' + msg)
-    else:
-        msg = 'No missing book covers'
-        logger.debug(msg)
+    try:
+        cmd = 'select BookID,BookImg from books where BookImg like "%nocover%" '
+        cmd += 'or BookImg like "%nophoto%" and Manual is not "1"'
+        books = db.select(cmd)
+        if books:
+            logger.info('Checking covers for %s %s' % (len(books), plural(len(books), "book")))
+            counter = 0
+            for book in books:
+                bookid = book['BookID']
+                coverlink, _ = get_book_cover(bookid)
+                if coverlink and "nocover" not in coverlink and "nophoto" not in coverlink:
+                    control_value_dict = {"BookID": bookid}
+                    new_value_dict = {"BookImg": coverlink}
+                    db.upsert("books", new_value_dict, control_value_dict)
+                    counter += 1
+                if not coverlink and "http" in book['BookImg']:
+                    control_value_dict = {"BookID": bookid}
+                    new_value_dict = {"BookImg": "images/nocover.png"}
+                    db.upsert("books", new_value_dict, control_value_dict)
+            msg = 'Updated %s %s' % (counter, plural(counter, "cover"))
+            logger.info('Cover check complete: ' + msg)
+        else:
+            msg = 'No missing book covers'
+            logger.debug(msg)
+    finally:
+        db.close()
     return msg
 
 
@@ -262,9 +268,9 @@ def get_book_cover(bookid=None, src=None):
     if not src:
         src = ''
     logger.debug("Getting %s cover for %s" % (src, bookid))
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        db = database.DBConnection()
         cachedir = DIRS.CACHEDIR
         item = db.match('select BookImg from books where bookID=?', (bookid,))
         if item:
@@ -475,6 +481,8 @@ def get_book_cover(bookid=None, src=None):
         return None, src
     except Exception:
         logger.error('Unhandled exception in get_book_cover: %s' % traceback.format_exc())
+    finally:
+        db.close()
     return None, src
 
 
@@ -537,7 +545,10 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
 
     lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
     db = database.DBConnection()
-    author = db.match('select AuthorName from authors where AuthorID=?', (authorid,))
+    try:
+        author = db.match('select AuthorName from authors where AuthorID=?', (authorid,))
+    finally:
+        db.close()
     if PIL and author:
         authorname = safe_unicode(author['AuthorName'])
         safeparams = quote_plus(make_utf8bytes("author %s" % authorname)[0])
@@ -586,20 +597,23 @@ def create_mag_covers(refresh=False):
         logger.info('Cover creation is disabled in config')
         return ''
     db = database.DBConnection()
-    #  <> '' ignores empty string or NULL
-    issues = db.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
-    if refresh:
-        logger.info("Creating covers for %s %s" % (len(issues), plural(len(issues), "issue")))
-    else:
-        logger.info("Checking covers for %s %s" % (len(issues), plural(len(issues), "issue")))
-    cnt = 0
-    for item in issues:
-        try:
-            maginfo = db.match("SELECT CoverPage from magazines WHERE Title=?", (item['Title'],))
-            create_mag_cover(item['IssueFile'], refresh=refresh, pagenum=maginfo['CoverPage'])
-            cnt += 1
-        except Exception as why:
-            logger.warning('Unable to create cover for %s, %s %s' % (item['IssueFile'], type(why).__name__, str(why)))
+    try:
+        #  <> '' ignores empty string or NULL
+        issues = db.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
+        if refresh:
+            logger.info("Creating covers for %s %s" % (len(issues), plural(len(issues), "issue")))
+        else:
+            logger.info("Checking covers for %s %s" % (len(issues), plural(len(issues), "issue")))
+        cnt = 0
+        for item in issues:
+            try:
+                maginfo = db.match("SELECT CoverPage from magazines WHERE Title=?", (item['Title'],))
+                create_mag_cover(item['IssueFile'], refresh=refresh, pagenum=maginfo['CoverPage'])
+                cnt += 1
+            except Exception as why:
+                logger.warning('Unable to create cover for %s, %s %s' % (item['IssueFile'], type(why).__name__, str(why)))
+    finally:
+        db.close()
     logger.info("Cover creation completed")
     if refresh:
         return "Created covers for %s %s" % (cnt, plural(cnt, "issue"))

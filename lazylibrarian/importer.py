@@ -52,29 +52,32 @@ def get_preferred_author_name(author: str) -> (str, bool):
     author = format_author_name(author, postfix=CONFIG.get_list('NAME_POSTFIX'))
     match = False
     db = database.DBConnection()
-    check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
-    if check_exist_author:
-        match = True
-    else:  # If no exact match, look for a close fuzzy match to handle misspellings, accents or AKA
-        match_name = author.lower().replace('.', '')
-        res = db.action('select AuthorID,AuthorName,AKA from authors')
-        for item in res:
-            aname = item['AuthorName']
-            if aname:
-                match_fuzz = fuzz.ratio(aname.lower().replace('.', ''), match_name)
-                if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                    logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AuthorName'], match_fuzz, author))
-                    author = item['AuthorName']
-                    match = True
-                    break
-            aka = item['AKA']
-            if aka:
-                match_fuzz = fuzz.ratio(aka.lower().replace('.', ''), match_name)
-                if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                    logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
-                    author = item['AuthorName']
-                    match = True
-                    break
+    try:
+        check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
+        if check_exist_author:
+            match = True
+        else:  # If no exact match, look for a close fuzzy match to handle misspellings, accents or AKA
+            match_name = author.lower().replace('.', '')
+            res = db.action('select AuthorID,AuthorName,AKA from authors')
+            for item in res:
+                aname = item['AuthorName']
+                if aname:
+                    match_fuzz = fuzz.ratio(aname.lower().replace('.', ''), match_name)
+                    if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+                        logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AuthorName'], match_fuzz, author))
+                        author = item['AuthorName']
+                        match = True
+                        break
+                aka = item['AKA']
+                if aka:
+                    match_fuzz = fuzz.ratio(aka.lower().replace('.', ''), match_name)
+                    if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+                        logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
+                        author = item['AuthorName']
+                        match = True
+                        break
+    finally:
+        db.close()
     return author, match
 
 
@@ -101,91 +104,94 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
         return "", "", False
 
     db = database.DBConnection()
-    # Check if the author exists, and import the author if not,
-    author, exists = get_preferred_author_name(author)
-    if exists:
-        check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
-    else:
-        check_exist_author = None
-    if not exists and (CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
-        logger.debug('Author %s not found in database, trying to add' % author)
-        # no match for supplied author, but we're allowed to add new ones
-        if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-            if title:
-                ol = OpenLibrary(author + '<ll>' + title)
-            else:
-                ol = OpenLibrary(author)
-            try:
-                author_info = ol.find_author_id()
-            except Exception as e:
-                logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
-                return "", "", False
+    try:
+        # Check if the author exists, and import the author if not,
+        author, exists = get_preferred_author_name(author)
+        if exists:
+            check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
         else:
-            gr = GoodReads(author)
-            try:
-                author_info = gr.find_author_id()
-            except Exception as e:
-                logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
-                return "", "", False
-
-        # only try to add if data matches found author data
-        if author_info:
-            authorname = author_info['authorname']
-            # "J.R.R. Tolkien" is the same person as "J. R. R. Tolkien" and "J R R Tolkien"
-            match_auth = author.replace('.', ' ')
-            match_auth = ' '.join(match_auth.split())
-
-            match_name = authorname.replace('.', ' ')
-            match_name = ' '.join(match_name.split())
-
-            match_name = unaccented(match_name, only_ascii=False)
-            match_auth = unaccented(match_auth, only_ascii=False)
-
-            # allow a degree of fuzziness to cater for different accented character handling.
-            # filename may have the accented or un-accented version of the character
-            # We stored GoodReads/OpenLibrary author name in author_info, so store in LL db under that
-            # fuzz.ratio doesn't lowercase for us
-            match_fuzz = fuzz.ratio(match_auth.lower(), match_name.lower())
-            if match_fuzz < CONFIG.get_int('NAME_RATIO'):
-                logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
-                             (author, match_name, match_fuzz))
-
-            # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
-            if "unknown" not in author.lower() and 'anonymous' not in author.lower() and \
-                    match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                # use "intact" name for author that we stored in
-                # author_dict, not one of the various mangled versions
-                # otherwise the books appear to be by a different author!
-                author = author_info['authorname']
-                authorid = author_info['authorid']
-                # this new authorname may already be in the
-                # database, so check again
-                check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
-                if check_exist_author:
-                    logger.debug('Found authorname %s in database' % author)
-                    new = False
+            check_exist_author = None
+        if not exists and (CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
+            logger.debug('Author %s not found in database, trying to add' % author)
+            # no match for supplied author, but we're allowed to add new ones
+            if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+                if title:
+                    ol = OpenLibrary(author + '<ll>' + title)
                 else:
-                    logger.info("Adding new author [%s] %s addbooks=%s" % (author, reason, addbooks))
-                    try:
-                        add_author_to_db(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
-                                         reason=reason)
-                        check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
-                        if check_exist_author:
-                            new = True
-                    except Exception as e:
-                        logger.error('Failed to add author [%s] to db: %s %s' % (author, type(e).__name__, str(e)))
+                    ol = OpenLibrary(author)
+                try:
+                    author_info = ol.find_author_id()
+                except Exception as e:
+                    logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
+                    return "", "", False
+            else:
+                gr = GoodReads(author)
+                try:
+                    author_info = gr.find_author_id()
+                except Exception as e:
+                    logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
+                    return "", "", False
 
-    # check author exists in db, either newly loaded or already there
-    if check_exist_author:
-        aka = author_info.get('aka', '')
-        akas = get_list(check_exist_author['AKA'], ',')
-        if aka and aka not in akas:
-            akas.append(aka)
-            db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
-                      (', '.join(akas), check_exist_author['AuthorID']))
-    else:
-        logger.debug("Failed to match author [%s] in database" % author)
-        return "", "", False
+            # only try to add if data matches found author data
+            if author_info:
+                authorname = author_info['authorname']
+                # "J.R.R. Tolkien" is the same person as "J. R. R. Tolkien" and "J R R Tolkien"
+                match_auth = author.replace('.', ' ')
+                match_auth = ' '.join(match_auth.split())
+
+                match_name = authorname.replace('.', ' ')
+                match_name = ' '.join(match_name.split())
+
+                match_name = unaccented(match_name, only_ascii=False)
+                match_auth = unaccented(match_auth, only_ascii=False)
+
+                # allow a degree of fuzziness to cater for different accented character handling.
+                # filename may have the accented or un-accented version of the character
+                # We stored GoodReads/OpenLibrary author name in author_info, so store in LL db under that
+                # fuzz.ratio doesn't lowercase for us
+                match_fuzz = fuzz.ratio(match_auth.lower(), match_name.lower())
+                if match_fuzz < CONFIG.get_int('NAME_RATIO'):
+                    logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
+                                 (author, match_name, match_fuzz))
+
+                # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
+                if "unknown" not in author.lower() and 'anonymous' not in author.lower() and \
+                        match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+                    # use "intact" name for author that we stored in
+                    # author_dict, not one of the various mangled versions
+                    # otherwise the books appear to be by a different author!
+                    author = author_info['authorname']
+                    authorid = author_info['authorid']
+                    # this new authorname may already be in the
+                    # database, so check again
+                    check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                    if check_exist_author:
+                        logger.debug('Found authorname %s in database' % author)
+                        new = False
+                    else:
+                        logger.info("Adding new author [%s] %s addbooks=%s" % (author, reason, addbooks))
+                        try:
+                            add_author_to_db(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
+                                             reason=reason)
+                            check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                            if check_exist_author:
+                                new = True
+                        except Exception as e:
+                            logger.error('Failed to add author [%s] to db: %s %s' % (author, type(e).__name__, str(e)))
+
+        # check author exists in db, either newly loaded or already there
+        if check_exist_author:
+            aka = author_info.get('aka', '')
+            akas = get_list(check_exist_author['AKA'], ',')
+            if aka and aka not in akas:
+                akas.append(aka)
+                db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
+                          (', '.join(akas), check_exist_author['AuthorID']))
+        else:
+            logger.debug("Failed to match author [%s] in database" % author)
+            return "", "", False
+    finally:
+        db.close()
     author = make_unicode(author)
     return author, check_exist_author['AuthorID'], new
 
@@ -207,9 +213,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     threadname = thread_name()
     if "Thread-" in threadname:
         thread_name("AddAuthorToDB")
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        db = database.DBConnection()
         match = False
         authorimg = ''
         new_author = not refresh
@@ -620,56 +626,61 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         msg = 'Unhandled exception in add_author_to_db: %s' % traceback.format_exc()
         logger.error(msg)
         return msg
+    finally:
+        db.close()
 
 
 def update_totals(authorid):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    # author totals needs to be updated every time a book is marked differently
-    match = db.select('SELECT AuthorID from authors WHERE AuthorID=?', (authorid,))
-    if not match:
-        logger.debug('Update_totals - authorid [%s] not found' % authorid)
-        return
+    try:
+        # author totals needs to be updated every time a book is marked differently
+        match = db.select('SELECT AuthorID from authors WHERE AuthorID=?', (authorid,))
+        if not match:
+            logger.debug('Update_totals - authorid [%s] not found' % authorid)
+            return
 
-    cmd = 'SELECT BookName, BookLink, BookDate, BookID from books WHERE AuthorID=?'
-    cmd += ' AND Status != "Ignored" order by BookDate DESC'
-    lastbook = db.match(cmd, (authorid,))
+        cmd = 'SELECT BookName, BookLink, BookDate, BookID from books WHERE AuthorID=?'
+        cmd += ' AND Status != "Ignored" order by BookDate DESC'
+        lastbook = db.match(cmd, (authorid,))
 
-    cmd = "select sum(case status when 'Ignored' then 0 else 1 end) as unignored,"
-    cmd += "sum(case when status == 'Have' then 1 when status == 'Open' then 1 else 0 end) as EHave, "
-    cmd += "sum(case when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 "
-    cmd += "else 0 end) as AHave, sum(case when status == 'Have' then 1 when status == 'Open' then 1 "
-    cmd += "when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 else 0 end) as Have, "
-    cmd += "count(*) as total from books where authorid=?"
-    totals = db.match(cmd, (authorid,))
+        cmd = "select sum(case status when 'Ignored' then 0 else 1 end) as unignored,"
+        cmd += "sum(case when status == 'Have' then 1 when status == 'Open' then 1 else 0 end) as EHave, "
+        cmd += "sum(case when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 "
+        cmd += "else 0 end) as AHave, sum(case when status == 'Have' then 1 when status == 'Open' then 1 "
+        cmd += "when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 else 0 end) as Have, "
+        cmd += "count(*) as total from books where authorid=?"
+        totals = db.match(cmd, (authorid,))
 
-    control_value_dict = {"AuthorID": authorid}
-    new_value_dict = {
-        "TotalBooks": check_int(totals['total'], 0),
-        "UnignoredBooks": check_int(totals['unignored'], 0),
-        "HaveBooks": check_int(totals['Have'], 0),
-        "HaveEBooks": check_int(totals['EHave'], 0),
-        "HaveAudioBooks": check_int(totals['AHave'], 0),
-        "LastBook": lastbook['BookName'] if lastbook else None,
-        "LastLink": lastbook['BookLink'] if lastbook else None,
-        "LastBookID": lastbook['BookID'] if lastbook else None,
-        "LastDate": lastbook['BookDate'] if lastbook else None
-    }
-    db.upsert("authors", new_value_dict, control_value_dict)
+        control_value_dict = {"AuthorID": authorid}
+        new_value_dict = {
+            "TotalBooks": check_int(totals['total'], 0),
+            "UnignoredBooks": check_int(totals['unignored'], 0),
+            "HaveBooks": check_int(totals['Have'], 0),
+            "HaveEBooks": check_int(totals['EHave'], 0),
+            "HaveAudioBooks": check_int(totals['AHave'], 0),
+            "LastBook": lastbook['BookName'] if lastbook else None,
+            "LastLink": lastbook['BookLink'] if lastbook else None,
+            "LastBookID": lastbook['BookID'] if lastbook else None,
+            "LastDate": lastbook['BookDate'] if lastbook else None
+        }
+        db.upsert("authors", new_value_dict, control_value_dict)
 
-    cmd = "select series.seriesid as Series,sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
-    cmd += "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
-    cmd += "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1 "
-    cmd += "else 0 end) as Have from books,member,series,seriesauthors where member.bookid=books.bookid "
-    cmd += "and member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid "
-    cmd += "and seriesauthors.authorid=? group by series.seriesid"
-    res = db.select(cmd, (authorid,))
-    if len(res):
-        for series in res:
-            db.action('UPDATE series SET Have=?, Total=? WHERE SeriesID=?',
-                      (check_int(series['Have'], 0), check_int(series['Total'], 0), series['Series']))
+        cmd = "select series.seriesid as Series,sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
+        cmd += "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
+        cmd += "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1 "
+        cmd += "else 0 end) as Have from books,member,series,seriesauthors where member.bookid=books.bookid "
+        cmd += "and member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid "
+        cmd += "and seriesauthors.authorid=? group by series.seriesid"
+        res = db.select(cmd, (authorid,))
+        if len(res):
+            for series in res:
+                db.action('UPDATE series SET Have=?, Total=? WHERE SeriesID=?',
+                          (check_int(series['Have'], 0), check_int(series['Total'], 0), series['Series']))
 
-    res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+        res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+    finally:
+        db.close()
     logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], new_value_dict['HaveBooks'],
                                                     new_value_dict['TotalBooks']))
 

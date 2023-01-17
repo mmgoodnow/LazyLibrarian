@@ -41,18 +41,21 @@ from bs4 import BeautifulSoup
 def test_provider(name: str, host=None, api=None):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
-    if res:
-        testname = res['authorname']
-        testid = res['authorid']
-        res = db.match("SELECT bookname from books where authorid=? order by bookrate desc", (testid,))
+    try:
+        res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
         if res:
-            testbook = res['bookname']
+            testname = res['authorname']
+            testid = res['authorid']
+            res = db.match("SELECT bookname from books where authorid=? order by bookrate desc", (testid,))
+            if res:
+                testbook = res['bookname']
+            else:
+                testbook = ''
         else:
-            testbook = ''
-    else:
-        testname = "Agatha Christie"
-        testbook = "Poirot"
+            testname = "Agatha Christie"
+            testbook = "Poirot"
+    finally:
+        db.close()
 
     book = {'searchterm': testname, 'authorName': testname, 'library': 'eBook', 'bookid': '1',
             'bookName': testbook, 'bookSub': ''}
