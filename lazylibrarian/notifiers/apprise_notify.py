@@ -3,6 +3,7 @@
 # Purpose:
 #  Handle the general purpose Apprise notification engine. It is optional and is
 #  only available if the Apprise module is installed.
+import logging
 
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
@@ -27,6 +28,7 @@ class AppriseNotifier:
 
     @staticmethod
     def _send_apprise(event=None, message=None, url=None):
+        logger = logging.getLogger(__name__)
         try:
             asset = AppriseAsset()
             asset.default_extension = ".png"
@@ -55,7 +57,7 @@ class AppriseNotifier:
                     apobj.add(item['URL'])
 
         if apobj is None:
-            logger.warn("Apprise notifier is not initialised")
+            logger.warning("Apprise notifier is not initialised")
             return False
 
         title = "LazyLibrarian"
