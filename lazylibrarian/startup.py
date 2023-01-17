@@ -850,7 +850,7 @@ class StartupLazyLibrarian:
                                     self.logger.info(msg)
                                     subprocess.Popen(popen_list, cwd=os.getcwd())
 
-        if quit:
+        if quit and not testing:
             self.logger.info('Lazylibrarian (pid %s) is exiting now' % os.getpid())
             cherrypy.engine.stop()
             sys.exit(0)
