@@ -320,7 +320,10 @@ class Api(object):
     def _dic_from_query(query):
 
         db = database.DBConnection()
-        rows = db.select(query)
+        try:
+            rows = db.select(query)
+        finally:
+            db.close()
 
         rows_as_dic = []
 
@@ -357,28 +360,31 @@ class Api(object):
                                                                   'Message': 'Invalid parameter: newid'}}
         else:
             db = database.DBConnection()
-            res = db.match('SELECT * from authors WHERE authorid=?', (kwargs['id'],))
-            if not res:
-                self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                      'Message': 'Invalid parameter: id'}}
-            else:
-                db.action("PRAGMA foreign_keys = OFF")
-                db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
-                          (kwargs['newid'], kwargs['id']))
-                db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
-                          (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
-                if kwargs['newid'].startswith('OL'):
-                    db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
-                              (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+            try:
+                res = db.match('SELECT * from authors WHERE authorid=?', (kwargs['id'],))
+                if not res:
+                    self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                          'Message': 'Invalid parameter: id'}}
                 else:
-                    db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
-                              (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                    db.action("PRAGMA foreign_keys = OFF")
+                    db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                              (kwargs['newid'], kwargs['id']))
+                    db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                              (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                    if kwargs['newid'].startswith('OL'):
+                        db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                                  (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                    else:
+                        db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                                  (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
 
-                db.action("PRAGMA foreign_keys = ON")
-                self.data = {'Success': True,
-                             'Data': {'AuthorID': kwargs['newid']},
-                             'Error':  {'Code': 200, 'Message': 'OK'}
-                             }
+                    db.action("PRAGMA foreign_keys = ON")
+                    self.data = {'Success': True,
+                                 'Data': {'AuthorID': kwargs['newid']},
+                                 'Error':  {'Code': 200, 'Message': 'OK'}
+                                 }
+            finally:
+                db.close()
         return
 
     def _provider_array(self, prov_type):
@@ -845,17 +851,20 @@ class Api(object):
                 self.data = 'Missing parameter: ' + item
                 return
         db = database.DBConnection()
-        res = db.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
-        if not res:
-            self.data = 'Invalid userid'
-            return
-        for provider in CONFIG.providers('RSS'):
-            if provider['DISPNAME'] == kwargs['feed']:
-                if wishlist_type(provider['HOST']):
-                    db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
-                              (kwargs['user'], 'feed', kwargs['feed']))
-                    self.data = 'OK'
-                    return
+        try:
+            res = db.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
+            if not res:
+                self.data = 'Invalid userid'
+                return
+            for provider in CONFIG.providers('RSS'):
+                if provider['DISPNAME'] == kwargs['feed']:
+                    if wishlist_type(provider['HOST']):
+                        db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
+                                  (kwargs['user'], 'feed', kwargs['feed']))
+                        self.data = 'OK'
+                        return
+        finally:
+            db.close()
         self.data = 'Invalid feed'
         return
 
@@ -866,8 +875,11 @@ class Api(object):
                 self.data = 'Missing parameter: ' + item
                 return
         db = database.DBConnection()
-        db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
-                  (kwargs['user'], 'feed', kwargs['feed']))
+        try:
+            db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
+                      (kwargs['user'], 'feed', kwargs['feed']))
+        except:
+            db.close()
         self.data = 'OK'
         return
 
@@ -1045,7 +1057,10 @@ class Api(object):
     def _writeallopf(self, **kwargs):
         TELEMETRY.record_usage_data()
         db = database.DBConnection()
-        books = db.select('select BookID from books where BookFile is not null')
+        try:
+            books = db.select('select BookID from books where BookFile is not null')
+        finally:
+            db.close()
         counter = 0
         if books:
             for book in books:
@@ -1069,9 +1084,12 @@ class Api(object):
             return
 
         db = database.DBConnection()
-        cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,'
-        cmd += 'BookFile,BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
-        res = db.match(cmd, (kwargs['id'],))
+        try:
+            cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,'
+            cmd += 'BookFile,BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+            res = db.match(cmd, (kwargs['id'],))
+        finally:
+            db.close()
         if not res:
             self.data = 'No data found for bookid %s' % kwargs['id']
             return
@@ -1242,27 +1260,30 @@ class Api(object):
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
         q += '(BookDesc="" or BookDesc is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
         db = database.DBConnection()
-        res = db.select(q)
-        descs = 0
-        cnt = 0
-        self.logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
-        # ignore all errors except blocked (not found etc)
-        blocked = False
-        for item in res:
-            cnt += 1
-            isbn = item['BookISBN']
-            auth = item['AuthorName']
-            book = item['BookName']
-            data = get_gb_info(isbn, auth, book, expire=expire)
-            if data and data['desc']:
-                descs += 1
-                self.logger.debug("Updated description for %s:%s" % (auth, book))
-                db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
-            elif data is None:  # error, see if it's because we are blocked
-                if BLOCKHANDLER.is_blocked('googleapis'):
-                    blocked = True
-                if blocked:
-                    break
+        try:
+            res = db.select(q)
+            descs = 0
+            cnt = 0
+            self.logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
+            # ignore all errors except blocked (not found etc)
+            blocked = False
+            for item in res:
+                cnt += 1
+                isbn = item['BookISBN']
+                auth = item['AuthorName']
+                book = item['BookName']
+                data = get_gb_info(isbn, auth, book, expire=expire)
+                if data and data['desc']:
+                    descs += 1
+                    self.logger.debug("Updated description for %s:%s" % (auth, book))
+                    db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
+                elif data is None:  # error, see if it's because we are blocked
+                    if BLOCKHANDLER.is_blocked('googleapis'):
+                        blocked = True
+                    if blocked:
+                        break
+        finally:
+            db.close()
         msg = "Scanned %d %s, found %d new %s from %d" % \
               (cnt, plural(cnt, "book"), descs, plural(descs, "description"), len(res))
         if blocked:
@@ -1281,7 +1302,10 @@ class Api(object):
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
         q += '(BookGenre="" or BookGenre is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
         db = database.DBConnection()
-        res = db.select(q)
+        try:
+            res = db.select(q)
+        finally:
+            db.close()
         genre = 0
         cnt = 0
         self.logger.debug("Checking genre for %s %s" % (len(res), plural(len(res), "book")))
@@ -1328,9 +1352,12 @@ class Api(object):
         self._listnobooks()
         if self.data:
             db = database.DBConnection()
-            for auth in self.data:
-                self.logger.debug("Deleting %s" % auth['AuthorName'])
-                db.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
+            try:
+                for auth in self.data:
+                    self.logger.debug("Deleting %s" % auth['AuthorName'])
+                    db.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
+            finally:
+                db.close()
 
     def _listignoredseries(self):
         TELEMETRY.record_usage_data()
@@ -1499,15 +1526,18 @@ class Api(object):
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                if kwargs.get('type', '') == 'AudioBook':
-                    db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (kwargs['id'],))
+            try:
+                res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
                 else:
-                    db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (kwargs['id'],))
-                self.data = 'OK'
+                    if kwargs.get('type', '') == 'AudioBook':
+                        db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (kwargs['id'],))
+                    else:
+                        db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _unqueuebook(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1515,15 +1545,18 @@ class Api(object):
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                if kwargs.get('type', '') == 'AudioBook':
-                    db.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (kwargs['id'],))
+            try:
+                res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
                 else:
-                    db.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (kwargs['id'],))
-                self.data = 'OK'
+                    if kwargs.get('type', '') == 'AudioBook':
+                        db.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (kwargs['id'],))
+                    else:
+                        db.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _addmagazine(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1531,7 +1564,6 @@ class Api(object):
         if not self.id:
             self.data = 'Missing parameter: name'
             return
-        db = database.DBConnection()
         control_value_dict = {"Title": self.id}
         new_value_dict = {
             "Regex": None,
@@ -1540,7 +1572,11 @@ class Api(object):
             "IssueStatus": "Wanted",
             "Reject": None
         }
-        db.upsert("magazines", new_value_dict, control_value_dict)
+        db = database.DBConnection()
+        try:
+            db.upsert("magazines", new_value_dict, control_value_dict)
+        finally:
+            db.close()
 
     def _removemagazine(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1549,8 +1585,11 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
         db = database.DBConnection()
-        db.action('DELETE from magazines WHERE Title=?', (self.id,))
-        db.action('DELETE from wanted WHERE BookID=?', (self.id,))
+        try:
+            db.action('DELETE from magazines WHERE Title=?', (self.id,))
+            db.action('DELETE from wanted WHERE BookID=?', (self.id,))
+        finally:
+            db.close()
 
     def _pauseauthor(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1558,12 +1597,15 @@ class Api(object):
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                db.action('UPDATE authors SET Status="Paused" WHERE AuthorID=?', (kwargs['id'],))
-                self.data = 'OK'
+            try:
+                res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
+                else:
+                    db.action('UPDATE authors SET Status="Paused" WHERE AuthorID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _ignoreauthor(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1571,12 +1613,15 @@ class Api(object):
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                db.action('UPDATE authors SET Status="Ignored" WHERE AuthorID=?', (kwargs['id'],))
-                self.data = 'OK'
+            try:
+                res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
+                else:
+                    db.action('UPDATE authors SET Status="Ignored" WHERE AuthorID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _resumeauthor(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1584,12 +1629,15 @@ class Api(object):
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                db.action('UPDATE authors SET Status="Active" WHERE AuthorID=?', (kwargs['id'],))
-                self.data = 'OK'
+            try:
+                res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
+                else:
+                    db.action('UPDATE authors SET Status="Active" WHERE AuthorID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _authorupdate(self):
         TELEMETRY.record_usage_data()
@@ -1900,20 +1948,23 @@ class Api(object):
                 return
         try:
             db = database.DBConnection()
-            authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
-            if not authordata:
-                self.data = "No destination author [%s] in the database" % kwargs['toid']
-            else:
-                bookdata = db.match('SELECT AuthorID, BookName from books where BookID=?', (kwargs['id'],))
-                if not bookdata:
-                    self.data = "No bookid [%s] in the database" % kwargs['id']
+            try:
+                authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
+                if not authordata:
+                    self.data = "No destination author [%s] in the database" % kwargs['toid']
                 else:
-                    control_value_dict = {'BookID': kwargs['id']}
-                    new_value_dict = {'AuthorID': kwargs['toid']}
-                    db.upsert("books", new_value_dict, control_value_dict)
-                    update_totals(bookdata[0])  # we moved from here
-                    update_totals(kwargs['toid'])  # to here
-                    self.data = "Moved book [%s] to [%s]" % (bookdata[1], authordata[0])
+                    bookdata = db.match('SELECT AuthorID, BookName from books where BookID=?', (kwargs['id'],))
+                    if not bookdata:
+                        self.data = "No bookid [%s] in the database" % kwargs['id']
+                    else:
+                        control_value_dict = {'BookID': kwargs['id']}
+                        new_value_dict = {'AuthorID': kwargs['toid']}
+                        db.upsert("books", new_value_dict, control_value_dict)
+                        update_totals(bookdata[0])  # we moved from here
+                        update_totals(kwargs['toid'])  # to here
+                        self.data = "Moved book [%s] to [%s]" % (bookdata[1], authordata[0])
+            finally:
+                db.close()
             self.logger.debug(self.data)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
@@ -1926,21 +1977,24 @@ class Api(object):
                 return
         try:
             db = database.DBConnection()
-            q = 'SELECT bookid,books.authorid from books,authors where books.AuthorID = authors.AuthorID'
-            q += ' and authorname=?'
-            fromhere = db.select(q, (kwargs['fromname'],))
+            try:
+                q = 'SELECT bookid,books.authorid from books,authors where books.AuthorID = authors.AuthorID'
+                q += ' and authorname=?'
+                fromhere = db.select(q, (kwargs['fromname'],))
 
-            tohere = db.match('SELECT authorid from authors where authorname=?', (kwargs['toname'],))
-            if not len(fromhere):
-                self.data = "No books by [%s] in the database" % kwargs['fromname']
-            else:
-                if not tohere:
-                    self.data = "No destination author [%s] in the database" % kwargs['toname']
+                tohere = db.match('SELECT authorid from authors where authorname=?', (kwargs['toname'],))
+                if not len(fromhere):
+                    self.data = "No books by [%s] in the database" % kwargs['fromname']
                 else:
-                    db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
-                    self.data = "Moved %s books from %s to %s" % (len(fromhere), kwargs['fromname'], kwargs['toname'])
-                    update_totals(fromhere[0][1])  # we moved from here
-                    update_totals(tohere[0])  # to here
+                    if not tohere:
+                        self.data = "No destination author [%s] in the database" % kwargs['toname']
+                    else:
+                        db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
+                        self.data = "Moved %s books from %s to %s" % (len(fromhere), kwargs['fromname'], kwargs['toname'])
+                        update_totals(fromhere[0][1])  # we moved from here
+                        update_totals(tohere[0])  # to here
+            finally:
+                db.close()
 
             self.logger.debug(self.data)
         except Exception as e:
@@ -2000,27 +2054,30 @@ class Api(object):
     def _grfollowall(self):
         TELEMETRY.record_usage_data()
         db = database.DBConnection()
-        cmd = 'SELECT AuthorName,AuthorID,GRfollow FROM authors where '
-        cmd += 'Status="Active" or Status="Wanted" or Status="Loading"'
-        authors = db.select(cmd)
-        count = 0
-        for author in authors:
-            followid = check_int(author['GRfollow'], 0)
-            if followid > 0:
-                self.logger.debug('%s is already followed' % author['AuthorName'])
-            elif author['GRfollow'] == "0":
-                self.logger.debug('%s is manually unfollowed' % author['AuthorName'])
-            else:
-                res = grfollow(author['AuthorID'], True)
-                if res.startswith('Unable'):
-                    self.logger.warning(res)
-                try:
-                    followid = res.split("followid=")[1]
-                    self.logger.debug('%s marked followed' % author['AuthorName'])
-                    count += 1
-                except IndexError:
-                    followid = ''
-                db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, author['AuthorID']))
+        try:
+            cmd = 'SELECT AuthorName,AuthorID,GRfollow FROM authors where '
+            cmd += 'Status="Active" or Status="Wanted" or Status="Loading"'
+            authors = db.select(cmd)
+            count = 0
+            for author in authors:
+                followid = check_int(author['GRfollow'], 0)
+                if followid > 0:
+                    self.logger.debug('%s is already followed' % author['AuthorName'])
+                elif author['GRfollow'] == "0":
+                    self.logger.debug('%s is manually unfollowed' % author['AuthorName'])
+                else:
+                    res = grfollow(author['AuthorID'], True)
+                    if res.startswith('Unable'):
+                        self.logger.warning(res)
+                    try:
+                        followid = res.split("followid=")[1]
+                        self.logger.debug('%s marked followed' % author['AuthorName'])
+                        count += 1
+                    except IndexError:
+                        followid = ''
+                    db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, author['AuthorID']))
+        finally:
+            db.close()
         self.data = "Added follow to %s %s" % (count, plural(count, "author"))
 
     def _grsync(self, **kwargs):
@@ -2086,11 +2143,14 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         db = database.DBConnection()
-        authorsearch = db.select('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-        if len(authorsearch):  # to stop error if try to remove an author while they are still loading
-            author_name = authorsearch[0]['AuthorName']
-            self.logger.debug("Removing all references to author: %s" % author_name)
-            db.action('DELETE from authors WHERE AuthorID=?', (kwargs['id'],))
+        try:
+            authorsearch = db.select('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+            if len(authorsearch):  # to stop error if try to remove an author while they are still loading
+                author_name = authorsearch[0]['AuthorName']
+                self.logger.debug("Removing all references to author: %s" % author_name)
+                db.action('DELETE from authors WHERE AuthorID=?', (kwargs['id'],))
+        finally:
+            db.close()
 
     def _writecfg(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2198,11 +2258,14 @@ class Api(object):
     def _lock(self, table, itemid, state):
         TELEMETRY.record_usage_data()
         db = database.DBConnection()
-        dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
-        if dbentry:
-            db.action('UPDATE %ss SET Manual="%s" WHERE %sID=%s' % (table, state, table, itemid))
-        else:
-            self.data = "%sID %s not found" % (table, itemid)
+        try:
+            dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
+            if dbentry:
+                db.action('UPDATE %ss SET Manual="%s" WHERE %sID=%s' % (table, state, table, itemid))
+            else:
+                self.data = "%sID %s not found" % (table, itemid)
+        finally:
+            db.close()
 
     def _setauthorlock(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2272,12 +2335,15 @@ class Api(object):
             return
 
         db = database.DBConnection()
-        dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
-        if dbentry:
-            db.action('UPDATE %ss SET %sImg="%s" WHERE %sID=%s' %
-                      (table, table, 'cache' + os.path.sep + itemid + '.jpg', table, itemid))
-        else:
-            self.data = "%sID %s not found" % (table, itemid)
+        try:
+            dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
+            if dbentry:
+                db.action('UPDATE %ss SET %sImg="%s" WHERE %sID=%s' %
+                          (table, table, 'cache' + os.path.sep + itemid + '.jpg', table, itemid))
+            else:
+                self.data = "%sID %s not found" % (table, itemid)
+        finally:
+            db.close()
 
     def _setbooklock(self, **kwargs):
         TELEMETRY.record_usage_data()
