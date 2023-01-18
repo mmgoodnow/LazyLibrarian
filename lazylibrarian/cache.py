@@ -10,26 +10,29 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import abc
+import http.client
+import itertools
 import json
+import logging
 import os
 import shutil
 import time
-import logging
+from abc import ABC
 from http.client import responses
 from typing import Any
 from xml.etree import ElementTree
 
+import requests
+
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import database
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.common import get_user_agent, proxy_list
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
-
-import requests
-import http.client
 
 
 def gr_api_sleep():
@@ -358,225 +361,31 @@ def clean_cache():
     db = database.DBConnection()
     try:
         db.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
-        result = []
-        expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 0)
-        cache = os.path.join(DIRS.CACHEDIR, "IRCCache")
-        cleaned = 0
-        kept = 0
-        if expiry and path_isdir(cache):
-            time_now = time.time()
-            for cached_file in listdir(cache):
-                target = os.path.join(cache, cached_file)
-                cache_modified_time = os.stat(target).st_mtime
-                if cache_modified_time < time_now - expiry:
-                    # Cache is old, delete entry
-                    remove_file(target)
-                    cleaned += 1
-                else:
-                    kept += 1
-        msg = "Cleaned %i expired %s from IRCCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
-        result.append(msg)
-        logger.debug(msg)
+        result = [
+            # Remove files that are too old from cache directories
+            FileExpirer("IRCCache", False, check_int(lazylibrarian.IRC_CACHE_EXPIRY, 0)).clean(),
+            FileExpirer("JSONCache", True, CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60).clean(),
+            FileExpirer("XMLCache", True, CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60).clean(),
 
-        expiry = CONFIG.get_int('CACHE_AGE')
-        expire_caches = ["JSONCache", "XMLCache"]
-        for cache in expire_caches:
-            cache = os.path.join(DIRS.CACHEDIR, cache)
-            cleaned = 0
-            kept = 0
-            time_now = time.time()
-            if expiry and path_isdir(cache):
-                for i in '0123456789abcdef':
-                    for j in '0123456789abcdef':
-                        for cached_file in listdir(os.path.join(cache, i, j)):
-                            target = os.path.join(cache, i, j, cached_file)
-                            cache_modified_time = os.stat(target).st_mtime
-                            if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
-                                # Cache is old, delete entry
-                                remove_file(target)
-                                cleaned += 1
-                            else:
-                                kept += 1
-            msg = "Cleaned %i expired %s from %s, kept %i" % (cleaned, plural(cleaned, "file"), cache, kept)
-            result.append(msg)
-            logger.debug(msg)
+            # Remove files not referenced by relevant item in the DB
+            OrphanCleaner("WorkCache", True, db, 'BookID', 'books', '%s', True).clean(),
+            OrphanCleaner("SeriesCache", False, db, 'SeriesID', 'series', '%s', True).clean(),
+            OrphanCleaner("magazine", False, db, 'cover', 'issues', 'cache/magazine/%s', False).clean(),
 
-        cache = os.path.join(DIRS.CACHEDIR, "WorkCache")
-        cleaned = 0
-        kept = 0
-        if path_isdir(cache):
-            for i in '0123456789abcdef':
-                for j in '0123456789abcdef':
-                    for cached_file in listdir(os.path.join(cache, i, j)):
-                        try:
-                            bookid = cached_file.split('.')[0]
-                        except IndexError:
-                            logger.error('Clean Cache: Error splitting %s' % cached_file)
-                            continue
-                        item = db.match('select BookID from books where BookID=?', (bookid,))
-                        if not item:
-                            # WorkPage no longer referenced in database, delete cached_file
-                            remove_file(os.path.join(cache, i, j, cached_file))
-                            cleaned += 1
-                        else:
-                            kept += 1
-        msg = "Cleaned %i orphan %s from WorkCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
-        result.append(msg)
-        logger.debug(msg)
+            # Remove files no longer referenced by the database
+            UnreferencedCleaner("author", "Author cache", db, 'AuthorImg', 13,
+                                'authors where AuthorImg like "cache/author/%"').clean(),
+            UnreferencedCleaner("book", "Book cache", db, 'BookImg', 11,
+                                'books where BookImg like "cache/book/%"').clean(),
 
-        cache = os.path.join(DIRS.CACHEDIR, "SeriesCache")
-        cleaned = 0
-        kept = 0
-        if path_isdir(cache):
-            for cached_file in listdir(cache):
-                try:
-                    seriesid = cached_file.split('.')[0]
-                except IndexError:
-                    logger.error('Clean Cache: Error splitting %s' % cached_file)
-                    continue
-                item = db.match('select SeriesID from series where SeriesID=?', (seriesid,))
-                if not item:
-                    # SeriesPage no longer referenced in database, delete cached_file
-                    remove_file(os.path.join(cache, cached_file))
-                    cleaned += 1
-                else:
-                    kept += 1
-        msg = "Cleaned %i orphan %s from SeriesCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
-        result.append(msg)
-        logger.debug(msg)
+            # At this point there should be no more .jpg files in the root of the cachedir
+            # Any that are still there are for books/authors deleted from database
+            ExtensionCleaner("", ".jpg").clean(),
 
-        cache = os.path.join(DIRS.CACHEDIR, "magazine")
-        cleaned = 0
-        kept = 0
-        if path_isdir(cache):
-            for cached_file in listdir(cache):
-                # strip any size or thumb
-                fname, extn = os.path.splitext(cached_file)
-                target = fname.split('_')[0] + extn
-                item = db.match('select * from issues where cover=?', ('cache/magazine/%s' % target,))
-                if not item:
-                    remove_file(os.path.join(cache, cached_file))
-                    cleaned += 1
-                else:
-                    kept += 1
-        msg = "Cleaned %i orphan %s from magazine cache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
-        result.append(msg)
-        logger.debug(msg)
-
-        cache = DIRS.CACHEDIR
-        cleaned = 0
-        kept = 0
-        cachedir = os.path.join(cache, 'author')
-        try:
-            if path_isdir(cachedir):
-                res = db.select('SELECT AuthorImg from authors where AuthorImg like "cache/author/%"')
-                images = []
-                for item in res:
-                    images.append(item['AuthorImg'][13:])
-                logger.debug("Checking %s author images" % len(images))
-                for cached_file in listdir(cachedir):
-                    if cached_file not in images:
-                        # Author Image no longer referenced in database, delete cached_file
-                        remove_file(os.path.join(cachedir, cached_file))
-                        cleaned += 1
-                    else:
-                        kept += 1
-            msg = "Cleaned %i orphan %s from AuthorCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
-            result.append(msg)
-            logger.debug(msg)
-        except Exception as e:
-            logger.debug(str(e))
-
-        cachedir = os.path.join(cache, 'book')
-        cleaned = 0
-        kept = 0
-        try:
-            if path_isdir(cachedir):
-                res = db.select('SELECT BookImg from books where BookImg like "cache/book/%"')
-                images = []
-                for item in res:
-                    images.append(item['BookImg'][11:])
-                logger.debug("Checking %s book images" % len(images))
-                for cached_file in listdir(cachedir):
-                    if cached_file not in images:
-                        remove_file(os.path.join(cachedir, cached_file))
-                        cleaned += 1
-                    else:
-                        kept += 1
-            msg = "Cleaned %i orphan %s from BookCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
-            result.append(msg)
-            logger.debug(msg)
-        except Exception as e:
-            logger.debug(str(e))
-
-        # at this point there should be no more .jpg files in the root of the cachedir
-        # any that are still there are for books/authors deleted from database
-        cleaned = 0
-        kept = 0
-        for cached_file in listdir(cache):
-            if cached_file.endswith('.jpg'):
-                remove_file(os.path.join(cache, cached_file))
-                cleaned += 1
-            else:
-                kept += 1
-        msg = "Cleaned %i orphan %s from ImageCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
-        result.append(msg)
-        logger.debug(msg)
-
-        # verify the cover images referenced in the database are present
-        images = db.select('select BookImg,BookName,BookID from books')
-        cachedir = os.path.join(DIRS.CACHEDIR, 'book')
-        cleaned = 0
-        kept = 0
-        for item in images:
-            keep = True
-            imgfile = ''
-            if item['BookImg'] is None or item['BookImg'] == '':
-                keep = False
-            if keep and not item['BookImg'].startswith('http') and not item['BookImg'] == "images/nocover.png":
-                # html uses '/' as separator, but os might not
-                imgname = item['BookImg'].rsplit('/')[-1]
-                imgfile = os.path.join(cachedir, imgname)
-                if not path_isfile(imgfile):
-                    keep = False
-            if keep:
-                kept += 1
-            else:
-                cleaned += 1
-                logger.debug('Cover missing for %s %s' % (item['BookName'], imgfile))
-                db.action('update books set BookImg="images/nocover.png" where Bookid=?', (item['BookID'],))
-
-        msg = "Cleaned %i missing %s, kept %i" % (cleaned, plural(cleaned, "cover"), kept)
-        result.append(msg)
-        logger.debug(msg)
-
-        # verify the author images referenced in the database are present
-        images = db.action('select AuthorImg,AuthorName,AuthorID from authors')
-        cachedir = os.path.join(DIRS.CACHEDIR, 'author')
-        cleaned = 0
-        kept = 0
-        if images:
-            for item in images:
-                keep = True
-                imgfile = ''
-                if item['AuthorImg'] is None or item['AuthorImg'] == '':
-                    keep = False
-                if keep and not item['AuthorImg'].startswith('http') and not item['AuthorImg'] == "images/nophoto.png":
-                    # html uses '/' as separator, but os might not
-                    imgname = item['AuthorImg'].rsplit('/')[-1]
-                    imgfile = os.path.join(cachedir, imgname)
-                    if not path_isfile(imgfile):
-                        keep = False
-                if keep:
-                    kept += 1
-                else:
-                    cleaned += 1
-                    logger.debug('Image missing for %s %s' % (item['AuthorName'], imgfile))
-                    db.action('update authors set AuthorImg="images/nophoto.png" where AuthorID=?', (item['AuthorID'],))
-
-        msg = "Cleaned %i missing author %s, kept %i" % (cleaned, plural(cleaned, "image"), kept)
-        result.append(msg)
-        logger.debug(msg)
+            # Verify the cover images referenced in the database are present, replace if not
+            DBCleaner("book", "Cover", db, "books", "BookImg", "BookName", "BookID", "images/nocover.png").clean(),
+            DBCleaner("book", "Image", db, "author", "AuthorImg", "AuthorName", "AuthorID", "images/nophoto.png").clean(),
+        ]
 
         expiry = CONFIG.get_int('CACHE_AGE')
         if expiry:
@@ -604,3 +413,192 @@ def clean_cache():
 
     thread_name(threadname)
     return result
+
+
+class CacheCleaner(ABC):
+    def __init__(self, basedir: str):
+        self.logger: logging.Logger = logging.getLogger()
+        self.basedir: str = basedir
+        self.cache: str = os.path.join(DIRS.CACHEDIR, basedir)
+        self.cleaned: int = 0
+        self.kept: int = 0
+
+    @abc.abstractmethod
+    def clean(self) -> str:
+        pass
+
+
+class FileCleaner(CacheCleaner):
+    """ Cleaners that delete files from cache """
+
+    def __init__(self, basedir: str, hexdirs: bool):
+        super().__init__(basedir)
+        self.hexdirs: bool = hexdirs
+
+    def clean(self) -> str:
+        """ Generic cleaning routine, iterates directories """
+        if path_isdir(self.cache):
+            if self.hexdirs:
+                subdirs = itertools.product("0123456789abcdef", repeat=2)
+                for i, j in subdirs:
+                    dirname = os.path.join(self.cache, i, j)
+                    for cached_file in listdir(dirname):
+                        self.clean_file(os.path.join(dirname, cached_file))
+            else:
+                for cached_file in listdir(self.cache):
+                    self.clean_file(os.path.join(self.cache, cached_file))
+        msg = "Cleaned %i %s %s from %s, kept %i" % \
+              (self.cleaned, self.name(), plural(self.cleaned, "file"), self.source(), self.kept)
+        self.logger.debug(msg)
+        return msg
+
+    def remove_if(self, filename, condition):
+        if condition:
+            remove_file(filename)
+            self.cleaned += 1
+        else:
+            self.kept += 1
+
+    def source(self) -> str:
+        return self.basedir
+
+    @abc.abstractmethod
+    def name(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    def clean_file(self, filename):
+        pass
+
+
+class FileExpirer(FileCleaner):
+    """ Delete files in dirname that are older than expiry_seconds old.
+    Return a string with a summary for printing. """
+
+    def __init__(self, basedir: str, hexdirs: bool, expiry_sec: int):
+        super().__init__(basedir, hexdirs)
+        self.time_now = time.time()
+        self.expiry_sec = expiry_sec
+
+    def name(self) -> str:
+        return 'expired'
+
+    def clean_file(self, filename):
+        if path_isfile(filename):
+            cache_modified_time = os.stat(filename).st_mtime
+            self.remove_if(filename, cache_modified_time < self.time_now - self.expiry_sec)
+
+
+class ExtensionCleaner(FileCleaner):
+    """ Delete all files in basedir with the right extension """
+
+    def __init__(self, basedir: str, ext: str):
+        super().__init__(basedir, False)
+        self.ext = ext
+
+    def name(self):
+        return 'superfluous'
+
+    def clean_file(self, filename):
+        if self.ext:
+            self.remove_if(filename, filename.endswith(self.ext))
+
+
+class OrphanCleaner(FileCleaner):
+    """ Delete files in dirname that don't have a corresponding entry in the DB,
+    where the ID is the filename without the extension.
+    Return a string with a summary for printing. """
+
+    def __init__(self, basedir: str, hexdirs: bool, db, field: str, table: str, matcher: str, dotsplit: bool):
+        super().__init__(basedir, hexdirs)
+        self.db = db
+        self.field = field
+        self.table = table
+        self.matcher = matcher
+        self.dotsplit = dotsplit
+
+    def name(self) -> str:
+        return 'orphan'
+
+    def getid(self, filename) -> str:
+        name = os.path.basename(filename)
+        if self.dotsplit:
+            return name.split('.')[0]
+        else:
+            # Magazines use a different encoding scheme in the file name.
+            fname, extn = os.path.splitext(name)
+            return fname.split('_')[0] + extn
+
+    def clean_file(self, filename):
+        try:
+            dbid = self.getid(filename)
+            query = f'select {self.field} from {self.table} where {self.field}=?'
+            match = self.matcher % dbid
+            item = self.db.match(query, (match,))
+            self.remove_if(filename, not item)
+        except IndexError:
+            self.logger.error('Clean Cache: Error splitting %s' % filename)
+
+
+class UnreferencedCleaner(FileCleaner):
+    """ Delete files that are no longer referenced in the database """
+
+    def __init__(self, basedir: str, taskname: str, db, field: str, fieldcut: int, query: str):
+        super().__init__(basedir, False)
+        self.taskname = taskname
+        self.db = db
+        fullquery = f'SELECT {field} from {query}'
+        res = db.select(fullquery)
+        self.items = [item[field][fieldcut:] for item in res]
+        self.logger.debug(f"Checking {len(self.items)} {field} images")
+
+    def name(self) -> str:
+        return 'orphan'
+
+    def source(self) -> str:
+        return self.taskname
+
+    def clean_file(self, filename):
+        name = os.path.basename(filename)
+        self.remove_if(filename, name not in self.items)
+
+
+class DBCleaner(CacheCleaner):
+    """ Where the database refers to an image that no longer exists, replace it
+    with the fallback image """
+
+    def __init__(self, basedir: str, typestr: str, db, table: str, fimg: str, fname: str, fid: str, fallback: str):
+        super().__init__(basedir)
+        self.typestr = typestr
+        self.db = db
+        self.table = table
+        self.fimg = fimg
+        self.fname = fname
+        self.fid = fid
+        self.fallback = fallback
+        query = f'SELECT {fimg},{fname},{fid} from {table}'
+        self.items = db.select(query)
+
+    def clean(self) -> str:
+        for item in self.items:
+            keep = True
+            imgfile = ''
+            if item[self.fimg] is None or item[self.fimg] == '':
+                keep = False
+            if keep and not item[self.fimg].startswith('http') and not item[self.fimg] == self.fallback:
+                # html uses '/' as separator, but os might not
+                imgname = item[self.fimg].rsplit('/')[-1]
+                imgfile = os.path.join(self.cache, imgname)
+                if not path_isfile(imgfile):
+                    keep = False
+            if keep:
+                self.kept += 1
+            else:
+                self.cleaned += 1
+                self.logger.debug('%s missing for %s %s' % (self.typestr, item[self.fname], imgfile))
+                updatequery = f'update {self.table} set {self.fimg}="{self.fallback}" where {self.fid}=?'
+                self.db.action(updatequery, (item[self.fid],))
+
+        msg = "Cleaned %i missing %s, kept %i" % (self.cleaned, plural(self.cleaned, self.typestr), self.kept)
+        self.logger.debug(msg)
+        return msg
