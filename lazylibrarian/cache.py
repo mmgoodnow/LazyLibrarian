@@ -15,6 +15,8 @@ import os
 import shutil
 import time
 import logging
+from http.client import responses
+from typing import Any
 from xml.etree import ElementTree
 
 import lazylibrarian
@@ -28,25 +30,6 @@ from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_t
 
 import requests
 import http.client
-
-
-def redirect_url(url, times):
-    logger = logging.getLogger(__name__)
-    s = requests.Session()
-    times -= 1
-    if not times:
-        return url
-    try:
-        r = s.head(url.rstrip(), verify=False)
-        location = r.headers.get("location", "").rstrip()
-        logger.debug("Redirect %s: %s %s" % (times, r.status_code, location if location else r.url))
-        if url.find(location) > 0:
-            # in case redirect to same page
-            return url
-        next_step = redirect_url(location, times) if location else url
-        return next_step
-    except requests.exceptions.ConnectionError as e:
-        logger.debug(str(e))
 
 
 def gr_api_sleep():
@@ -73,11 +56,11 @@ def cv_api_sleep():
     lazylibrarian.TIMERS['LAST_CV'] = time_now
 
 
-def fetch_url(url, headers=None, retry=True, raw=None):
+def fetch_url(url, headers=None, retry=True, raw=None) -> (Any, bool):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False
-        Return data as raw/bytes in python2 or if raw == True
-        On python3 default to unicode, need to set raw=True for images/data
+        Return data as raw/bytes, if raw == True
+        Default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
     logger = logging.getLogger(__name__)
     http.client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
@@ -167,14 +150,13 @@ def fetch_url(url, headers=None, retry=True, raw=None):
 
     # noinspection PyBroadException
     try:
-        # noinspection PyProtectedMember
-        msg = requests.status_codes._codes[r.status_code][0]
+        msg = responses[r.status_code]
     except Exception:
         msg = r.text
     return "Response status %s: %s" % (r.status_code, msg), False
 
 
-def cache_img(img_type, img_id, img_url, refresh=False):
+def cache_img(img_type, img_id, img_url, refresh=False) -> (str, bool, bool):
     """ Cache the image from the given filename or URL in the local images cache
         linked to the id, return the link to the cached file, success, was_in_cache
         or error message, False, False if failed to cache """
@@ -219,23 +201,23 @@ def cache_img(img_type, img_id, img_url, refresh=False):
     return msg, False, False
 
 
-def gr_xml_request(my_url, use_cache=True, expire=True):
+def gr_xml_request(my_url, use_cache=True, expire=True) -> (Any, bool):
     # respect goodreads api limit
     result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="XML", expire=expire)
     return result, in_cache
 
 
-def json_request(my_url, use_cache=True, expire=True):
+def json_request(my_url, use_cache=True, expire=True) -> (Any, bool):
     result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="JSON", expire=expire)
     return result, in_cache
 
 
-def html_request(my_url, use_cache=True, expire=True):
+def html_request(my_url, use_cache=True, expire=True) -> (Any, bool):
     result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="HTML", expire=expire)
     return result, in_cache
 
 
-def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, headers=None):
+def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, headers=None) -> (Any, bool):
     # hashfilename = hash of url
     # if hashfilename exists in cache and isn't too old, return its contents
     # if not, read url and store the result in the cache
