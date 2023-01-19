@@ -47,7 +47,7 @@ class DBConnection:
             self.dbcommslogger = logging.getLogger('special.dbcomms')
             self.dbcommslogger.debug('open')
             self.threadname = threading.current_thread().name
-            self.threadid = threading.current_thread().native_id
+            self.threadid = threading.get_ident()  # native_id is in Python 3.8+
             self.opened = 1
         except Exception as e:
             logger = logging.getLogger(__name__)
@@ -58,15 +58,16 @@ class DBConnection:
             raise e
 
     def __del__(self):
-        if self.opened > 0:
-            self.close()
+        if hasattr(self, 'opened'):  # If not, the DB object was partially initialised and isn't valud
+            if self.opened > 0:
+                self.close()
 
     def close(self):
         self.dbcommslogger.debug('close')
         with db_lock:
             self.opened -= 1
             try:
-                if self.threadid != threading.current_thread().native_id:
+                if self.threadid != threading.get_ident():
                     # Don't attempt to close; an error will be thrown
                     self.logger.error(f'The wrong thread is closing the db connection: {self.threadname}, opened by {threading.current_thread().name}')
                 else:
