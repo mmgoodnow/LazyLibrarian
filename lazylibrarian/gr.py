@@ -23,7 +23,7 @@ from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_
     set_series, get_status, isbn_from_words, thinglang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter
 from lazylibrarian.images import get_book_cover
-from lazylibrarian.cache import gr_xml_request, cache_img
+from lazylibrarian.cache import gr_xml_request, cache_img, ImageType
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name
@@ -1002,7 +1002,7 @@ class GoodReads:
 
                                     elif bookimg and bookimg.startswith('http'):
                                         start = time.time()
-                                        link, success, was_already_cached = cache_img("book", bookid, bookimg)
+                                        link, success, was_already_cached = cache_img(ImageType.BOOK, bookid, bookimg)
                                         if not was_already_cached:
                                             cover_count += 1
                                             cover_time += (time.time() - start)
@@ -1514,7 +1514,7 @@ class GoodReads:
                         db.upsert("books", new_value_dict, control_value_dict)
 
                 elif bookimg and bookimg.startswith('http'):
-                    link, success, _ = cache_img("book", bookid, bookimg)
+                    link, success, _ = cache_img(ImageType.BOOK, bookid, bookimg)
                     if success:
                         control_value_dict = {"BookID": bookid}
                         new_value_dict = {"BookImg": link}

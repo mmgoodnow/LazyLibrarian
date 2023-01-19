@@ -19,6 +19,7 @@ import os
 import shutil
 import time
 from abc import ABC
+from enum import Enum
 from http.client import responses
 from typing import Any
 from xml.etree import ElementTree
@@ -33,6 +34,14 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
+
+
+class ImageType(Enum):
+    """ Types of images we cache in separate dirs """
+    BOOK = 'book'
+    AUTHOR = 'author'
+    MAG = 'magazine'
+    COMIC = 'comic'
 
 
 def gr_api_sleep():
@@ -159,21 +168,17 @@ def fetch_url(url, headers=None, retry=True, raw=None) -> (Any, bool):
     return "Response status %s: %s" % (r.status_code, msg), False
 
 
-def cache_img(img_type, img_id, img_url, refresh=False) -> (str, bool, bool):
+def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> (str, bool, bool):
     """ Cache the image from the given filename or URL in the local images cache
         linked to the id, return the link to the cached file, success, was_in_cache
         or error message, False, False if failed to cache """
 
     logger = logging.getLogger(__name__)
-    if img_type not in ['book', 'author', 'magazine', 'comic']:
-        logger.error('Internal error in cache_img, img_type = [%s]' % img_type)
-        img_type = 'book'
-
-    cachefile = os.path.join(DIRS.CACHEDIR, img_type, img_id + '.jpg')
-    link = 'cache/%s/%s.jpg' % (img_type, img_id)
+    cachefile = os.path.join(DIRS.CACHEDIR, img_type.value, img_id + '.jpg')
+    link = 'cache/%s/%s.jpg' % (img_type.value, img_id)
     if path_isfile(cachefile) and not refresh:  # overwrite any cached image
         cachelogger = logging.getLogger('special.cache')
-        cachelogger.debug("Cached %s image exists %s" % (img_type, cachefile))
+        cachelogger.debug("Cached %s image exists %s" % (img_type.name, cachefile))
         return link, True, True
 
     if img_url.startswith('http'):

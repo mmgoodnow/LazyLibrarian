@@ -29,7 +29,7 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.bookwork import set_work_pages
-from lazylibrarian.cache import cache_img, gr_xml_request
+from lazylibrarian.cache import cache_img, gr_xml_request, ImageType
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file, opf_file, \
     get_directory
@@ -1356,7 +1356,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     bookid = item['bookid']
                     bookimg = item['bookimg']
                     # bookname = item['bookname']
-                    newimg, success, _ = cache_img("book", bookid, bookimg)
+                    newimg, success, _ = cache_img(ImageType.BOOK, bookid, bookimg)
                     if success:
                         db.action('update books set BookImg=? where BookID=?', (newimg, bookid))
 
@@ -1368,7 +1368,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     authorid = item['authorid']
                     authorimg = item['authorimg']
                     # authorname = item['authorname']
-                    newimg, success, _ = cache_img("author", authorid, authorimg)
+                    newimg, success, _ = cache_img(ImageType.AUTHOR, authorid, authorimg)
                     if success:
                         db.action('update authors set AuthorImg=? where AuthorID=?', (newimg, authorid))
 

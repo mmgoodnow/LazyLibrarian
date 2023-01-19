@@ -27,7 +27,7 @@ from cherrypy.lib.static import serve_file
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.bookrename import name_vars
-from lazylibrarian.cache import cache_img
+from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.common import mime_type, zip_audio
 from lazylibrarian.filesystem import path_isfile, listdir, any_file
 from lazylibrarian.formatter import make_unicode, check_int, plural, get_list
@@ -775,7 +775,7 @@ class OPDS(object):
                 }
 
                 # if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
-                #     res = cache_img('magazine', md5_utf8(mag['LatestCover']), mag['LatestCover'], refresh=True)
+                #     res = cache_img(ImageType.MAG, md5_utf8(mag['LatestCover']), mag['LatestCover'], refresh=True)
                 #     entry['thumbnail'] = '/' + res[0]
                 entries.append(entry)
 
@@ -848,7 +848,7 @@ class OPDS(object):
                 }
 
                 # if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
-                #     res = cache_img('magazine', md5_utf8(mag['LatestCover']), mag['LatestCover'], refresh=True)
+                #     res = cache_img(ImageType.MAG, md5_utf8(mag['LatestCover']), mag['LatestCover'], refresh=True)
                 #     entry['thumbnail'] = '/' + res[0]
                 entries.append(entry)
 
@@ -991,7 +991,7 @@ class OPDS(object):
                      'type': mime_type(issue['IssueFile'])}
             if CONFIG.get_bool('OPDS_METAINFO'):
                 fname = os.path.splitext(issue['IssueFile'])[0]
-                res = cache_img('comic', issueid, fname + '.jpg')
+                res = cache_img(ImageType.COMIC, issueid, fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
                 entry['thumbnail'] = entry['image']
             entries.append(entry)
@@ -1066,7 +1066,7 @@ class OPDS(object):
                      'type': mime_type(issue['IssueFile'])}
             if CONFIG.get_bool('OPDS_METAINFO'):
                 fname = os.path.splitext(issue['IssueFile'])[0]
-                res = cache_img('magazine', issue['IssueID'], fname + '.jpg')
+                res = cache_img(ImageType.MAG, issue['IssueID'], fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
                 entry['thumbnail'] = entry['image']
             entries.append(entry)
@@ -1498,7 +1498,7 @@ class OPDS(object):
                      'type': mime_type(mag['IssueFile'])}
             if CONFIG.get_bool('OPDS_METAINFO'):
                 fname = os.path.splitext(mag['IssueFile'])[0]
-                res = cache_img('comic', issueid, fname + '.jpg')
+                res = cache_img(ImageType.COMIC, issueid, fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
                 entry['thumbnail'] = entry['image']
             entries.append(entry)

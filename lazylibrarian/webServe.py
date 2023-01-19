@@ -37,7 +37,7 @@ from lazylibrarian.configtypes import ConfigBool
 from lazylibrarian.auth import AuthController
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
-from lazylibrarian.cache import cache_img
+from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
@@ -3371,7 +3371,7 @@ class WebInterface(object):
                             # cache image from url
                             # extn = os.path.splitext(authorimg)[1].lower()
                             # if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
-                            authorimg, success, _ = cache_img("author", authorid, authorimg, refresh=True)
+                            authorimg, success, _ = cache_img(ImageType.AUTHOR, authorid, authorimg, refresh=True)
                             if success:
                                 rejected = False
 

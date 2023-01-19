@@ -38,7 +38,7 @@ from lazylibrarian.ol import OpenLibrary
 from lazylibrarian import database, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
 from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3read
-from lazylibrarian.cache import cache_img
+from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, \
@@ -2509,7 +2509,7 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
     dest_path = os.path.dirname(dest_file)
 
     # download and cache image if http link
-    process_img(dest_path, data['BookID'], data['BookImg'], global_name, 'book')
+    process_img(dest_path, data['BookID'], data['BookImg'], global_name, ImageType.BOOK)
 
     # do we want to create metadata - there may already be one in pp_path, but it was downloaded and might
     # not contain our choice of authorname/title/identifier, so if autoadding we ignore it and write our own
@@ -2739,12 +2739,12 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 else:
                     opfpath = ''
                     if booktype in ['ebook', 'audiobook']:
-                        process_img(pp_path, bookid, data['BookImg'], global_name, 'book')
+                        process_img(pp_path, bookid, data['BookImg'], global_name, ImageType.BOOK)
                         opfpath, our_opf = create_opf(pp_path, data, global_name, True)
                         # if we send an opf, does calibre update the book-meta as well?
                     elif booktype == 'comic':
                         if data.get('Cover'):
-                            process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
+                            process_img(pp_path, bookid, data['Cover'], global_name, ImageType.COMIC)
                         if not CONFIG.get_bool('IMP_COMICOPF'):
                             logger.debug('create_comic_opf is disabled')
                         else:
@@ -2989,7 +2989,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 data = db.match(cmd, (bookid,))
             finally:
                 db.close()
-            process_img(pp_path, bookid, data['BookImg'], make_unicode(global_name), 'book')
+            process_img(pp_path, bookid, data['BookImg'], make_unicode(global_name), ImageType.BOOK)
             _ = create_opf(pp_path, data, make_unicode(global_name), True)
 
         # for ebooks, prefer the first booktype found in ebook_type list
@@ -3045,7 +3045,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     db.close()
                 bookid = "%s_%s" % (comicid, issueid)
                 if data:
-                    process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
+                    process_img(pp_path, bookid, data['Cover'], global_name, ImageType.COMIC)
                     if not CONFIG.get_bool('IMP_COMICOPF'):
                         logger.debug('create_comic_opf is disabled')
                     else:
@@ -3145,7 +3145,7 @@ def process_auto_add(src_path=None, booktype='book'):
     return True
 
 
-def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cache='book', overwrite=False):
+def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cache=ImageType.BOOK, overwrite=False):
     """ cache the bookimg from url or filename, and optionally copy it to bookdir """
     # if lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
     #     logger.debug('Not creating coverfile, bookonly is set')
@@ -3168,7 +3168,7 @@ def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cac
         if not success:
             logger.error('Error caching cover from %s, %s' % (bookimg, link))
             return
-        cachefile = os.path.join(DIRS.CACHEDIR, cache, bookid + '.jpg')
+        cachefile = os.path.join(DIRS.CACHEDIR, cache.value, bookid + '.jpg')
 
     try:
         coverfile = os.path.join(dest_path, global_name + '.jpg')

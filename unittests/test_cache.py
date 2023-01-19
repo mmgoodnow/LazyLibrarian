@@ -75,11 +75,11 @@ class TestCache(LLTestCaseWithConfigandDIRS):
     def test_cache_cleaner(self):
         # CacheCleaner is an abstract class
         with self.assertRaises(TypeError):
-            _ = cache.CacheCleaner()
+            _ = cache.CacheCleaner('')
 
     def test_file_cleaner(self):
         with self.assertRaises(TypeError):
-            _ = cache.FileCleaner()
+            _ = cache.FileCleaner('', False)
 
     def create_hex_dirs(self):
         subdirs = itertools.product("0123456789abcdef", repeat=2)
@@ -243,4 +243,3 @@ class TestCache(LLTestCaseWithConfigandDIRS):
                     self.assertEqual('images/nocover.png', img)
         finally:
             db.close()
-

@@ -31,7 +31,7 @@ from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
     set_work_id, get_gb_info, set_genres, genre_filter, get_book_pubdate, add_series_members
-from lazylibrarian.cache import cache_img, clean_cache
+from lazylibrarian.cache import cache_img, clean_cache, ImageType
 from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
@@ -2320,7 +2320,7 @@ class Api(object):
             # cache image from url
             extn = os.path.splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
-                _, success, _ = cache_img(table, itemid, img)
+                _, success, _ = cache_img(ImageType(table), itemid, img)
                 if success:
                     msg = ''
                 else:

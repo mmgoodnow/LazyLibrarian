@@ -19,7 +19,7 @@ from operator import itemgetter
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.cache import cache_img
+from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, \
     unaccented_bytes, get_list, check_int, thread_name
 from lazylibrarian.gb import GoogleBooks
@@ -523,7 +523,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
             # allow caching new image
             if authorimg and authorimg.startswith('http'):
-                newimg, success, _ = cache_img("author", authorid, authorimg, refresh=refresh)
+                newimg, success, _ = cache_img(ImageType.AUTHOR, authorid, authorimg, refresh=refresh)
                 if success:
                     authorimg = newimg
                     new_img = True

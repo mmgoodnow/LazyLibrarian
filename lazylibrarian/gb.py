@@ -25,7 +25,7 @@ from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, thinglang, google_book_dict
 from lazylibrarian.images import get_book_cover
-from lazylibrarian.cache import json_request, cache_img
+from lazylibrarian.cache import json_request, cache_img, ImageType
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
     get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, check_year, thread_name
 from lazylibrarian.ol import OpenLibrary
@@ -532,7 +532,7 @@ class GoogleBooks:
                                         db.upsert("books", new_value_dict, control_value_dict)
 
                                 elif book['img'] and book['img'].startswith('http'):
-                                    link, success, _ = cache_img("book", bookid, book['img'], refresh=refresh)
+                                    link, success, _ = cache_img(ImageType.BOOK, bookid, book['img'], refresh=refresh)
                                     if success:
                                         control_value_dict = {"BookID": bookid}
                                         new_value_dict = {"BookImg": link}
@@ -796,7 +796,7 @@ class GoogleBooks:
                     db.upsert("books", new_value_dict, control_value_dict)
 
                 elif book['img'] and book['img'].startswith('http'):
-                    link, success, _ = cache_img("book", bookid, book['img'])
+                    link, success, _ = cache_img(ImageType.BOOK, bookid, book['img'])
                     if success:
                         control_value_dict = {"BookID": bookid}
                         new_value_dict = {"BookImg": link}

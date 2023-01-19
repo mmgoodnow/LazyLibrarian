@@ -18,7 +18,7 @@ import logging
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.cache import json_request, html_request, cache_img
+from lazylibrarian.cache import json_request, html_request, cache_img, ImageType
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
     get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
@@ -1418,7 +1418,7 @@ def get_cover(bookid, title):
 
 def cache_cover(bookid, cover):
     logger = logging.getLogger(__name__)
-    link, success, _ = cache_img("book", bookid, cover)
+    link, success, _ = cache_img(ImageType.BOOK, bookid, cover)
     if success:
         db = database.DBConnection()
         try:

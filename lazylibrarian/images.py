@@ -25,7 +25,7 @@ from lazylibrarian import database
 from lazylibrarian.bookwork import get_bookwork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file
-from lazylibrarian.cache import cache_img, fetch_url
+from lazylibrarian.cache import cache_img, fetch_url, ImageType
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from urllib.parse import quote_plus
 from shutil import rmtree
@@ -226,9 +226,9 @@ def get_book_covers():
 def use_img(img, bookid, src, suffix=''):
     logger = logging.getLogger(__name__)
     if src:
-        coverlink, success, _ = cache_img("book", bookid + suffix, img)
+        coverlink, success, _ = cache_img(ImageType.BOOK, bookid + suffix, img)
     else:
-        coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
+        coverlink, success, _ = cache_img(ImageType.BOOK, bookid, img, refresh=True)
         src = suffix
 
     # if librarything has no image they return a 1x1 gif
@@ -572,7 +572,7 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
         if max_num == 1:
             if res:
                 img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
-                coverlink, success, was_in_cache = cache_img("author", authorid, img, refresh=refresh)
+                coverlink, success, was_in_cache = cache_img(ImageType.AUTHOR, authorid, img, refresh=refresh)
                 if success:
                     if was_in_cache:
                         logger.debug("Returning cached google image for %s" % authorname)
