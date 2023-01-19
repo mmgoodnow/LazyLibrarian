@@ -613,7 +613,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         match_string = ''
         for char in matchto:
             if not char.isalpha():
-                match_string = match_string + '\\'
+                match_string += '\\'
             match_string = match_string + char
 
         match_string = match_string.replace(

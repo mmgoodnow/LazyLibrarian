@@ -346,7 +346,7 @@ class WebInterface(object):
     # noinspection PyUnusedLocal
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_index(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_index(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc", ssearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
         rows = []
@@ -363,8 +363,8 @@ class WebInterface(object):
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
@@ -427,22 +427,22 @@ class WebInterface(object):
                     nrow.append(bar)
                     nrow.extend(arow[11:])
                     rows.append(nrow)  # add each rowlist to the masterlist
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in rows if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
-                sortcolumn = int(iSortCol_0) - 1
+                sortcolumn = int(isort_col) - 1
                 if sortcolumn == 2:
                     sortcolumn = 13
                 elif sortcolumn > 2:
-                    sortcolumn = sortcolumn - 1
+                    sortcolumn -= - 1
 
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                              reverse=sSortDir_0 == "desc")
+                              reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -1131,7 +1131,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_series(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_series(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc", ssearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
         rows = []
@@ -1148,8 +1148,8 @@ class WebInterface(object):
         # noinspection PyBroadException
         try:
             # kwargs is used by datatables to pass params
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             which_status = 'All'
@@ -1211,13 +1211,13 @@ class WebInterface(object):
                     entry = list(row)  # turn sqlite objects into lists
                     rows.append(entry)  # add the rowlist to the masterlist
 
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in rows if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(isort_col)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 for row in filtered:
@@ -1241,13 +1241,13 @@ class WebInterface(object):
                     sortcolumn = 3
 
                 if sortcolumn == 9:  # sort on percent,-total
-                    if sSortDir_0 == "desc":
+                    if ssort_dir_0 == "desc":
                         filtered.sort(key=lambda y: (-int(y[9]), int(y[7])))
                     else:
                         filtered.sort(key=lambda y: (int(y[9]), -int(y[7])))
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -2347,7 +2347,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_books(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_books(self, idisplay_start=0, idisplay_length=100, i_sort_col_0=0, ssort_dir_0="desc", ssearch="", **kwargs):
         rows = []
         filtered = []
         rowlist = []
@@ -2356,8 +2356,8 @@ class WebInterface(object):
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             to_read = set()
@@ -2503,8 +2503,8 @@ class WebInterface(object):
                     rows.append(entry)  # add each rowlist to the masterlist
                 loggerserverside.debug("get_books surname/definite completed")
 
-                if sSearch:
-                    loggerserverside.debug("filter [%s]" % sSearch)
+                if ssearch:
+                    loggerserverside.debug("filter [%s]" % ssearch)
                     if library is not None:
                         search_fields = ['AuthorName', 'BookName', 'BookDate', 'Status', 'BookID',
                                          'BookLang', 'BookSub', 'AuthorID', 'BookGenre',
@@ -2516,16 +2516,16 @@ class WebInterface(object):
                         for row in rowlist:
                             _dict = dict(row)
                             for key in search_fields:
-                                if _dict[key] and sSearch.lower() in _dict[key].lower():
+                                if _dict[key] and ssearch.lower() in _dict[key].lower():
                                     filtered.append(list(row))
                                     break
                     else:
-                        filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
+                        filtered = [x for x in rows if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
                 # table headers and column headers do not match at this point
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(i_sort_col_0)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn < 4:  # author, title
@@ -2552,13 +2552,13 @@ class WebInterface(object):
 
                 if sortcolumn in [12, 13, 15, 18]:  # series, dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                      reverse=sSortDir_0 == "desc")
+                                      reverse=ssort_dir_0 == "desc")
                 elif sortcolumn in [2]:  # title
                     filtered.sort(key=lambda y: y[sortcolumn].lower() if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -4267,7 +4267,7 @@ class WebInterface(object):
     # noinspection PyUnusedLocal
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_comics(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_comics(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc", ssearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
         rows = []
@@ -4282,8 +4282,8 @@ class WebInterface(object):
             userprefs = check_int(cookie['ll_prefs'].value, 0)
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
             db = database.DBConnection()
             try:
@@ -4311,24 +4311,24 @@ class WebInterface(object):
                              mag['Publisher'], mag['Link'], mag['Genre']]
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in newrowlist if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(isort_col)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [4, 5]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                      reverse=sSortDir_0 == "desc")
+                                      reverse=ssort_dir_0 == "desc")
                 elif sortcolumn == 2:  # title
                     filtered.sort(key=lambda y: y[sortcolumn].lower() if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -4484,8 +4484,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_comic_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0,
-                         sSortDir_0="desc", sSearch="", **kwargs):
+    def get_comic_issues(self, idisplay_start=0, idisplay_length=100, isort_col=0,
+                         ssort_dir_0="desc", ssearch="", **kwargs):
         rows = []
         filtered = []
         rowlist = []
@@ -4494,8 +4494,8 @@ class WebInterface(object):
 
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             comicid = kwargs['comicid']
@@ -4514,21 +4514,21 @@ class WebInterface(object):
                              comicid, mag['IssueID'])]
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in newrowlist if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(isort_col)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [2, 3]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                      reverse=sSortDir_0 == "desc")
+                                      reverse=ssort_dir_0 == "desc")
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -4807,7 +4807,7 @@ class WebInterface(object):
     # noinspection PyUnusedLocal
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_mags(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_mags(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc", ssearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
         rows = []
@@ -4822,8 +4822,8 @@ class WebInterface(object):
             userprefs = check_int(cookie['ll_prefs'].value, 0)
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
             db = database.DBConnection()
             try:
@@ -4856,24 +4856,24 @@ class WebInterface(object):
 
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in newrowlist if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(isort_col)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [4, 5]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                      reverse=sSortDir_0 == "desc")
+                                      reverse=ssort_dir_0 == "desc")
                 elif sortcolumn == 2:  # title
                     filtered.sort(key=lambda y: y[sortcolumn].lower() if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -4925,8 +4925,6 @@ class WebInterface(object):
 
     @cherrypy.expose
     def magazines(self, mag_filter=''):
-        user = 0
-        email = ''
         db = database.DBConnection()
         try:
             cookie = cherrypy.request.cookie
@@ -4946,7 +4944,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_issues(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc", ssearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
         rows = []
@@ -4954,8 +4952,8 @@ class WebInterface(object):
         rowlist = []
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             title = kwargs['title'].replace('&amp;', '&')
@@ -4972,21 +4970,21 @@ class WebInterface(object):
                              mag['IssueID']]
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in newrowlist if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(isort_col)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [2, 3]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                      reverse=sSortDir_0 == "desc")
+                                      reverse=ssort_dir_0 == "desc")
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -5085,8 +5083,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_past_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc",
-                        sSearch="", **kwargs):
+    def get_past_issues(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc",
+                        ssearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
         # kwargs is used by datatables to pass params
@@ -5096,8 +5094,8 @@ class WebInterface(object):
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
             # need to filter on whichStatus and optional mag title
             cmd = 'SELECT NZBurl, NZBtitle, NZBdate, Auxinfo, NZBprov from pastissues WHERE Status=?'
@@ -5113,17 +5111,17 @@ class WebInterface(object):
                     entry = list(row)  # turn sqlite objects into lists
                     rows.append(entry)  # add the rowlist to the masterlist
 
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in rows if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(isort_col)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                              reverse=sSortDir_0 == "desc")
+                              reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     rows = filtered
@@ -5612,7 +5610,7 @@ class WebInterface(object):
             messages = lazylibrarian.COMMIT_LIST.replace('\n', '<br>')
             message = message + '<br><small>' + messages
             if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
-                message = message + "Update needs manual installation"
+                message += "Update needs manual installation"
         else:
             message = "unknown version"
             messages = "Your version is not recognized at<br>https://%s/%s/%s  Branch: %s" % (
@@ -5961,7 +5959,7 @@ class WebInterface(object):
     # noinspection PyUnusedLocal
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_log(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_log(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc", ssearch="", **kwargs):
         # kwargs is used by datatables to pass params
         logger = logging.getLogger(__name__)
         rows = filtered = []
@@ -5969,15 +5967,15 @@ class WebInterface(object):
 
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
-            filtered, total = LOGCONFIG.get_ui_logrows(sSearch)
+            filtered, total = LOGCONFIG.get_ui_logrows(ssearch)
 
-            sortcolumn = int(iSortCol_0)
+            sortcolumn = int(isort_col)
             filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                          reverse=sSortDir_0 == "desc")
+                          reverse=ssort_dir_0 == "desc")
             rows = filtered if displaylength < 0 else filtered[displaystart:(displaystart + displaylength)]
         except Exception:
             logger.error('Unhandled exception in get_log: %s' % traceback.format_exc())
@@ -5998,7 +5996,7 @@ class WebInterface(object):
     # noinspection PyUnusedLocal
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_history(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def get_history(self, idisplay_start=0, idisplay_length=100, isort_col=0, ssort_dir_0="desc", ssearch="", **kwargs):
         rows = []
         filtered = []
         rowlist = []
@@ -6008,8 +6006,8 @@ class WebInterface(object):
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
-            displaystart = int(iDisplayStart)
-            displaylength = int(iDisplayLength)
+            displaystart = int(idisplay_start)
+            displaylength = int(idisplay_length)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
             snatching = 0
             cmd = "SELECT NZBTitle,AuxInfo,BookID,NZBProv,NZBDate,NZBSize,Status,Source,DownloadID,rowid from wanted"
@@ -6021,13 +6019,13 @@ class WebInterface(object):
                     entry = list(row)  # turn sqlite objects into lists
                     rows.append(entry)  # add the rowlist to the masterlist
 
-                if sSearch:
-                    loggerserverside.debug("filter %s" % sSearch)
-                    filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
+                if ssearch:
+                    loggerserverside.debug("filter %s" % ssearch)
+                    filtered = [x for x in rows if ssearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
-                sortcolumn = int(iSortCol_0)
+                sortcolumn = int(isort_col)
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 # use rowid to get most recently added first (monitoring progress)
@@ -6036,10 +6034,10 @@ class WebInterface(object):
 
                 if sortcolumn == 5:
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                      reverse=sSortDir_0 == "desc")
+                                      reverse=ssort_dir_0 == "desc")
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
-                                  reverse=sSortDir_0 == "desc")
+                                  reverse=ssort_dir_0 == "desc")
 
                 if displaylength < 0:  # display = all
                     nrows = filtered
@@ -6375,7 +6373,7 @@ class WebInterface(object):
         for line in downloads:
             provname = CONFIG.disp_name(line['Provider'].strip('/'))
             new_entry = "%4d - %s\n" % (line['Count'], provname)
-            result = result + new_entry
+            result += new_entry
 
         if result == '':
             result = 'No downloads'

@@ -1561,7 +1561,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     if book['Status'] == "Snatched":
                         progress = "%s" % progress
                         if progress.isdigit():  # could be "Unknown" or -1
-                            progress = progress + '%'
+                            progress += '%'
                         dlresult = '%s was  sent to %s %s hours ago. Progress: %s' % (book['NZBtitle'],
                                                                                       book['Source'],
                                                                                       hours, progress)
@@ -2578,7 +2578,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                                              CONFIG.get_bool('KEEP_SEEDING'))):
         logger.debug("Copying to target %s" % pp_path + '.unpack')
         shutil.copytree(pp_path, pp_path + '.unpack')
-        pp_path = pp_path + '.unpack'
+        pp_path += '.unpack'
 
     if preprocess:
         logger.debug("preprocess (%s) %s" % (booktype, pp_path))
@@ -3349,8 +3349,8 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
             if name and role:
                 entries.append([name.strip(), role.strip()])
                 if names:
-                    names = names + ' &amp; '
-                names = names + surname_first(name, postfixes=CONFIG.get_list('NAME_POSTFIX'))
+                    names += ' &amp; '
+                names += surname_first(name, postfixes=CONFIG.get_list('NAME_POSTFIX'))
         for entry in entries:
             opfinfo += '        <dc:creator opf:file-as="%s" opf:role="%s">%s</dc:creator>\n' % \
                        (names, entry[1], entry[0])

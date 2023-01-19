@@ -813,7 +813,7 @@ class Api(object):
                 n = int(lazylibrarian.GC_AFTER[k])
             if n:
                 changed = "%s %s<br>" % (n, str(k).split("'")[1])
-                res = res + changed
+                res += changed
         self.data = res
 
     def _getrssfeed(self, **kwargs):
@@ -878,7 +878,7 @@ class Api(object):
         try:
             db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
                       (kwargs['user'], 'feed', kwargs['feed']))
-        except:
+        except Exception:
             db.close()
         self.data = 'OK'
         return
@@ -1201,7 +1201,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         lst = ''
         for item in sys.modules:
-            lst = lst + "%s: %s<br>" % (item, str(sys.modules[item]).replace('<', '').replace('>', ''))
+            lst += "%s: %s<br>" % (item, str(sys.modules[item]).replace('<', '').replace('>', ''))
         self.data = lst
 
     def _checkmodules(self):
@@ -2423,4 +2423,3 @@ class Api(object):
     def _telemetrysend(self, **kwargs):
         TELEMETRY.record_usage_data()
         self.data = telemetry_send()
-
