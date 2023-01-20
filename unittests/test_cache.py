@@ -8,10 +8,12 @@ import unittest
 from typing import List
 import itertools
 import logging
+import mock
 import os
 import random
 import time
 from lazylibrarian import cache
+from lazylibrarian.cache import ImageType
 from lazylibrarian.database import DBConnection
 from lazylibrarian.dbupgrade import db_upgrade, upgrade_needed
 from lazylibrarian.filesystem import DIRS, remove_dir, remove_file
@@ -47,9 +49,89 @@ class TestCache(LLTestCaseWithConfigandDIRS):
     def test_fetch_url(self):
         assert False
 
-    @unittest.SkipTest
-    def test_cache_img(self):
-        assert False
+    def test_cache_img_filelink(self):
+        """ Test cache_img where the link parameter is a filename """
+        # Test with an invalid cache name that doesn't exist
+        link = 'not_really_a_link'
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, '123', link, refresh=False)
+        self.assertFalse(success, 'Should not succeed with bad file')
+        self.assertFalse(was_cached, 'Bad file should not be in cache')
+
+        # Test with a file that exists and will get cached
+        link = DIRS.get_testdatafile('lazylibrarian.png')
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, '123', link, refresh=False)
+        self.assertTrue(success, 'Expected the file to be cached')
+        self.assertFalse(was_cached, 'The file was not yet be cached')
+        self.assertEqual('cache/test/123.jpg', msg, 'The link is not as expected')
+
+        # Now check the file is actually cached
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, '123', 'can_be_anything', refresh=False)
+        self.assertTrue(success, 'Expected the file to be cached')
+        self.assertTrue(was_cached, 'The file should now be cached')
+        self.assertEqual('cache/test/123.jpg', msg, 'The link is not as expected')
+
+        # Doing it again with refresh=True just copies the file again
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, '123', link, refresh=True)
+        self.assertTrue(success, 'Expected the file to be cached')
+        self.assertTrue(was_cached, 'And it was already cached')
+        self.assertEqual('cache/test/123.jpg', msg, 'The link is not as expected')
+
+        # But if refresh=True and the file does not exist
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, '123', 'cannot_be_anything', refresh=True)
+        self.assertFalse(success, 'Expected failure')
+        self.assertFalse(was_cached, 'Expected not cached with refresh True')
+
+        # Try to cache it to a folder that doesn't exist (during testing)
+        with self.assertLogs(self.logger, logging.ERROR):
+            # Expect to see an error message in the log
+            msg, success, was_cached = cache.cache_img(ImageType.MAG, '123', link, refresh=False)
+        self.assertFalse(success, 'Cannot cache file into dir that does not exist')
+        self.assertFalse(was_cached, 'Should not be cached')
+
+        # Check for the (non-existing) jpg file instead of the png, and watch magic happen: It
+        # checks for, and stores the .png file instead, though it's still called .jpg
+        link = DIRS.get_testdatafile('lazylibrarian.jpg')
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, '456', link, refresh=False)
+        self.assertTrue(success, 'Expected the file to be cached')
+        self.assertFalse(was_cached, 'The file was not yet be cached')
+        self.assertEqual('cache/test/456.jpg', msg, 'The link is not as expected')
+
+    @mock.patch.object(cache, 'fetch_url')
+    def test_cache_img_httplink(self, mock_fetch_url):
+        """ Test cache_img where the link parameter is an http link """
+        # Mock loading a URL and caching it
+        link = "https://lazylibrarian.gitlab.io/logo.svg"
+        mock_fetch_url.return_value = (b'Looks like a teddy', True)
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, 'abc', link, refresh=False)
+        self.assertTrue(success, 'Expected the file to be retrieved and cached')
+        self.assertFalse(was_cached, 'The file was not yet be cached')
+        self.assertEqual('cache/test/abc.jpg', msg, 'The link is not as expected')
+
+        # Once it's cached, the URL doesn't matter if refresh is false
+        mock_fetch_url.return_value = (b'Looks like an error', False)
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, 'abc', 'https://invalid', refresh=False)
+        self.assertTrue(success, 'Expected to get the cache')
+        self.assertTrue(was_cached, 'Expected it was cached')
+        self.assertEqual('cache/test/abc.jpg', msg, 'The link is not as expected')
+
+        # If Refresh is True, we don't retrieve a cached file with an invalid URL
+        mock_fetch_url.return_value = (b'Looks like an error', False)
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, 'abc', 'https://invalid', refresh=True)
+        self.assertFalse(success, 'Expected the file to be retrieved and cached')
+        self.assertFalse(was_cached, 'The file was not yet be cached')
+
+        # Mock with a URL that fails to work
+        mock_fetch_url.return_value = (b'Looks like an error', False)
+        msg, success, was_cached = cache.cache_img(ImageType.TEST, 'def', link, refresh=False)
+        self.assertFalse(success, 'Expected that caching did not work for wrong URL')
+        self.assertFalse(was_cached, 'The file was not yet be cached')
+
+        # Mock with a valid URL but the destination is not writeable (in test)
+        mock_fetch_url.return_value = (b'Looks like a teddy', True)
+        with self.assertLogs(self.logger, logging.ERROR):
+            msg, success, was_cached = cache.cache_img(ImageType.COMIC, 'abc', link, refresh=False)
+        self.assertFalse(success, 'Expected an error')
+        self.assertFalse(was_cached, 'The file was not yet be cached')
 
     @unittest.SkipTest
     def test_gr_xml_request(self):

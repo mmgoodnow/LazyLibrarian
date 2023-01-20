@@ -122,10 +122,17 @@ class DirectoryHolder:
             base = f'LL-temp-{timestr}-{randomstr}.tmp'
         return syspath(os.path.join(self.TMPDIR, base))
 
-    def get_cachedir(self, subdir: str):
+    def get_cachedir(self, subdir: str) -> str:
         """ Return a writeable dir named subdir, off the cache directory"""
         return os.path.join(self.CACHEDIR, subdir)
 
+    def get_cachefile(self, subdir: str, filename: str) -> str:
+        """ Get the name of a file in the cache, in subdir, named filename """
+        return os.path.join(self.CACHEDIR, subdir, filename)
+
+    def get_testdatafile(self, filename):
+        """ Get the full name of a file in the testdata directory """
+        return os.path.join(self.PROG_DIR, 'testdata', filename)
 
 """ Global access to directories """
 DIRS = DirectoryHolder()

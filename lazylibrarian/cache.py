@@ -42,6 +42,7 @@ class ImageType(Enum):
     AUTHOR = 'author'
     MAG = 'magazine'
     COMIC = 'comic'
+    TEST = 'test'
 
 
 def gr_api_sleep():
@@ -170,16 +171,21 @@ def fetch_url(url, headers=None, retry=True, raw=None) -> (Any, bool):
 
 def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> (str, bool, bool):
     """ Cache the image from the given filename or URL in the local images cache
-        linked to the id, return the link to the cached file, success, was_in_cache
-        or error message, False, False if failed to cache """
+        linked to the id.
+        On success, return the link to the cached file, True, was_in_cache
+        On error, return message, False, False """
 
     logger = logging.getLogger(__name__)
-    cachefile = os.path.join(DIRS.CACHEDIR, img_type.value, img_id + '.jpg')
+    had_cache = False
+    cachefile = DIRS.get_cachefile(img_type.value, img_id + '.jpg')
     link = 'cache/%s/%s.jpg' % (img_type.value, img_id)
-    if path_isfile(cachefile) and not refresh:  # overwrite any cached image
-        cachelogger = logging.getLogger('special.cache')
-        cachelogger.debug("Cached %s image exists %s" % (img_type.name, cachefile))
-        return link, True, True
+    if path_isfile(cachefile):
+        if not refresh:  # overwrite any cached image
+            cachelogger = logging.getLogger('special.cache')
+            cachelogger.debug("Cached %s image exists %s" % (img_type.name, cachefile))
+            return link, True, True
+        else:
+            had_cache = True
 
     if img_url.startswith('http'):
         result, success = fetch_url(img_url, raw=True)
@@ -200,7 +206,7 @@ def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> 
     if path_isfile(img_url):
         try:
             shutil.copyfile(img_url, cachefile)
-            return link, True, True
+            return link, True, had_cache
         except Exception as e:
             logger.error("%s copying image to %s, %s" % (type(e).__name__, cachefile, str(e)))
             return str(e), False, False
