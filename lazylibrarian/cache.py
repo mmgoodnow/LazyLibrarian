@@ -21,7 +21,7 @@ import time
 from abc import ABC
 from enum import Enum
 from http.client import responses
-from typing import Any
+from typing import Any, Optional, Dict, Union
 from xml.etree import ElementTree
 
 import requests
@@ -69,12 +69,12 @@ def cv_api_sleep():
     lazylibrarian.TIMERS['LAST_CV'] = time_now
 
 
-def fetch_url(url, headers=None, retry=True, raw=None) -> (Any, bool):
+def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: Optional[bool] = None) -> (Union[str, bytes], bool):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False
         Return data as raw/bytes, if raw == True
         Default to unicode, need to set raw=True for images/data
-        Allow one retry on timeout by default"""
+        Allow one retry on timeout by default """
     logger = logging.getLogger(__name__)
     http.client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
 
@@ -89,7 +89,7 @@ def fetch_url(url, headers=None, retry=True, raw=None) -> (Any, bool):
 
     if headers is None:
         # some sites insist on having a user-agent, default is to add one
-        # if you don't want any headers, send headers=[]
+        # if you don't want any headers, pass headers={}
         headers = {'User-Agent': get_user_agent()}
 
     proxies = proxy_list()
@@ -395,7 +395,8 @@ def clean_cache():
 
             # Verify the cover images referenced in the database are present, replace if not
             DBCleaner("book", "Cover", db, "books", "BookImg", "BookName", "BookID", "images/nocover.png").clean(),
-            DBCleaner("book", "Image", db, "author", "AuthorImg", "AuthorName", "AuthorID", "images/nophoto.png").clean(),
+            DBCleaner("book", "Image", db, "author", "AuthorImg", "AuthorName", "AuthorID",
+                      "images/nophoto.png").clean(),
         ]
 
         expiry = CONFIG.get_int('CACHE_AGE')

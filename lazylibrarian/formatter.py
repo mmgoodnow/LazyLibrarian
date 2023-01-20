@@ -19,7 +19,7 @@ import re
 import unicodedata
 import threading
 import logging
-from typing import List
+from typing import List, Optional, Union
 
 import lazylibrarian
 from lazylibrarian.configenums import OnChangeReason
@@ -545,7 +545,7 @@ def make_utf8bytes(txt):
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-def make_unicode(txt) -> str:
+def make_unicode(txt: Optional[str]) -> Optional[Union[str, bytes]]:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     if isinstance(txt, str):  # nothing to do if already unicode
