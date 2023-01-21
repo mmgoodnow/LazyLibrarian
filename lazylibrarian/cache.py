@@ -69,7 +69,7 @@ def cv_api_sleep():
     lazylibrarian.TIMERS['LAST_CV'] = time_now
 
 
-def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: Optional[bool] = None) -> (Union[str, bytes], bool):
+def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = False) -> (Union[str, bytes], bool):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False
         Return data as raw/bytes, if raw == True
@@ -83,9 +83,6 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: Optiona
         msg, ok = BLOCKHANDLER.add_gb_call()
         if not ok:
             return msg, ok
-
-    if raw is None:
-        raw = False
 
     if headers is None:
         # some sites insist on having a user-agent, default is to add one
@@ -159,12 +156,12 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: Optiona
             # eg "Cannot determine user location for geographically restricted operation"
             delay = 3600
 
+        logger.debug(f'Request denied, blocking googleapis for {delay} seconds: {msg}')
         BLOCKHANDLER.replace_provider_entry('googleapis', delay, msg)
 
-    # noinspection PyBroadException
-    try:
+    if r.status_code in responses:
         msg = responses[r.status_code]
-    except Exception:
+    else:
         msg = r.text
     return "Response status %s: %s" % (r.status_code, msg), False
 

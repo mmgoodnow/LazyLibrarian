@@ -11,9 +11,13 @@ import logging
 import mock
 import os
 import random
+import requests
 import time
+
 from lazylibrarian import cache
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import ImageType
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.database import DBConnection
 from lazylibrarian.dbupgrade import db_upgrade, upgrade_needed
 from lazylibrarian.filesystem import DIRS, remove_dir, remove_file
@@ -45,9 +49,150 @@ class TestCache(LLTestCaseWithConfigandDIRS):
         remove_dir(self.testdir, remove_contents=True)
         remove_file(DIRS.get_dbfile())
 
-    @unittest.SkipTest
-    def test_fetch_url(self):
-        assert False
+    def test_fetch_url_no_mock(self):
+        """ Test fetch_url without mocking the actual request call """
+        # Run all-blank parameters
+        msg, res = cache.fetch_url('', {}, False, False)
+        self.assertFalse(res, 'Expect blank URL to fail')
+
+        # Block GoogleAPIs, then test
+        BLOCKHANDLER.add_provider_entry('googleapis', 100, 'testing')
+        msg, res = cache.fetch_url('googleapis', {}, False, False)
+        self.assertFalse(res, 'Expect blank URL to fail')
+        self.assertEqual(msg, 'Blocked')
+
+    # This method will be used by the mock to replace requests.get
+    def mocked_requests_get(*args, **kwargs):
+        class MockResponse:
+            def __init__(self, content, status_code):
+                self.content = content
+                self.text = 'Text: ' + content
+                self.status_code = status_code
+
+            def json(self):
+                if self.content == 'Limit Error':
+                    return {
+                        'content': self.content,
+                        'error': {'message': 'Limit Exceeded'}}
+                else:
+                    return {
+                        'content': self.content}
+
+        if args[0] == 'https://someurl.com/test1':
+            return MockResponse("Good stuff", 200)
+        elif args[0] == 'http://someourl.com/test403-1':
+            return MockResponse("Error in request", 403)
+        elif args[0] == 'http://someourl.com/test403-2':
+            return MockResponse("Limit Error", 403)
+        elif args[0] == 'http://someourl.com/test99999':
+            return MockResponse("Invalid error", 99999)
+        elif args[0] == 'http://someourl.com/test-redirects':
+            raise requests.exceptions.TooManyRedirects('Test redirect error')
+        elif args[0] == 'http://someourl.com/test-timeout':
+            raise requests.exceptions.Timeout('Test timeout error')
+        elif str(args[0]).startswith('http://someourl.com/torznab/'):
+            return MockResponse(f"torznab {kwargs['params']['timeout']}", 200)
+
+        return MockResponse('', 404)
+
+    @mock.patch.object(requests, 'get', side_effect=mocked_requests_get)
+    def test_fetch_url_with_mock(self, mock_get):
+        """ Test fetch_url, mocking requests.get """
+        # Set up test conditions
+        BLOCKHANDLER.clear_all()
+        timeout = 30
+        ext_timeout = 100
+        agent = {'User-Agent': 'test'}
+        CONFIG.set_int('HTTP_EXT_TIMEOUT', ext_timeout)
+        CONFIG.set_int('HTTP_TIMEOUT', timeout)
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+
+        # Test "good" return value with SSL_VERIFY and no raw
+        CONFIG.set_bool('SSL_VERIFY', True)
+        url = 'https://someurl.com/test1'
+        msg, res = cache.fetch_url(url, agent, False, raw=False)
+        self.assertEqual(msg, 'Text: Good stuff')
+        self.assertTrue(res, 'Expected success')
+
+        # Same, but ask for raw data
+        msg, res = cache.fetch_url(url, agent, False, raw=True)
+        self.assertEqual(msg, 'Good stuff')
+        self.assertTrue(res, 'Expected success')
+
+        # Test error code 403, normal, but blocks googleapis
+        logger.setLevel(logging.DEBUG)
+        url = 'http://someourl.com/test403-1'
+        with self.assertLogs(logger, logging.DEBUG) as logmsg:
+            msg, res = cache.fetch_url(url, agent, False, raw=True)
+        self.assertFalse(res, 'Expected failure 403')
+        self.assertEqual(msg, 'Response status 403: Forbidden')
+        self.assertTrue(BLOCKHANDLER.is_blocked('googleapis'), 'Expected blockage')
+        self.assertListEqual(logmsg.output, [
+            'DEBUG:lazylibrarian.cache:Request denied, blocking googleapis for 3600 seconds: Error 403: see debug log'
+        ])
+        BLOCKHANDLER.clear_all()
+
+        # Test error code 403, 'Limit Exceeded'
+        url = 'http://someourl.com/test403-2'
+        with self.assertLogs(logger, logging.DEBUG) as logmsg:
+            msg, res = cache.fetch_url(url, agent, False, raw=True)
+        self.assertFalse(res, 'Expected failure 403')
+        self.assertEqual(msg, 'Response status 403: Forbidden')
+        self.assertTrue(BLOCKHANDLER.is_blocked('googleapis'), 'Expected blockage')
+        BLOCKHANDLER.clear_all()
+        logger.setLevel(logging.INFO)
+
+        # Test invalid error code 99999
+        url = 'http://someourl.com/test99999'
+        msg, res = cache.fetch_url(url, agent, False, raw=False)
+        self.assertFalse(res, 'Expected failure')
+        self.assertEqual(msg, 'Response status 99999: Text: Invalid error')
+        self.assertFalse(BLOCKHANDLER.is_blocked('googleapis'), 'Unknown error should not cause blockage')
+
+        # Test redirect error
+        url = 'http://someourl.com/test-redirects'
+        with self.assertLogs(logger, logging.ERROR):
+            msg, res = cache.fetch_url(url, agent, False, raw=False)
+        self.assertFalse(res, 'Expected failure')
+        self.assertEqual(msg, 'TooManyRedirects Test redirect error')
+
+        # Test redirect error with retry. Curously, no error in log
+        url = 'http://someourl.com/test-redirects'
+        msg, res = cache.fetch_url(url, agent, True, raw=False)
+        self.assertFalse(res, 'Expected failure')
+        self.assertEqual(msg, 'Exception TooManyRedirects: Test redirect error')
+
+        # Test timeout error. No error in log
+        url = 'http://someourl.com/test-timeout'
+        with self.assertLogs(logger, logging.ERROR):
+            msg, res = cache.fetch_url(url, agent, False, raw=False)
+        self.assertFalse(res, 'Expected failure')
+        self.assertEqual(msg, 'Timeout Test timeout error')
+
+        # Test timeout error with retry
+        url = 'http://someourl.com/test-timeout'
+        msg, res = cache.fetch_url(url, agent, True, raw=False)
+        self.assertFalse(res, 'Expected failure')
+        self.assertEqual(msg, 'Exception Timeout: Test timeout error')
+
+        # Test extended timeout
+        url = 'http://someourl.com/torznab/all/test'
+        msg, res = cache.fetch_url(url, agent, True, raw=True)
+        self.assertTrue(res, 'Should have worked')
+        self.assertEqual(msg, f'torznab {ext_timeout}')
+
+        # Test normal timeout
+        url = 'http://someourl.com/torznab/something'
+        msg, res = cache.fetch_url(url, agent, True, raw=True)
+        self.assertTrue(res, 'Should have worked')
+        self.assertEqual(msg, f'torznab {timeout}')
+
+        # Test 404 error
+        url = 'http://someourl.com/unknown'
+        msg, res = cache.fetch_url(url, agent, True, raw=False)
+        self.assertFalse(res, 'Should have been a 404')
+        self.assertEqual(msg, 'Response status 404: Not Found')
 
     def test_cache_img_filelink(self):
         """ Test cache_img where the link parameter is a filename """
