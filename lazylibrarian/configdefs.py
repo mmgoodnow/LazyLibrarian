@@ -86,6 +86,10 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('General', 'IMP_AUTOSEARCH', 0),
     ConfigBool('General', 'BLACKLIST_FAILED', 1),
     ConfigBool('General', 'BLACKLIST_PROCESSED', 0),
+    ConfigStr('General', 'SSL_CERTS', ''),
+    ConfigBool('General', 'SSL_VERIFY', 1),
+    ConfigRangedInt('General', 'HTTP_TIMEOUT', 30, 30, 100000),
+    ConfigInt('General', 'HTTP_EXT_TIMEOUT', 90),
 
     ConfigRangedInt('WebServer', 'HTTP_PORT', 5299, 21, 65535),
     ConfigStr('WebServer', 'HTTP_HOST', '0.0.0.0'),
@@ -97,10 +101,6 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('WebServer', 'HTTPS_ENABLED', 0),
     ConfigStr('WebServer', 'HTTPS_CERT', ''),
     ConfigStr('WebServer', 'HTTPS_KEY', ''),
-    ConfigStr('WebServer', 'SSL_CERTS', ''),
-    ConfigBool('WebServer', 'SSL_VERIFY', 1),
-    ConfigRangedInt('WebServer', 'HTTP_TIMEOUT', 30, 30, 100000),
-    ConfigInt('WebServer', 'HTTP_EXT_TIMEOUT', 90),
 
     ConfigFolder('Logging', 'LOGDIR', ''),
     ConfigInt('Logging', 'LOGLIMIT', 500, onchange=LogConfig.change_memory_limit),
