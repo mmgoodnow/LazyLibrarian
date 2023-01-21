@@ -228,7 +228,7 @@ def html_request(my_url, use_cache=True, expire=True) -> (Any, bool):
     return result, in_cache
 
 
-def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, headers=None) -> (Any, bool):
+def get_cached_request(url: str, use_cache: bool = True, cache: str = "XML", expire: bool = True) -> (Any, bool):
     # hashfilename = hash of url
     # if hashfilename exists in cache and isn't too old, return its contents
     # if not, read url and store the result in the cache
@@ -241,8 +241,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
     valid_cache = False
     source = None
     hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + "." + cache.lower())
-    if expire and not expiry:
-        expiry = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
+    expiry = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60 if expire else 0  # expire cache after this many seconds
 
     if use_cache and path_isfile(hashfilename):
         cache_modified_time = os.stat(hashfilename).st_mtime
@@ -299,9 +298,9 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
         lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
         if cache == 'XML':
             gr_api_sleep()
-            result, success = fetch_url(url, raw=True, headers=headers)
+            result, success = fetch_url(url, raw=True, headers=None)
         else:
-            result, success = fetch_url(url, headers=headers)
+            result, success = fetch_url(url, headers=None)
 
         if success:
             cachelogger = logging.getLogger('special.cache')
