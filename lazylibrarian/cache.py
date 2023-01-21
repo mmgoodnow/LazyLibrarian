@@ -214,144 +214,209 @@ def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> 
 
 def gr_xml_request(my_url, use_cache=True, expire=True) -> (Any, bool):
     # respect goodreads api limit
-    result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="XML", expire=expire)
+    result, in_cache = XMLCacheRequest(url=my_url, use_cache=use_cache, expire=expire).get_cached_request()
     return result, in_cache
 
 
 def json_request(my_url, use_cache=True, expire=True) -> (Any, bool):
-    result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="JSON", expire=expire)
+    result, in_cache = JSONCacheRequest(url=my_url, use_cache=use_cache, expire=expire).get_cached_request()
     return result, in_cache
 
 
 def html_request(my_url, use_cache=True, expire=True) -> (Any, bool):
-    result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="HTML", expire=expire)
+    result, in_cache = HTMLCacheRequest(url=my_url, use_cache=use_cache, expire=expire).get_cached_request()
     return result, in_cache
 
 
-def get_cached_request(url: str, use_cache: bool = True, cache: str = "XML", expire: bool = True) -> (Any, bool):
-    # hashfilename = hash of url
-    # if hashfilename exists in cache and isn't too old, return its contents
-    # if not, read url and store the result in the cache
-    # return the result, and boolean True if source was cache
-    #
-    logger = logging.getLogger(__name__)
-    cache_location = cache + "Cache"
-    cache_location = os.path.join(DIRS.CACHEDIR, cache_location)
-    myhash = md5_utf8(url)
-    valid_cache = False
-    source = None
-    hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + "." + cache.lower())
-    expiry = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60 if expire else 0  # expire cache after this many seconds
+class CacheRequest(ABC):
+    """ Handle cache requests for LazyLibrarian. Use a concrete subclass of this """
+    def __init__(self, url: str, use_cache: bool, expire: bool):
+        self.url = url
+        self.use_cache = use_cache
+        self.expire = expire
+        self.logger = logging.getLogger()
+        self.cachelogger = logging.getLogger('special.cache')
 
-    if use_cache and path_isfile(hashfilename):
-        cache_modified_time = os.stat(hashfilename).st_mtime
-        time_now = time.time()
-        if expire and cache_modified_time < time_now - expiry:
-            # Cache entry is too old, delete it
-            cachelogger = logging.getLogger('special.cache')
-            cachelogger.debug("Expiring %s" % myhash)
-            os.remove(syspath(hashfilename))
+    @classmethod
+    @abc.abstractmethod
+    def name(cls) -> str:
+        """ Return the name of the cache, such as XML, HTML or JSON """
+        pass
+
+    @abc.abstractmethod
+    def read_from_cache(self, hashfilename: str) -> (str, bool):
+        """ Read the source from cache """
+        pass
+
+    def fetch_data(self) -> (str, bool):
+        """ Fetch the data; called if it's not in the cache """
+        return fetch_url(self.url, headers=None)
+
+    @abc.abstractmethod
+    def load_from_result_and_cache(self, result: str, filename: str, docache: bool) -> (str, bool):
+        """ Load the value from result and store it in cache if docache is True """
+        pass
+
+    def get_cached_request(self) -> (Any, bool):
+        # hashfilename = hash of url
+        # if hashfilename exists in cache and isn't too old, return its contents
+        # if not, read url and store the result in the cache
+        # return the result, and boolean True if source was cache
+        cache_location = os.path.join(DIRS.CACHEDIR, self.name() + "Cache")
+        hashfilename, myhash = self.get_hashed_filename(cache_location)
+        expire_older_than = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60 if self.expire else 0
+        valid_cache = self.is_in_cache(expire_older_than, hashfilename, myhash)
+
+        if valid_cache:
+            lazylibrarian.CACHE_HIT += 1
+            self.cachelogger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename, self.url))
+            source, ok = self.read_from_cache(hashfilename)
+            if not ok:
+                return None, False
         else:
-            valid_cache = True
+            lazylibrarian.CACHE_MISS += 1
+            result, success = self.fetch_data()
+            if success:
+                self.cachelogger.debug("CacheHandler: Storing %s %s for %s" % (self.name(), myhash, self.url))
+                source, result = self.load_from_result_and_cache(result, hashfilename, expire_older_than)
+            else:
+                self.logger.debug("Got error response for %s: %s" % (self.url, result.split('<')[0]))
+                if 'goodreads' in self.url and '503' in result:
+                    time.sleep(1)
+                return None, False
+        return source, valid_cache
 
-    if valid_cache:
-        lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-        logger = logging.getLogger(__name__)
-        cachelogger = logging.getLogger('special.cache')
-        cachelogger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename, url))
-        if cache == "JSON":
+    def is_in_cache(self, expiry: int, hashfilename: str, myhash: str) -> bool:
+        if self.use_cache and path_isfile(hashfilename):
+            cache_modified_time = os.stat(hashfilename).st_mtime
+            time_now = time.time()
+            if self.expire and cache_modified_time < time_now - expiry:
+                # Cache entry is too old, delete it
+                cachelogger = logging.getLogger('special.cache')
+                cachelogger.debug("Expiring %s" % myhash)
+                os.remove(syspath(hashfilename))
+                return False
+            else:
+                return True
+        else:
+            return False
+
+    def get_hashed_filename(self, cache_location: str) -> (str, str):
+        myhash = md5_utf8(self.url)
+        hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + "." + self.name().lower())
+        return hashfilename, myhash
+
+
+class XMLCacheRequest(CacheRequest):
+    @classmethod
+    def name(cls) -> str:
+        return "XML"
+
+    def read_from_cache(self, hashfilename: str) -> (str, bool):
+        with open(syspath(hashfilename), "rb") as cachefile:
+            result = cachefile.read()
+        source = None
+        if result and result.startswith(b'<?xml'):
             try:
-                source = json.load(open(hashfilename))
-            except ValueError:
-                logger.error("Error decoding json from %s" % hashfilename)
-                # normally delete bad data, but keep for inspection if debug logging cache
-                if not logging.getLogger('special.cache').isEnabledFor(logging.DEBUG):
-                    remove_file(hashfilename)
-                return None, False
-        elif cache == "HTML":
-            with open(syspath(hashfilename), "rb") as cachefile:
-                source = cachefile.read()
-        elif cache == "XML":
-            with open(syspath(hashfilename), "rb") as cachefile:
-                result = cachefile.read()
-            if result and result.startswith(b'<?xml'):
+                source = ElementTree.fromstring(result)
+            except UnicodeEncodeError:
+                # seems sometimes the page contains utf-16 but the header says it's utf-8
                 try:
+                    result = result.decode('utf-16').encode('utf-8')
                     source = ElementTree.fromstring(result)
-                except UnicodeEncodeError:
-                    # seems sometimes the page contains utf-16 but the header says it's utf-8
-                    try:
-                        result = result.decode('utf-16').encode('utf-8')
-                        source = ElementTree.fromstring(result)
-                    except (ElementTree.ParseError, UnicodeEncodeError, UnicodeDecodeError):
-                        logger.error("Error parsing xml from %s" % hashfilename)
-                        source = None
-                except ElementTree.ParseError:
-                    logger.error("Error parsing xml from %s" % hashfilename)
+                except (ElementTree.ParseError, UnicodeEncodeError, UnicodeDecodeError):
+                    self.logger.error("Error parsing xml from %s" % hashfilename)
                     source = None
-            if source is None:
-                logger.error("Error reading xml from %s" % hashfilename)
-                # normally delete bad data, but keep for inspection if debug logging cache
-                if not logging.getLogger('special.cache').isEnabledFor(logging.DEBUG):
-                    remove_file(hashfilename)
-                return None, False
-    else:
-        lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
-        if cache == 'XML':
-            gr_api_sleep()
-            result, success = fetch_url(url, raw=True, headers=None)
-        else:
-            result, success = fetch_url(url, headers=None)
-
-        if success:
-            cachelogger = logging.getLogger('special.cache')
-            cachelogger.debug("CacheHandler: Storing %s %s for %s" % (cache, myhash, url))
-            if cache == "JSON":
-                try:
-                    source = json.loads(result)
-                    if not expiry:
-                        return source, False
-                except Exception as e:
-                    logger.error("%s decoding json from %s" % (type(e).__name__, url))
-                    logger.debug("%s : %s" % (e, result))
-                    return None, False
-                json.dump(source, open(hashfilename, "w"))
-            elif cache == "HTML":
-                source = make_bytestr(result)
-                with open(syspath(hashfilename), "wb") as cachefile:
-                    cachefile.write(source)
-            elif cache == "XML":
-                result = make_bytestr(result)
-                if result and result.startswith(b'<?xml'):
-                    try:
-                        source = ElementTree.fromstring(result)
-                        if not expiry:
-                            return source, False
-                    except UnicodeEncodeError:
-                        # sometimes we get utf-16 data labelled as utf-8
-                        try:
-                            result = result.decode('utf-16').encode('utf-8')
-                            source = ElementTree.fromstring(result)
-                            if not expiry:
-                                return source, False
-                        except (ElementTree.ParseError, UnicodeEncodeError, UnicodeDecodeError):
-                            logger.error("Error parsing xml from %s" % url)
-                            source = None
-                    except ElementTree.ParseError:
-                        logger.error("Error parsing xml from %s" % url)
-                        source = None
-
-                if source is not None:
-                    with open(syspath(hashfilename), "wb") as cachefile:
-                        cachefile.write(result)
-                else:
-                    logger.error("Error getting xml data from %s" % url)
-                    return None, False
-        else:
-            logger.debug("Got error response for %s: %s" % (url, result.split('<')[0]))
-            if 'goodreads' in url and '503' in result:
-                time.sleep(1)
+            except ElementTree.ParseError:
+                self.logger.error("Error parsing xml from %s" % hashfilename)
+                source = None
+        if source is None:
+            self.logger.error("Error reading xml from %s" % hashfilename)
+            # normally delete bad data, but keep for inspection if debug logging cache
+            if not self.cachelogger.isEnabledFor(logging.DEBUG):
+                remove_file(hashfilename)
             return None, False
-    return source, valid_cache
+        return source, True
+
+    def fetch_data(self) -> (str, bool):
+        gr_api_sleep()
+        return fetch_url(self.url, raw=True, headers=None)
+
+    def load_from_result_and_cache(self, result: str, filename: str, docache: bool) -> (str, bool):
+        source = None
+        result = make_bytestr(result)
+        if result and result.startswith(b'<?xml'):
+            try:
+                source = ElementTree.fromstring(result)
+                if not docache:
+                    return source, False
+            except UnicodeEncodeError:
+                # sometimes we get utf-16 data labelled as utf-8
+                try:
+                    result = result.decode('utf-16').encode('utf-8')
+                    source = ElementTree.fromstring(result)
+                    if not docache:
+                        return source, False
+                except (ElementTree.ParseError, UnicodeEncodeError, UnicodeDecodeError):
+                    self.logger.error("Error parsing xml from %s" % self.url)
+                    source = None
+            except ElementTree.ParseError:
+                self.logger.error("Error parsing xml from %s" % self.url)
+                source = None
+
+        if source is not None:
+            with open(syspath(filename), "wb") as cachefile:
+                cachefile.write(result)
+        else:
+            self.logger.error("Error getting xml data from %s" % self.url)
+            return None, False
+        return source, True
+
+
+class HTMLCacheRequest(CacheRequest):
+    @classmethod
+    def name(cls) -> str:
+        return "HTML"
+
+    def read_from_cache(self, hashfilename: str) -> (str, bool):
+        with open(syspath(hashfilename), "rb") as cachefile:
+            source = cachefile.read()
+        return source, True
+
+    def load_from_result_and_cache(self, result: str, filename, docache) -> (str, bool):
+        source = make_bytestr(result)
+        with open(syspath(filename), "wb") as cachefile:
+            cachefile.write(source)
+        return source, True
+
+
+class JSONCacheRequest(CacheRequest):
+    @classmethod
+    def name(cls) -> str:
+        return "JSON"
+
+    def read_from_cache(self, hashfilename: str) -> (str, bool):
+        try:
+            source = json.load(open(hashfilename))
+        except ValueError:
+            self.logger.error("Error decoding json from %s" % hashfilename)
+            # normally delete bad data, but keep for inspection if debug logging cache
+            if not self.cachelogger.isEnabledFor(logging.DEBUG):
+                remove_file(hashfilename)
+            return None, False
+        return source, True
+
+    def load_from_result_and_cache(self, result: str, filename: str, docache) -> (str, bool):
+        try:
+            source = json.loads(result)
+            if not docache:
+                return source, False
+        except Exception as e:
+            self.logger.error("%s decoding json from %s" % (type(e).__name__, self.url))
+            self.logger.debug("%s : %s" % (e, result))
+            return None, False
+        json.dump(source, open(filename, "w"))
+        return source, True
 
 
 def clean_cache():
@@ -432,8 +497,7 @@ class CacheCleaner(ABC):
         self.kept: int = 0
 
     @abc.abstractmethod
-    def clean(self) -> str:
-        pass
+    def clean(self) -> str: pass
 
 
 class FileCleaner(CacheCleaner):
@@ -471,12 +535,10 @@ class FileCleaner(CacheCleaner):
         return self.basedir
 
     @abc.abstractmethod
-    def name(self) -> str:
-        pass
+    def name(self) -> str: pass
 
     @abc.abstractmethod
-    def clean_file(self, filename):
-        pass
+    def clean_file(self, filename): pass
 
 
 class FileExpirer(FileCleaner):
