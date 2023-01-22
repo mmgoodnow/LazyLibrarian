@@ -75,7 +75,7 @@ def init_hex_caches() -> bool:
     """
     logger = logging.getLogger()
     ok = True
-    caches = ["WorkCache"]
+    caches = ["WorkCache"]  # This one doesn't have its own handler class
     for cache in [HTMLCacheRequest, JSONCacheRequest, XMLCacheRequest]:
         caches.append(cache.cachedir_name())
     for item in caches:
@@ -289,6 +289,7 @@ class CacheRequest(ABC):
         # return the result, and boolean True if source was cache
         cache_location = DIRS.get_cachedir(self.cachedir_name())
         hashfilename, myhash = self.get_hashed_filename(cache_location)
+        # CACHE_AGE is in days, so get it to seconds
         expire_older_than = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60 if self.expire else 0
         valid_cache = self.is_in_cache(expire_older_than, hashfilename, myhash)
 
@@ -306,7 +307,7 @@ class CacheRequest(ABC):
                 source, result = self.load_from_result_and_cache(result, hashfilename, expire_older_than)
             else:
                 self.logger.debug("Got error response for %s: %s" % (self.url, result.split('<')[0]))
-                if 'goodreads' in self.url and '503' in result:
+                if 'goodreads' in self.url and '503' in result:  # TODO: Is this the right place for this code?
                     time.sleep(1)
                 return None, False
         return source, valid_cache
@@ -422,7 +423,11 @@ class JSONCacheRequest(CacheRequest):
 
     def read_from_cache(self, hashfilename: str) -> (str, bool):
         try:
-            source = json.load(open(hashfilename))
+            try:
+                with open(hashfilename) as f:
+                    source = json.load(f)
+            finally:
+                f.close()
         except ValueError:
             self.logger.error("Error decoding json from %s" % hashfilename)
             # normally delete bad data, but keep for inspection if debug logging cache
@@ -481,7 +486,7 @@ def clean_cache():
 
             # Verify the cover images referenced in the database are present, replace if not
             DBCleaner("book", "Cover", db, "books", "BookImg", "BookName", "BookID", "images/nocover.png").clean(),
-            DBCleaner("book", "Image", db, "author", "AuthorImg", "AuthorName", "AuthorID",
+            DBCleaner("book", "Image", db, "authors", "AuthorImg", "AuthorName", "AuthorID",
                       "images/nophoto.png").clean(),
         ]
 

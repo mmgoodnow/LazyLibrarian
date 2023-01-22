@@ -2,10 +2,8 @@
 #
 # Purpose:
 #   Test functions in cache.py
-#   TODO: Test more functions; for now, it is just clean_cache that is tested.
 
-import unittest
-from typing import List
+from typing import List, Any
 import itertools
 import logging
 import mock
@@ -14,6 +12,7 @@ import random
 import requests
 import time
 
+import lazylibrarian
 from lazylibrarian import cache
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import ImageType
@@ -29,9 +28,11 @@ class TestCache(LLTestCaseWithConfigandDIRS):
         # Create a test directory and test database
         super().setUp()
         self.logger.setLevel(logging.ERROR)
+        remove_dir(DIRS.get_cachedir(''), remove_contents=True)
         self.testdir = DIRS.get_cachedir('test')
-        remove_dir(self.testdir, remove_contents=True)
         DIRS.ensure_dir_is_writeable(self.testdir)
+        # Set up the hex cache dirs
+        cache.init_hex_caches()
 
         # Create a new, empty database for testing
         DIRS.DBFILENAME = "test-db.db"
@@ -49,6 +50,21 @@ class TestCache(LLTestCaseWithConfigandDIRS):
         remove_dir(self.testdir, remove_contents=True)
         remove_file(DIRS.get_dbfile())
         remove_dir(DIRS.get_cachedir(''), remove_contents=True)
+
+    @classmethod
+    def create_a_file(cls, fullname: str, age: int = 0):
+        """ Create a test file. If age > 0, make it that old in seconds """
+        with open(fullname, 'w') as f:
+            f.write('Hello')
+            f.close()
+        if age:
+            cls.settimestamp_to_ago(fullname, age)
+
+    @staticmethod
+    def settimestamp_to_ago(fullname: str, ago_seconds: int):
+        # Set its modified/access time for testing
+        timestamp = time.time() - ago_seconds
+        os.utime(fullname, (timestamp, timestamp))
 
     def test_fetch_url_no_mock(self):
         """ Test fetch_url without mocking the actual request call """
@@ -136,7 +152,7 @@ class TestCache(LLTestCaseWithConfigandDIRS):
 
         # Test error code 403, 'Limit Exceeded'
         url = 'http://someourl.com/test403-2'
-        with self.assertLogs(logger, logging.DEBUG) as logmsg:
+        with self.assertLogs(logger, logging.DEBUG):
             msg, res = cache.fetch_url(url, agent, False, raw=True)
         self.assertFalse(res, 'Expected failure 403')
         self.assertEqual(msg, 'Response status 403: Forbidden')
@@ -294,22 +310,178 @@ class TestCache(LLTestCaseWithConfigandDIRS):
         for name in ['RandomCache/a/7', 'JSONCache/g/0', 'HTMLCache/3/Z', 'XMLCache/B/T']:
             self.assertFalse(path_isdir(DIRS.get_cachedir(name)), f'Cache dir structure has unexpected dir {name}')
 
+    @mock.patch.object(cache, 'fetch_url')
+    def test_gr_xml_request(self, mock_fetch_url):
+        cache_hits = lazylibrarian.CACHE_HIT
+        # Try some requests that work
+        mock_fetch_url.return_value = ("<?xml version='1.0' encoding='utf-8'?><test>Hello</test>", True)
+        data, in_cache = cache.gr_xml_request('testing', True, True)
+        self.assertFalse(in_cache, 'Data should not yet be cached')
+        self.assertEqual(data.tag, 'test', 'Unexpected data in XML')
+        self.assertEqual(data.text, 'Hello', 'Unexpected data in XML')
 
-    @unittest.SkipTest
-    def test_gr_xml_request(self):
-        assert False
+        # Repeat the request
+        data, in_cache = cache.gr_xml_request('testing', True, True)
+        self.assertTrue(in_cache, 'Expected data to now be cached')
+        self.assertEqual(data.tag, 'test', 'Unexpected data in XML')
+        self.assertEqual(data.text, 'Hello', 'Unexpected data in XML')
 
-    @unittest.SkipTest
-    def test_json_request(self):
-        assert False
+        # Try a failed URL
+        mock_fetch_url.return_value = ('Hello', False)
+        data, in_cache = cache.gr_xml_request('failure', True, True)
+        self.assertFalse(in_cache, 'Request should have failed')
+        self.assertIsNone(data, 'Cannot be in cache')
 
-    @unittest.SkipTest
-    def test_html_request(self):
-        assert False
+        # Trigger ParseError because encoding doesn't match actual
+        xmlstr = "<?xml version='1.0' encoding='utf-16'?><test>Hello</test>"
+        mock_fetch_url.return_value = (xmlstr, True)
+        with self.assertLogs(self.logger, logging.ERROR):
+            data, in_cache = cache.gr_xml_request('test16', True, True)
+        self.assertFalse(in_cache, 'Request should have failed')
+        self.assertIsNone(data, 'Cannot be in cache')
 
-    @unittest.SkipTest
-    def test_get_cached_request(self):
-        assert False
+        # Save an cache file that is not valid XML and try to read it
+        cr = cache.XMLCacheRequest('fakexml', True, True)
+        dirname = DIRS.get_cachedir(cr.cachedir_name())
+        filename, _ = cr.get_hashed_filename(dirname)
+        self.create_a_file(filename)  # Creates a simple text file, not an XML file
+        with self.assertLogs(self.logger, logging.ERROR):
+            data, in_cache = cache.gr_xml_request('fakexml', True, True)
+        self.assertFalse(in_cache, 'Request should have failed')
+        self.assertIsNone(data, 'Cannot be in cache')
+
+        # Todo: Find a way to trigger UnicodeEncodeError and test that it works ok
+
+        self.assertEqual(lazylibrarian.CACHE_HIT, cache_hits+2)
+
+    @mock.patch.object(cache, 'fetch_url')
+    def test_json_request(self, mock_fetch_url):
+        cache_hits = lazylibrarian.CACHE_HIT
+        # Try some requests that work
+        mock_fetch_url.return_value = ('{"test": "Hello"}', True)
+        data, in_cache = cache.json_request('testing', True, True)
+        self.assertFalse(in_cache, 'Data should not yet be cached')
+        self.assertEqual(data, {'test': 'Hello'}, 'Unexpected data')
+
+        # Repeat the request
+        data, in_cache = cache.json_request('testing', True, True)
+        self.assertTrue(in_cache, 'Expected data to now be cached')
+        self.assertEqual(data, {'test': 'Hello'}, 'Unexpected data')
+
+        # Try a failed URL
+        mock_fetch_url.return_value = ('Hello', False)
+        data, in_cache = cache.json_request('failure', True, True)
+        self.assertFalse(in_cache, 'Request should have failed')
+        self.assertIsNone(data, 'Cannot be in cache')
+
+        # Test a malformed JSON string in the fetched data
+        mock_fetch_url.return_value = ('{"test"? "Hello}', True)
+        with self.assertLogs(self.logger, logging.ERROR):
+            data, in_cache = cache.json_request('malformed', True, True)
+        self.assertFalse(in_cache, 'Request should have failed')
+        self.assertIsNone(data, 'Cannot be in cache')
+
+        # Save an invalid cache file and try to read it
+        cr = cache.JSONCacheRequest('fakeit', True, True)
+        dirname = DIRS.get_cachedir(cr.cachedir_name())
+        filename, _ = cr.get_hashed_filename(dirname)
+        self.create_a_file(filename)  # Creates a simple text file, not a JSON file
+        with self.assertLogs(self.logger, logging.ERROR):
+            data, in_cache = cache.json_request('fakeit', True, True)
+        self.assertFalse(in_cache, 'Request should have failed')
+        self.assertIsNone(data, 'Cannot be in cache')
+
+        # The invalid cache file above would be deleted unless loglevel is debug, test that:
+        mock_fetch_url.return_value = ('{"test": "Hello"}', True)
+        data, in_cache = cache.json_request('fakeit', True, True)
+        self.assertFalse(in_cache, 'Data should not yet be cached')
+        self.assertEqual(data, {'test': 'Hello'}, 'Unexpected data')
+
+        self.assertEqual(lazylibrarian.CACHE_HIT, cache_hits+2)
+
+    @mock.patch.object(cache, 'fetch_url')
+    def test_html_request(self, mock_fetch_url):
+        cache_hits = lazylibrarian.CACHE_HIT
+        # Try some requests that work
+        mock_fetch_url.return_value = ('Hello', True)
+        data, in_cache = cache.html_request('testing', True, True)
+        self.assertFalse(in_cache, 'Data should not yet be cached')
+        self.assertEqual(data, b'Hello', 'Unexpected data')
+
+        # Repeat the request
+        data, in_cache = cache.html_request('testing', True, True)
+        self.assertTrue(in_cache, 'Expected data to now be cached')
+        self.assertEqual(data, b'Hello', 'Unexpected data')
+
+        # Try a failed URL
+        mock_fetch_url.return_value = ('Hello', False)
+        data, in_cache = cache.html_request('failure', True, True)
+        self.assertFalse(in_cache, 'Request should have failed')
+        self.assertIsNone(data, 'Cannot be in cache')
+
+        self.assertEqual(lazylibrarian.CACHE_HIT, cache_hits+1)
+
+    def test_JSONCacheRequest(self):
+        """ Test JSON cache, but don't actually fetch anything """
+        # Loop over the two behaviour-changing inputs
+        for use_cache, expire in [(True, True), (True, False), (False, True), (False, False)]:
+            cr = cache.JSONCacheRequest(url='test', use_cache=use_cache, expire=expire)
+            cache_location = DIRS.get_cachedir(cr.cachedir_name())
+            hashfilename, myhash = cr.get_hashed_filename(cache_location)
+            self.assertEqual(myhash, '098f6bcd4621d373cade4e832627b4f6', 'Unexpected hash')
+            self.assertEndsWith(hashfilename, '098f6bcd4621d373cade4e832627b4f6.json')
+            # Run a battery of tests
+            self.subtest_in_cache(cr, expire, hashfilename, myhash, use_cache, '{"test": "Hello"}', {'test': 'Hello'})
+
+    def test_HTMLCacheRequest(self):
+        """ Test HTML cache, but don't actually fetch anything """
+        for use_cache, expire in [(True, True), (True, False), (False, True), (False, False)]:
+            cr = cache.HTMLCacheRequest(url='test', use_cache=use_cache, expire=expire)
+            cache_location = DIRS.get_cachedir(cr.cachedir_name())
+            hashfilename, myhash = cr.get_hashed_filename(cache_location)
+            self.assertEqual(myhash, '098f6bcd4621d373cade4e832627b4f6', 'Unexpected hash')
+            self.assertEndsWith(hashfilename, '098f6bcd4621d373cade4e832627b4f6.html')
+            # Run a battery of tests
+            self.subtest_in_cache(cr, expire, hashfilename, myhash, use_cache, 'Hello', b'Hello')
+
+    def test_XMLCacheRequest(self):
+        """ Test XML cache, but don't actually fetch anything """
+        for use_cache, expire in [(True, True), (True, False), (False, True), (False, False)]:
+            cr = cache.XMLCacheRequest(url='test', use_cache=use_cache, expire=expire)
+            cache_location = DIRS.get_cachedir(cr.cachedir_name())
+            hashfilename, myhash = cr.get_hashed_filename(cache_location)
+            self.assertEqual(myhash, '098f6bcd4621d373cade4e832627b4f6', 'Unexpected hash')
+            self.assertEndsWith(hashfilename, '098f6bcd4621d373cade4e832627b4f6.xml')
+            # Run a battery of tests
+            xmlstr = "<?xml version='1.0' encoding='utf-8'?><test>Hello</test>"
+            self.subtest_in_cache(cr, expire, hashfilename, myhash, use_cache, xmlstr, None)
+
+    def subtest_in_cache(self, cr: cache.CacheRequest, expire: bool, hashfilename: str, myhash: str, use_cache: bool,
+                         datastr: str, expected_read: Any):
+        """ A subtest that is used for each of JSON, XML and HTML """
+        # Test that it's not yet in cache
+        in_cache = cr.is_in_cache(0, hashfilename, myhash)
+        self.assertFalse(in_cache, 'Test file cannot be in cache yet')
+        # Manually create the file and test for it
+        cr.load_from_result_and_cache(datastr, hashfilename, True)
+        # Set the timestamp to a predictable while ago to test aging out
+        self.settimestamp_to_ago(hashfilename, 1000)
+        in_cache = cr.is_in_cache(10000, hashfilename, myhash)
+        if use_cache:
+            self.assertTrue(in_cache, f'Test file should now be in cache {expire}/{use_cache}')
+        else:
+            self.assertFalse(in_cache, f'Cache is disabled; file should not be in cache {expire}/{use_cache}')
+        # Test, and potentially expire the file
+        in_cache = cr.is_in_cache(10, hashfilename, myhash)
+        if expire or not use_cache:
+            self.assertFalse(in_cache, f'Test file should have been deleted from cache {expire}/{use_cache}')
+        else:
+            self.assertTrue(in_cache, f'Files should not be deleted when expire is off {expire}/{use_cache}')
+        if in_cache:
+            source, ok = cr.read_from_cache(hashfilename)
+            self.assertTrue(ok, f'Expect to read the file if it is in cache  {expire}/{use_cache}')
+            if expected_read:
+                self.assertEqual(source, expected_read, f'Cache contents is wrong  {expire}/{use_cache}')
 
     def test_clean_cache(self):
         results = cache.clean_cache()
@@ -336,20 +508,14 @@ class TestCache(LLTestCaseWithConfigandDIRS):
         hexstr = "0123456789abcdef"
         for i in range(num):
             if hexdirs:
-                part1 = hexstr[random.randint(0, len(hexstr)-1)]
-                part2 = hexstr[random.randint(0, len(hexstr)-1)]
+                part1 = hexstr[random.randint(0, len(hexstr) - 1)]
+                part2 = hexstr[random.randint(0, len(hexstr) - 1)]
                 filename = os.path.join(part1, part2, basename % i)
             else:
                 filename = basename % i
             files.append(filename)
             fullname = os.path.join(self.testdir, filename)
-            with open(fullname, 'w') as f:
-                f.write('Hello')
-                f.close()
-            if age:
-                # Now set its modified/access time for testing
-                timestamp = time.time() - age
-                os.utime(fullname, (timestamp, timestamp))
+            self.create_a_file(fullname, age)
         return files
 
     def test_file_expirer(self):
