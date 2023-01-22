@@ -20,7 +20,7 @@ from lazylibrarian.cache import ImageType
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.database import DBConnection
 from lazylibrarian.dbupgrade import db_upgrade, upgrade_needed
-from lazylibrarian.filesystem import DIRS, remove_dir, remove_file
+from lazylibrarian.filesystem import DIRS, remove_dir, remove_file, path_isdir
 from unittests.unittesthelpers import LLTestCaseWithConfigandDIRS
 
 
@@ -44,10 +44,11 @@ class TestCache(LLTestCaseWithConfigandDIRS):
         self.logger.setLevel(logging.INFO)
 
     def tearDown(self) -> None:
-        """ Delete the test directory and database after each test """
+        """ Delete the test and cache directories, and the database, after each test """
         super().tearDown()
         remove_dir(self.testdir, remove_contents=True)
         remove_file(DIRS.get_dbfile())
+        remove_dir(DIRS.get_cachedir(''), remove_contents=True)
 
     def test_fetch_url_no_mock(self):
         """ Test fetch_url without mocking the actual request call """
@@ -277,6 +278,22 @@ class TestCache(LLTestCaseWithConfigandDIRS):
             msg, success, was_cached = cache.cache_img(ImageType.COMIC, 'abc', link, refresh=False)
         self.assertFalse(success, 'Expected an error')
         self.assertFalse(was_cached, 'The file was not yet be cached')
+
+    def test_init_hex_caches(self):
+        """ Test creating hexdirs for all relevant caches """
+        ok = cache.init_hex_caches()
+        self.assertTrue(ok, 'Could not initialize hex caches')
+
+        ok = cache.init_hex_caches()
+        self.assertTrue(ok, 'Could not re-initialize hex caches')
+
+        # Check that a few dirs exist
+        for name in ['WorkCache/a/7', 'JSONCache/f/0', 'HTMLCache/0/f', 'XMLCache/6/6']:
+            self.assertTrue(path_isdir(DIRS.get_cachedir(name)), f'Cache dir structure missing fir {name}')
+        # Check that a few dirs don't exist
+        for name in ['RandomCache/a/7', 'JSONCache/g/0', 'HTMLCache/3/Z', 'XMLCache/B/T']:
+            self.assertFalse(path_isdir(DIRS.get_cachedir(name)), f'Cache dir structure has unexpected dir {name}')
+
 
     @unittest.SkipTest
     def test_gr_xml_request(self):

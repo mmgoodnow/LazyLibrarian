@@ -36,7 +36,7 @@ import urllib3
 import lazylibrarian
 from lazylibrarian import database, versioncheck
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian.cache import fetch_url
+from lazylibrarian.cache import init_hex_caches, fetch_url
 from lazylibrarian.cleanup import UNBUNDLER
 from lazylibrarian.common import log_header
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
@@ -241,31 +241,13 @@ class StartupLazyLibrarian:
         if config['SYS_ENCODING']:
             lazylibrarian.SYS_ENCODING = config['SYS_ENCODING']
 
-        for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
-                     'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
-            cachelocation = os.path.join(DIRS.CACHEDIR, item)
-            try:
-                os.makedirs(cachelocation)
-            except OSError as e:
-                if not path_isdir(cachelocation):
-                    self.logger.error('Could not create %s: %s' % (cachelocation, e))
+        for item in ['book', 'author', 'SeriesCache', 'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
+            cachelocation = DIRS.get_cachedir(item)
+            ok, msg = DIRS.ensure_dir_is_writeable(cachelocation)
+            if not ok:
+                self.logger.error(msg)
 
-        # nest these caches 2 levels to make smaller/faster directory lists
-        caches = ["XMLCache", "JSONCache", "WorkCache", "HTMLCache"]
-        for item in caches:
-            pth = os.path.join(DIRS.CACHEDIR, item)
-            for i in '0123456789abcdef':
-                for j in '0123456789abcdef':
-                    cachelocation = os.path.join(pth, i, j)
-                    try:
-                        os.makedirs(cachelocation)
-                    except OSError as e:
-                        if not path_isdir(cachelocation):
-                            self.logger.error('Could not create %s: %s' % (cachelocation, e))
-            for itm in listdir(pth):
-                if len(itm) > 2:
-                    os.rename(syspath(os.path.join(pth, itm)),
-                              syspath(os.path.join(pth, itm[0], itm[1], itm)))
+        _ = init_hex_caches()
         last_run_version = None
         last_run_interface = None
         makocache = DIRS.get_mako_cachedir()

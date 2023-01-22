@@ -69,6 +69,27 @@ def cv_api_sleep():
     lazylibrarian.TIMERS['LAST_CV'] = time_now
 
 
+def init_hex_caches() -> bool:
+    """ Initialize the directory structure for each of the caches that use a two-layer dir structure for efficiency.
+    Returns Success
+    """
+    logger = logging.getLogger()
+    ok = True
+    caches = ["WorkCache"]
+    for cache in [HTMLCacheRequest, JSONCacheRequest, XMLCacheRequest]:
+        caches.append(cache.cachedir_name())
+    for item in caches:
+        pth = DIRS.get_cachedir(item)
+        subdirs = itertools.product("0123456789abcdef", repeat=2)
+        for i, j in subdirs:
+            cachelocation = os.path.join(pth, i, j)
+            isok, msg = DIRS.ensure_dir_is_writeable(cachelocation)
+            if not isok:
+                logger.error(msg)
+                ok = False
+    return ok
+
+
 def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = False) -> (Union[str, bytes], bool):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False
@@ -243,6 +264,10 @@ class CacheRequest(ABC):
         """ Return the name of the cache, such as XML, HTML or JSON """
         pass
 
+    @classmethod
+    def cachedir_name(cls) -> str:
+        return cls.name() + "Cache"
+
     @abc.abstractmethod
     def read_from_cache(self, hashfilename: str) -> (str, bool):
         """ Read the source from cache """
@@ -262,7 +287,7 @@ class CacheRequest(ABC):
         # if hashfilename exists in cache and isn't too old, return its contents
         # if not, read url and store the result in the cache
         # return the result, and boolean True if source was cache
-        cache_location = os.path.join(DIRS.CACHEDIR, self.name() + "Cache")
+        cache_location = DIRS.get_cachedir(self.cachedir_name())
         hashfilename, myhash = self.get_hashed_filename(cache_location)
         expire_older_than = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60 if self.expire else 0
         valid_cache = self.is_in_cache(expire_older_than, hashfilename, myhash)
