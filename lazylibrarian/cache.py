@@ -57,18 +57,6 @@ def gr_api_sleep():
     lazylibrarian.TIMERS['LAST_GR'] = time_now
 
 
-def cv_api_sleep():
-    time_now = time.time()
-    delay = time_now - lazylibrarian.TIMERS['LAST_CV']
-    if delay < 1.0:
-        sleep_time = 1.0 - delay
-        lazylibrarian.TIMERS['SLEEP_CV'] += sleep_time
-        cachelogger = logging.getLogger('special.cache')
-        cachelogger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_CV']))
-        time.sleep(sleep_time)
-    lazylibrarian.TIMERS['LAST_CV'] = time_now
-
-
 def init_hex_caches() -> bool:
     """ Initialize the directory structure for each of the caches that use a two-layer dir structure for efficiency.
     Returns Success

@@ -20,7 +20,7 @@ import logging
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.cache import html_request, json_request, cv_api_sleep
+from lazylibrarian.cache import html_request, json_request
 from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, quotes
 from lazylibrarian.filesystem import path_isfile
 from urllib.parse import quote_plus
@@ -733,3 +733,15 @@ def cx_issue(url, issuenum):
                     contributors += role + ': ' + name
             res['Contributors'] = contributors
     return res
+
+
+def cv_api_sleep():
+    time_now = time.time()
+    delay = time_now - lazylibrarian.TIMERS['LAST_CV']
+    if delay < 1.0:
+        sleep_time = 1.0 - delay
+        lazylibrarian.TIMERS['SLEEP_CV'] += sleep_time
+        cachelogger = logging.getLogger('special.cache')
+        cachelogger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_CV']))
+        time.sleep(sleep_time)
+    lazylibrarian.TIMERS['LAST_CV'] = time_now
