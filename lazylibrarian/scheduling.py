@@ -116,12 +116,9 @@ def get_whole_timediff_from_seconds(diff):
     return days, hours, minutes, seconds
 
 
-def get_next_run_time(target=None, minutes=0, action=SchedulerCommand.NONE):
+def get_next_run_time(target: str, minutes=0, action=SchedulerCommand.NONE) -> datetime:
     """ Check when a job is next due to run and log it
         Return startdate for the job """
-    if target is None:
-        return ''
-
     logger = logging.getLogger(__name__)
     if action == SchedulerCommand.STARTNOW:
         lazylibrarian.STOPTHREADS = False
@@ -144,18 +141,19 @@ def get_next_run_time(target=None, minutes=0, action=SchedulerCommand.NONE):
     nextruntime = ''
     for job in SCHED.get_jobs():
         if target in str(job):
-            nextruntime = job.split('at: ')[1].split('.')[0].strip(')')
+            nextruntime = str(job).split('at: ')[1].split('.')[0].strip(')')
             break
 
     if nextruntime:
         startdate = datetime.datetime.strptime(nextruntime, '%Y-%m-%d %H:%M:%S')
-        msg = "%s %s job in %s" % (action, target, next_run_time(startdate))
+        msg = "%s %s job in %s" % (action, target, next_run_time(nextruntime))
     else:
         next_run_in = lastrun + (minutes * 60) - time.time()
         if next_run_in < 60:
             next_run_in = 60  # overdue, start in 1 minute
 
         startdate = datetime.datetime.fromtimestamp(time.time() + next_run_in)
+        startdate = startdate.replace(microsecond=0)  # Whole seconds only
 
         next_run_in = int(next_run_in / 60)
         if next_run_in < 1:
@@ -264,6 +262,11 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
             SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
         else:
             logger.error(f'Cannot find method {startjob.method_name} for scheduled job {target}')
+
+
+def add_interval_job(method, hours, minutes, startdate):
+    """ Add a scheduled job """
+    SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
 
 
 def author_update(restart=True, only_overdue=True):

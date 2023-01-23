@@ -26,8 +26,7 @@ from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
-from lazylibrarian.common import remove_file
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 
 
 def ip_numstr_to_quad(num):
