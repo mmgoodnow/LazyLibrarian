@@ -537,7 +537,7 @@ def preprocess_magazine(bookfolder, cover=0):
                     while p < cnt:
                         if p != cover:
                             output.addPage(input1.getPage(p))
-                        p = p + 1
+                        p += 1
                     with open(srcfile + 'new', "wb") as outputStream:
                         output.write(outputStream)
                 logger.debug("%s has %d pages. Cover from page %d" % (srcfile, cnt, cover + 1))

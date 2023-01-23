@@ -3,9 +3,9 @@ import sys
 import os
 import subprocess
 
+from lazylibrarian.common import calibre_prg
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import get_directory
-from lazylibrarian.common import calibre_prg
 
 
 def convert(input_file, output_format):

@@ -15,8 +15,6 @@
 # Purpose:
 #   Common, basic functions for LazyLibrary
 
-import glob
-
 import logging
 import mako
 import os
@@ -43,8 +41,7 @@ from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configdefs import CONFIG_GIT
 from lazylibrarian.formatter import get_list, make_unicode
-from lazylibrarian.filesystem import DIRS, syspath, path_exists, remove_file, \
-    listdir, walk, setperm
+from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm
 from lazylibrarian.logconfig import LOGCONFIG
 
 
@@ -174,41 +171,6 @@ def module_available(module_name):
     else:
         loader = None
     return loader is not None
-
-
-def get_calibre_id(data):
-    logger = logging.getLogger(__name__)
-    logger.debug(str(data))
-    fname = data.get('BookFile', '')
-    if fname:  # it's a book
-        author = data.get('AuthorName', '')
-        title = data.get('BookName', '')
-    else:
-        title = data.get('IssueDate', '')
-        if title:  # it's a magazine issue
-            author = data.get('Title', '')
-            fname = data.get('IssueFile', '')
-        else:  # assume it's a comic issue
-            title = data.get('IssueID', '')
-            author = data.get('ComicID', '')
-            fname = data.get('IssueFile', '')
-    try:
-        fname = os.path.dirname(fname)
-        calibre_id = fname.rsplit('(', 1)[1].split(')')[0]
-        if not calibre_id.isdigit():
-            calibre_id = ''
-    except IndexError:
-        calibre_id = ''
-    if not calibre_id:
-        # ask calibre for id of this issue
-        res, err, rc = lazylibrarian.calibre.calibredb('search', ['author:"%s" title:"%s"' % (author, title)])
-        if not rc:
-            try:
-                calibre_id = res.split(',')[0].strip()
-            except IndexError:
-                calibre_id = ''
-    logger.debug('Calibre ID [%s]' % calibre_id)
-    return calibre_id
 
 
 def create_support_zip() -> (str, str):

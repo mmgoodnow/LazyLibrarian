@@ -38,11 +38,11 @@ from lazylibrarian.auth import AuthController
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
 from lazylibrarian.cache import cache_img, ImageType
-from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb
+from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb, get_calibre_id
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import create_support_zip, log_header, pwd_generator, pwd_check, \
-    is_valid_email, mime_type, zip_audio, run_script, get_calibre_id
+    is_valid_email, mime_type, zip_audio, run_script
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \

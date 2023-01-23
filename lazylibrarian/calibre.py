@@ -9,7 +9,7 @@
 #  GNU General Public License for more details.
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
-
+import os
 import string
 import re
 import json
@@ -17,14 +17,15 @@ import time
 import cherrypy
 import logging
 
+from lazylibrarian.common import run_script
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
+from lazylibrarian.filesystem import get_directory
 from lazylibrarian.formatter import unaccented, get_list
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
-from lazylibrarian.filesystem import get_directory
 from thefuzz import fuzz
-from lazylibrarian.common import run_script
+
 
 # calibredb custom_columns
 # calibredb add_custom_column label name bool
@@ -252,14 +253,18 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
             added_to_ll_read = list(set(readlist) - set(last_read))
             removed_from_ll_read = list(set(last_read) - set(readlist))
             logger.debug("lazylibrarian changes to copy to calibre: %s %s %s %s" % (len(added_to_ll_toread),
-                         len(removed_from_ll_toread), len(added_to_ll_read), len(removed_from_ll_read)))
+                                                                                    len(removed_from_ll_toread),
+                                                                                    len(added_to_ll_read),
+                                                                                    len(removed_from_ll_read)))
 
             added_to_calibre_toread = list(set(calibre_toread) - set(last_toread))
             removed_from_calibre_toread = list(set(last_toread) - set(calibre_toread))
             added_to_calibre_read = list(set(calibre_read) - set(last_read))
             removed_from_calibre_read = list(set(last_read) - set(calibre_read))
             logger.debug("calibre changes to copy to lazylibrarian: %s %s %s %s" % (len(added_to_calibre_toread),
-                         len(removed_from_calibre_toread), len(added_to_calibre_read), len(removed_from_calibre_read)))
+                                                                                    len(removed_from_calibre_toread),
+                                                                                    len(added_to_calibre_read),
+                                                                                    len(removed_from_calibre_read)))
 
             calibre_changes = 0
             for item in added_to_calibre_read:
@@ -384,7 +389,7 @@ def calibre_test():
         logger.debug("Calibredb list_categories " + cats)
         cnt = 0
         if not len(cats):
-            res = res + '\nDatabase READ Failed'
+            res += '\nDatabase READ Failed'
         else:
             for entry in cats.split('\n'):
                 words = entry.split(',')
@@ -393,7 +398,7 @@ def calibre_test():
                     if item_count.strip('b').strip("'").isdigit():
                         cnt += int(item_count)
         if cnt:
-            res = res + '\nDatabase READ ok'
+            res += '\nDatabase READ ok'
             wrt, err, rc = calibredb('add', ['--authors', 'LazyLibrarian', '--title', 'dummy', '--empty'], [])
             logger.debug("Calibredb add  " + wrt)
             # Answer should look like "Added book ids: bookID" (string may be translated!)
@@ -401,23 +406,23 @@ def calibre_test():
             try:
                 calibre_id = wrt.rsplit(": ", 1)[1].split("\n", 1)[0].strip()
             except IndexError:
-                res = res + '\nDatabase WRITE Failed'
+                res += '\nDatabase WRITE Failed'
                 return res
 
             # Try to fetch the added book and delete it
             if not calibre_id.isdigit():
-                res = res + '\nDatabase WRITE Failed'
+                res += '\nDatabase WRITE Failed'
                 return res
             if vernum.startswith('2'):
                 _, err, rc = calibredb('remove', [calibre_id], [])
             else:
                 rmv, err, rc = calibredb('remove', ['--permanent', calibre_id], [])
             if not rc:
-                res = res + '\nDatabase WRITE ok'
+                res += '\nDatabase WRITE ok'
             else:
-                res = res + '\nDatabase WRITE2 Failed: '
+                res += '\nDatabase WRITE2 Failed: '
         else:
-            res = res + '\nDatabase READ Failed or database is empty'
+            res += '\nDatabase READ Failed or database is empty'
     else:
         res = 'calibredb Failed'
     return res
@@ -449,11 +454,12 @@ def calibredb(cmd=None, prelib=None, postlib=None):
     if postlib:
         params.extend(postlib)
 
+    logger.debug(f"Run calibre: '{params}'")
     rc, res, err = run_script(params)
     logger.debug("calibredb rc %s" % rc)
     wsp = re.escape(string.whitespace)
-    nres = re.sub(r'['+wsp+']', ' ', res)
-    nerr = re.sub(r'['+wsp+']', ' ', err)
+    nres = re.sub(r'[' + wsp + ']', ' ', res)
+    nerr = re.sub(r'[' + wsp + ']', ' ', err)
     logger.debug("calibredb res %d[%s]" % (len(nres), nres))
     logger.debug("calibredb err %d[%s]" % (len(nerr), nerr))
 
@@ -471,3 +477,39 @@ def calibredb(cmd=None, prelib=None, postlib=None):
         return res, err, rc
     else:
         return res, dest_url, 0
+
+
+def get_calibre_id(data):
+    """ Get the Calibre ID for 'data', which may be a book or a magazine """
+    logger = logging.getLogger(__name__)
+    logger.debug(str(data))
+    fname = data.get('BookFile', '')
+    if fname:  # it's a book
+        author = data.get('AuthorName', '')
+        title = data.get('BookName', '')
+    else:
+        title = data.get('IssueDate', '')
+        if title:  # it's a magazine issue
+            author = data.get('Title', '')
+            fname = data.get('IssueFile', '')
+        else:  # assume it's a comic issue
+            title = data.get('IssueID', '')
+            author = data.get('ComicID', '')
+            fname = data.get('IssueFile', '')
+    try:
+        fname = os.path.dirname(fname)
+        calibre_id = fname.rsplit('(', 1)[1].split(')')[0]
+        if not calibre_id.isdigit():
+            calibre_id = ''
+    except IndexError:
+        calibre_id = ''
+    if not calibre_id:
+        # ask calibre for id of this issue
+        res, err, rc = calibredb('search', ['author:"%s" title:"%s"' % (author, title)])
+        if not rc:
+            try:
+                calibre_id = res.split(',')[0].strip()
+            except IndexError:
+                calibre_id = ''
+    logger.debug('Calibre ID [%s]' % calibre_id)
+    return calibre_id
