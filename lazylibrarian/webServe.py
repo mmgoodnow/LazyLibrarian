@@ -7117,6 +7117,6 @@ class WebInterface(object):
     def enable_telemetry(self, **kwargs):
         CONFIG.set_bool('TELEMETRY_ENABLE', True)
         CONFIG.set_int('TELEMETRY_INTERVAL', 6)
-        CONFIG.set_url('TELEMETRY_SERVER', 'https://sentential-dunlin-4474.dataplicity.io/telemetry')
+        CONFIG.set_url('TELEMETRY_SERVER', 'https://conceded-moose-5564.dataplicity.io/telemetry')
         CONFIG.save_config_and_backup_old(section='Telemetry')
         return "Thank you for enabling Telemetry"
