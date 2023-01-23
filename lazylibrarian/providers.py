@@ -472,16 +472,16 @@ def get_capabilities(provider: ConfigDict, force=False):
                         for subcat in subcats:
                             if 'ebook' in subcat.attrib['name'].lower():
                                 if ebooksubs:
-                                    ebooksubs = ebooksubs + ','
-                                ebooksubs = ebooksubs + subcat.attrib['id']
+                                    ebooksubs += ','
+                                ebooksubs += subcat.attrib['id']
                             if 'magazines' in subcat.attrib['name'].lower() or 'mags' in subcat.attrib['name'].lower():
                                 if magsubs:
-                                    magsubs = magsubs + ','
-                                magsubs = magsubs + subcat.attrib['id']
+                                    magsubs += ','
+                                magsubs += subcat.attrib['id']
                             if 'comic' in subcat.attrib['name'].lower():
                                 if comicsubs:
-                                    comicsubs = comicsubs + ','
-                                comicsubs = comicsubs + subcat.attrib['id']
+                                    comicsubs += ','
+                                comicsubs += subcat.attrib['id']
                         if ebooksubs:
                             provider['BOOKCAT'] = ebooksubs
                         if magsubs:

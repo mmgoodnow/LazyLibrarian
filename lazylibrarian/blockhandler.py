@@ -129,7 +129,7 @@ class BlockHandler:
             if resume > 0:
                 time_str = pretty_approx_time(resume)
                 new_entry = f"{key} blocked for {time_str}: {line['reason']}\n"
-                result = result + new_entry
+                result += new_entry
 
         if result == '':
             result = 'No blocked providers'

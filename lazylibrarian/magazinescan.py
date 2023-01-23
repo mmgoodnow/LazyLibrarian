@@ -103,7 +103,7 @@ def magazine_scan(title=None):
         matchto = CONFIG['MAG_DEST_FILE']
         for char in matchto:
             if not char.isalpha():
-                match_string = match_string + '\\'
+                match_string += '\\'
             match_string = match_string + char
 
         match = match_string.replace(

@@ -61,13 +61,13 @@ def main():
     # Read command line and return options
     options, configfile = starter.startup_parsecommandline(__file__, args=sys.argv[1:])
     # Load config.ini and initialize CONFIG and DIRS
-    starter.load_config(configfile, options)
+    starter.load_config(configfile)
     # Read logging config and initialize loggers
     starter.init_loggers(console_only=False)
     # Run initialization that needs CONFIG to be loaded
     starter.init_misc(lazylibrarian.config2.CONFIG)
     starter.init_caches(lazylibrarian.config2.CONFIG)
-    starter.init_database(lazylibrarian.config2.CONFIG)
+    starter.init_database()
     starter.init_build_debug_header(online=True)
     starter.init_build_lists(lazylibrarian.config2.CONFIG)
     logger = logging.getLogger(__name__)
@@ -124,10 +124,10 @@ def main():
             try:
                 time.sleep(1)
             except KeyboardInterrupt:
-                starter.shutdown(quit=True)
+                starter.shutdown(doquit=True)
         else:
             if lazylibrarian.SIGNAL == 'shutdown':
-                starter.shutdown(quit=True)
+                starter.shutdown(doquit=True)
             elif lazylibrarian.SIGNAL == 'restart':
                 starter.shutdown(restart=True)
             elif lazylibrarian.SIGNAL == 'update':

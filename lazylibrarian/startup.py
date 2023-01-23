@@ -25,7 +25,6 @@ import sys
 import tarfile
 import time
 import traceback
-from pathlib import Path
 from shutil import rmtree
 from typing import Any
 
@@ -42,7 +41,7 @@ from lazylibrarian.common import log_header
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.notifiers import APPRISE_VER
@@ -184,7 +183,7 @@ class StartupLazyLibrarian:
                 lazylibrarian.SIGNAL = None
                 print('Cannot update, not a git or source installation')
             else:
-                self.shutdown(update=True, quit=True, testing=False)
+                self.shutdown(update=True, doquit=True, testing=False)
 
         if not testing:
             self.logger.info("Lazylibrarian (pid %s) is starting up..." % os.getpid())
@@ -198,9 +197,8 @@ class StartupLazyLibrarian:
         return options, configfile
 
     @staticmethod
-    def load_config(configfile: str, options: Any):
-        """ Load the config file, perform post-load fixups to ensure consistent state, and
-        apply any command line options that override loaded settings """
+    def load_config(configfile: str):
+        """ Load the config file, perform post-load fixups to ensure consistent states """
         config = lazylibrarian.config2.CONFIG  # Don't create a new instance
         config.load_configfile(configfile=configfile)
         config.post_load_fixup()
@@ -299,7 +297,7 @@ class StartupLazyLibrarian:
             config.set_bool('GR_FOLLOW', False)
             config.set_bool('GR_FOLLOWNEW', False)
 
-    def init_database(self, config: LLConfigHandler):
+    def init_database(self):
         # Initialize the database
         db = database.DBConnection()
         try:
@@ -648,7 +646,8 @@ class StartupLazyLibrarian:
         except Exception as e:
             self.logger.error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
 
-    def start_schedulers(self):
+    @staticmethod
+    def start_schedulers():
         if CONFIG['GR_URL'] == 'https://goodreads.org':
             CONFIG.set_url('GR_URL', 'https://www.goodreads.com')
         # Crons and scheduled jobs started here
@@ -657,7 +656,7 @@ class StartupLazyLibrarian:
         if not lazylibrarian.STOPTHREADS:
             restart_jobs(command=SchedulerCommand.START)
 
-    def shutdown(self, restart=False, update=False, quit=False, testing=False):
+    def shutdown(self, restart=False, update=False, doquit=False, testing=False):
         shutdownscheduler()
         if not testing:
             if self.logger.isEnabledFor(logging.DEBUG):  # TODO add a separate setting
@@ -698,7 +697,7 @@ class StartupLazyLibrarian:
             self.logger.info('Removing pidfile %s' % lazylibrarian.PIDFILE)
             os.remove(syspath(lazylibrarian.PIDFILE))
 
-        if not quit:
+        if not doquit:
             self.logger.info('LazyLibrarian is restarting ...')
             if not lazylibrarian.DOCKER:
                 # Try to use the currently running python executable, as it is known to work
@@ -741,7 +740,7 @@ class StartupLazyLibrarian:
                                                       'Restarting LazyLibrarian with ' + str(popen_list)))
 
                     subprocess.Popen(popen_list, cwd=os.getcwd())
-                    quit = True
+                    doquit = True
                     if cherrypy.server.httpserver is not None:
                         # updating a running instance, not an --update
                         # wait for the new instance to open the httpserver
@@ -776,7 +775,7 @@ class StartupLazyLibrarian:
                                 r = requests.get(server1)
                                 res = r.status_code
                                 if res == 200 or res == 401:
-                                    quit = True
+                                    doquit = True
                                     break
                             except Exception:
                                 r = None
@@ -787,7 +786,7 @@ class StartupLazyLibrarian:
                                     r = requests.get(server2)
                                     res = r.status_code
                                     if res == 200 or res == 401:
-                                        quit = True
+                                        doquit = True
                                         break
                                 except Exception:
                                     pass
@@ -799,7 +798,7 @@ class StartupLazyLibrarian:
                             archivename = 'backup.tgz'
                             if success:
                                 msg = 'Reached webserver page %s, deleting backup' % res
-                                quit = True
+                                doquit = True
                                 if updated:
                                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
                                 self.logger.info(msg)
@@ -835,7 +834,7 @@ class StartupLazyLibrarian:
                                     self.logger.info(msg)
                                     subprocess.Popen(popen_list, cwd=os.getcwd())
 
-        if quit and not testing:
+        if doquit and not testing:
             self.logger.info('Lazylibrarian (pid %s) is exiting' % os.getpid())
             cherrypy.engine.stop()
             # Do this as the last step before existing

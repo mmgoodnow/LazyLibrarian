@@ -140,20 +140,20 @@ class LLTestCaseWithStartup(LLTestCase):
         cls.starter = StartupLazyLibrarian()
         cls.starter.init_loggers(console_only=True)
         options, configfile = cls.starter.startup_parsecommandline(__file__, args=[''], testing=True)
-        cls.starter.load_config(cls.CONFIGFILE, options)
+        cls.starter.load_config(cls.CONFIGFILE)
         # Only log errors during the rest of startup
         cls.starter.init_loggers(console_only=False)
         logging.getLogger('root').setLevel(logging.ERROR)
         cls.starter.init_misc(CONFIG)
         LLTestCase.disableHTTPSWarnings()
         cls.starter.init_caches(CONFIG)
-        cls.starter.init_database(CONFIG)
+        cls.starter.init_database()
         cls.prepareTestDB()
         cls.starter.init_build_lists(CONFIG)
 
     @classmethod
     def tearDownClass(cls) -> None:
-        cls.starter.shutdown(restart=False, update=False, quit=False, testing=True)
+        cls.starter.shutdown(restart=False, update=False, doquit=False, testing=True)
         cls.removetestDB()
         cls.removetestCache()
         cls.delete_test_logs()

@@ -134,6 +134,7 @@ class DirectoryHolder:
         """ Get the full name of a file in the testdata directory """
         return os.path.join(self.PROG_DIR, 'testdata', filename)
 
+
 """ Global access to directories """
 DIRS = DirectoryHolder()
 
@@ -251,7 +252,7 @@ def listdir(name: str):
     if os.path.__name__ == 'ntpath':
         dname = syspath(name)
         if not dname.endswith('\\'):
-            dname = dname + '\\'
+            dname += '\\'
         try:
             return os.listdir(dname)
         except Exception as err:

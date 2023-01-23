@@ -286,9 +286,9 @@ def error_page_401(status, message, traceback, version):
     """ Custom handler for 401 error """
     body = 'Error %s: ' % status
     if str(status) == '401':
-        body = body + 'You need to provide a valid username and password. '
+        body += 'You need to provide a valid username and password. '
     if message:
-        body = body + message
+        body += message
     title = "I'm not getting out of bed"
     return r'''
 <html>

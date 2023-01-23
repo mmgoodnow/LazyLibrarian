@@ -318,8 +318,8 @@ def set_work_id(books=None):
                         logger.debug("No bookid for %s" % book['BookName'])
                     else:
                         if page:
-                            page = page + ','
-                        page = page + bookid
+                            page += ','
+                        page += bookid
                         counter += 1
                         if counter == 50:
                             counter = 0

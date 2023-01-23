@@ -24,6 +24,7 @@ import sys
 import time
 import logging
 from collections import defaultdict
+from http.client import responses
 from typing import Optional
 
 import requests
@@ -225,10 +226,9 @@ class LazyTelemetry(object):
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             return r.text, True  # Success
-        try:
-            # noinspection PyProtectedMember
-            msg = requests.status_codes._codes[r.status_code][0]
-        except Exception:
+        if r.status_code in responses:
+            msg = responses[r.status_code]
+        else:
             msg = r.text
         return "Response status %s: %s" % (r.status_code, msg), False
 

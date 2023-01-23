@@ -80,7 +80,7 @@ class GoogleBooks:
             for api_value in api_strings:
                 set_url = self.url
                 if api_value == "isbn:":
-                    set_url = set_url + quote(api_value + searchterm)
+                    set_url += quote(api_value + searchterm)
                 elif api_value == 'intitle:':
                     searchterm = fullterm
                     if title:  # just search for title
@@ -88,13 +88,13 @@ class GoogleBooks:
                         searchterm = title
                     # strip all ascii and non-ascii quotes/apostrophes
                     searchterm = replace_quotes_with(searchterm, '')
-                    set_url = set_url + quote(make_utf8bytes(api_value + '"' + searchterm + '"')[0])
+                    set_url += quote(make_utf8bytes(api_value + '"' + searchterm + '"')[0])
                 elif api_value == 'inauthor:':
                     searchterm = fullterm
                     if authorname:
                         searchterm = authorname  # just search for author
                     searchterm = searchterm.strip()
-                    set_url = set_url + quote_plus(make_utf8bytes(api_value + '"' + searchterm + '"')[0])
+                    set_url += quote_plus(make_utf8bytes(api_value + '"' + searchterm + '"')[0])
 
                 startindex = 0
                 resultcount = 0

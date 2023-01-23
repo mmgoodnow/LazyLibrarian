@@ -19,8 +19,8 @@ ValidIntTypes = Union[int, bool]
 ValidStrTypes = str
 ValidTypes = Union[ValidStrTypes, ValidIntTypes]
 
-# Class method that can be called when a value changes
-OnChangeCallback = Callable[[object, str, str], None]
+# Method or static method that can be called when a value changes
+OnChangeCallback = Callable[[str, OnChangeReason], None]
 
 
 class ConfigItem:

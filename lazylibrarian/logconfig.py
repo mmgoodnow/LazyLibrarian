@@ -264,6 +264,7 @@ class LogConfig:
         if reason != OnChangeReason.COPYING:
             LOGCONFIG.ensure_memoryhandler_for_ui(capacity_lines=int(limitstr), redact=None)
 
+    # noinspection PyUnusedLocal
     @staticmethod
     def change_loguiredact(redactstr: str, reason: OnChangeReason = OnChangeReason.SETTING):
         """ The LOGREDACT setting changes """
@@ -357,7 +358,7 @@ class LogConfig:
         """ Called on --quiet, to make sure all LL handlers named console* are removed """
         # The only predefined ones are in root and special:
         removed = LogConfig.remove_console_handlers_from_logger('') + \
-                  LogConfig.remove_console_handlers_from_logger('special')
+            LogConfig.remove_console_handlers_from_logger('special')
         return removed
 
     # Methods for dealing with special loggers
@@ -431,7 +432,7 @@ class LogConfig:
         logger = logging.getLogger()
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
-                if any(filter == self.redact_filter for filter in handler.filters):
+                if any(afilter == self.redact_filter for afilter in handler.filters):
                     names.append(handler.baseFilename)
         return names
 

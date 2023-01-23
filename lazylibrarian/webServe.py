@@ -7113,6 +7113,7 @@ class WebInterface(object):
         if 'config_tab' in kwargs:
             CONFIG.set_from_ui('CONFIG_TAB_NUM', kwargs['config_tab'])
 
+    # noinspection PyUnusedLocal
     @cherrypy.expose
     def enable_telemetry(self, **kwargs):
         CONFIG.set_bool('TELEMETRY_ENABLE', True)

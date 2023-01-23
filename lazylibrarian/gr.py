@@ -1143,8 +1143,8 @@ class GoodReads:
                     self.logger.warning("No gr_id for %s" % book['BookName'])
                 else:
                     if page:
-                        page = page + ','
-                    page = page + bookid
+                        page += ','
+                    page += bookid
                     counter += 1
                     if counter == 50:
                         counter = 0

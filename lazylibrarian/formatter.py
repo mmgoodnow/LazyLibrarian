@@ -36,6 +36,7 @@ umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd
 apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
 
 
+# noinspection PyUnusedLocal
 class ImportPrefs:
     LANG_LIST = []
     SPLIT_LIST = []

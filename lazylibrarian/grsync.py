@@ -174,7 +174,7 @@ class GrAuth:
             shelves = []
             page_shelves = 1
             while page_shelves:
-                current_page = current_page + 1
+                current_page += 1
                 page_shelves = 0
                 shelf_template = Template('${base}/shelf/list.xml?user_id=${user_id}&key=${key}&page=${page}')
                 body = urlencode({})
@@ -336,7 +336,7 @@ class GrAuth:
             gr_list = []
 
             while True:
-                current_page = current_page + 1
+                current_page += 1
                 content = self.get_shelf_books(current_page, shelf)
                 # noinspection PyUnresolvedReferences
                 xmldoc = xml.dom.minidom.parseString(content)

@@ -178,8 +178,8 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
                     else:
                         nzb_url = 'http://' + nzb_url
                 if CONFIG['HTTP_ROOT']:
-                    nzb_url = nzb_url + '/' + CONFIG['HTTP_ROOT']
-                nzb_url = nzb_url + '/nzbfile.nzb'
+                    nzb_url += '/' + CONFIG['HTTP_ROOT']
+                nzb_url += '/nzbfile.nzb'
                 logger.debug("nzb_url [%s]" % nzb_url)
                 download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzb_url, remove_data=False, library=library, label=label)
                 # returns nzb_ids or False
