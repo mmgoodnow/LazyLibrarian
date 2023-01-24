@@ -546,15 +546,7 @@ def make_utf8bytes(txt):
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-def make_unicode(txt: Optional[str]) -> Optional[Union[str, bytes]]:
-=======
 def make_unicode(txt: Optional[Union[str, bytes]]) -> Optional[str]:
->>>>>>> Stashed changes
-=======
-def make_unicode(txt: Optional[Union[str, bytes]]) -> Optional[str]:
->>>>>>> Stashed changes
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     if txt is None:

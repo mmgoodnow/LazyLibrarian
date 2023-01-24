@@ -876,15 +876,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     if '404' in content:
                         bookinfo = db.match("SELECT BookName from books where gr_id=?", (book,))
                         if bookinfo:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                            content = "Not Found:%s: %s", (content, book, bookinfo['BookName'])
-=======
                             content = "%s: %s" % (content, bookinfo['BookName'])
->>>>>>> Stashed changes
-=======
-                            content = "%s: %s" % (content, bookinfo['BookName'])
->>>>>>> Stashed changes
                     logger.warning("Failed to add %s to %s shelf: %s" % (book, shelf, content))
 
         # new additions to goodreads shelf
@@ -909,27 +901,11 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 perm = check_int(user['Perms'], 0)
                 if status == 'Wanted' and perm & lazylibrarian.perm_status:
                     if CONFIG.get_bool('EBOOK_TAB') and res['Status'] not in ['Open', 'Have']:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                        db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
-                        ll_changed.append(book)
-                        logger.debug("%10s set to Wanted" % book)
-                    if CONFIG.get_bool('AUDIO_TAB') and res['AudioStatus'] not in ['Open', 'Have']:
-                        db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
-=======
                         db.action('UPDATE books SET Status="Wanted" WHERE gr_id=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)
                     if CONFIG.get_bool('AUDIO_TAB') and res['AudioStatus'] not in ['Open', 'Have']:
                         db.action('UPDATE books SET AudioStatus="Wanted" WHERE gr_id=?', (book,))
->>>>>>> Stashed changes
-=======
-                        db.action('UPDATE books SET Status="Wanted" WHERE gr_id=?', (book,))
-                        ll_changed.append(book)
-                        logger.debug("%10s set to Wanted" % book)
-                    if CONFIG.get_bool('AUDIO_TAB') and res['AudioStatus'] not in ['Open', 'Have']:
-                        db.action('UPDATE books SET AudioStatus="Wanted" WHERE gr_id=?', (book,))
->>>>>>> Stashed changes
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)
             else:
