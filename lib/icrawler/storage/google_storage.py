@@ -1,4 +1,4 @@
-from icrawler.storage import BaseStorage
+from lib.icrawler.storage import BaseStorage
 from io import BytesIO
 
 

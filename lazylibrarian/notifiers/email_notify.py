@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import smtplib
 import ssl
 import cherrypy
@@ -26,10 +27,13 @@ from email.mime.image import MIMEImage
 import lazylibrarian
 import os
 import traceback
-from lazylibrarian import logger, database, ebook_convert
+
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database, ebook_convert
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-from lazylibrarian.common import is_valid_email, path_isfile, syspath, run_script, mime_type
-from lazylibrarian.formatter import check_int, get_list, make_utf8bytes, unaccented
+from lazylibrarian.common import is_valid_email, run_script, mime_type
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath
+from lazylibrarian.formatter import check_int, get_list, unaccented
 
 
 class EmailNotifier:
@@ -39,9 +43,10 @@ class EmailNotifier:
     @staticmethod
     def _notify(message, event, force=False, files=None, to_addr=None):
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_EMAIL'] and not force:
+        if not CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         subject = event
         text = message
         oversize = False
@@ -51,7 +56,7 @@ class EmailNotifier:
                 message = MIMEMultipart("related")
                 message.attach(MIMEText(text, 'html'))
                 if 'cid:logo' in text:
-                    image_location = os.path.join(lazylibrarian.PROG_DIR, "data/images/ll.png")
+                    image_location = os.path.join(DIRS.PROG_DIR, "data", "images", "ll.png")
                     with open(image_location, "rb") as fp:
                         img = MIMEImage(fp.read())
                     img.add_header("Content-ID", "<logo>")
@@ -67,19 +72,19 @@ class EmailNotifier:
 
         message['Subject'] = subject
 
-        if is_valid_email(lazylibrarian.CONFIG['ADMIN_EMAIL']):
-            from_addr = lazylibrarian.CONFIG['ADMIN_EMAIL']
-        elif is_valid_email(lazylibrarian.CONFIG['EMAIL_FROM']):
-            from_addr = lazylibrarian.CONFIG['EMAIL_FROM']
+        if is_valid_email(CONFIG['ADMIN_EMAIL']):
+            from_addr = CONFIG['ADMIN_EMAIL']
+        elif is_valid_email(CONFIG['EMAIL_FROM']):
+            from_addr = CONFIG['EMAIL_FROM']
         else:
-            logger.warn("Invalid FROM address, check config settings")
+            logger.warning("Invalid FROM address, check config settings")
             return False
 
         if not to_addr:
-            to_addr = lazylibrarian.CONFIG['EMAIL_TO']
+            to_addr = CONFIG['EMAIL_TO']
             logger.debug("Using default to_addr=%s" % to_addr)
         if not is_valid_email(to_addr):
-            logger.warn("Invalid TO address, check users email and/or config")
+            logger.warning("Invalid TO address, check users email and/or config")
             return False
 
         message['From'] = formataddr(('LazyLibrarian', from_addr))
@@ -100,15 +105,15 @@ class EmailNotifier:
         if files:
             for f in files:
                 fsize = check_int(os.path.getsize(syspath(f)), 0)
-                limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
+                limit = CONFIG.get_int('EMAIL_LIMIT')
                 title = unaccented(os.path.basename(f))
                 if limit and fsize > limit * 1024 * 1024:
                     oversize = True
                     msg = '%s is too large (%s) to email' % (title, fsize)
                     logger.debug(msg)
-                    if lazylibrarian.CONFIG['CREATE_LINK']:
+                    if CONFIG['CREATE_LINK']:
                         logger.debug("Creating link to %s" % f)
-                        params = [lazylibrarian.CONFIG['CREATE_LINK'], f]
+                        params = [CONFIG['CREATE_LINK'], f]
                         rc, res, err = run_script(params)
                         if res and res.startswith('http'):
                             msg = "%s is available to download, %s" % (title, res)
@@ -126,26 +131,26 @@ class EmailNotifier:
             # Create a secure SSL context
             context = ssl.create_default_context()
             # but allow no certificate check so self-signed work
-            if not lazylibrarian.CONFIG['SSL_VERIFY']:
+            if not CONFIG.get_bool('SSL_VERIFY'):
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
 
-            if lazylibrarian.CONFIG['EMAIL_SSL']:
-                mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                              check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
+            if CONFIG.get_bool('EMAIL_SSL'):
+                mailserver = smtplib.SMTP_SSL(CONFIG['EMAIL_SMTP_SERVER'],
+                                              CONFIG.get_int('EMAIL_SMTP_PORT'),
                                               context=context)
             else:
-                mailserver = smtplib.SMTP(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                          check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 25))
+                mailserver = smtplib.SMTP(CONFIG['EMAIL_SMTP_SERVER'],
+                                          CONFIG.get_int('EMAIL_SMTP_PORT'))
 
-            if lazylibrarian.CONFIG['EMAIL_TLS']:
+            if CONFIG.get_bool('EMAIL_TLS'):
                 mailserver.starttls(context=context)
             else:
                 mailserver.ehlo()
 
-            if lazylibrarian.CONFIG['EMAIL_SMTP_USER']:
-                mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'],
-                                 lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
+            if CONFIG['EMAIL_SMTP_USER']:
+                mailserver.login(CONFIG['EMAIL_SMTP_USER'],
+                                 CONFIG['EMAIL_SMTP_PASSWORD'])
 
             logger.debug("Sending email to %s" % to_addr)
             mailserver.sendmail(from_addr, to_addr, message.as_string())
@@ -155,7 +160,7 @@ class EmailNotifier:
             return True
 
         except Exception as e:
-            logger.warn('Error sending Email: %s' % e)
+            logger.warning('Error sending Email: %s' % e)
             logger.error('Email traceback: %s' % traceback.format_exc())
             return False
 
@@ -167,12 +172,13 @@ class EmailNotifier:
         return self._notify(message=message, event=subject, force=True, to_addr=to_addr)
 
     def email_file(self, subject, message, to_addr, files):
+        logger = logging.getLogger(__name__)
         logger.debug("to_addr=%s" % to_addr)
         res = self._notify(message=message, event=subject, force=True, files=files, to_addr=to_addr)
         return res
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONSNATCH']:
+        if CONFIG.get_bool('EMAIL_NOTIFY_ONSNATCH'):
             if fail:
                 return self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
@@ -181,23 +187,24 @@ class EmailNotifier:
 
     def notify_download(self, title, bookid=None, force=False):
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_EMAIL'] and not force:
+        if not CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
-        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONDOWNLOAD'] or force:
+        logger = logging.getLogger(__name__)
+        if CONFIG.get_bool('EMAIL_NOTIFY_ONDOWNLOAD') or force:
             files = None
             event = notifyStrings[NOTIFY_DOWNLOAD]
-            logger.debug('Email send attachment is %s' % lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD'])
-            if lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD']:
+            logger.debug('Email send attachment is %s' % CONFIG['EMAIL_SENDFILE_ONDOWNLOAD'])
+            if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
                 if not bookid:
                     logger.debug('Email request to attach book, but no bookid')
                 else:
                     filename = None
                     preftype = None
-                    custom_typelist = get_list(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
-                    typelist = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+                    custom_typelist = get_list(CONFIG['EMAIL_SEND_TYPE'])
+                    typelist = get_list(CONFIG['EBOOK_TYPE'])
 
-                    if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+                    if not CONFIG['USER_ACCOUNTS'].get_bool():
                         if custom_typelist:
                             preftype = custom_typelist[0]
                             logger.debug('Preferred filetype = %s' % preftype)
@@ -205,10 +212,13 @@ class EmailNotifier:
                             preftype = typelist[0]
                             logger.debug('Default preferred filetype = %s' % preftype)
                     else:
-                        db = database.DBConnection()
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
-                            res = db.match('SELECT BookType from users where UserID=?', (cookie['ll_uid'].value,))
+                            db = database.DBConnection()
+                            try:
+                                res = db.match('SELECT BookType from users where UserID=?', (cookie['ll_uid'].value,))
+                            finally:
+                                db.close()
                             if res and res['BookType']:
                                 preftype = res['BookType']
                                 logger.debug('User preferred filetype = %s' % preftype)
@@ -221,71 +231,74 @@ class EmailNotifier:
                             logger.debug('Default preferred filetype = %s' % preftype)
 
                     db = database.DBConnection()
-                    data = db.match('SELECT BookFile,BookName from books where BookID=?', (bookid,))
-                    if data:
-                        bookfile = data['BookFile']
-                        types = []
-                        if bookfile and path_isfile(bookfile):
-                            basename, extn = os.path.splitext(bookfile)
-                            for item in set(
-                                    typelist + custom_typelist):
-                                # Search download and email formats for existing book formats
-                                target = basename + '.' + item
-                                if path_isfile(target):
-                                    types.append(item)
-
-                            logger.debug('Available filetypes: %s' % str(types))
-
-                            # if the format we want to send is available, select it
-                            if preftype in types:
-                                filename = basename + '.' + preftype
-                                logger.debug('Found preferred filetype %s' % preftype)
-                            # if the format is not available, see if it's a type we want to convert,
-                            # otherwise send the first available format
-                            else:
-                                # if there is a type we want to convert from in the available formats,
-                                # convert it
-                                for convertable_format in get_list(lazylibrarian.CONFIG['EMAIL_CONVERT_FROM']):
-                                    if convertable_format in types:
-                                        logger.debug('Converting %s to preferred filetype %s' %
-                                                     (convertable_format, preftype))
-                                        # noinspection PyBroadException
-                                        try:
-                                            filename = ebook_convert.convert(basename + '.' + convertable_format,
-                                                                             preftype)
-                                            logger.debug('Converted %s to preferred filetype %s' %
-                                                         (convertable_format, preftype))
-                                            break
-                                        except Exception:
-                                            logger.debug("Conversion %s to %s failed" % (convertable_format, preftype))
-                                            continue
-                                # If no convertable formats found, revert to default behavior of sending
-                                # first available format
-                                else:
-                                    logger.debug('Preferred filetype %s not found, sending %s' % (preftype, types[0]))
-                                    filename = basename + '.' + types[0]
-
-                        if force:
-                            event = title
-                            if filename:
-                                title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
-                                    '{method}', ' is attached').replace('{link}', '')
-                            else:
-                                title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
-                                    '{method}', ' is not available').replace('{link}', '')
-                        else:
-                            title = data['BookName']
-                        logger.debug('Found %s for bookid %s' % (filename, bookid))
-                    else:
-                        logger.debug('[%s] is not a valid bookid' % bookid)
-                        data = db.match('SELECT IssueFile,Title,IssueDate from issues where IssueID=?', (bookid,))
+                    try:
+                        data = db.match('SELECT BookFile,BookName from books where BookID=?', (bookid,))
                         if data:
-                            filename = data['IssueFile']
-                            title = "%s - %s" % (data['Title'], data['IssueDate'])
-                            logger.debug('Found %s for issueid %s' % (filename, bookid))
+                            bookfile = data['BookFile']
+                            types = []
+                            if bookfile and path_isfile(bookfile):
+                                basename, extn = os.path.splitext(bookfile)
+                                for item in set(
+                                        typelist + custom_typelist):
+                                    # Search download and email formats for existing book formats
+                                    target = basename + '.' + item
+                                    if path_isfile(target):
+                                        types.append(item)
+
+                                logger.debug('Available filetypes: %s' % str(types))
+
+                                # if the format we want to send is available, select it
+                                if preftype in types:
+                                    filename = basename + '.' + preftype
+                                    logger.debug('Found preferred filetype %s' % preftype)
+                                # if the format is not available, see if it's a type we want to convert,
+                                # otherwise send the first available format
+                                else:
+                                    # if there is a type we want to convert from in the available formats,
+                                    # convert it
+                                    for convertable_format in get_list(CONFIG['EMAIL_CONVERT_FROM']):
+                                        if convertable_format in types:
+                                            logger.debug('Converting %s to preferred filetype %s' %
+                                                         (convertable_format, preftype))
+                                            # noinspection PyBroadException
+                                            try:
+                                                filename = ebook_convert.convert(basename + '.' + convertable_format,
+                                                                                 preftype)
+                                                logger.debug('Converted %s to preferred filetype %s' %
+                                                             (convertable_format, preftype))
+                                                break
+                                            except Exception:
+                                                logger.debug("Conversion %s to %s failed" % (convertable_format, preftype))
+                                                continue
+                                    # If no convertable formats found, revert to default behavior of sending
+                                    # first available format
+                                    else:
+                                        logger.debug('Preferred filetype %s not found, sending %s' % (preftype, types[0]))
+                                        filename = basename + '.' + types[0]
+
+                            if force:
+                                event = title
+                                if filename:
+                                    title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
+                                        '{method}', ' is attached').replace('{link}', '')
+                                else:
+                                    title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
+                                        '{method}', ' is not available').replace('{link}', '')
+                            else:
+                                title = data['BookName']
+                            logger.debug('Found %s for bookid %s' % (filename, bookid))
                         else:
-                            logger.debug('[%s] is not a valid issueid' % bookid)
-                            filename = ''
+                            logger.debug('[%s] is not a valid bookid' % bookid)
+                            data = db.match('SELECT IssueFile,Title,IssueDate from issues where IssueID=?', (bookid,))
+                            if data:
+                                filename = data['IssueFile']
+                                title = "%s - %s" % (data['Title'], data['IssueDate'])
+                                logger.debug('Found %s for issueid %s' % (filename, bookid))
+                            else:
+                                logger.debug('[%s] is not a valid issueid' % bookid)
+                                filename = ''
+                    finally:
+                        db.close()
                     if filename:
                         files = [filename]  # could add cover_image, opf
                         event = "LazyLibrarian Download"
@@ -293,9 +306,12 @@ class EmailNotifier:
         return False
 
     def test_notify(self, title='This is a test notification from LazyLibrarian'):
-        if lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD']:
+        if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
             db = database.DBConnection()
-            data = db.match('SELECT bookid from books where bookfile <> ""')
+            try:
+                data = db.match('SELECT bookid from books where bookfile <> ""')
+            finally:
+                db.close()
             if data:
                 return self.notify_download(title=title, bookid=data['bookid'], force=True)
         return self.notify_download(title=title, bookid=None, force=True)

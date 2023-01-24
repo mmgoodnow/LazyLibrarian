@@ -1,6 +1,7 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
@@ -27,7 +28,7 @@
   %else:
   <h1>${series['AuthorName']} : ${title}
   %if perm&lazylibrarian.perm_edit:
-    <a href="edit_series?seriesid=${series['SeriesID']}" target="_new"><small><i> Edit</i></small></a>
+    <a href="edit_series?seriesid=${series['SeriesID']}"><small><i> Edit</i></small></a>
   %endif
   </h1>
   %endif
@@ -44,7 +45,7 @@
       %if perm&lazylibrarian.perm_status:
       <div class="form-group">
 
-        % if lazylibrarian.SHOW_AUDIO != 0 and lazylibrarian.SHOW_EBOOK != 0:
+        % if CONFIG.get_int('AUDIO_TAB') != 0 and CONFIG.get_int('EBOOK_TAB') != 0:
           <label for="marktypes" class="">Mark selected </label>
           <select class="markTypes form-control input-sm" id="marktypes" name="marktype">
             // would be nice to use fontawesome icons here but options are not styleable
@@ -55,13 +56,13 @@
             %endfor
           </select>
         %else:
-          % if lazylibrarian.SHOW_EBOOK != 0:
+          % if CONFIG.get_int('EBOOK_TAB') != 0:
             <label for="marketype" class="">Mark selected eBook </label>
             <select class="markTypes form-control input-sm hidden" id="marketype" name="marktype">
               <option value="eBook">eBook</option>
             </select>
           %endif
-          % if lazylibrarian.SHOW_AUDIO != 0:
+          % if CONFIG.get_int('AUDIO_TAB') != 0:
             <label for="markatype" class="">Mark selected AudioBook </label>
             <select class="markTypes form-control input-sm hidden" id="markatype" name="marktype">
               <option value="AudioBook">AudioBook</option>
@@ -75,7 +76,7 @@
           %for item in ["Wanted", "Have", "Ignored", "Skipped", "Remove", "Delete"]:
             <option value="${item}">${item}</option>
           %endfor
-          %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+          %if CONFIG['USER_ACCOUNTS']:
             <option value="Unread">Unread</option>
             <option value="Read">Read</option>
             <option value="ToRead">To Read</option>
@@ -86,7 +87,7 @@
       </div>
       <input type="submit" class="mark_books btn btn-sm btn-primary" value="Go">
       %endif
-    %if lazylibrarian.CONFIG['TOGGLES'] == True:
+    %if CONFIG['TOGGLES']:
     &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1">  Cover</a>
     <a class="toggle-vis" data-column="2"> Title</a>
     <a class="toggle-vis"  data-column="4"> Num</a>
@@ -126,13 +127,13 @@
             <td class="bookname">
             <button onclick="bookinfo(${result['BookID']})" class="button btn-link text-left" type="button">${result['BookName']}</button><br>
               %if 'GoodReads' in result['BookLink']:
-                <a href="${result['BookLink']}" target="_new"><small><i>GoodReads</i></small></a>&nbsp;
+                <a href="${result['BookLink']}"><small><i>GoodReads</i></small></a>&nbsp;
               %endif
               %if 'http' in result['WorkPage']:
-                <a href="${result['WorkPage']}" target="_new"><small><i>LibraryThing</i></small></a>&nbsp;
+                <a href="${result['WorkPage']}"><small><i>LibraryThing</i></small></a>&nbsp;
               %endif
               %if perm&lazylibrarian.perm_edit:
-              <a href="edit_book?bookid=${result['BookID']}" target="_new"><small><i>Manual</i></small></a>
+              <a href="edit_book?bookid=${result['BookID']}"><small><i>Manual</i></small></a>
               %endif
             </td>
             %if multi == "True":
@@ -141,7 +142,7 @@
             <td class="authorname hidden">${result['AuthorName']}</td>
             %endif
             <td class="date text-center">${result['SeriesNum']}</td>
-            % if lazylibrarian.SHOW_EBOOK != 0:
+            % if CONFIG.get_int('EBOOK_TAB') != 0:
               %if 'Open' in result['Status']:
                 <td class="status text-center">
                 <a class="button green btn btn-xs btn-warning" href="open_book?bookid=${result['BookID']}&library=eBook"
@@ -153,8 +154,8 @@
                 <td class="status text-center"><i class="fa fa-book"></i> ${result['Status']}${result['Flag']}
               %endif
             %endif
-            % if lazylibrarian.SHOW_AUDIO != 0:
-              % if lazylibrarian.SHOW_EBOOK != 0:
+            % if CONFIG.get_int('AUDIO_TAB') != 0:
+              % if CONFIG.get_int('EBOOK_TAB') != 0:
               <br>
               %else:
                 <td class="status text-center">
@@ -203,7 +204,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[4, 'asc']],
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
             });
         $('.dataTables_filter input').attr("placeholder", "Results filter");
         //$(window).resize(function() {oTable.draw(false)});

@@ -18,11 +18,11 @@
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 from urllib.parse import urlencode
 from http.client import HTTPSConnection
 
-import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
 
@@ -36,15 +36,16 @@ class PushoverNotifier:
     def _send_pushover(message=None, event=None, pushover_apitoken=None, pushover_keys=None,
                        pushover_device=None, notification_type=None, method=None, force=False):
 
-        if not lazylibrarian.CONFIG['USE_PUSHOVER'] and not force:
+        if not CONFIG.get_bool('USE_PUSHOVER') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         if pushover_apitoken is None:
-            pushover_apitoken = lazylibrarian.CONFIG['PUSHOVER_APITOKEN']
+            pushover_apitoken = CONFIG['PUSHOVER_APITOKEN']
         if pushover_keys is None:
-            pushover_keys = lazylibrarian.CONFIG['PUSHOVER_KEYS']
+            pushover_keys = CONFIG['PUSHOVER_KEYS']
         if pushover_device is None:
-            pushover_device = lazylibrarian.CONFIG['PUSHOVER_DEVICE']
+            pushover_device = CONFIG['PUSHOVER_DEVICE']
         if method is None:
             method = 'POST'
         if notification_type is None:
@@ -69,7 +70,7 @@ class PushoverNotifier:
                     'title': event,
                     'message': message,
                     'device': pushover_device,
-                    'priority': lazylibrarian.CONFIG['PUSHOVER_PRIORITY']}
+                    'priority': CONFIG['PUSHOVER_PRIORITY']}
             http_handler.request(method,
                                  uri,
                                  headers={'Content-type': "application/x-www-form-urlencoded"},
@@ -112,12 +113,13 @@ class PushoverNotifier:
         username: The username to send the notification to (optional, defaults to the username in the config)
         force: If True then the notification will be sent even if pushover is disabled in the config
         """
+        logger = logging.getLogger(__name__)
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warn("Pushover: could not convert  message: %s" % e)
+            logger.warning("Pushover: could not convert  message: %s" % e)
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_PUSHOVER'] and not force:
+        if not CONFIG.get_bool('USE_PUSHOVER') and not force:
             return False
 
         logger.debug("Pushover: Sending notification " + str(message))
@@ -130,14 +132,14 @@ class PushoverNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['PUSHOVER_ONSNATCH']:
+        if CONFIG.get_bool('PUSHOVER_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL], notification_type='note')
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH], notification_type='note')
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['PUSHOVER_ONDOWNLOAD']:
+        if CONFIG.get_bool('PUSHOVER_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD], notification_type='note')
 
     def test_notify(self, title="Test"):

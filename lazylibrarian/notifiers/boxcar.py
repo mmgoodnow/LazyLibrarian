@@ -16,15 +16,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
+import logging
+import requests
 
-import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import proxy_list
-from lazylibrarian.formatter import check_int
-
-import urllib3
-import requests
 
 # API_URL = "https://boxcar.io/devices/providers/MH0S7xOFSwVLNvNhTpiC/notifications"
 # changed to boxcar2
@@ -47,6 +44,7 @@ class BoxcarNotifier:
 
         returns: True if the message succeeded, False otherwise
         """
+        logger = logging.getLogger(__name__)
         logger.debug('Boxcar notification: %s' % msg)
         logger.debug('Title: %s' % title)
         logger.debug('Token: %s' % token)
@@ -72,7 +70,7 @@ class BoxcarNotifier:
         proxies = proxy_list()
         # send the request to boxcar
         try:
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+            timeout = CONFIG.get_int('HTTP_TIMEOUT')
             r = requests.get(cur_url, params=data, timeout=timeout, proxies=proxies)
             status = str(r.status_code)
             if status.startswith('2'):
@@ -81,7 +79,7 @@ class BoxcarNotifier:
 
             # HTTP status 404 if the provided email address isn't a Boxcar user.
             if status == '404':
-                logger.warn("BOXCAR: Username is wrong/not a boxcar email. Boxcar will send an email to it")
+                logger.warning("BOXCAR: Username is wrong/not a boxcar email. Boxcar will send an email to it")
             # For HTTP status code 401's, it is because you are passing in either an
             # invalid token, or the user has not added your service.
             elif status == '401':
@@ -124,12 +122,12 @@ class BoxcarNotifier:
         """
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_BOXCAR'] and not force:
+        if not CONFIG.get_bool('USE_BOXCAR') and not force:
             return False
 
         # if no username was given then use the one from the config
         if not username:
-            username = lazylibrarian.CONFIG['BOXCAR_TOKEN']
+            username = CONFIG['BOXCAR_TOKEN']
 
         return self._send_boxcar(message, title, username)
 
@@ -138,14 +136,14 @@ class BoxcarNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONSNATCH']:
+        if CONFIG.get_bool('BOXCAR_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(notifyStrings[NOTIFY_FAIL], title)
             else:
                 self._notify(notifyStrings[NOTIFY_SNATCH], title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONDOWNLOAD']:
+        if CONFIG.get_bool('BOXCAR_NOTIFY_ONDOWNLOAD'):
             self._notify(notifyStrings[NOTIFY_DOWNLOAD], title)
 
     def test_notify(self, title="Test"):

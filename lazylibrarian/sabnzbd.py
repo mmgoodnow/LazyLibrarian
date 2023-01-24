@@ -10,18 +10,18 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import requests
 
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import proxy_list
-from lazylibrarian.formatter import check_int, make_utf8bytes, versiontuple
+from lazylibrarian.formatter import make_utf8bytes, versiontuple
 from urllib.parse import urlencode
-
-import urllib3
-import requests
 
 
 def check_link():
+    logger = logging.getLogger(__name__)
     # connection test, check host/port
     auth, _ = sab_nzbd(nzburl='auth')
     if not auth:
@@ -38,24 +38,25 @@ def check_link():
     if not cats:
         return "Unable to talk to sab_nzbd, check APIKEY"
     # check category exists
-    if lazylibrarian.CONFIG['SAB_CAT']:
+    if CONFIG['SAB_CAT']:
         if 'categories' not in cats or not len(cats['categories']):
             return "Failed to get sab_nzbd categories: %s" % str(cats)
-        if lazylibrarian.CONFIG['SAB_CAT'].split(',')[0] not in cats['categories']:
+        if CONFIG['SAB_CAT'].split(',')[0] not in cats['categories']:
             return "sab_nzbd: Unknown category [%s]\nValid categories:\n%s" % (
-                    lazylibrarian.CONFIG['SAB_CAT'], str(cats['categories']))
+                CONFIG['SAB_CAT'], str(cats['categories']))
     return "sab_nzbd connection successful, version %s" % vers['version']
 
 
 def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None, library='eBook', label=''):
+    logger = logging.getLogger(__name__)
 
     if nzburl in ['delete', 'delhistory', 'pause'] and title == 'unknown':
         res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
         logger.debug(res)
         return False, res
 
-    hostname = lazylibrarian.CONFIG['SAB_HOST']
-    port = check_int(lazylibrarian.CONFIG['SAB_PORT'], 0)
+    hostname = CONFIG['SAB_HOST']
+    port = CONFIG.get_int('SAB_PORT')
     if not hostname or not port:
         res = 'Invalid sabnzbd host or port, check your config'
         logger.error(res)
@@ -67,8 +68,8 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 
     host = "%s:%s" % (hostname, port)
 
-    if lazylibrarian.CONFIG['SAB_SUBDIR']:
-        host = host + "/" + lazylibrarian.CONFIG['SAB_SUBDIR'].strip('/')
+    if CONFIG['SAB_SUBDIR']:
+        host = host + "/" + CONFIG['SAB_SUBDIR'].strip('/')
 
     params = {}
 
@@ -76,8 +77,8 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         # connection test
         params['mode'] = nzburl
         params['output'] = 'json'
-        if lazylibrarian.CONFIG['SAB_API']:
-            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
+        if CONFIG['SAB_API']:
+            params['apikey'] = CONFIG['SAB_API']
         title = 'LL.(%s)' % nzburl
     elif nzburl == 'queue':
         params['mode'] = 'queue'
@@ -87,17 +88,17 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
             params['search'] = search
         if nzo_ids:
             params['nzo_ids'] = nzo_ids
-        if lazylibrarian.CONFIG['SAB_CAT']:
+        if CONFIG['SAB_CAT']:
             if label:
                 params['category'] = label
             else:
                 params['category'] = lazylibrarian.downloadmethods.use_label('SABNZBD', library)
-        if lazylibrarian.CONFIG['SAB_USER']:
-            params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
-        if lazylibrarian.CONFIG['SAB_PASS']:
-            params['ma_password'] = lazylibrarian.CONFIG['SAB_PASS']
-        if lazylibrarian.CONFIG['SAB_API']:
-            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
+        if CONFIG['SAB_USER']:
+            params['ma_username'] = CONFIG['SAB_USER']
+        if CONFIG['SAB_PASS']:
+            params['ma_password'] = CONFIG['SAB_PASS']
+        if CONFIG['SAB_API']:
+            params['apikey'] = CONFIG['SAB_API']
         title = 'LL.(Queue)'
     elif nzburl == 'history':
         params['mode'] = 'history'
@@ -107,17 +108,17 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
             params['search'] = search
         if nzo_ids:
             params['nzo_ids'] = nzo_ids
-        if lazylibrarian.CONFIG['SAB_CAT']:
+        if CONFIG['SAB_CAT']:
             if label:
                 params['category'] = label
             else:
                 params['category'] = lazylibrarian.downloadmethods.use_label('SABNZBD', library)
-        if lazylibrarian.CONFIG['SAB_USER']:
-            params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
-        if lazylibrarian.CONFIG['SAB_PASS']:
-            params['ma_password'] = lazylibrarian.CONFIG['SAB_PASS']
-        if lazylibrarian.CONFIG['SAB_API']:
-            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
+        if CONFIG['SAB_USER']:
+            params['ma_username'] = CONFIG['SAB_USER']
+        if CONFIG['SAB_PASS']:
+            params['ma_password'] = CONFIG['SAB_PASS']
+        if CONFIG['SAB_API']:
+            params['apikey'] = CONFIG['SAB_API']
         title = 'LL.(History)'
     elif nzburl == 'delete':
         # only deletes tasks if still in the queue, ie NOT completed tasks
@@ -125,12 +126,12 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         params['output'] = 'json'
         params['name'] = nzburl
         params['value'] = make_utf8bytes(title)[0]
-        if lazylibrarian.CONFIG['SAB_USER']:
-            params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
-        if lazylibrarian.CONFIG['SAB_PASS']:
-            params['ma_password'] = lazylibrarian.CONFIG['SAB_PASS']
-        if lazylibrarian.CONFIG['SAB_API']:
-            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
+        if CONFIG['SAB_USER']:
+            params['ma_username'] = CONFIG['SAB_USER']
+        if CONFIG['SAB_PASS']:
+            params['ma_password'] = CONFIG['SAB_PASS']
+        if CONFIG['SAB_API']:
+            params['apikey'] = CONFIG['SAB_API']
         if remove_data:
             params['del_files'] = 1
         title = 'LL.(Delete) ' + title
@@ -139,12 +140,12 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         params['output'] = 'json'
         params['name'] = 'delete'
         params['value'] = make_utf8bytes(title)[0]
-        if lazylibrarian.CONFIG['SAB_USER']:
-            params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
-        if lazylibrarian.CONFIG['SAB_PASS']:
-            params['ma_password'] = lazylibrarian.CONFIG['SAB_PASS']
-        if lazylibrarian.CONFIG['SAB_API']:
-            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
+        if CONFIG['SAB_USER']:
+            params['ma_username'] = CONFIG['SAB_USER']
+        if CONFIG['SAB_PASS']:
+            params['ma_password'] = CONFIG['SAB_PASS']
+        if CONFIG['SAB_API']:
+            params['apikey'] = CONFIG['SAB_API']
         if remove_data:
             params['del_files'] = 1
         title = 'LL.(DelHistory) ' + title
@@ -153,12 +154,12 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         params['output'] = 'json'
         params['name'] = 'pause'
         params['value'] = nzo_ids
-        if lazylibrarian.CONFIG['SAB_USER']:
-            params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
-        if lazylibrarian.CONFIG['SAB_PASS']:
-            params['ma_password'] = lazylibrarian.CONFIG['SAB_PASS']
-        if lazylibrarian.CONFIG['SAB_API']:
-            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
+        if CONFIG['SAB_USER']:
+            params['ma_username'] = CONFIG['SAB_USER']
+        if CONFIG['SAB_PASS']:
+            params['ma_password'] = CONFIG['SAB_PASS']
+        if CONFIG['SAB_API']:
+            params['apikey'] = CONFIG['SAB_API']
         title = 'LL.(Pause) ' + title
     else:
         params['mode'] = 'addurl'
@@ -167,19 +168,19 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
             params['name'] = make_utf8bytes(nzburl)[0]
         if title:
             params['nzbname'] = make_utf8bytes(title)[0]
-        if lazylibrarian.CONFIG['SAB_USER']:
-            params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
-        if lazylibrarian.CONFIG['SAB_PASS']:
-            params['ma_password'] = lazylibrarian.CONFIG['SAB_PASS']
-        if lazylibrarian.CONFIG['SAB_API']:
-            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
-        if lazylibrarian.CONFIG['SAB_CAT']:
+        if CONFIG['SAB_USER']:
+            params['ma_username'] = CONFIG['SAB_USER']
+        if CONFIG['SAB_PASS']:
+            params['ma_password'] = CONFIG['SAB_PASS']
+        if CONFIG['SAB_API']:
+            params['apikey'] = CONFIG['SAB_API']
+        if CONFIG['SAB_CAT']:
             if label:
                 params['category'] = label
             else:
                 params['cat'] = lazylibrarian.downloadmethods.use_label('SABNZBD', library)
-        if lazylibrarian.CONFIG['USENET_RETENTION']:
-            params["maxage"] = lazylibrarian.CONFIG['USENET_RETENTION']
+        if CONFIG.get_int('USENET_RETENTION'):
+            params["maxage"] = CONFIG['USENET_RETENTION']
 
 # FUTURE-CODE
 #    if lazylibrarian.SAB_PRIO:
@@ -187,19 +188,18 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 #    if lazylibrarian.SAB_PP:
 #        params["script"] = lazylibrarian.SAB_SCRIPT
 
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('sab params: %s' % repr(params))
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    loggerdlcomms.debug('sab params: %s' % repr(params))
 
     url = host + "/api?" + urlencode(params)
 
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
+    loggerdlcomms.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
     proxies = proxy_list()
     try:
-        timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-        if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+        timeout = CONFIG.get_int('HTTP_TIMEOUT')
+        if url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
             r = requests.get(url, timeout=timeout, proxies=proxies,
-                             verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
+                             verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
         else:
             r = requests.get(url, timeout=timeout, proxies=proxies, verify=False)
         result = r.json()
@@ -211,8 +211,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         res = "Unable to connect to SAB with URL: %s, %s:%s" % (url, type(e).__name__, str(e))
         logger.error(res)
         return False, res
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug("Result text from SAB: " + str(result))
+    loggerdlcomms.debug("Result text from SAB: " + str(result))
 
     if title and title.startswith('LL.('):
         return result, ''

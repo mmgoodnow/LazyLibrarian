@@ -22,38 +22,38 @@ try:
 except Exception:  # magic might fail for multiple reasons
     magic = None
 
-import lazylibrarian
-from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
+from lazylibrarian import database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.common import setperm, get_user_agent, proxy_list, make_dirs, \
-    path_isdir, syspath, remove
+from lazylibrarian.telemetry import record_usage_data
+from lazylibrarian.common import get_user_agent, proxy_list
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, setperm, make_dirs, get_directory
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
-from lazylibrarian.providers import block_provider
 from lazylibrarian.ircbot import irc_connect, irc_search
+from lazylibrarian.directparser import bok_dlcount
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
 
-import html5lib
 from bs4 import BeautifulSoup
-
-import urllib3
 import requests
+import logging
 
 
 def use_label(source, library):
     if source in ['DELUGERPC', 'DELUGEWEBUI']:
-        labels = lazylibrarian.CONFIG['DELUGE_LABEL']
+        labels = CONFIG['DELUGE_LABEL']
     elif source in ['TRANSMISSION', 'UTORRENT', 'RTORRENT', 'QBITTORRENT']:
-        labels = lazylibrarian.CONFIG['%s_LABEL' % source]
+        labels = CONFIG['%s_LABEL' % source]
     elif source in ['SABNZBD']:
-        labels = lazylibrarian.CONFIG['SAB_CAT']
+        labels = CONFIG['SAB_CAT']
     elif source in ['NZBGET']:
-        labels = lazylibrarian.CONFIG['NZBGET_CATEGORY']
+        labels = CONFIG['NZBGET_CATEGORY']
     else:
         labels = ''
 
@@ -76,83 +76,89 @@ def use_label(source, library):
     return ''
 
 
-def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=None):
+def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider: str = ''):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    source = provider
-    msg = ''
-    logger.debug("Starting IRC Download for [%s]" % dl_title)
-    fname = ""
-    data = None
-    myprov = None
+    try:
+        source = provider
+        msg = ''
+        logger.debug("Starting IRC Download for [%s]" % dl_title)
+        fname = ""
+        data = None
+        myprov = None
 
-    for item in lazylibrarian.IRC_PROV:
-        if item['NAME'] == provider or item['DISPNAME'] == provider:
-            myprov = item
-            break
+        for item in CONFIG.providers('IRC'):
+            if item['NAME'] == provider or item['DISPNAME'] == provider:
+                myprov = item
+                break
 
-    if not myprov:
-        msg = "%s server not found" % provider
-    else:
-        myprov['IRC'] = None  # new download, start a new connection
-        irc = irc_connect(myprov)
-        if not irc:
-            msg = "Failed to connect"
-            myprov['IRC'] = None
+        if not myprov:
+            msg = "%s server not found" % provider
         else:
-            fname, data = irc_search(myprov, dl_title, cmd=dl_url, cache=False)
-            if not fname:
-                myprov['IRC'] = None
+            myprov.set_connection(None)  # new download, start a new connection
+            irc = irc_connect(myprov)
+            if not irc:
+                msg = "Failed to connect"
+                myprov.set_connection(None)
+            else:
+                fname, data = irc_search(myprov, dl_title, cmd=dl_url, cache=False)
+                if not fname:
+                    myprov.set_connection(None)
 
-    # noinspection PyTypeChecker
-    download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
+        # noinspection PyTypeChecker
+        download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 
-    if fname and data:
-        fname = sanitize(fname)
-        destdir = os.path.join(lazylibrarian.directory('Download'), fname)
-        if not path_isdir(destdir):
-            _ = make_dirs(destdir)
+        if fname and data:
+            fname = sanitize(fname)
+            destdir = os.path.join(get_directory('Download'), fname)
+            if not path_isdir(destdir):
+                _ = make_dirs(destdir)
 
-        destfile = os.path.join(destdir, fname)
+            destfile = os.path.join(destdir, fname)
 
-        try:
-            with open(syspath(destfile), 'wb') as bookfile:
-                bookfile.write(data)
-            setperm(destfile)
-        except Exception as e:
-            msg = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
-            logger.error(msg)
-            return False, msg
+            try:
+                with open(syspath(destfile), 'wb') as bookfile:
+                    bookfile.write(data)
+                setperm(destfile)
+            except Exception as e:
+                msg = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
+                logger.error(msg)
+                return False, msg
 
-        logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
-        if library == 'eBook':
-            db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-        elif library == 'AudioBook':
-            db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-        db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
-                  (source, download_id, dl_url, dl_title))
-        return True, ''
+            logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+            if library == 'eBook':
+                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+            elif library == 'AudioBook':
+                db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
+                      (source, download_id, dl_url, dl_title))
+            record_usage_data('Download/IRC/Success')
+            return True, ''
 
-    elif not fname:
-        msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
-        msg += 'WHERE NZBurl=? and NZBtitle=?'
-        if not data:
-            data = 'Failed'
-        db.action(msg, (source, download_id, data, dl_url, dl_title))
-        msg = data
-        if 'timed out' in data:  # need to reconnect
-            provider['IRC'] = None
-            logger.error(msg)
+        elif not fname:
+            msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
+            msg += 'WHERE NZBurl=? and NZBtitle=?'
+            if not data:
+                data = 'Failed'
+            db.action(msg, (source, download_id, data, dl_url, dl_title))
+            msg = data
+            if 'timed out' in data:  # need to reconnect
+                if myprov:
+                    myprov.set_connection(None)
+                logger.error(msg)
+    finally:
+        db.close()
     return False, msg
 
 
 def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', label=''):
-    db = database.DBConnection()
+    logger = logging.getLogger(__name__)
     source = ''
     download_id = ''
 
-    if lazylibrarian.CONFIG['NZB_DOWNLOADER_SABNZBD'] and lazylibrarian.CONFIG['SAB_HOST']:
+    if CONFIG.get_bool('NZB_DOWNLOADER_SABNZBD') and CONFIG['SAB_HOST']:
         source = "SABNZBD"
-        if lazylibrarian.CONFIG['SAB_EXTERNAL_HOST']:
+        if CONFIG['SAB_EXTERNAL_HOST']:
             # new method, download nzb data, write to file, send file to sab, delete file
             data, success = fetch_url(nzburl, raw=True)
             if not success:
@@ -161,19 +167,19 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
                 download_id = ''
             else:
                 logger.debug("Got %s bytes data" % len(data))
-                temp_filename = os.path.join(lazylibrarian.CACHEDIR, "nzbfile.nzb")
+                temp_filename = os.path.join(DIRS.CACHEDIR, "nzbfile.nzb")
                 with open(syspath(temp_filename), 'wb') as f:
                     f.write(data)
                 logger.debug("Data written to file")
-                nzb_url = lazylibrarian.CONFIG['SAB_EXTERNAL_HOST']
+                nzb_url = CONFIG['SAB_EXTERNAL_HOST']
                 if not nzb_url.startswith('http'):
-                    if lazylibrarian.CONFIG['HTTPS_ENABLED']:
+                    if CONFIG.get_bool('HTTPS_ENABLED'):
                         nzb_url = 'https://' + nzb_url
                     else:
                         nzb_url = 'http://' + nzb_url
-                if lazylibrarian.CONFIG['HTTP_ROOT']:
-                    nzb_url = nzb_url + '/' + lazylibrarian.CONFIG['HTTP_ROOT']
-                nzb_url = nzb_url + '/nzbfile.nzb'
+                if CONFIG['HTTP_ROOT']:
+                    nzb_url += '/' + CONFIG['HTTP_ROOT']
+                nzb_url += '/nzbfile.nzb'
                 logger.debug("nzb_url [%s]" % nzb_url)
                 download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzb_url, remove_data=False, library=library, label=label)
                 # returns nzb_ids or False
@@ -183,10 +189,10 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         else:
             download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzburl, remove_data=False, library=library, label=label)
             # returns nzb_ids or False
-        if download_id and lazylibrarian.CONFIG['NZB_PAUSED']:
+        if download_id and CONFIG.get_bool('NZB_PAUSED'):
             _ = sabnzbd.sab_nzbd(nzbtitle, 'pause', False, None, download_id, library=library, label=label)
 
-    if lazylibrarian.CONFIG['NZB_DOWNLOADER_NZBGET'] and lazylibrarian.CONFIG['NZBGET_HOST']:
+    if CONFIG.get_bool('NZB_DOWNLOADER_NZBGET') and CONFIG['NZBGET_HOST']:
         source = "NZBGET"
         data, success = fetch_url(nzburl, raw=True)
         if not success:
@@ -199,25 +205,25 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
             nzb.name = nzbtitle
             nzb.url = nzburl
             download_id, res = nzbget.send_nzb(nzb, library=library, label=label)
-            if download_id and lazylibrarian.CONFIG['NZB_PAUSED']:
+            if download_id and CONFIG.get_bool('NZB_PAUSED'):
                 _ = nzbget.send_nzb(nzb, 'GroupPause', download_id)
 
-    if lazylibrarian.CONFIG['NZB_DOWNLOADER_SYNOLOGY'] and lazylibrarian.CONFIG['USE_SYNOLOGY'] and \
-            lazylibrarian.CONFIG['SYNOLOGY_HOST']:
+    if CONFIG.get_bool('NZB_DOWNLOADER_SYNOLOGY') and CONFIG.get_bool('USE_SYNOLOGY') and \
+            CONFIG['SYNOLOGY_HOST']:
         source = "SYNOLOGY_NZB"
         download_id, res = synology.add_torrent(nzburl)  # returns nzb_ids or False
 
-    if lazylibrarian.CONFIG['NZB_DOWNLOADER_BLACKHOLE']:
+    if CONFIG.get_bool('NZB_DOWNLOADER_BLACKHOLE'):
         source = "BLACKHOLE"
         nzbfile, success = fetch_url(nzburl, raw=True)
         if not success:
             res = 'Error fetching nzb from url [%s]: %s' % (nzburl, nzbfile)
-            logger.warn(res)
+            logger.warning(res)
             return False, res
 
         if nzbfile:
             nzbname = str(nzbtitle) + '.nzb'
-            nzbpath = os.path.join(lazylibrarian.CONFIG['NZB_BLACKHOLEDIR'], nzbname)
+            nzbpath = os.path.join(CONFIG['NZB_BLACKHOLEDIR'], nzbname)
             try:
                 with open(syspath(nzbpath), 'wb') as f:
                     if isinstance(nzbfile, str):
@@ -234,17 +240,22 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
 
     if not source:
         res = 'No NZB download method is enabled, check config.'
-        logger.warn(res)
+        logger.warning(res)
         return False, res
 
     if download_id:
-        logger.debug('Nzbfile has been downloaded from ' + str(nzburl))
-        if library == 'eBook':
-            db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-        elif library == 'AudioBook':
-            db.action('UPDATE books SET audiostatus = "Snatched" WHERE BookID=?', (bookid,))
-        db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
-                  (source, download_id, nzburl))
+        db = database.DBConnection()
+        try:
+            logger.debug('Nzbfile has been downloaded from ' + str(nzburl))
+            if library == 'eBook':
+                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+            elif library == 'AudioBook':
+                db.action('UPDATE books SET audiostatus = "Snatched" WHERE BookID=?', (bookid,))
+            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
+                      (source, download_id, nzburl))
+        finally:
+            db.close()
+        record_usage_data('Download/NZB/Success')
         return True, ''
     else:
         res = 'Failed to send nzb to @ <a href="%s">%s</a>' % (nzburl, source)
@@ -253,7 +264,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
 
 
 def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=''):
-    db = database.DBConnection()
+    logger = logging.getLogger(__name__)
     source = "DIRECT"
     logger.debug("Starting Direct Download for [%s]" % dl_title)
     proxies = proxy_list()
@@ -261,13 +272,13 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     dl_url = make_unicode(dl_url)
     s = requests.Session()
     if provider == 'zlibrary':
-        # do we need to login?
-        if lazylibrarian.CONFIG.get('BOK_USER') and lazylibrarian.CONFIG.get('BOK_PASS'):
-            bok_login_url = lazylibrarian.CONFIG['BOK_LOGIN']
+        # do we need to log in?
+        if CONFIG['BOK_USER'] and CONFIG['BOK_PASS']:
+            bok_login_url = CONFIG['BOK_LOGIN']
             data = {
                     "isModal": True,
-                    "email": lazylibrarian.CONFIG.get('BOK_USER'),
-                    "password": lazylibrarian.CONFIG.get('BOK_PASS'),
+                    "email": CONFIG['BOK_USER'],
+                    "password": CONFIG['BOK_PASS'],
                     "site_mode": "books",
                     "action": "login",
                     "isSingleLogin": 1,
@@ -276,9 +287,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 }
             headers = {'User-Agent': get_user_agent()}
 
-            if bok_login_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+            if bok_login_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                 response = s.post(bok_login_url, data=data, timeout=90, headers=headers,
-                                  verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS']
+                                  verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS']
                                   else True)
             else:
                 response = s.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
@@ -289,12 +300,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
         # zlibrary needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
-        count, oldest = lazylibrarian.bok_dlcount()
-        limit = check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5)
+        count, oldest = bok_dlcount()
+        limit = CONFIG.get_int('BOK_DLLIMIT')
         if limit and count >= limit:
             res = 'Reached Daily download limit (%s)' % limit
             delay = oldest + 24*60*60 - time.time()
-            block_provider(provider, res, delay=delay)
+            BLOCKHANDLER.block_provider(provider, res, delay=delay)
             return False, res
 
     redirects = 0
@@ -308,18 +319,18 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 else:
                     dl_url = 'http://' + dl_url
 
-            if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+            if dl_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                 r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies,
-                          verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
+                          verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
             else:
                 r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
         except requests.exceptions.Timeout:
             res = 'Timeout fetching file from url: %s' % dl_url
-            logger.warn(res)
+            logger.warning(res)
             return False, res
         except Exception as e:
             res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, str(e))
-            logger.warn(res)
+            logger.warning(res)
             return False, res
 
         if not str(r.status_code).startswith('2'):
@@ -337,12 +348,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             dl_title = dl_title.strip()
             if ' ' in dl_title:
                 basename, extn = dl_title.rsplit(' ', 1)  # last word is often the extension - but not always...
-            if extn and extn.lower() not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
+            if extn and extn.lower() not in get_list(CONFIG['EBOOK_TYPE']):
                 basename = ''
                 extn = ''
             if not basename and '.' in dl_title:
                 basename, extn = dl_title.rsplit('.', 1)
-            if extn and extn.lower() not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
+            if extn and extn.lower() not in get_list(CONFIG['EBOOK_TYPE']):
                 basename = ''
                 extn = ''
             if not basename and magic:
@@ -364,7 +375,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     extn = 'cbz'
                 basename = dl_title
             if not extn:
-                logger.warn("Don't know the filetype for [%s]" % dl_title)
+                logger.warning("Don't know the filetype for [%s]" % dl_title)
                 basename = dl_title
             else:
                 extn = extn.lower()
@@ -374,7 +385,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             logger.debug("File download got %s bytes for %s" % (len(r.content), basename))
 
             basename = sanitize(basename)
-            destdir = os.path.join(lazylibrarian.directory('Download'), basename)
+            destdir = os.path.join(get_directory('Download'), basename)
             if not path_isdir(destdir):
                 _ = make_dirs(destdir)
 
@@ -394,14 +405,19 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     bookfile.write(r.content)
                 setperm(destfile)
                 download_id = hashid
-                logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
-                if library == 'eBook':
-                    db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-                elif library == 'AudioBook':
-                    db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-                cmd = 'UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, '
-                cmd += 'completed=? WHERE BookID=? and NZBProv=?'
-                db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
+                db = database.DBConnection()
+                try:
+                    logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+                    if library == 'eBook':
+                        db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+                    elif library == 'AudioBook':
+                        db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+                    cmd = 'UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, '
+                    cmd += 'completed=? WHERE BookID=? and NZBProv=?'
+                    db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
+                finally:
+                    db.close()
+                record_usage_data('Download/Direct/Success')
                 return True, ''
             except Exception as e:
                 res = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
@@ -415,27 +431,27 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                         limit = make_unicode(r.content.split(b'more than')[1].split(b'downloads')[0].strip())
                         n = check_int(limit, 0)
                         if n:
-                            lazylibrarian.CONFIG['BOK_DLLIMIT'] = n
+                            CONFIG.set_int('BOK_DLLIMIT', n)
                     except IndexError:
                         limit = 'unknown'
                     msg = "Daily limit (%s) reached" % limit
-                    block_provider(provider, msg, delay=seconds_to_midnight())
-                    logger.warn(msg)
+                    BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
+                    logger.warning(msg)
                     return False, msg
                 elif b'Too many requests' in r.content:
                     msg = "Too many requests"
-                    block_provider(provider, msg)
-                    logger.warn(msg)
+                    BLOCKHANDLER.block_provider(provider, msg)
+                    logger.warning(msg)
                     return False, msg
 
             logger.debug(res)
             if redirects and 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
-                host = lazylibrarian.CONFIG['BOK_HOST']
+                host = CONFIG['BOK_HOST']
                 headers['Referer'] = dl_url
 
-                if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+                if dl_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                     r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies,
-                              verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
+                              verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
                 else:
                     r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
 
@@ -449,13 +465,13 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                         link = ''
                         if b'Daily limit reached' in res:
                             msg = "Daily limit reached"
-                            block_provider(provider, msg, delay=seconds_to_midnight())
-                            logger.warn(msg)
+                            BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
+                            logger.warning(msg)
                             return False, msg
                         elif b'Too many requests' in res:
                             msg = "Too many requests"
-                            block_provider(provider, msg)
-                            logger.warn(msg)
+                            BLOCKHANDLER.block_provider(provider, msg)
+                            logger.warning(msg)
                             return False, msg
                     else:
                         link = a.get('href')
@@ -466,7 +482,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 except Exception as e:
                     return False, "An error occurred parsing %s: %s" % (r.url, str(e))
             else:
-                cache_location = os.path.join(lazylibrarian.CACHEDIR, "HTMLCache")
+                cache_location = os.path.join(DIRS.CACHEDIR, "HTMLCache")
                 myhash = md5_utf8(dl_url)
                 hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".html")
                 with open(syspath(hashfilename), "wb") as cachefile:
@@ -480,7 +496,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
 
 def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', label=''):
-    db = database.DBConnection()
+    logger = logging.getLogger(__name__)
     download_id = False
     source = ''
     torrent = ''
@@ -517,32 +533,32 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
 
         try:
             logger.debug("Fetching %s" % tor_url)
-            if tor_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+            if tor_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                 r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies,
-                                 verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                 if lazylibrarian.CONFIG['SSL_CERTS'] else True)
+                                 verify=CONFIG['SSL_CERTS']
+                                 if CONFIG['SSL_CERTS'] else True)
             else:
                 r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies, verify=False)
             if str(r.status_code).startswith('2'):
                 torrent = r.content
                 if not len(torrent):
                     res = "Got empty response for %s" % tor_url
-                    logger.warn(res)
+                    logger.warning(res)
                     return False, res
                 elif len(torrent) < 100:
                     res = "Only got %s bytes for %s" % (len(torrent), tor_url)
-                    logger.warn(res)
+                    logger.warning(res)
                     return False, res
                 else:
                     logger.debug("Got %s bytes for %s" % (len(torrent), tor_url))
             else:
                 res = "Got a %s response for %s" % (r.status_code, tor_url)
-                logger.warn(res)
+                logger.warning(res)
                 return False, res
 
         except requests.exceptions.Timeout:
             res = 'Timeout fetching file from url: %s' % tor_url
-            logger.warn(res)
+            logger.warning(res)
             return False, res
         except Exception as e:
             # some jackett providers redirect internally using http 301 to a magnet link
@@ -553,15 +569,15 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 logger.debug("Redirecting to %s" % tor_url)
             else:
                 res = '%s fetching file from url: %s, %s' % (type(e).__name__, tor_url, str(e))
-                logger.warn(res)
+                logger.warning(res)
                 return False, res
 
     if not torrent and not tor_url.startswith('magnet:?'):
         res = "No magnet or data, cannot continue"
-        logger.warn(res)
+        logger.warning(res)
         return False, res
 
-    if lazylibrarian.CONFIG['TOR_DOWNLOADER_BLACKHOLE']:
+    if CONFIG.get_bool('TOR_DOWNLOADER_BLACKHOLE'):
         source = "BLACKHOLE"
         logger.debug("Sending %s to blackhole" % tor_title)
         tor_name = clean_name(tor_title).replace(' ', '_')
@@ -569,16 +585,16 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             hashid = calculate_torrent_hash(tor_url)
             if not hashid:
                 hashid = tor_name
-            if lazylibrarian.CONFIG['TOR_CONVERT_MAGNET']:
+            if CONFIG.get_bool('TOR_CONVERT_MAGNET'):
                 tor_name = 'meta-' + hashid + '.torrent'
-                tor_path = os.path.join(lazylibrarian.CONFIG['TORRENT_DIR'], tor_name)
+                tor_path = os.path.join(CONFIG['TORRENT_DIR'], tor_name)
                 result = magnet2torrent(tor_url, tor_path)
                 if result is not False:
                     logger.debug('Magnet file saved as: %s' % tor_path)
                     download_id = hashid
             else:
                 tor_name += '.magnet'
-                tor_path = os.path.join(lazylibrarian.CONFIG['TORRENT_DIR'], tor_name)
+                tor_path = os.path.join(CONFIG['TORRENT_DIR'], tor_name)
                 msg = ''
                 try:
                     msg = 'Opening '
@@ -594,12 +610,12 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     download_id = hashid
                 except Exception as e:
                     res = "Failed to write magnet to file: %s %s" % (type(e).__name__, str(e))
-                    logger.warn(res)
+                    logger.warning(res)
                     logger.debug("Progress: %s Filename [%s]" % (msg, repr(tor_path)))
                     return False, res
         else:
             tor_name += '.torrent'
-            tor_path = os.path.join(lazylibrarian.CONFIG['TORRENT_DIR'], tor_name)
+            tor_path = os.path.join(CONFIG['TORRENT_DIR'], tor_name)
             msg = ''
             try:
                 msg = 'Opening '
@@ -615,7 +631,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 download_id = source
             except Exception as e:
                 res = "Failed to write torrent to file: %s %s" % (type(e).__name__, str(e))
-                logger.warn(res)
+                logger.warning(res)
                 logger.debug("Progress: %s Filename [%s]" % (msg, repr(tor_path)))
                 return False, res
 
@@ -628,12 +644,12 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             logger.debug("data: %s" % make_unicode(str(torrent[:50])))
             return False, res
 
-        if lazylibrarian.CONFIG['TOR_DOWNLOADER_UTORRENT'] and lazylibrarian.CONFIG['UTORRENT_HOST']:
+        if CONFIG.get_bool('TOR_DOWNLOADER_UTORRENT') and CONFIG['UTORRENT_HOST']:
             logger.debug("Sending %s to Utorrent" % tor_title)
             source = "UTORRENT"
             download_id, res = utorrent.add_torrent(tor_url, hashid)  # returns hash or False
             if download_id:
-                if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+                if CONFIG.get_bool('TORRENT_PAUSED'):
                     utorrent.pause_torrent(download_id)
                 if not label:
                     label = use_label(source, library)
@@ -641,7 +657,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     utorrent.label_torrent(download_id, label)
                 tor_title = utorrent.name_torrent(download_id)
 
-        if lazylibrarian.CONFIG['TOR_DOWNLOADER_RTORRENT'] and lazylibrarian.CONFIG['RTORRENT_HOST']:
+        if CONFIG.get_bool('TOR_DOWNLOADER_RTORRENT') and CONFIG['RTORRENT_HOST']:
             logger.debug("Sending %s to rTorrent" % tor_title)
             source = "RTORRENT"
             if not torrent and tor_url.startswith('magnet:?'):
@@ -650,7 +666,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 if torrentfile:
                     with open(syspath(torrentfile), 'rb') as f:
                         torrent = f.read()
-                    remove(torrentfile)
+                    remove_file(torrentfile)
                 if not torrent:
                     logger.debug("Unable to convert magnet")
             if torrent:
@@ -662,7 +678,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             if download_id:
                 tor_title = rtorrent.get_name(download_id)
 
-        if lazylibrarian.CONFIG['TOR_DOWNLOADER_QBITTORRENT'] and lazylibrarian.CONFIG['QBITTORRENT_HOST']:
+        if CONFIG.get_bool('TOR_DOWNLOADER_QBITTORRENT') and CONFIG['QBITTORRENT_HOST']:
             source = "QBITTORRENT"
             logger.debug("Sending %s url to qBittorrent" % tor_title)
             status, res = qbittorrent.add_torrent(tor_url, hashid)  # returns True or False
@@ -670,11 +686,11 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 download_id = hashid
                 tor_title = qbittorrent.get_name(hashid)
 
-        if lazylibrarian.CONFIG['TOR_DOWNLOADER_TRANSMISSION'] and lazylibrarian.CONFIG['TRANSMISSION_HOST']:
+        if CONFIG.get_bool('TOR_DOWNLOADER_TRANSMISSION') and CONFIG['TRANSMISSION_HOST']:
             source = "TRANSMISSION"
             if not label:
                 label = use_label(source, library)
-            directory = lazylibrarian.CONFIG['TRANSMISSION_DIR']
+            directory = CONFIG['TRANSMISSION_DIR']
             if label and not directory.endswith(label):
                 directory = os.path.join(directory, label)
             if torrent:
@@ -686,24 +702,24 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 logger.debug("Sending %s url to Transmission:%s" % (tor_title, directory))
                 download_id, res = transmission.add_torrent(tor_url, directory=directory)  # returns id or False
             if download_id:
-                # transmission returns it's own int, but we store hashid instead
+                # transmission returns its own int, but we store hashid instead
                 download_id = hashid
                 if label:
                     transmission.set_label(download_id, label)
                 tor_title = transmission.get_torrent_folder(download_id)
 
-        if lazylibrarian.CONFIG['TOR_DOWNLOADER_SYNOLOGY'] and lazylibrarian.CONFIG['USE_SYNOLOGY'] and \
-                lazylibrarian.CONFIG['SYNOLOGY_HOST']:
+        if CONFIG.get_bool('TOR_DOWNLOADER_SYNOLOGY') and CONFIG.get_bool('USE_SYNOLOGY') and \
+                CONFIG['SYNOLOGY_HOST']:
             logger.debug("Sending %s url to Synology" % tor_title)
             source = "SYNOLOGY_TOR"
             download_id, res = synology.add_torrent(tor_url)  # returns id or False
             if download_id:
                 tor_title = synology.get_name(download_id)
-                if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+                if CONFIG.get_bool('TORRENT_PAUSED'):
                     synology.pause_torrent(download_id)
 
-        if lazylibrarian.CONFIG['TOR_DOWNLOADER_DELUGE'] and lazylibrarian.CONFIG['DELUGE_HOST']:
-            if not lazylibrarian.CONFIG['DELUGE_USER']:
+        if CONFIG.get_bool('TOR_DOWNLOADER_DELUGE') and CONFIG['DELUGE_HOST']:
+            if not CONFIG['DELUGE_USER']:
                 # no username, talk to the webui
                 source = "DELUGEWEBUI"
                 if torrent:
@@ -723,10 +739,10 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             else:
                 # have username, talk to the daemon
                 source = "DELUGERPC"
-                client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'],
-                                         int(lazylibrarian.CONFIG['DELUGE_PORT']),
-                                         lazylibrarian.CONFIG['DELUGE_USER'],
-                                         lazylibrarian.CONFIG['DELUGE_PASS'],
+                client = DelugeRPCClient(CONFIG['DELUGE_HOST'],
+                                         int(CONFIG['DELUGE_PORT']),
+                                         CONFIG['DELUGE_USER'],
+                                         CONFIG['DELUGE_PASS'],
                                          decode_utf8=True)
                 try:
                     client.connect()
@@ -745,7 +761,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                         logger.debug(res)
                         download_id = client.call('core.add_torrent_url', tor_url, args)
                     if download_id:
-                        if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+                        if CONFIG.get_bool('TORRENT_PAUSED'):
                             _ = client.call('core.pause_torrent', download_id)
                         if not label:
                             label = use_label(source, library)
@@ -766,55 +782,60 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
 
     if not source:
         res = 'No torrent download method is enabled, check config.'
-        logger.warn(res)
+        logger.warning(res)
         return False, res
 
     if download_id:
-        if tor_title:
-            if make_unicode(download_id).upper() in make_unicode(tor_title).upper():
-                logger.warn('%s: name contains hash, probably unresolved magnet' % source)
-            else:
-                tor_title = unaccented(tor_title, only_ascii=False)
-                # need to check against reject words list again as the name may have changed
-                # library = magazine eBook AudioBook to determine which reject list
-                # but we can't easily do the per-magazine rejects
-                if library == 'magazine':
-                    reject_list = get_list(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
-                elif library == 'eBook':
-                    reject_list = get_list(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
-                elif library == 'AudioBook':
-                    reject_list = get_list(lazylibrarian.CONFIG['REJECT_AUDIO'], ',')
-                elif library == 'Comic':
-                    reject_list = get_list(lazylibrarian.CONFIG['REJECT_COMIC'], ',')
+        db = database.DBConnection()
+        try:
+            if tor_title:
+                if make_unicode(download_id).upper() in make_unicode(tor_title).upper():
+                    logger.warning('%s: name contains hash, probably unresolved magnet' % source)
                 else:
-                    logger.debug("Invalid library [%s] in tor_dl_method" % library)
-                    reject_list = []
+                    tor_title = unaccented(tor_title, only_ascii=False)
+                    # need to check against reject words list again as the name may have changed
+                    # library = magazine eBook AudioBook to determine which reject list,
+                    # but we can't easily do the per-magazine rejects
+                    if library == 'magazine':
+                        reject_list = get_list(CONFIG['REJECT_MAGS'], ',')
+                    elif library == 'eBook':
+                        reject_list = get_list(CONFIG['REJECT_WORDS'], ',')
+                    elif library == 'AudioBook':
+                        reject_list = get_list(CONFIG['REJECT_AUDIO'], ',')
+                    elif library == 'Comic':
+                        reject_list = get_list(CONFIG['REJECT_COMIC'], ',')
+                    else:
+                        logger.debug("Invalid library [%s] in tor_dl_method" % library)
+                        reject_list = []
 
-                rejected = False
-                lower_title = tor_title.lower()
-                for word in reject_list:
-                    if word in lower_title:
-                        rejected = "Rejecting torrent name %s, contains %s" % (tor_title, word)
-                        logger.debug(rejected)
-                        break
-                if not rejected:
-                    rejected = check_contents(source, download_id, library, tor_title)
-                if rejected:
-                    db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
-                              (rejected, full_url))
-                    if lazylibrarian.CONFIG['DEL_FAILED']:
-                        delete_task(source, download_id, True)
-                    return False, rejected
-                else:
-                    logger.debug('%s setting torrent name to [%s]' % (source, tor_title))
-                    db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
+                    rejected = False
+                    lower_title = tor_title.lower()
+                    for word in reject_list:
+                        if word in lower_title:
+                            rejected = "Rejecting torrent name %s, contains %s" % (tor_title, word)
+                            logger.debug(rejected)
+                            break
+                    if not rejected:
+                        rejected = check_contents(source, download_id, library, tor_title)
+                    if rejected:
+                        db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                                  (rejected, full_url))
+                        if CONFIG.get_bool('DEL_FAILED'):
+                            delete_task(source, download_id, True)
+                        return False, rejected
+                    else:
+                        logger.debug('%s setting torrent name to [%s]' % (source, tor_title))
+                        db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
 
-        if library == 'eBook':
-            db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-        elif library == 'AudioBook':
-            db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-        db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
-                  (source, download_id, full_url))
+            if library == 'eBook':
+                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+            elif library == 'AudioBook':
+                db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
+                      (source, download_id, full_url))
+        finally:
+            db.close()
+        record_usage_data('Download/TOR/Success')
         return True, ''
 
     res = 'Failed to send torrent to %s' % source
@@ -827,6 +848,7 @@ def calculate_torrent_hash(link, data=None):
     Calculate the torrent hash from a magnet link or data. Returns empty string
     when it cannot create a torrent hash given the input data.
     """
+    logger = logging.getLogger(__name__)
     try:
         torrent_hash = re.findall(r"urn:btih:(\w{32,40})", link)[0]
         if len(torrent_hash) == 32:

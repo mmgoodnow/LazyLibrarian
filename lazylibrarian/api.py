@@ -16,26 +16,31 @@ import os
 import shutil
 import sys
 import threading
+import logging
 
 import configparser
 from queue import Queue
 from urllib.parse import urlsplit, urlunsplit
-
 import cherrypy
 import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG, wishlist_type
+from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian import database
+from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
     set_work_id, get_gb_info, set_genres, genre_filter, get_book_pubdate, add_series_members
-from lazylibrarian.cache import cache_img, clean_cache
+from lazylibrarian.cache import cache_img, clean_cache, ImageType
 from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import clear_log, setperm, \
-    log_header, show_stats, listdir, path_isfile, path_isdir, syspath, cpu_use
-from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update
+from lazylibrarian.common import log_header, create_support_zip
+from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
+from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
+    author_update, series_update, show_stats, SchedulerCommand
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
 from lazylibrarian.gb import GoogleBooks
@@ -46,6 +51,7 @@ from lazylibrarian.images import get_author_image, get_author_images, get_book_c
     create_mag_covers, create_mag_cover, shrink_mag
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals
 from lazylibrarian.librarysync import library_scan
+from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
@@ -56,6 +62,7 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
+from lazylibrarian.telemetry import TELEMETRY, telemetry_send
 
 cmd_dict = {'help': 'list available commands. ' +
                     'Time consuming commands take an optional &wait parameter if you want to wait for completion, ' +
@@ -81,10 +88,10 @@ cmd_dict = {'help': 'list available commands. ' +
             'getAbandoned': 'list abandoned books for current user',
             'getSnatched': 'list snatched books',
             'getHistory': 'list history',
-            'getLogs': 'show current log',
             'getDebug': 'show debug log header',
             'getModules': 'show installed modules',
             'checkModules': 'Check using lazylibrarian library modules',
+            'createSupportZip': 'Create support.zip. Requires that LOGFILEREDACT is enabled',
             'clearLogs': 'clear current log',
             'getMagazines': 'list magazines',
             'getIssues': '&name= list issues of named magazine',
@@ -221,6 +228,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'delProvider': '&name= Delete a provider',
             'renameBook': '&id= Rename a book to match configured pattern',
             'newAuthorid': '&id= &newid= update an authorid',
+            'telemetryShow': 'show the current telemetry data',
+            'telemetrySend': 'send the latest telemetry data, if configured',
             }
 
 
@@ -233,16 +242,20 @@ class Api(object):
         self.kwargs = None
         self.data = None
         self.callback = None
+        self.lower_cmds = [key.lower() for key, _ in cmd_dict.items()]
+        self.logger = logging.getLogger(__name__)
+        self.loggerdlcomms = logging.getLogger('special.dlcomms')
 
     def check_params(self, **kwargs):
+        TELEMETRY.record_usage_data()
 
-        if not lazylibrarian.CONFIG['API_ENABLED']:
+        if not CONFIG.get_bool('API_ENABLED'):
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'API not enabled'}}
             return
-        if not lazylibrarian.CONFIG['API_KEY']:
+        if not CONFIG.get_str('API_KEY'):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 501, 'Message': 'No API key'}}
             return
-        if len(lazylibrarian.CONFIG['API_KEY']) != 32:
+        if len(CONFIG.get_str('API_KEY')) != 32:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 503, 'Message': 'Invalid API key'}}
             return
 
@@ -251,7 +264,7 @@ class Api(object):
                                                                   'Message': 'Missing parameter: apikey'}}
             return
 
-        if kwargs['apikey'] != lazylibrarian.CONFIG['API_KEY']:
+        if kwargs['apikey'] != CONFIG.get_str('API_KEY'):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 401, 'Message': 'Incorrect API key'}}
             return
         else:
@@ -262,7 +275,7 @@ class Api(object):
                                                                   'Message': 'Missing parameter: cmd, try cmd=help'}}
             return
 
-        if kwargs['cmd'] not in cmd_dict:
+        if kwargs['cmd'].lower() not in self.lower_cmds:
             self.data = {'Success': False, 'Data': '',
                          'Error':  {'Code': 405, 'Message': 'Unknown command: %s, try cmd=help' % kwargs['cmd']}}
             return
@@ -273,6 +286,7 @@ class Api(object):
 
     @property
     def fetch_data(self):
+        TELEMETRY.record_usage_data()
         thread_name("API")
         if self.data == 'OK':
             remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
@@ -282,13 +296,12 @@ class Api(object):
                 remote_ip = cherrypy.request.headers.get('Remote-Addr')
             else:
                 remote_ip = cherrypy.request.remote.ip
-            logger.debug('Received API command from %s: %s %s' % (remote_ip, self.cmd, self.kwargs))
+            self.logger.debug('Received API command from %s: %s %s' % (remote_ip, self.cmd, self.kwargs))
             method_to_call = getattr(self, "_" + self.cmd.lower())
             method_to_call(**self.kwargs)
 
             if 'callback' not in self.kwargs:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                    logger.debug(str(self.data))
+                self.loggerdlcomms.debug(str(self.data))
                 if isinstance(self.data, str):
                     return self.data
                 else:
@@ -307,7 +320,10 @@ class Api(object):
     def _dic_from_query(query):
 
         db = database.DBConnection()
-        rows = db.select(query)
+        try:
+            rows = db.select(query)
+        finally:
+            db.close()
 
         rows_as_dic = []
 
@@ -319,6 +335,7 @@ class Api(object):
         return rows_as_dic
 
     def _renamebook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: id'}}
@@ -328,6 +345,7 @@ class Api(object):
         return
 
     def _newauthorid(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: id'}}
@@ -342,73 +360,91 @@ class Api(object):
                                                                   'Message': 'Invalid parameter: newid'}}
         else:
             db = database.DBConnection()
-            res = db.match('SELECT * from authors WHERE authorid=?', (kwargs['id'],))
-            if not res:
-                self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                      'Message': 'Invalid parameter: id'}}
-            else:
-                db.action("PRAGMA foreign_keys = OFF")
-                db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
-                          (kwargs['newid'], kwargs['id']))
-                db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
-                          (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
-                if kwargs['newid'].startswith('OL'):
-                    db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
-                              (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+            try:
+                res = db.match('SELECT * from authors WHERE authorid=?', (kwargs['id'],))
+                if not res:
+                    self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                          'Message': 'Invalid parameter: id'}}
                 else:
-                    db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
-                              (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                    db.action("PRAGMA foreign_keys = OFF")
+                    db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                              (kwargs['newid'], kwargs['id']))
+                    db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                              (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                    if kwargs['newid'].startswith('OL'):
+                        db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                                  (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                    else:
+                        db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                                  (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
 
-                db.action("PRAGMA foreign_keys = ON")
-                self.data = {'Success': True,
-                             'Data': {'AuthorID': kwargs['newid']},
-                             'Error':  {'Code': 200, 'Message': 'OK'}
-                             }
+                    db.action("PRAGMA foreign_keys = ON")
+                    self.data = {'Success': True,
+                                 'Data': {'AuthorID': kwargs['newid']},
+                                 'Error':  {'Code': 200, 'Message': 'OK'}
+                                 }
+            finally:
+                db.close()
         return
 
+    def _provider_array(self, prov_type):
+        # convert provider config values to a regular array of dicts with correct types
+        array = CONFIG.providers(prov_type)
+        providers = []
+        for provider in array:
+            thisprov = {}
+            for key in provider:
+                if isinstance(key, ConfigBool):
+                    thisprov[key] = provider.get_bool(key)
+                elif isinstance(key, ConfigInt):
+                    thisprov[key] = provider.get_int(key)
+                else:
+                    thisprov[key] = provider.get_str(key)
+            providers.append(thisprov)
+        return providers
+
     def _listproviders(self):
+        TELEMETRY.record_usage_data()
         self._listdirectproviders()
         direct = self.data
         self._listtorrentproviders()
         torrent = self.data
-        for item in torrent:  # type: dict
-            keys = list(item.keys())
-            item['NAME'] = keys[-1].split('_')[0]
-        self.data = {'newznab': lazylibrarian.NEWZNAB_PROV,
-                     'torznab': lazylibrarian.TORZNAB_PROV,
-                     'rss': lazylibrarian.RSS_PROV,
-                     'irc': lazylibrarian.IRC_PROV,
+        self.data = {'newznab': self._provider_array('NEWZNAB'),
+                     'torznab': self._provider_array('TORZNAB'),
+                     'rss': self._provider_array('RSS'),
+                     'irc': self._provider_array('IRC'),
                      'torrent': torrent,
                      'direct': direct,
                      }
         tot = 0
         for item in self.data:
             tot += len(item)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
 
     def _listnabproviders(self):
-        newzlist = []
-        for item in lazylibrarian.NEWZNAB_PROV:
-            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': item['BOOKCAT']}
-            if item['AUDIOCAT']:
-                if entry['Categories']:
-                    entry['Categories'] += ','
-                entry['Categories'] += item['AUDIOCAT']
-            newzlist.append(entry)
+        TELEMETRY.record_usage_data()
+        # custom output format for prowlarr
+        newzlist = self._provider_array('NEWZNAB')
+        for item in newzlist:
+            # merge prowlarr categories
+            item['Categories'] = ''
+            for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
+                if item[key]:
+                    if item['Categories']:
+                        item['Categories'] += ','
+                    item['Categories'] += item[key]
 
-        torzlist = []
-        for item in lazylibrarian.TORZNAB_PROV:
-            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': item['BOOKCAT']}
-            if item['AUDIOCAT']:
-                if entry['Categories']:
-                    entry['Categories'] += ','
-                entry['Categories'] += item['AUDIOCAT']
-            torzlist.append(entry)
+        torzlist = self._provider_array('TORZNAB')
+        for item in torzlist:
+            item['Categories'] = ''
+            for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
+                if item[key]:
+                    if item['Categories']:
+                        item['Categories'] += ','
+                    item['Categories'] += item[key]
 
-        tot = len(lazylibrarian.NEWZNAB_PROV) + len(lazylibrarian.TORZNAB_PROV)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        tot = len(newzlist) + len(torzlist)
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = {'Success': True,
                      'Data': {
                         'Newznabs': newzlist,
@@ -418,43 +454,59 @@ class Api(object):
                      }
 
     def _listrssproviders(self):
-        tot = len(lazylibrarian.RSS_PROV)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
-        self.data = lazylibrarian.RSS_PROV
+        TELEMETRY.record_usage_data()
+        providers = self._provider_array('RSS')
+        tot = len(providers)
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.data = providers
 
     def _listircproviders(self):
-        tot = len(lazylibrarian.IRC_PROV)
-        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
-        self.data = lazylibrarian.IRC_PROV
+        TELEMETRY.record_usage_data()
+        providers = self._provider_array('IRC')
+        tot = len(providers)
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.data = providers
 
     def _listtorrentproviders(self):
+        TELEMETRY.record_usage_data()
         providers = []
         for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-            mydict = {'ENABLED': bool(lazylibrarian.CONFIG[provider])}
-            for item in ['HOST', 'DLPRIORITY', 'DLTYPES', 'SEEDERS']:
+            mydict = {'NAME': provider, 'ENABLED': CONFIG.get_bool(provider)}
+            for item in ['HOST', 'DLTYPES']:
                 name = "%s_%s" % (provider, item)
-                mydict[name] = lazylibrarian.CONFIG[name]
+                mydict[name] = CONFIG.get_str(name)
+            for item in ['DLPRIORITY', 'SEEDERS']:
+                name = "%s_%s" % (provider, item)
+                mydict[name] = CONFIG.get_int(name)
             providers.append(mydict)
-        logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
+        self.logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
         self.data = providers
-        return
 
     def _listdirectproviders(self):
-        providers = []
-        for provider in ['BOK', 'BFI']:
-            mydict = {'ENABLED': bool(lazylibrarian.CONFIG[provider])}
-            for item in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT']:
-                name = "%s_%s" % (provider, item)
-                if name in lazylibrarian.CONFIG:
-                    mydict[name] = lazylibrarian.CONFIG[name]
-            providers.append(mydict)
-        for item in lazylibrarian.GEN_PROV:
-            providers.append(item)
-        logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
+        TELEMETRY.record_usage_data()
+        providers = self._provider_array('GEN')
+        mydict = {'NAME': 'BOK', 'ENABLED': CONFIG.get_bool('BOK')}
+        for item in ['HOST', 'LOGIN', 'USER', 'PASS', 'DLTYPES']:
+            name = "%s_%s" % ('BOK', item)
+            mydict[name] = CONFIG.get_str(name)
+        for item in ['DLPRIORITY', 'DLLIMIT']:
+            name = "%s_%s" % ('BOK', item)
+            mydict[name] = CONFIG.get_int(name)
+        providers.append(mydict)
+        mydict = {'NAME': 'BFI', 'ENABLED': CONFIG.get_bool('BFI')}
+        for item in ['HOST', 'DLTYPES']:
+            name = "%s_%s" % ('BFI', item)
+            mydict[name] = CONFIG.get_str(name)
+        for item in ['DLPRIORITY']:
+            name = "%s_%s" % ('BFI', item)
+            mydict[name] = CONFIG.get_int(name)
+        providers.append(mydict)
+        tot = len(providers)
+        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = providers
-        return
 
     def _delprovider(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: name'}}
@@ -465,33 +517,34 @@ class Api(object):
             name = kwargs.get('NAME', '')
 
         if name.startswith('Newznab') or kwargs.get('providertype', '') == 'newznab':
-            providers = lazylibrarian.NEWZNAB_PROV
+            providers = CONFIG.providers('NEWZNAB')
             section = 'newznab'
             clear = 'HOST'
         elif name.startswith('Torznab') or kwargs.get('providertype', '') == 'torznab':
-            providers = lazylibrarian.TORZNAB_PROV
+            providers = CONFIG.providers('TORZNAB')
             section = 'torznab'
             clear = 'HOST'
         elif name.startswith('RSS_'):
-            providers = lazylibrarian.RSS_PROV
+            providers = CONFIG.providers('RSS')
             section = 'rss_'
             clear = 'HOST'
         elif name.startswith('GEN_'):
-            providers = lazylibrarian.GEN_PROV
+            providers = CONFIG.providers('GEN')
             section = 'GEN_'
             clear = 'HOST'
         elif name.startswith('IRC_'):
-            providers = lazylibrarian.GEN_PROV
+            providers = CONFIG.providers('IRC')
             section = 'IRC_'
             clear = 'SERVER'
         else:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Invalid parameter: name'}}
             return
+
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
-                lazylibrarian.config.config_write(section)
+                CONFIG.save_config_and_backup_old(section=section)
                 self.data = {'Success': True, 'Data': 'Deleted %s' % name,
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 return
@@ -500,6 +553,7 @@ class Api(object):
         return
 
     def _changeprovider(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: name'}}
@@ -512,21 +566,21 @@ class Api(object):
 
         # prowlarr gives us  providertype
         if name.startswith('Newznab') or kwargs.get('providertype', '') == 'newznab':
-            providers = lazylibrarian.NEWZNAB_PROV
+            providers = CONFIG.providers('NEWZNAB')
         elif name.startswith('Torznab') or kwargs.get('providertype', '') == 'torznab':
-            providers = lazylibrarian.TORZNAB_PROV
+            providers = CONFIG.providers('TORZNAB')
         elif name.startswith('RSS_'):
-            providers = lazylibrarian.RSS_PROV
+            providers = CONFIG.providers('RSS')
         elif name.startswith('IRC_'):
-            providers = lazylibrarian.IRC_PROV
+            providers = CONFIG.providers('IRC')
         elif name.startswith('GEN_'):
-            providers = lazylibrarian.GEN_PROV
+            providers = CONFIG.providers('GEN')
         elif name in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
             for arg in kwargs:
                 if arg in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT', 'SEEDERS']:
                     itemname = "%s_%s" % (name, arg)
-                    if itemname in lazylibrarian.CONFIG:
-                        lazylibrarian.CONFIG[itemname] = kwargs[arg]
+                    if itemname in CONFIG:
+                        CONFIG.set_str(itemname, kwargs[arg])
                         hit += arg
                 elif arg == 'ENABLED':
                     hit.append(arg)
@@ -534,10 +588,10 @@ class Api(object):
                         val = True
                     else:
                         val = False
-                    lazylibrarian.CONFIG[name] = val
+                    CONFIG.set_bool(name, val)
                 else:
                     miss.append(arg)
-            lazylibrarian.config.config_write(name)
+            CONFIG.save_config_and_backup_old(section=name)
             self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
                          'Error':  {'Code': 200, 'Message': 'OK'}}
             if miss:
@@ -547,13 +601,14 @@ class Api(object):
             self.data = {'Success': False, 'Data': '',
                          'Error':  {'Code': 400, 'Message': 'Invalid parameter: name'}}
             return
+
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 for arg in kwargs:
                     if arg.upper() == 'NAME':
                         # don't allow api to change our internal name
                         continue
-                    elif arg == 'altername':
+                    elif arg == 'altername':  # prowlarr
                         hit.append(arg)
                         item['DISPNAME'] = kwargs[arg]
                     elif arg.upper() == 'ENABLED':
@@ -562,13 +617,13 @@ class Api(object):
                             val = True
                         else:
                             val = False
-                        item['ENABLED'] = val
+                        item.set_bool('ENABLED', val)
                     elif arg.upper() in item:
                         hit.append(arg)
-                        item[arg.upper()] = kwargs[arg]
-                    elif arg == 'prov_apikey':
+                        item.set_str(arg.upper(), kwargs[arg])
+                    elif arg == 'prov_apikey':  # prowlarr
                         hit.append(arg)
-                        item['API'] = kwargs[arg]
+                        item.set_str('API', kwargs[arg])
                     elif arg == 'categories' and 'BOOKCAT' in providers[0]:
                         hit.append(arg)
                         # prowlarr only gives us one category list
@@ -584,11 +639,11 @@ class Api(object):
                                 if bookcat:
                                     bookcat += ','
                                 bookcat += catnum
-                        providers[-1]['BOOKCAT'] = bookcat
-                        providers[-1]['AUDIOCAT'] = audiocat
+                        item.set_str('BOOKCAT', bookcat)
+                        item.set_str('AUDIOCAT', audiocat)
                     else:
                         miss.append(arg)
-                lazylibrarian.config.config_write(item['NAME'])
+                CONFIG.save_config_and_backup_old(section=item['NAME'])
                 self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 if miss:
@@ -599,6 +654,7 @@ class Api(object):
         return
 
     def _addprovider(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'type' not in kwargs and 'providertype' not in kwargs:
             self.data = {'Success': False, 'Data': '',
                          'Error':  {'Code': 400, 'Message': 'Missing parameter: type'}}
@@ -608,23 +664,23 @@ class Api(object):
                          'Error':  {'Code': 400, 'Message': 'Missing parameter: HOST or SERVER'}}
             return
         if kwargs.get('type', '') == 'newznab' or kwargs.get('providertype', '') == 'newznab':
-            providers = lazylibrarian.NEWZNAB_PROV
+            providers = CONFIG.providers('NEWZNAB')
             provname = 'Newznab'
             section = 'Newznab'
         elif kwargs.get('type', '') == 'torznab' or kwargs.get('providertype', '') == 'torznab':
-            providers = lazylibrarian.TORZNAB_PROV
+            providers = CONFIG.providers('TORZNAB')
             provname = 'Torznab'
             section = 'Torznab'
         elif kwargs['type'] == 'rss':
-            providers = lazylibrarian.RSS_PROV
+            providers = CONFIG.providers('RSS')
             provname = 'RSS_'
             section = 'rss_'
         elif kwargs['type'] == 'gen':
-            providers = lazylibrarian.GEN_PROV
+            providers = CONFIG.providers('GEN')
             provname = 'GEN_'
             section = 'GEN_'
         elif kwargs['type'] == 'irc':
-            providers = lazylibrarian.IRC_PROV
+            providers = CONFIG.providers('IRC')
             provname = 'IRC_'
             section = 'IRC_'
         else:
@@ -683,7 +739,7 @@ class Api(object):
                 providers[-1][arg.upper()] = kwargs[arg]
             else:
                 miss.append(arg)
-        lazylibrarian.config.config_write(section)
+        CONFIG.save_config_and_backup_old(section=section)
         self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
                      'Error':  {'Code': 200, 'Message': 'OK'}}
         if miss:
@@ -691,27 +747,34 @@ class Api(object):
         return
 
     def _memuse(self):
+        TELEMETRY.record_usage_data()
         """ Current Memory usage in kB """
         if os.name == 'nt':
-            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
+            ok, self.data = get_process_memory()
+            if not ok:
+                self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501,
+                                                                     'Message': 'Needs psutil module installed'}}
         else:
             with open('/proc/self/status') as f:
                 memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
             self.data = memusage.strip()
 
     def _cpuuse(self):
-        if os.name == 'nt':
-            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
-        else:
-            self.data = cpu_use()
+        TELEMETRY.record_usage_data()
+        ok, self.data = get_cpu_use()
+        if not ok:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501,
+                                                                 'Message': 'Needs psutil module installed'}}
 
     def _nice(self):
+        TELEMETRY.record_usage_data()
         if os.name == 'nt':
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
         else:
             self.data = os.nice(0)
 
     def _nicer(self):
+        TELEMETRY.record_usage_data()
         if os.name == 'nt':
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
         else:
@@ -719,6 +782,7 @@ class Api(object):
 
     @staticmethod
     def _gc_init():
+        TELEMETRY.record_usage_data()
         from collections import defaultdict
         from gc import get_objects
         lazylibrarian.GC_BEFORE = defaultdict(int)
@@ -726,10 +790,12 @@ class Api(object):
             lazylibrarian.GC_BEFORE[type(i)] += 1
 
     def _gc_collect(self):
+        TELEMETRY.record_usage_data()
         from gc import collect
         self.data = collect()
 
     def _gc_stats(self):
+        TELEMETRY.record_usage_data()
         if not lazylibrarian.GC_BEFORE:
             self.data = 'Not initialised'
             return
@@ -747,10 +813,11 @@ class Api(object):
                 n = int(lazylibrarian.GC_AFTER[k])
             if n:
                 changed = "%s %s<br>" % (n, str(k).split("'")[1])
-                res = res + changed
+                res += changed
         self.data = res
 
     def _getrssfeed(self, **kwargs):
+        TELEMETRY.record_usage_data()
         ftype = kwargs.get('feed', 'eBook')
         limit = kwargs.get('limit', 10)
         authorid = kwargs.get('authorid', '')
@@ -772,59 +839,70 @@ class Api(object):
         self.data = gen_feed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid)
 
     def _synccalibrelist(self, **kwargs):
+        TELEMETRY.record_usage_data()
         col1 = kwargs.get('read')
         col2 = kwargs.get('toread')
         self.data = sync_calibre_list(col1, col2)
 
     def _subscribe(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['user', 'feed']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
         db = database.DBConnection()
-        res = db.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
-        if not res:
-            self.data = 'Invalid userid'
-            return
-        for provider in lazylibrarian.RSS_PROV:
-            if provider['DISPNAME'] == kwargs['feed']:
-                if lazylibrarian.wishlist_type(provider['HOST']):
-                    db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
-                              (kwargs['user'], 'feed', kwargs['feed']))
-                    self.data = 'OK'
-                    return
+        try:
+            res = db.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
+            if not res:
+                self.data = 'Invalid userid'
+                return
+            for provider in CONFIG.providers('RSS'):
+                if provider['DISPNAME'] == kwargs['feed']:
+                    if wishlist_type(provider['HOST']):
+                        db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
+                                  (kwargs['user'], 'feed', kwargs['feed']))
+                        self.data = 'OK'
+                        return
+        finally:
+            db.close()
         self.data = 'Invalid feed'
         return
 
     def _unsubscribe(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['user', 'feed']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
         db = database.DBConnection()
-        db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
-                  (kwargs['user'], 'feed', kwargs['feed']))
+        try:
+            db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
+                      (kwargs['user'], 'feed', kwargs['feed']))
+        except Exception:
+            db.close()
         self.data = 'OK'
         return
 
     def _calibrelist(self, **kwargs):
+        TELEMETRY.record_usage_data()
         col1 = kwargs.get('read')
         col2 = kwargs.get('toread')
         self.data = calibre_list(col1, col2)
 
     def _showcaps(self, **kwargs):
+        TELEMETRY.record_usage_data()
         prov = kwargs.get('provider')
         if not prov:
             self.data = 'Missing parameter: provider'
             return
         match = False
-        for provider in lazylibrarian.NEWZNAB_PROV:
+        for provider in CONFIG.providers('NEWZNAB'):
             if prov == provider['HOST']:
                 prov = provider
                 match = True
                 break
         if not match:
-            for provider in lazylibrarian.TORZNAB_PROV:
+            for provider in CONFIG.providers('TORZNAB'):
                 if prov == provider['HOST']:
                     prov = provider
                     match = True
@@ -835,30 +913,40 @@ class Api(object):
         self.data = get_capabilities(prov, True)
 
     def _help(self):
-        res = ''
+        TELEMETRY.record_usage_data()
+        res = '<html>' \
+              '<p>Sample use: http://localhost:5299/api?apikey=VALIDKEYHERE?cmd=COMMAND</p>' \
+              '<p>Valid commands:</p>' \
+              '<p/>\n\n' \
+              '<ul>\n'
         for key in sorted(cmd_dict):
-            res += "%s: %s<p>" % (key, cmd_dict[key])
+            res += f"<li>{key}: {cmd_dict[key]}</li>\n"
+        res += '</ul></html>'
         self.data = res
 
     def _listalienauthors(self):
+        TELEMETRY.record_usage_data()
         cmd = "SELECT AuthorID,AuthorName from authors WHERE AuthorID "
-        if lazylibrarian.CONFIG['BOOK_API'] != 'OpenLibrary':
+        if CONFIG.get_str('BOOK_API') != 'OpenLibrary':
             cmd += 'NOT '
         cmd += 'LIKE "OL%A"'
         self.data = self._dic_from_query(cmd)
 
     def _listalienbooks(self):
+        TELEMETRY.record_usage_data()
         cmd = "SELECT BookID,BookName from books WHERE BookID "
-        if lazylibrarian.CONFIG['BOOK_API'] != 'OpenLibrary':
+        if CONFIG.get_str('BOOK_API') != 'OpenLibrary':
             cmd += 'NOT '
         cmd += 'LIKE "OL%W"'
         self.data = self._dic_from_query(cmd)
 
     def _gethistory(self):
+        TELEMETRY.record_usage_data()
         self.data = self._dic_from_query(
             "SELECT * from wanted WHERE Status != 'Skipped' and Status != 'Ignored'")
 
     def _listnewauthors(self, **kwargs):
+        TELEMETRY.record_usage_data()
         limit = kwargs.get('limit', '')
         if limit:
             limit = "limit " + limit
@@ -866,6 +954,7 @@ class Api(object):
             "SELECT authorid,authorname,dateadded,reason,status from authors order by dateadded desc %s" % limit)
 
     def _listnewbooks(self, **kwargs):
+        TELEMETRY.record_usage_data()
         limit = kwargs.get('limit', '')
         if limit:
             limit = "limit " + limit
@@ -873,30 +962,36 @@ class Api(object):
             "SELECT bookid,bookname,bookadded,scanresult,status from books order by bookadded desc %s" % limit)
 
     def _showthreads(self):
+        TELEMETRY.record_usage_data()
         self.data = [n.name for n in [t for t in threading.enumerate()]]
 
     def _showmonths(self):
+        TELEMETRY.record_usage_data()
         self.data = lazylibrarian.MONTHNAMES
 
     def _renameaudio(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             self.data = audio_rename(kwargs['id'], rename=True)
 
     def _getbookpubdate(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             self.data = get_book_pubdate(kwargs['id'])
 
     def _createplaylist(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             self.data = audio_rename(kwargs['id'], playlist=True)
 
     def _preprocessaudio(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['dir', 'title', 'author']:
             if item not in kwargs:
                 self.data = 'Missing parameter: %s' % item
@@ -908,6 +1003,7 @@ class Api(object):
         self.data = 'OK'
 
     def _preprocessbook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'dir' not in kwargs:
             self.data = 'Missing parameter: dir'
             return
@@ -915,6 +1011,7 @@ class Api(object):
         self.data = 'OK'
 
     def _preprocessmagazine(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['dir', 'cover']:
             if item not in kwargs:
                 self.data = 'Missing parameter: %s' % item
@@ -923,6 +1020,7 @@ class Api(object):
         self.data = 'OK'
 
     def _importbook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['id', 'dir']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
@@ -931,6 +1029,7 @@ class Api(object):
         self.data = process_book_from_dir(kwargs['dir'], library, kwargs['id'])
 
     def _importmag(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['title', 'num', 'file']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
@@ -938,12 +1037,14 @@ class Api(object):
         self.data = process_mag_from_file(kwargs['file'], kwargs['title'], kwargs['num'])
 
     def _namevars(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             self.data = name_vars(kwargs['id'])
 
     def _savetable(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'table' not in kwargs:
             self.data = 'Missing parameter: table'
             return
@@ -951,11 +1052,15 @@ class Api(object):
         if kwargs['table'] not in valid:
             self.data = 'Invalid table. Only %s' % str(valid)
             return
-        self.data = "Saved %s" % dump_table(kwargs['table'], lazylibrarian.DATADIR)
+        self.data = "Saved %s" % dump_table(kwargs['table'], DIRS.DATADIR)
 
     def _writeallopf(self, **kwargs):
+        TELEMETRY.record_usage_data()
         db = database.DBConnection()
-        books = db.select('select BookID from books where BookFile is not null')
+        try:
+            books = db.select('select BookID from books where BookFile is not null')
+        finally:
+            db.close()
         counter = 0
         if books:
             for book in books:
@@ -972,15 +1077,19 @@ class Api(object):
         self.data = 'Updated opf for %s %s' % (counter, plural(counter, "book"))
 
     def _writeopf(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
             return
 
         db = database.DBConnection()
-        cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,'
-        cmd += 'BookFile,BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
-        res = db.match(cmd, (kwargs['id'],))
+        try:
+            cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,'
+            cmd += 'BookFile,BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+            res = db.match(cmd, (kwargs['id'],))
+        finally:
+            db.close()
         if not res:
             self.data = 'No data found for bookid %s' % kwargs['id']
             return
@@ -995,15 +1104,18 @@ class Api(object):
 
     @staticmethod
     def _dumpmonths():
-        json_file = os.path.join(lazylibrarian.DATADIR, 'monthnames.json')
+        TELEMETRY.record_usage_data()
+        json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
         with open(syspath(json_file), 'w') as f:
             json.dump(lazylibrarian.MONTHNAMES, f)
 
     def _getwanted(self):
+        TELEMETRY.record_usage_data()
         self.data = self._dic_from_query(
             "SELECT * from books WHERE Status='Wanted'")
 
     def _getread(self):
+        TELEMETRY.record_usage_data()
         userid = None
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
@@ -1015,6 +1127,7 @@ class Api(object):
                 "SELECT haveread from users WHERE userid='%s'" % userid)
 
     def _gettoread(self):
+        TELEMETRY.record_usage_data()
         userid = None
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
@@ -1026,6 +1139,7 @@ class Api(object):
                 "SELECT toread from users WHERE userid='%s'" % userid)
 
     def _getreading(self):
+        TELEMETRY.record_usage_data()
         userid = None
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
@@ -1037,6 +1151,7 @@ class Api(object):
                 "SELECT reading from users WHERE userid='%s'" % userid)
 
     def _getabandoned(self):
+        TELEMETRY.record_usage_data()
         userid = None
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
@@ -1048,46 +1163,49 @@ class Api(object):
                 "SELECT abandoned from users WHERE userid='%s'" % userid)
 
     def _vacuum(self):
+        TELEMETRY.record_usage_data()
         msg1 = self._dic_from_query("vacuum")
         msg2 = self._dic_from_query("pragma integrity_check")
         self.data = str(msg1) + str(msg2)
 
     def _getsnatched(self):
+        TELEMETRY.record_usage_data()
         cmd = "SELECT * from books,wanted WHERE books.bookid=wanted.bookid "
         cmd += "and books.Status='Snatched' or AudioStatus='Snatched'"
         self.data = self._dic_from_query(cmd)
 
-    def _getlogs(self):
-        self.data = lazylibrarian.LOGLIST
-
     def _logmessage(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['level', 'text']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
         self.data = kwargs['text']
         if kwargs['level'].upper() == 'INFO':
-            logger.info(self.data)
+            self.logger.info(self.data)
         elif kwargs['level'].upper() == 'WARN':
-            logger.warn(self.data)
+            self.logger.warning(self.data)
         elif kwargs['level'].upper() == 'ERROR':
-            logger.error(self.data)
+            self.logger.error(self.data)
         elif kwargs['level'].upper() == 'DEBUG':
-            logger.debug(self.data)
+            self.logger.debug(self.data)
         else:
             self.data = 'Invalid level: %s' % kwargs['level']
         return
 
     def _getdebug(self):
+        TELEMETRY.record_usage_data()
         self.data = log_header().replace('\n', '<br>')
 
     def _getmodules(self):
+        TELEMETRY.record_usage_data()
         lst = ''
         for item in sys.modules:
-            lst = lst + "%s: %s<br>" % (item, str(sys.modules[item]).replace('<', '').replace('>', ''))
+            lst += "%s: %s<br>" % (item, str(sys.modules[item]).replace('<', '').replace('>', ''))
         self.data = lst
 
     def _checkmodules(self):
+        TELEMETRY.record_usage_data()
         lst = []
         for item in sys.modules:
             data = str(sys.modules[item]).replace('<', '').replace('>', '')
@@ -1099,28 +1217,40 @@ class Api(object):
         self.data = lst
 
     def _clearlogs(self):
-        self.data = clear_log()
+        TELEMETRY.record_usage_data()
+        LOGCONFIG.clear_ui_log()
+        self.data = LOGCONFIG.delete_log_files(CONFIG['LOGDIR'])
+
+    def _createsupportzip(self):
+        TELEMETRY.record_usage_data()
+        msg, filename = create_support_zip()
+        self.data = f'{msg}\nFile created is {filename}'
 
     def _getindex(self):
+        TELEMETRY.record_usage_data()
         self.data = self._dic_from_query(
             'SELECT * from authors order by AuthorName COLLATE NOCASE')
 
     def _listnolang(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT BookID,BookISBN,BookName,AuthorName from books,authors where '
         q += '(BookLang="Unknown" or BookLang="" or BookLang is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
     def _listnogenre(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT BookID,BookName,AuthorName from books,authors where books.Status != "Ignored" and '
         q += '(BookGenre="Unknown" or BookGenre="" or BookGenre is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
     def _listnodesc(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT BookID,BookName,AuthorName from books,authors where books.Status != "Ignored" and '
         q += '(BookDesc="" or BookDesc is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
     def _setnodesc(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'refresh' in kwargs:
             expire = True
             extra = ' or BookDesc="No Description"'
@@ -1130,37 +1260,39 @@ class Api(object):
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
         q += '(BookDesc="" or BookDesc is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
         db = database.DBConnection()
-        res = db.select(q)
-        descs = 0
-        cnt = 0
-        logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
-        # ignore all errors except blocked (not found etc)
-        blocked = False
-        for item in res:
-            cnt += 1
-            isbn = item['BookISBN']
-            auth = item['AuthorName']
-            book = item['BookName']
-            data = get_gb_info(isbn, auth, book, expire=expire)
-            if data and data['desc']:
-                descs += 1
-                logger.debug("Updated description for %s:%s" % (auth, book))
-                db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
-            elif data is None:  # error, see if it's because we are blocked
-                for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-                    if entry["name"] == 'googleapis':
+        try:
+            res = db.select(q)
+            descs = 0
+            cnt = 0
+            self.logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
+            # ignore all errors except blocked (not found etc)
+            blocked = False
+            for item in res:
+                cnt += 1
+                isbn = item['BookISBN']
+                auth = item['AuthorName']
+                book = item['BookName']
+                data = get_gb_info(isbn, auth, book, expire=expire)
+                if data and data['desc']:
+                    descs += 1
+                    self.logger.debug("Updated description for %s:%s" % (auth, book))
+                    db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
+                elif data is None:  # error, see if it's because we are blocked
+                    if BLOCKHANDLER.is_blocked('googleapis'):
                         blocked = True
+                    if blocked:
                         break
-                if blocked:
-                    break
+        finally:
+            db.close()
         msg = "Scanned %d %s, found %d new %s from %d" % \
               (cnt, plural(cnt, "book"), descs, plural(descs, "description"), len(res))
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
-        logger.info(self.data)
+        self.logger.info(self.data)
 
     def _setnogenre(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'refresh' in kwargs:
             expire = True
             extra = ' or BookGenre="Unknown"'
@@ -1170,10 +1302,13 @@ class Api(object):
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
         q += '(BookGenre="" or BookGenre is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
         db = database.DBConnection()
-        res = db.select(q)
+        try:
+            res = db.select(q)
+        finally:
+            db.close()
         genre = 0
         cnt = 0
-        logger.debug("Checking genre for %s %s" % (len(res), plural(len(res), "book")))
+        self.logger.debug("Checking genre for %s %s" % (len(res), plural(len(res), "book")))
         # ignore all errors except blocked (not found etc)
         blocked = False
         for item in res:
@@ -1185,13 +1320,11 @@ class Api(object):
             if data and data['genre']:
                 genre += 1
                 newgenre = genre_filter(data['genre'])
-                logger.debug("Updated genre for %s:%s [%s]" % (auth, book, newgenre))
+                self.logger.debug("Updated genre for %s:%s [%s]" % (auth, book, newgenre))
                 set_genres([newgenre], item['BookID'])
             elif data is None:
-                for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-                    if entry["name"] == 'googleapis':
-                        blocked = True
-                        break
+                if BLOCKHANDLER.is_blocked('googleapis'):
+                    blocked = True
                 if blocked:
                     break
         msg = "Scanned %d %s, found %d new %s from %d" % (cnt, plural(cnt, "book"), genre,
@@ -1199,32 +1332,40 @@ class Api(object):
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
-        logger.info(self.data)
+        self.logger.info(self.data)
 
     def _listnoisbn(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT BookID,BookName,AuthorName from books,authors where books.AuthorID = authors.AuthorID'
         q += ' and (BookISBN="" or BookISBN is NULL)'
         self.data = self._dic_from_query(q)
 
     def _listnobooks(self):
+        TELEMETRY.record_usage_data()
         q = 'select authorid,authorname,reason from authors where haveebooks+haveaudiobooks=0 and '
         q += 'reason not like "%Series%" except select authors.authorid,authorname,reason from books,authors where '
         q += 'books.authorid=authors.authorid and books.status=="Wanted";'
         self.data = self._dic_from_query(q)
 
     def _removenobooks(self):
+        TELEMETRY.record_usage_data()
         self._listnobooks()
         if self.data:
             db = database.DBConnection()
-            for auth in self.data:
-                logger.debug("Deleting %s" % auth['AuthorName'])
-                db.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
+            try:
+                for auth in self.data:
+                    self.logger.debug("Deleting %s" % auth['AuthorName'])
+                    db.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
+            finally:
+                db.close()
 
     def _listignoredseries(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT SeriesID,SeriesName from series where Status="Ignored"'
         self.data = self._dic_from_query(q)
 
     def _listdupebooks(self):
+        TELEMETRY.record_usage_data()
         self.data = []
         q = "select authorid,authorname from authors"
         res = self._dic_from_query(q)
@@ -1237,6 +1378,7 @@ class Api(object):
             self.data += r
 
     def _listdupebookstatus(self):
+        TELEMETRY.record_usage_data()
         self._listdupebooks()
         res = self.data
         self.data = []
@@ -1249,19 +1391,22 @@ class Api(object):
             self.data += r
 
     def _listignoredbooks(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT BookID,BookName from books where Status="Ignored"'
         self.data = self._dic_from_query(q)
 
     def _listignoredauthors(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT AuthorID,AuthorName from authors where Status="Ignored"'
         self.data = self._dic_from_query(q)
 
     def _listmissingworkpages(self):
+        TELEMETRY.record_usage_data()
         # first the ones with no workpage
         q = 'SELECT BookID from books where length(WorkPage) < 4'
         res = self._dic_from_query(q)
         # now the ones with an error page
-        cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
+        cache = os.path.join(DIRS.CACHEDIR, "WorkCache")
         if path_isdir(cache):
             for cached_file in listdir(cache):
                 target = os.path.join(cache, cached_file)
@@ -1272,6 +1417,7 @@ class Api(object):
         self.data = res
 
     def _getauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1284,15 +1430,18 @@ class Api(object):
         self.data = {'author': author, 'books': books}
 
     def _getmagazines(self):
+        TELEMETRY.record_usage_data()
         self.data = self._dic_from_query('SELECT * from magazines order by Title COLLATE NOCASE')
 
     def _getallbooks(self):
+        TELEMETRY.record_usage_data()
         q = 'SELECT authors.AuthorID,AuthorName,AuthorLink,BookName,BookSub,BookGenre,BookIsbn,BookPub,'
         q += 'BookRate,BookImg,BookPages,BookLink,BookID,BookDate,BookLang,BookAdded,books.Status '
         q += 'from books,authors where books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
     def _getissues(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('name')
         if not self.id:
             self.data = 'Missing parameter: name'
@@ -1305,6 +1454,7 @@ class Api(object):
         self.data = {'magazine': magazine, 'issues': issues}
 
     def _shrinkmag(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['name', 'dpi']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
@@ -1312,6 +1462,7 @@ class Api(object):
         self.data = shrink_mag(kwargs['name'], check_int(kwargs['dpi'], 0))
 
     def _getissuename(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
@@ -1330,11 +1481,11 @@ class Api(object):
                     issuedate = issuedate.zfill(4)  # pad with leading zeros
             if dirname:
                 title = os.path.basename(dirname)
-                if '$Title' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
-                    fname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$IssueDate', issuedate).replace(
+                if '$Title' in CONFIG.get_str('MAG_DEST_FILE'):
+                    fname = CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate).replace(
                         '$Title', title)
                 else:
-                    fname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$IssueDate', issuedate)
+                    fname = CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate)
                 self.data = os.path.join(dirname, fname + '.' + name_exploded[-1])
             else:
                 self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
@@ -1342,6 +1493,7 @@ class Api(object):
             self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
 
     def _createmagcovers(self, **kwargs):
+        TELEMETRY.record_usage_data()
         refresh = 'refresh' in kwargs
         if 'wait' in kwargs:
             self.data = create_mag_covers(refresh=refresh)
@@ -1349,6 +1501,7 @@ class Api(object):
             threading.Thread(target=create_mag_covers, name='API-MAGCOVERS', args=[refresh]).start()
 
     def _createmagcover(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'file' not in kwargs:
             self.data = 'Missing parameter: file'
             return
@@ -1359,6 +1512,7 @@ class Api(object):
             self.data = create_mag_cover(issuefile=kwargs['file'], refresh=refresh)
 
     def _getbook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1367,41 +1521,49 @@ class Api(object):
         self.data = {'book': book}
 
     def _queuebook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                if kwargs.get('type', '') == 'AudioBook':
-                    db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (kwargs['id'],))
+            try:
+                res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
                 else:
-                    db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (kwargs['id'],))
-                self.data = 'OK'
+                    if kwargs.get('type', '') == 'AudioBook':
+                        db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (kwargs['id'],))
+                    else:
+                        db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _unqueuebook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                if kwargs.get('type', '') == 'AudioBook':
-                    db.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (kwargs['id'],))
+            try:
+                res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
                 else:
-                    db.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (kwargs['id'],))
-                self.data = 'OK'
+                    if kwargs.get('type', '') == 'AudioBook':
+                        db.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (kwargs['id'],))
+                    else:
+                        db.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _addmagazine(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('name')
         if not self.id:
             self.data = 'Missing parameter: name'
             return
-        db = database.DBConnection()
         control_value_dict = {"Title": self.id}
         new_value_dict = {
             "Regex": None,
@@ -1410,66 +1572,89 @@ class Api(object):
             "IssueStatus": "Wanted",
             "Reject": None
         }
-        db.upsert("magazines", new_value_dict, control_value_dict)
+        db = database.DBConnection()
+        try:
+            db.upsert("magazines", new_value_dict, control_value_dict)
+        finally:
+            db.close()
 
     def _removemagazine(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('name')
         if not self.id:
             self.data = 'Missing parameter: name'
             return
         db = database.DBConnection()
-        db.action('DELETE from magazines WHERE Title=?', (self.id,))
-        db.action('DELETE from wanted WHERE BookID=?', (self.id,))
+        try:
+            db.action('DELETE from magazines WHERE Title=?', (self.id,))
+            db.action('DELETE from wanted WHERE BookID=?', (self.id,))
+        finally:
+            db.close()
 
     def _pauseauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                db.action('UPDATE authors SET Status="Paused" WHERE AuthorID=?', (kwargs['id'],))
-                self.data = 'OK'
+            try:
+                res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
+                else:
+                    db.action('UPDATE authors SET Status="Paused" WHERE AuthorID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _ignoreauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                db.action('UPDATE authors SET Status="Ignored" WHERE AuthorID=?', (kwargs['id'],))
-                self.data = 'OK'
+            try:
+                res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
+                else:
+                    db.action('UPDATE authors SET Status="Ignored" WHERE AuthorID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _resumeauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
         else:
             db = database.DBConnection()
-            res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-            if not res:
-                self.data = "Invalid id: %s" % kwargs['id']
-            else:
-                db.action('UPDATE authors SET Status="Active" WHERE AuthorID=?', (kwargs['id'],))
-                self.data = 'OK'
+            try:
+                res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+                if not res:
+                    self.data = "Invalid id: %s" % kwargs['id']
+                else:
+                    db.action('UPDATE authors SET Status="Active" WHERE AuthorID=?', (kwargs['id'],))
+                    self.data = 'OK'
+            finally:
+                db.close()
 
     def _authorupdate(self):
+        TELEMETRY.record_usage_data()
         try:
             self.data = author_update(restart=False, only_overdue=False)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _seriesupdate(self):
+        TELEMETRY.record_usage_data()
         try:
             self.data = series_update(restart=False, only_overdue=False)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _refreshauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         refresh = 'refresh' in kwargs
         self.id = kwargs.get('name')
         if not self.id:
@@ -1481,6 +1666,7 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _forceactiveauthorsupdate(self, **kwargs):
+        TELEMETRY.record_usage_data()
         refresh = 'refresh' in kwargs
         if 'wait' in kwargs:
             self.data = all_author_update(refresh=refresh)
@@ -1488,8 +1674,8 @@ class Api(object):
             threading.Thread(target=all_author_update, name='API-AAUPDATE', args=[refresh]).start()
 
     def _forcemagsearch(self, **kwargs):
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        TELEMETRY.record_usage_data()
+        if CONFIG.use_any():
             if 'wait' in kwargs:
                 search_magazines(None, True)
             else:
@@ -1498,7 +1684,8 @@ class Api(object):
             self.data = 'No search methods set, check config'
 
     def _forcersssearch(self, **kwargs):
-        if lazylibrarian.use_rss():
+        TELEMETRY.record_usage_data()
+        if CONFIG.use_rss():
             if 'wait' in kwargs:
                 search_rss_book()
             else:
@@ -1507,8 +1694,8 @@ class Api(object):
             self.data = 'No rss feeds set, check config'
 
     def _forcecomicsearch(self, **kwargs):
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        TELEMETRY.record_usage_data()
+        if CONFIG.use_any():
             if 'wait' in kwargs:
                 search_comics()
             else:
@@ -1517,7 +1704,8 @@ class Api(object):
             self.data = 'No search methods set, check config'
 
     def _forcewishlistsearch(self, **kwargs):
-        if lazylibrarian.use_wishlist():
+        TELEMETRY.record_usage_data()
+        if CONFIG.use_wishlist():
             if 'wait' in kwargs:
                 search_wishlist()
             else:
@@ -1526,9 +1714,9 @@ class Api(object):
             self.data = 'No wishlists set, check config'
 
     def _forcebooksearch(self, **kwargs):
+        TELEMETRY.record_usage_data()
         library = kwargs.get('type')
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        if CONFIG.use_any():
             if 'wait' in kwargs:
                 search_book(library=library)
             else:
@@ -1538,12 +1726,14 @@ class Api(object):
 
     @staticmethod
     def _forceprocess(**kwargs):
+        TELEMETRY.record_usage_data()
         startdir = kwargs.get('dir')
         ignoreclient = 'ignoreclient' in kwargs
         process_dir(startdir=startdir, ignoreclient=ignoreclient)
 
     @staticmethod
     def _forcelibraryscan(**kwargs):
+        TELEMETRY.record_usage_data()
         startdir = kwargs.get('dir')
         authid = kwargs.get('id')
         remove = 'remove' in kwargs
@@ -1555,6 +1745,7 @@ class Api(object):
 
     @staticmethod
     def _forcecomicscan(**kwargs):
+        TELEMETRY.record_usage_data()
         comicid = kwargs.get('id')
         if 'wait' in kwargs:
             comic_scan(comicid=comicid)
@@ -1564,6 +1755,7 @@ class Api(object):
 
     @staticmethod
     def _forceaudiobookscan(**kwargs):
+        TELEMETRY.record_usage_data()
         startdir = kwargs.get('dir')
         authid = kwargs.get('id')
         remove = 'remove' in kwargs
@@ -1575,6 +1767,7 @@ class Api(object):
 
     @staticmethod
     def _forcemagazinescan(**kwargs):
+        TELEMETRY.record_usage_data()
         title = kwargs.get('title')
         if 'wait' in kwargs:
             magazine_scan(title)
@@ -1582,21 +1775,25 @@ class Api(object):
             threading.Thread(target=magazine_scan, name='API-MAGSCAN', args=[title]).start()
 
     def _deleteemptyseries(self):
+        TELEMETRY.record_usage_data()
         self.data = delete_empty_series()
 
     def _cleancache(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'wait' in kwargs:
             self.data = clean_cache()
         else:
             threading.Thread(target=clean_cache, name='API-CLEANCACHE', args=[]).start()
 
     def _setworkpages(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'wait' in kwargs:
             self.data = set_work_pages()
         else:
             threading.Thread(target=set_work_pages, name='API-SETWORKPAGES', args=[]).start()
 
     def _setworkid(self, **kwargs):
+        TELEMETRY.record_usage_data()
         ids = kwargs.get('bookids')
         if 'wait' in kwargs:
             self.data = set_work_id(ids)
@@ -1604,82 +1801,93 @@ class Api(object):
             threading.Thread(target=set_work_id, name='API-SETWORKID', args=[ids]).start()
 
     def _setallbookseries(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'wait' in kwargs:
             self.data = set_all_book_series()
         else:
             threading.Thread(target=set_all_book_series, name='API-SETALLBOOKSERIES', args=[]).start()
 
     def _setallbookauthors(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'wait' in kwargs:
             self.data = set_all_book_authors()
         else:
             threading.Thread(target=set_all_book_authors, name='API-SETALLBOOKAUTHORS', args=[]).start()
 
     def _getbookcovers(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'wait' in kwargs:
             self.data = get_book_covers()
         else:
             threading.Thread(target=get_book_covers, name='API-GETBOOKCOVERS', args=[]).start()
 
     def _getauthorimages(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'wait' in kwargs:
             self.data = get_author_images()
         else:
             threading.Thread(target=get_author_images, name='API-GETAUTHORIMAGES', args=[]).start()
 
     def _getversion(self):
+        TELEMETRY.record_usage_data()
         self.data = {
             'Success': True,
-            'install_type': lazylibrarian.CONFIG['INSTALL_TYPE'],
-            'current_version': lazylibrarian.CONFIG['CURRENT_VERSION'],
-            'latest_version': lazylibrarian.CONFIG['LATEST_VERSION'],
-            'commits_behind': lazylibrarian.CONFIG['COMMITS_BEHIND'],
+            'install_type': CONFIG.get_str('INSTALL_TYPE'),
+            'current_version': CONFIG.get_str('CURRENT_VERSION'),
+            'latest_version': CONFIG.get_str('LATEST_VERSION'),
+            'commits_behind': CONFIG.get_int('COMMITS_BEHIND'),
         }
 
     def _getcurrentversion(self):
+        TELEMETRY.record_usage_data()
         self.data = {
             'Success': True,
-            'Data': lazylibrarian.CONFIG['CURRENT_VERSION'],
+            'Data': CONFIG.get_str('CURRENT_VERSION'),
             'Error':  {'Code': 200, 'Message': 'OK'}
         }
 
     @staticmethod
     def _shutdown():
+        TELEMETRY.record_usage_data()
         lazylibrarian.SIGNAL = 'shutdown'
 
     @staticmethod
     def _restart():
+        TELEMETRY.record_usage_data()
         lazylibrarian.SIGNAL = 'restart'
 
     @staticmethod
     def _update():
+        TELEMETRY.record_usage_data()
         lazylibrarian.SIGNAL = 'update'
 
     def _findauthorid(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
-        authorname = format_author_name(kwargs['name'])
+        authorname = format_author_name(kwargs['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
         gr = GoodReads(authorname)
         self.data = gr.find_author_id()
 
     def _findauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
 
-        authorname = format_author_name(kwargs['name'])
-        if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+        authorname = format_author_name(kwargs['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
+        if CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[authorname, myqueue])
             search_api.start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[authorname, myqueue])
             search_api.start()
-        else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+        else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[authorname, myqueue])
@@ -1689,21 +1897,22 @@ class Api(object):
         self.data = myqueue.get()
 
     def _findbook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
 
-        if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+        if CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
-        else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+        else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[kwargs['name'], myqueue])
@@ -1713,76 +1922,86 @@ class Api(object):
         self.data = myqueue.get()
 
     def _addbook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
 
-        if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+        if CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(kwargs['id'])
             threading.Thread(target=gb.find_book, name='API-GBRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(kwargs['id'])
             threading.Thread(target=gr.find_book, name='API-GRRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+        elif CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['id'])
             threading.Thread(target=ol.find_book, name='API-OLRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
 
     def _movebook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['id', 'toid']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
         try:
             db = database.DBConnection()
-            authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
-            if not authordata:
-                self.data = "No destination author [%s] in the database" % kwargs['toid']
-            else:
-                bookdata = db.match('SELECT AuthorID, BookName from books where BookID=?', (kwargs['id'],))
-                if not bookdata:
-                    self.data = "No bookid [%s] in the database" % kwargs['id']
+            try:
+                authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
+                if not authordata:
+                    self.data = "No destination author [%s] in the database" % kwargs['toid']
                 else:
-                    control_value_dict = {'BookID': kwargs['id']}
-                    new_value_dict = {'AuthorID': kwargs['toid']}
-                    db.upsert("books", new_value_dict, control_value_dict)
-                    update_totals(bookdata[0])  # we moved from here
-                    update_totals(kwargs['toid'])  # to here
-                    self.data = "Moved book [%s] to [%s]" % (bookdata[1], authordata[0])
-            logger.debug(self.data)
+                    bookdata = db.match('SELECT AuthorID, BookName from books where BookID=?', (kwargs['id'],))
+                    if not bookdata:
+                        self.data = "No bookid [%s] in the database" % kwargs['id']
+                    else:
+                        control_value_dict = {'BookID': kwargs['id']}
+                        new_value_dict = {'AuthorID': kwargs['toid']}
+                        db.upsert("books", new_value_dict, control_value_dict)
+                        update_totals(bookdata[0])  # we moved from here
+                        update_totals(kwargs['toid'])  # to here
+                        self.data = "Moved book [%s] to [%s]" % (bookdata[1], authordata[0])
+            finally:
+                db.close()
+            self.logger.debug(self.data)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _movebooks(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['fromname', 'toname']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
         try:
             db = database.DBConnection()
-            q = 'SELECT bookid,books.authorid from books,authors where books.AuthorID = authors.AuthorID'
-            q += ' and authorname=?'
-            fromhere = db.select(q, (kwargs['fromname'],))
+            try:
+                q = 'SELECT bookid,books.authorid from books,authors where books.AuthorID = authors.AuthorID'
+                q += ' and authorname=?'
+                fromhere = db.select(q, (kwargs['fromname'],))
 
-            tohere = db.match('SELECT authorid from authors where authorname=?', (kwargs['toname'],))
-            if not len(fromhere):
-                self.data = "No books by [%s] in the database" % kwargs['fromname']
-            else:
-                if not tohere:
-                    self.data = "No destination author [%s] in the database" % kwargs['toname']
+                tohere = db.match('SELECT authorid from authors where authorname=?', (kwargs['toname'],))
+                if not len(fromhere):
+                    self.data = "No books by [%s] in the database" % kwargs['fromname']
                 else:
-                    db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
-                    self.data = "Moved %s books from %s to %s" % (len(fromhere), kwargs['fromname'], kwargs['toname'])
-                    update_totals(fromhere[0][1])  # we moved from here
-                    update_totals(tohere[0])  # to here
+                    if not tohere:
+                        self.data = "No destination author [%s] in the database" % kwargs['toname']
+                    else:
+                        db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
+                        self.data = "Moved %s books from %s to %s" % (len(fromhere), kwargs['fromname'], kwargs['toname'])
+                        update_totals(fromhere[0][1])  # we moved from here
+                        update_totals(tohere[0])  # to here
+            finally:
+                db.close()
 
-            logger.debug(self.data)
+            self.logger.debug(self.data)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _comicmeta(self, **kwargs):
+        TELEMETRY.record_usage_data()
         name = kwargs.get('name')
         if not name:
             self.data = 'Missing parameter: name'
@@ -1791,6 +2010,7 @@ class Api(object):
         self.data = comic_metadata(name, xml=xml)
 
     def _comicid(self, **kwargs):
+        TELEMETRY.record_usage_data()
         name = kwargs.get('name')
         if not name:
             self.data = 'Missing parameter: name'
@@ -1806,6 +2026,7 @@ class Api(object):
             self.data = cx_identify(name, best=best)
 
     def _addauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         name = kwargs.get('name')
         if not name:
             self.data = 'Missing parameter: name'
@@ -1818,6 +2039,7 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _addauthorid(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1830,31 +2052,36 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _grfollowall(self):
+        TELEMETRY.record_usage_data()
         db = database.DBConnection()
-        cmd = 'SELECT AuthorName,AuthorID,GRfollow FROM authors where '
-        cmd += 'Status="Active" or Status="Wanted" or Status="Loading"'
-        authors = db.select(cmd)
-        count = 0
-        for author in authors:
-            followid = check_int(author['GRfollow'], 0)
-            if followid > 0:
-                logger.debug('%s is already followed' % author['AuthorName'])
-            elif author['GRfollow'] == "0":
-                logger.debug('%s is manually unfollowed' % author['AuthorName'])
-            else:
-                res = grfollow(author['AuthorID'], True)
-                if res.startswith('Unable'):
-                    logger.warn(res)
-                try:
-                    followid = res.split("followid=")[1]
-                    logger.debug('%s marked followed' % author['AuthorName'])
-                    count += 1
-                except IndexError:
-                    followid = ''
-                db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, author['AuthorID']))
+        try:
+            cmd = 'SELECT AuthorName,AuthorID,GRfollow FROM authors where '
+            cmd += 'Status="Active" or Status="Wanted" or Status="Loading"'
+            authors = db.select(cmd)
+            count = 0
+            for author in authors:
+                followid = check_int(author['GRfollow'], 0)
+                if followid > 0:
+                    self.logger.debug('%s is already followed' % author['AuthorName'])
+                elif author['GRfollow'] == "0":
+                    self.logger.debug('%s is manually unfollowed' % author['AuthorName'])
+                else:
+                    res = grfollow(author['AuthorID'], True)
+                    if res.startswith('Unable'):
+                        self.logger.warning(res)
+                    try:
+                        followid = res.split("followid=")[1]
+                        self.logger.debug('%s marked followed' % author['AuthorName'])
+                        count += 1
+                    except IndexError:
+                        followid = ''
+                    db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, author['AuthorID']))
+        finally:
+            db.close()
         self.data = "Added follow to %s %s" % (count, plural(count, "author"))
 
     def _grsync(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['shelf', 'status']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
@@ -1867,6 +2094,7 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _grfollow(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
@@ -1876,6 +2104,7 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _grunfollow(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
@@ -1885,6 +2114,7 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _searchitem(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'item' not in kwargs:
             self.data = 'Missing parameter: item'
             return
@@ -1892,13 +2122,13 @@ class Api(object):
             self.data = search_item(kwargs['item'])
 
     def _searchbook(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
         books = [{"bookid": kwargs['id']}]
         library = kwargs.get('type')
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        if CONFIG.use_any():
             if 'wait' in kwargs:
                 search_book(books=books, library=library)
             else:
@@ -1907,46 +2137,54 @@ class Api(object):
             self.data = "No search methods set, check config"
 
     def _removeauthor(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
             return
         db = database.DBConnection()
-        authorsearch = db.select('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
-        if len(authorsearch):  # to stop error if try to remove an author while they are still loading
-            author_name = authorsearch[0]['AuthorName']
-            logger.debug("Removing all references to author: %s" % author_name)
-            db.action('DELETE from authors WHERE AuthorID=?', (kwargs['id'],))
+        try:
+            authorsearch = db.select('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
+            if len(authorsearch):  # to stop error if try to remove an author while they are still loading
+                author_name = authorsearch[0]['AuthorName']
+                self.logger.debug("Removing all references to author: %s" % author_name)
+                db.action('DELETE from authors WHERE AuthorID=?', (kwargs['id'],))
+        finally:
+            db.close()
 
     def _writecfg(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['name', 'value', 'group']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
         try:
-            self.data = '["%s"]' % lazylibrarian.CFG.get(kwargs['group'], kwargs['name'])
-            lazylibrarian.CFG.set(kwargs['group'], kwargs['name'], kwargs['value'])
-            with open(syspath(lazylibrarian.CONFIGFILE), "w") as configfile:
-                lazylibrarian.CFG.write(configfile)
-            lazylibrarian.config_read(reloaded=True)
+            item = CONFIG.get_item(kwargs['name'])
+            if item:
+                item.set_from_ui(kwargs['value'])
+            CONFIG.save_config_and_backup_old(save_all=False, section=kwargs['group'])
         except Exception as e:
             self.data = 'Unable to update CFG entry for %s: %s, %s' % (kwargs['group'], kwargs['name'], str(e))
 
     def _readcfg(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['name', 'group']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
         try:
-            self.data = '["%s"]' % lazylibrarian.CFG.get(kwargs['group'], kwargs['name'])
+            self.data = f"[{CONFIG.get_str(kwargs['name'])}]"
         except configparser.Error:
-            self.data = 'No CFG entry for %s: %s' % (kwargs['group'], kwargs['name'])
+            self.data = 'No config entry for %s: %s' % (kwargs['group'], kwargs['name'])
 
     @staticmethod
     def _loadcfg():
-        lazylibrarian.config_read(reloaded=True)
+        TELEMETRY.record_usage_data()
+        # No need to reload the config
+        pass
 
     def _getseriesauthors(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1955,6 +2193,7 @@ class Api(object):
             self.data = "Added %s" % count
 
     def _addseriesmembers(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1962,6 +2201,7 @@ class Api(object):
             self.data = add_series_members(self.id)
 
     def _getseriesmembers(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1969,6 +2209,7 @@ class Api(object):
             self.data = get_series_members(self.id)
 
     def _getbookauthors(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1976,6 +2217,7 @@ class Api(object):
             self.data = get_book_authors(self.id)
 
     def _getworkseries(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1985,6 +2227,7 @@ class Api(object):
             self.data = get_work_series(self.id, kwargs.get('source'), reason="API get_work_series")
 
     def _getworkpage(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -1992,6 +2235,7 @@ class Api(object):
             self.data = get_work_page(self.id)
 
     def _getbookcover(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -2002,6 +2246,7 @@ class Api(object):
                 self.data = get_book_cover(self.id)
 
     def _getauthorimage(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -2011,14 +2256,19 @@ class Api(object):
         self.data = get_author_image(self.id, refresh=refresh, max_num=max_num)
 
     def _lock(self, table, itemid, state):
+        TELEMETRY.record_usage_data()
         db = database.DBConnection()
-        dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
-        if dbentry:
-            db.action('UPDATE %ss SET Manual="%s" WHERE %sID=%s' % (table, state, table, itemid))
-        else:
-            self.data = "%sID %s not found" % (table, itemid)
+        try:
+            dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
+            if dbentry:
+                db.action('UPDATE %ss SET Manual="%s" WHERE %sID=%s' % (table, state, table, itemid))
+            else:
+                self.data = "%sID %s not found" % (table, itemid)
+        finally:
+            db.close()
 
     def _setauthorlock(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -2026,6 +2276,7 @@ class Api(object):
             self._lock("author", kwargs['id'], "1")
 
     def _setauthorunlock(self, **kwargs):
+        TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
@@ -2033,6 +2284,7 @@ class Api(object):
             self._lock("author", kwargs['id'], "0")
 
     def _setauthorimage(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['id', 'img']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
@@ -2040,6 +2292,7 @@ class Api(object):
         self._setimage("author", kwargs['id'], kwargs['img'])
 
     def _setbookimage(self, **kwargs):
+        TELEMETRY.record_usage_data()
         for item in ['id', 'img']:
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
@@ -2047,12 +2300,13 @@ class Api(object):
         self._setimage("book", kwargs['id'], kwargs['img'])
 
     def _setimage(self, table, itemid, img):
+        TELEMETRY.record_usage_data()
         msg = "%s Image [%s] rejected" % (table, img)
         # Cache file image
         if path_isfile(img):
             extn = os.path.splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
-                destfile = os.path.join(lazylibrarian.CACHEDIR, table, itemid + '.jpg')
+                destfile = os.path.join(DIRS.CACHEDIR, table, itemid + '.jpg')
                 try:
                     shutil.copy(img, destfile)
                     setperm(destfile)
@@ -2066,7 +2320,7 @@ class Api(object):
             # cache image from url
             extn = os.path.splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
-                _, success, _ = cache_img(table, itemid, img)
+                _, success, _ = cache_img(ImageType(table), itemid, img)
                 if success:
                     msg = ''
                 else:
@@ -2081,20 +2335,25 @@ class Api(object):
             return
 
         db = database.DBConnection()
-        dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
-        if dbentry:
-            db.action('UPDATE %ss SET %sImg="%s" WHERE %sID=%s' %
-                      (table, table, 'cache' + os.path.sep + itemid + '.jpg', table, itemid))
-        else:
-            self.data = "%sID %s not found" % (table, itemid)
+        try:
+            dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
+            if dbentry:
+                db.action('UPDATE %ss SET %sImg="%s" WHERE %sID=%s' %
+                          (table, table, 'cache' + os.path.sep + itemid + '.jpg', table, itemid))
+            else:
+                self.data = "%sID %s not found" % (table, itemid)
+        finally:
+            db.close()
 
     def _setbooklock(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
         self._lock("book", kwargs['id'], "1")
 
     def _setbookunlock(self, **kwargs):
+        TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
@@ -2102,20 +2361,25 @@ class Api(object):
 
     @staticmethod
     def _restartjobs():
-        restart_jobs(start='Restart')
+        TELEMETRY.record_usage_data()
+        restart_jobs(command=SchedulerCommand.RESTART)
 
     @staticmethod
     def _checkrunningjobs():
+        TELEMETRY.record_usage_data()
         check_running_jobs()
 
     def _showjobs(self):
+        TELEMETRY.record_usage_data()
         self.data = show_jobs()
 
     def _showstats(self):
+        TELEMETRY.record_usage_data()
         self.data = show_stats()
 
     def _importalternate(self, **kwargs):
-        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        TELEMETRY.record_usage_data()
+        usedir = kwargs.get('dir', CONFIG.get_str('ALTERNATE_DIR'))
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
             self.data = process_alternate(usedir, library)
@@ -2123,7 +2387,8 @@ class Api(object):
             threading.Thread(target=process_alternate, name='API-IMPORTALT', args=[usedir, library]).start()
 
     def _includealternate(self, **kwargs):
-        startdir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        TELEMETRY.record_usage_data()
+        startdir = kwargs.get('dir', CONFIG.get_str('ALTERNATE_DIR'))
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
             self.data = library_scan(startdir, library, None, False)
@@ -2132,7 +2397,8 @@ class Api(object):
                              args=[startdir, library, None, False]).start()
 
     def _importcsvwishlist(self, **kwargs):
-        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        TELEMETRY.record_usage_data()
+        usedir = kwargs.get('dir', CONFIG.get_str('ALTERNATE_DIR'))
         status = kwargs.get('status', 'Wanted')
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
@@ -2141,10 +2407,19 @@ class Api(object):
             threading.Thread(target=import_csv, name='API-IMPORTCSV', args=[usedir, status, library]).start()
 
     def _exportcsvwishlist(self, **kwargs):
-        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        TELEMETRY.record_usage_data()
+        usedir = kwargs.get('dir', CONFIG.get_str('ALTERNATE_DIR'))
         status = kwargs.get('status', 'Wanted')
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
             self.data = export_csv(usedir, status, library)
         else:
             threading.Thread(target=export_csv, name='API-EXPORTCSV', args=[usedir, status, library]).start()
+
+    def _telemetryshow(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        self.data = TELEMETRY.get_data_for_ui_preview(send_usage=True, send_config=True)
+
+    def _telemetrysend(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        self.data = telemetry_send()

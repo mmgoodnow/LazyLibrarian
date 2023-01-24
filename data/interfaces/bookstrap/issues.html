@@ -1,6 +1,7 @@
 <%inherit file="base.html" />
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
@@ -13,8 +14,8 @@
         <a href="past_issues?mag=${title | u}" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Past Issues</a>
       %endif
       <a href="mag_wall?title=${title | u}" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
-      %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
-        %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+      %if CONFIG['USER_ACCOUNTS']:
+        %if CONFIG['RSS_ENABLED']:
            <a href="rss_feed?user=${user}&type=Magazine&onetitle=${title | u}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of ${title} recent issues"><i class="fa fa-rss"></i></a>
            <link rel="alternate" type="application/rss+xml" title="${title} latest issues" href="rss_feed?user=${user}&type=Magazine&onetitle=${title | u}&limit=10.xml">
          %endif
@@ -41,7 +42,7 @@
         <option value="reCover2">Cover from Page 2</option>
         </select>
         <button type="submit" class=" btn btn-m btn-primary" onclick="validateForm()">Go</button>
-        %if lazylibrarian.CONFIG['TOGGLES'] == True:
+        %if CONFIG['TOGGLES']:
         &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
         <a class="toggle-vis" data-column="2"> Issue</a>
         <a class="toggle-vis" data-column="3"> Added</a>
@@ -80,7 +81,7 @@
             var selected = [];
             var intjob = 0;
 
-            var show = ""+${lazylibrarian.CONFIG['MAG_IMG']};
+            var show = ""+${CONFIG['MAG_IMG']};
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 
@@ -127,7 +128,7 @@
                 "bServerSide": true,
                 "sAjaxSource": 'get_issues?title=${title | u}',
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "bFilter": true,
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     %if perm&lazylibrarian.perm_status == 0:

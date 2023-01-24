@@ -2,26 +2,26 @@
 #
 # Purpose:
 #   Testing functionality in importer.py
+from unittest import mock
+from unittest.mock import MagicMock
 
-import unittesthelpers
-import lazylibrarian
-from lazylibrarian import startup, importer
+from lazylibrarian import importer
+from unittests.unittesthelpers import LLTestCaseWithStartup
 
 
-class ImporterTest(unittesthelpers.LLTestCase):
-    bookapi = None
- 
+class ImporterTest(LLTestCaseWithStartup):
+    bookapi = ''
+
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        super().setDoAll(all=True)
         rc = super().setUpClass()
-        cls.bookapi = lazylibrarian.CONFIG['BOOK_API']
+        cls.bookapi = cls.cfg()['BOOK_API']
         return rc
 
     @classmethod
     def tearDownClass(cls) -> None:
-        lazylibrarian.CONFIG['BOOK_API'] = cls.bookapi
+        cls.cfg().set_str('BOOK_API', cls.bookapi)
         return super().tearDownClass()
 
     def test_is_valid_authorid_InvalidIDs(self):
@@ -33,22 +33,21 @@ class ImporterTest(unittesthelpers.LLTestCase):
 
     def test_is_valid_authorid_GoogleBooks(self):
         # Test potentially valid Google Books IDs
-        lazylibrarian.CONFIG['BOOK_API'] = 'GoogleBooks'
+        self.cfg().set_str('BOOK_API', 'GoogleBooks')
         self.assertEqual(importer.is_valid_authorid('123'), True)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), True)
 
     def test_is_valid_authorid_Goodreads(self):
         # Test potentially valid Goodreads Books IDs
-        lazylibrarian.CONFIG['BOOK_API'] = 'GoodReads'
+        self.cfg().set_str('BOOK_API', 'GoodReads')
         self.assertEqual(importer.is_valid_authorid('123'), True)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), False)
 
     def test_is_valid_authorid_OpenLibrary(self):
         # Test potentially valid Goodreads Books IDs
-        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
+        self.cfg().set_str('BOOK_API', 'OpenLibrary')
         self.assertEqual(importer.is_valid_authorid('123'), False)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), True)
-
 
     def test_get_preferred_author_name_NotInDB(self):
         testname = 'Allan Mertner'
@@ -61,7 +60,6 @@ class ImporterTest(unittesthelpers.LLTestCase):
         self.assertEqual(name, testname)
         self.assertEqual(found, False)
 
-
     def test_add_author_name_to_db_UnknownPerson(self):
         testname = 'Mr Allan Mertner The Tester'
         authorname, authorid, new = importer.add_author_name_to_db(
@@ -69,9 +67,21 @@ class ImporterTest(unittesthelpers.LLTestCase):
         self.assertEqual(new, False)
         self.assertEqual(authorname, '')
 
-    def test_add_author_name_to_db_KnownAuthor_OL(self):
-        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
+    @mock.patch('lazylibrarian.gr.GoodReads.find_author_id')
+    @mock.patch('lazylibrarian.ol.OpenLibrary.find_author_id')
+    @mock.patch.object(importer, 'get_author_image')  # Patches images.get_author_image in import only
+    def test_add_author_name_to_db_KnownAuthor_OL(self, images_get_author_image: MagicMock,
+                                                  ol_find_author_id: MagicMock, gr_find_author_id: MagicMock):
+        self.cfg().set_str('BOOK_API', 'OpenLibrary')
         testname = 'Douglas Adams'
+        images_get_author_image.return_value = 'douglas.png'
+        gr_find_author_id.return_value = {'authorid': 'OL272947A',
+                                          'authorlink': 'https://www.openlibrary.org/authors/OL272947A',
+                                          'authorimg': 'http://covers.openlibrary.org/a/id/6387387-M.jpg',
+                                          'authorborn': '11 March 1952', 'authordeath': '11 May 2001',
+                                          'about': "Douglas Adams was born in Cambridge in March 1952.",
+                                          'totalbooks': '0', 'authorname': 'Douglas Adams'}
+        ol_find_author_id.return_value = gr_find_author_id.return_value
         authorname, authorid, new = importer.add_author_name_to_db(
             author=testname, refresh=False, addbooks=False, reason='Testing', title=False)
         self.assertEqual(new, True)
@@ -85,20 +95,16 @@ class ImporterTest(unittesthelpers.LLTestCase):
         self.assertEqual(authorname, testname)
         self.assertEqual(authorid, 'OL272947A')
 
-
-    def test_add_author_to_db_JustByID(self):
-        testid = 'OL2219179A' # Maud D. Davies
-        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
-        id = importer.add_author_to_db(
+    @mock.patch('lazylibrarian.ol.OpenLibrary.get_author_info')
+    @mock.patch.object(importer, 'get_author_image')  # Patches images.get_author_image in import only
+    def test_add_author_to_db_JustByID(self, images_get_author_image: MagicMock, ol_get_author_info: MagicMock):
+        testid = 'OL2219179A'  # Maud D. Davies
+        self.cfg().set_str('BOOK_API', 'OpenLibrary')
+        ol_get_author_info.return_value = {'authorid': 'OL2219179A',
+                                           'authorlink': 'https://www.openlibrary.org/authors/OL2219179A',
+                                           'authorimg': 'images/nophoto.png', 'authorborn': '', 'authordeath': '',
+                                           'about': '', 'totalbooks': '0', 'authorname': 'Maud D. Davies'}
+        images_get_author_image.return_value = 'fakeimage.png'
+        authorid = importer.add_author_to_db(
             authorname=None, refresh=False, addbooks=False, reason='Testing', authorid=testid)
-        self.assertEqual(id, testid)
-
-    def test_search_for(self):
-        # Need to find a good way to test this
-        #s = importer.search_for("Douglas Adams")
-        #print(s)
-        pass
-
-
-
-
+        self.assertEqual(authorid, testid)

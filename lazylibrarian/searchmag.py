@@ -12,20 +12,23 @@
 
 
 import datetime
+import logging
 import re
 import threading
 import time
 import traceback
 
 import lazylibrarian
-from lazylibrarian import logger, database
-from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
-    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, disp_name, thread_name
+    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, thread_name
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_magazines():
@@ -35,16 +38,19 @@ def cron_search_magazines():
 
 def search_magazines(mags=None, reset=False):
     # produce a list of magazines to search for, tor, nzb, torznab, rss
+    TELEMETRY.record_usage_data('Search/Magazine')
+    logger = logging.getLogger(__name__)
+    loggersearching = logging.getLogger('special.searching')
+    threadname = thread_name()
+    if "Thread-" in threadname:
+        if not mags:
+            thread_name("SEARCHALLMAG")
+            threadname = "SEARCHALLMAG"
+        else:
+            thread_name("SEARCHMAG")
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        threadname = thread_name()
-        if "Thread-" in threadname:
-            if not mags:
-                thread_name("SEARCHALLMAG")
-                threadname = "SEARCHALLMAG"
-            else:
-                thread_name("SEARCHMAG")
 
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         searchlist = []
@@ -84,7 +90,7 @@ def search_magazines(mags=None, reset=False):
                                "library": 'magazine'})
 
         if not searchlist:
-            logger.warn('There is nothing to search for.  Mark some magazines as active.')
+            logger.warning('There is nothing to search for.  Mark some magazines as active.')
 
         for book in searchlist:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLMAG":
@@ -93,25 +99,25 @@ def search_magazines(mags=None, reset=False):
 
             resultlist = []
 
-            if lazylibrarian.use_nzb():
+            if CONFIG.use_nzb():
                 resultlist, nproviders = iterate_over_newznab_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_NZB_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No nzb providers are available. Check config and blocklist')
+                        logger.warning('No nzb providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_NZB_MSG'] = timenow
                 else:
                     # prefer larger nzb over smaller ones which may be par2 repair files?
                     resultlist = sorted(resultlist, key=lambda d: check_int(d['nzbsize'], 0), reverse=True)
 
-            if lazylibrarian.use_direct():
+            if CONFIG.use_direct():
                 dir_resultlist, nproviders = iterate_over_direct_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_DIRECT_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No direct providers are available. Check config and blocklist')
+                        logger.warning('No direct providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_DIRECT_MSG'] = timenow
 
                 if dir_resultlist:
@@ -126,13 +132,13 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'direct'
                         })
 
-            if lazylibrarian.use_irc():
+            if CONFIG.use_irc():
                 irc_resultlist, nproviders = iterate_over_irc_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_IRC_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No irc providers are available. Check config and blocklist')
+                        logger.warning('No irc providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_IRC_MSG'] = timenow
 
                 if irc_resultlist:
@@ -147,13 +153,13 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'irc'
                         })
 
-            if lazylibrarian.use_tor():
+            if CONFIG.use_tor():
                 tor_resultlist, nproviders = iterate_over_torrent_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_TOR_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No tor providers are available. Check config and blocklist')
+                        logger.warning('No tor providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_TOR_MSG'] = timenow
 
                 if tor_resultlist:
@@ -168,13 +174,13 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'torrent'
                         })
 
-            if lazylibrarian.use_rss():
+            if CONFIG.use_rss():
                 rss_resultlist, nproviders, dltypes = iterate_over_rss_sites()
                 if not nproviders or 'M' not in dltypes:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
                     if check_int(lazylibrarian.TIMERS['NO_RSS_MSG'], 0) + 1200 < timenow:
-                        logger.warn('No rss providers are available. Check config and blocklist')
+                        logger.warning('No rss providers are available. Check config and blocklist')
                         lazylibrarian.TIMERS['NO_RSS_MSG'] = timenow
 
                 if rss_resultlist:
@@ -232,13 +238,13 @@ def search_magazines(mags=None, reset=False):
                         bad_name += 1
                     else:
                         rejected = False
-                        maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAGSIZE'], 0)
+                        maxsize = CONFIG.get_int('REJECT_MAGSIZE')
                         if maxsize and nzbsize > maxsize:
                             logger.debug("Rejecting %s, too large (%sMb)" % (nzbtitle, nzbsize))
                             rejected = True
 
                         if not rejected:
-                            minsize = check_int(lazylibrarian.CONFIG['REJECT_MAGMIN'], 0)
+                            minsize = CONFIG.get_int('REJECT_MAGMIN')
                             if minsize and nzbsize < minsize:
                                 logger.debug("Rejecting %s, too small (%sMb)" % (nzbtitle, nzbsize))
                                 rejected = True
@@ -279,14 +285,14 @@ def search_magazines(mags=None, reset=False):
                                 logger.debug("Magazine name too short (%s)" % len(nzbtitle_exploded))
                                 rejected = True
 
-                        if not rejected and lazylibrarian.CONFIG['BLACKLIST_FAILED']:
+                        if not rejected and CONFIG.get_bool('BLACKLIST_FAILED'):
                             blocked = db.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
                                              (nzbtitle_formatted, blocked['NZBprov']))
                                 rejected = True
 
-                        if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
+                        if not rejected and CONFIG.get_bool('BLACKLIST_PROCESSED'):
                             blocked = db.match('SELECT * from wanted WHERE NZBurl=?', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
@@ -295,14 +301,13 @@ def search_magazines(mags=None, reset=False):
 
                         if not rejected:
                             reject_list = get_list(results['Reject'])
-                            reject_list += get_list(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
+                            reject_list += get_list(CONFIG['REJECT_MAGS'], ',')
                             lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower().split()
                             lower_bookid = unaccented(bookid, only_ascii=False).lower().split()
                             if reject_list:
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                    logger.debug('Reject: %s' % reject_list)
-                                    logger.debug('Title: %s' % lower_title)
-                                    logger.debug('Bookid: %s' % lower_bookid)
+                                loggersearching.debug('Reject: %s' % reject_list)
+                                loggersearching.debug('Title: %s' % lower_title)
+                                loggersearching.debug('Bookid: %s' % lower_bookid)
                             for word in reject_list:
                                 word = unaccented(word).lower()
                                 if word in lower_title and word not in lower_bookid:
@@ -312,10 +317,10 @@ def search_magazines(mags=None, reset=False):
                             if not rejected:
                                 reject_list = get_list(results['Reject'])
                                 if '*' in reject_list:  # strict rejection mode, no extraneous words
-                                    nouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
-                                    nouns.extend(get_list(lazylibrarian.CONFIG['VOLUME_NOUNS']))
-                                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_NOUNS']))
-                                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_TYPE']))
+                                    nouns = get_list(CONFIG['ISSUE_NOUNS'])
+                                    nouns.extend(get_list(CONFIG['VOLUME_NOUNS']))
+                                    nouns.extend(get_list(CONFIG['MAG_NOUNS']))
+                                    nouns.extend(get_list(CONFIG['MAG_TYPE']))
                                     for word in lower_title:
                                         if word.islower():  # contains ANY lowercase letters
                                             if word not in lower_bookid and word not in nouns:
@@ -389,8 +394,7 @@ def search_magazines(mags=None, reset=False):
                                         control_date = 0
                                     elif re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                         start_time = time.time()
-                                        start_time -= int(
-                                            lazylibrarian.CONFIG['MAG_AGE']) * 24 * 60 * 60  # number of days in seconds
+                                        start_time -= CONFIG.get_int('MAG_AGE') * 24 * 60 * 60
                                         if start_time < 0:  # limit of unixtime (1st Jan 1970)
                                             start_time = 0
                                         control_date = time.strftime("%Y-%m-%d", time.localtime(start_time))
@@ -401,7 +405,7 @@ def search_magazines(mags=None, reset=False):
 
                                 if str(control_date).isdigit() and str(issuedate).isdigit():
                                     if not control_date:
-                                        comp_date = int(lazylibrarian.CONFIG['MAG_AGE']) - age(nzbdate)
+                                        comp_date = CONFIG.get_int('MAG_AGE') - age(nzbdate)
                                     else:
                                         comp_date = int(issuedate) - int(control_date)
                                 elif re.match(r'\d+-\d\d-\d\d', str(control_date)) and \
@@ -449,16 +453,14 @@ def search_magazines(mags=None, reset=False):
                                     logger.debug('This issue of %s is new, downloading' % nzbtitle_formatted)
                                     issues.append(issue)
                                     logger.debug('Magazine request number %s' % len(issues))
-                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                        logger.debug(str(issues))
+                                    loggersearching.debug(str(issues))
                                     insert_table = "wanted"
                                     nzbdate = now()  # when we asked for it
                                 else:
                                     logger.debug('This issue of %s is already flagged for download; skipping' % issue)
                                     continue
                             else:
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                    logger.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
+                                loggersearching.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
                                 old_date += 1
 
                             # store only the _new_ matching results
@@ -506,23 +508,25 @@ def search_magazines(mags=None, reset=False):
 
                 threading.Thread(target=download_maglist, name='DL-MAGLIST', args=[maglist, 'pastissues']).start()
 
-            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+            time.sleep(CONFIG.get_int('SEARCH_RATELIMIT'))
 
         logger.info("Search for magazines complete")
         if reset:
-            schedule_job(action='Restart', target='search_magazines')
+            schedule_job(action=SchedulerCommand.RESTART, target='search_magazines')
 
     except Exception:
         logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        db.close()
         thread_name("WEBSERVER")
 
 
 def download_maglist(maglist, table='wanted'):
+    logger = logging.getLogger(__name__)
     snatched = 0
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         for magazine in maglist:
             if magazine['nzbmode'] in ["torznab", "torrent", "magnet"]:
                 snatch, res = tor_dl_method(
@@ -554,18 +558,20 @@ def download_maglist(maglist, table='wanted'):
                 logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
                 custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
                 notify_snatch("Magazine %s from %s at %s" % (unaccented(magazine['nzbtitle'], only_ascii=False),
-                              disp_name(magazine["nzbprov"]), now()))
+                              CONFIG.disp_name(magazine["nzbprov"]), now()))
             else:
                 db.action('UPDATE ' + table + ' SET status="Failed",DLResult=? WHERE NZBurl=?',
                           (res, magazine["nzburl"]))
     except Exception as e:
         logger.error(str(e))
     finally:
+        db.close()
         if snatched:
-            schedule_job(action='Start', target='PostProcessor')
+            schedule_job(action=SchedulerCommand.START, target='PostProcessor')
 
 
 def get_issue_date(nzbtitle_exploded, datetype=''):
+    logger = logging.getLogger(__name__)
     regex_pass = 0
     issuedate = ''
     year = 0
@@ -590,8 +596,8 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
     # 15 just a year (annual)
     # 16 to 18 internal issuedates used for filenames, YYYYIIII, VVVVIIII, YYYYVVVVIIII
     #
-    issuenouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
-    volumenouns = get_list(lazylibrarian.CONFIG['VOLUME_NOUNS'])
+    issuenouns = get_list(CONFIG['ISSUE_NOUNS'])
+    volumenouns = get_list(CONFIG['VOLUME_NOUNS'])
     nouns = issuenouns
     nouns.extend(volumenouns)
 

@@ -1,19 +1,26 @@
 # Web server for LazyLibrarian telemetry server
 
-from bottle import route, run, request
-import time
 import logging
-from telemetryutils import pretty_approx_time
+import time
+
+from bottle import route, run, request
+
 
 @route('/')
 def hello():
     logger.debug(f"Hello request for /")
     return "LazyLibrarian Telemetry Server"
 
-@route('/stats/<type:re:[a-z]+>')
-def stats(type):
-    logger.debug(f"Getting stats for {type}")
-    return f"Something needs to happen here: {type}"
+
+@route('/stats/<stat_type:re:[a-z]+>')
+def stats(stat_type):
+    logger.debug(f"Getting stats for {stat_type}")
+    valid_types = ['usage', 'configs', 'servers', 'switches', 'params', 'all']
+    if not stat_type or stat_type not in valid_types:
+        return "Valid stats types: %s" % str(valid_types)
+    result = _read_from_db(stat_type)
+    return result
+
 
 @route('/help')
 def server_status():
@@ -25,7 +32,7 @@ def server_status():
     <p>Please use one of the following:</p>
     <ul>
         <li><b>/status</b> - to get server status/uptime</li>
-        <li><b>/stats/</b>[type] - show stats of given type - to come</li>
+        <li><b>/stats/</b>[type] - show stats of given type (no type to list options)</li>
         <li><b>/send</b>?xxx - to send telemetry data (LL only)</li>
         <li><b>/help</b> - this page</li>
     <p>
@@ -33,12 +40,14 @@ def server_status():
     </html>
     """
 
+
 @route('/status')
 def server_status():
     logger.debug("Getting server status")
     uptime = time.time() - _starttime
-    pretty = pretty_approx_time(uptime)
-    return {'status':'online', 'servertime':pretty, 'received': _received, 'success': _success}
+    pretty = pretty_approx_time(int(uptime))
+    return {'status': 'online', 'servertime': pretty, 'received': _received, 'success': _success}
+
 
 @route('/send', method='GET')
 def process_telemetry():
@@ -51,10 +60,10 @@ def process_telemetry():
 
     data = request.query.dict
     logger.debug(f"Processing telemetry {data}")
-    if len(data) >= 1 and len(data) <=4 and 'server' in data.keys():
+    if 1 <= len(data) <= 4 and 'server' in data.keys():
         # In addition to data, we may also have a timeout parameter
         try:
-            logger.debug(f"Add to database ({len(data)} elements)")
+            logger.info(f"Add to database ({len(data)} elements) from {data['server']}")
             status = _add_to_db(data)
             _success += 1
         except Exception as e:
@@ -65,19 +74,33 @@ def process_telemetry():
         logger.warning(status)
     return {'status': status}
 
-def run_server(add_to_db):
-    global logger, _add_to_db
+
+def run_server(add_to_db, read_from_db):
+    global logger, _add_to_db, _read_from_db
 
     logger = logging.getLogger(__name__)
-    PORT = 9174
-    logger.info(f"Starting web server on port {PORT}")
-    _add_to_db = add_to_db # Method handler
-    run(host='0.0.0.0', port=PORT, debug=True, quiet=True)
+    port = 9174
+    logger.info(f"Starting web server on port {port}")
+    _add_to_db = add_to_db  # Method handler
+    _read_from_db = read_from_db  # Method handler
+    run(host='0.0.0.0', port=port, debug=True, quiet=True)
+
+
+def pretty_approx_time(seconds: int) -> str:
+    """ Return a string representing the parameter in a nice human-readable (approximate) way """
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, seconds = divmod(rem, 60)
+    locals_ = locals()
+    magnitudes_str = ("{n} {magnitude}".format(n=int(locals_[magnitude]), magnitude=magnitude)
+                      for magnitude in ("days", "hours", "minutes", "seconds") if locals_[magnitude])
+    return ", ".join(magnitudes_str)
 
 
 _starttime = time.time()
 _add_to_db = None
+_read_from_db = None
 _received = 0
 _success = 0
-logger = None
+logger: logging.Logger
 

@@ -12,12 +12,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
-import lazylibrarian
-from lazylibrarian import logger
+
+import logging
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
 
-import urllib3
 import requests
 
 
@@ -29,17 +29,18 @@ class SlackNotifier:
     @staticmethod
     def _send_slack(message=None, event=None, slack_token=None,
                     method=None, force=False):
-        if not lazylibrarian.CONFIG['USE_SLACK'] and not force:
+        if not CONFIG.get_bool('USE_SLACK') and not force:
             return False
 
-        url = lazylibrarian.CONFIG['SLACK_URL']
+        logger = logging.getLogger(__name__)
+        url = CONFIG['SLACK_URL']
         if not url.startswith("http"):
             url = 'https://' + url
         if not url.endswith("/"):
             url = url + '/'
 
         if slack_token is None:
-            slack_token = lazylibrarian.CONFIG['SLACK_TOKEN']
+            slack_token = CONFIG['SLACK_TOKEN']
         if method is None:
             method = 'POST'
         if event == "Test":
@@ -56,8 +57,8 @@ class SlackNotifier:
         postdata = '{"username": "LazyLibrarian", '
         #   Removed attachment approach to text and icon_url in slack formatting cleanup effort - bbq 20180724
         postdata += '"icon_url": "https://%s/%s/%s/raw/master/data/images/ll.png", ' % \
-                    (lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
-                     lazylibrarian.CONFIG['GIT_REPO'])
+                    (CONFIG['GIT_HOST'], CONFIG['GIT_USER'],
+                     CONFIG['GIT_REPO'])
         postdata += '"text":"%s %s"}' % (message, event)
         r = requests.request(method,
                              url,
@@ -77,12 +78,13 @@ class SlackNotifier:
         message: The message string to send
         force: If True then the notification will be sent even if slack is disabled in the config
         """
+        logger = logging.getLogger(__name__)
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warn("Slack: could not convert message: %s" % e)
+            logger.warning("Slack: could not convert message: %s" % e)
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_SLACK'] and not force:
+        if not CONFIG.get_bool('USE_SLACK') and not force:
             return False
 
         return self._send_slack(message, event, slack_token, method, force)
@@ -92,14 +94,14 @@ class SlackNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONSNATCH']:
+        if CONFIG.get_bool('SLACK_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONDOWNLOAD']:
+        if CONFIG.get_bool('SLACK_NOTIFY_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD])
 
     def test_notify(self, title="Test"):

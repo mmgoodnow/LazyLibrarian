@@ -10,16 +10,16 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
-from __future__ import with_statement
-
 import os
 import subprocess
+import logging
 
 import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database
+from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
-from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm, zip_audio
+from lazylibrarian.common import calibre_prg, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
 from lazylibrarian.images import shrink_mag
 
@@ -27,6 +27,8 @@ from PyPDF3 import PdfFileWriter, PdfFileReader
 
 
 def preprocess_ebook(bookfolder):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     logger.debug("Preprocess ebook %s" % bookfolder)
     ebook_convert = calibre_prg('ebook-convert')
     if not ebook_convert:
@@ -52,8 +54,8 @@ def preprocess_ebook(bookfolder):
         return
 
     basename, source_extn = os.path.splitext(sourcefile)
-    logger.debug("Wanted formats: %s" % lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
-    wanted_formats = get_list(lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
+    logger.debug("Wanted formats: %s" % CONFIG['EBOOK_WANTED_FORMATS'])
+    wanted_formats = get_list(CONFIG['EBOOK_WANTED_FORMATS'])
     for ftype in wanted_formats:
         if not path_exists(os.path.join(bookfolder, basename + '.' + ftype)):
             logger.debug("No %s" % ftype)
@@ -61,8 +63,7 @@ def preprocess_ebook(bookfolder):
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-                logger.debug(str(params))
+            loggerpostprocess.debug(str(params))
             try:
                 if os.name != 'nt':
                     _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
@@ -80,16 +81,16 @@ def preprocess_ebook(bookfolder):
         else:
             logger.debug("Found %s" % ftype)
 
-    if wanted_formats and lazylibrarian.CONFIG['DELETE_OTHER_FORMATS']:
-        if lazylibrarian.CONFIG['KEEP_OPF']:
+    if wanted_formats and CONFIG.get_bool('DELETE_OTHER_FORMATS'):
+        if CONFIG.get_bool('KEEP_OPF'):
             wanted_formats.append('opf')
-        if lazylibrarian.CONFIG['KEEP_JPG']:
+        if CONFIG.get_bool('KEEP_JPG'):
             wanted_formats.append('jpg')
         for fname in listdir(bookfolder):
             filename, extn = os.path.splitext(fname)
             if not extn or extn.lstrip('.').lower() not in wanted_formats:
                 logger.debug("Deleting %s" % fname)
-                remove(os.path.join(bookfolder, fname))
+                remove_file(os.path.join(bookfolder, fname))
     if created:
         logger.debug("Created %s from %s" % (created, source_extn))
     else:
@@ -97,16 +98,18 @@ def preprocess_ebook(bookfolder):
 
 
 def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
     if merge is None:
-        merge = lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']
+        merge = CONFIG.get_bool('CREATE_SINGLEAUDIO')
     if tag is None:
-        tag = lazylibrarian.CONFIG['WRITE_AUDIOTAGS']
+        tag = CONFIG.get_bool('WRITE_AUDIOTAGS')
     if zipp is None:
-        zipp = lazylibrarian.CONFIG['ZIP_AUDIOPARTS']
+        zipp = CONFIG.get_bool('ZIP_AUDIOPARTS')
     if not merge and not tag and not zipp:
         return
 
-    ffmpeg = lazylibrarian.CONFIG['FFMPEG']
+    ffmpeg = CONFIG['FFMPEG']
     if not ffmpeg:
         logger.error("Check config setting for ffmpeg")
         return
@@ -170,13 +173,13 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     # if we get here, looks like we have all the parts
     # output file will be the same type as the first input file
     # unless the user supplies a parameter to override it
-    if lazylibrarian.CONFIG['FFMPEG_OUT']:
-        out_type = '.' + lazylibrarian.CONFIG['FFMPEG_OUT'].lower().lstrip('.')
+    if CONFIG['FFMPEG_OUT']:
+        out_type = '.' + CONFIG['FFMPEG_OUT'].lower().lstrip('.')
     else:
         out_type = os.path.splitext(parts[0][3])[1]
 
-    if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
-        force_type = '.' + lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ', 1)[1].split(',')[0].split(' ')[0].strip()
+    if '-f ' in CONFIG['AUDIO_OPTIONS']:
+        force_type = '.' + CONFIG['AUDIO_OPTIONS'].split('-f ', 1)[1].split(',')[0].split(' ')[0].strip()
     else:
         force_type = ''
 
@@ -184,8 +187,8 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     if out_type in ['.m4b', '.m4a', '.aac', '.mp4']:
         force_mp4 = True
         if 'D' not in ff_aac or 'E' not in ff_aac:
-            logger.warn("Your version of ffmpeg does not report supporting read/write aac (%s) trying anyway" %
-                        ff_aac)
+            logger.warning("Your version of ffmpeg does not report supporting read/write aac (%s) trying anyway" %
+                           ff_aac)
     # else:  # should we force mp4 if input is mp4 but output is mp3?
     #     for part in parts:
     #         if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
@@ -194,21 +197,21 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
     if force_mp4 and force_type != 'mp4':
         if force_type:
-            pre, post = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ', 1)
+            pre, post = CONFIG['AUDIO_OPTIONS'].split('-f ', 1)
             post = post.lstrip()
             post = post[len(force_type) + 1:]
             ffmpeg_options = pre + '-f mp4 ' + post
         else:
-            ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS'] + ' -f mp4'
+            ffmpeg_options = CONFIG['AUDIO_OPTIONS'] + ' -f mp4'
         logger.debug("ffmpeg options: %s" % ffmpeg_options)
     else:
-        ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS']
+        ffmpeg_options = CONFIG['AUDIO_OPTIONS']
 
     with open(partslist, 'w', encoding="utf-8") as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
 
-            if lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] and ff_ver and tag and authorname and bookname:
+            if CONFIG.get_bool('KEEP_SEPARATEAUDIO') and ff_ver and tag and authorname and bookname:
                 if token or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
                     params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
@@ -216,13 +219,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                               '-metadata', "artist=%s" % authorname,
                               '-metadata', "track=%s" % part[0],
                               os.path.join(bookfolder, "tempaudio%s" % extn)]
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                    if loggerpostprocess.isEnabledFor(logging.DEBUG):
                         params.append('-report')
                         logger.debug(str(params))
                         ffmpeg_env = os.environ.copy()
                         ffmpeg_env["FFREPORT"] = "file=" + \
-                                                 lazylibrarian.DBFILE.replace('.db', "_ffmpeg-tag-%s.log" %
-                                                                              now().replace(':', '-').replace(' ', '-'))
+                            DIRS.get_tmpfilename("ffmpeg-tag-%s.log" % now().replace(':', '-').replace(' ', '-'))
                     else:
                         ffmpeg_env = None
                     try:
@@ -232,7 +234,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         else:
                             _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
-                        remove(os.path.join(bookfolder, part[3]))
+                        remove_file(os.path.join(bookfolder, part[3]))
                         os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
                                   os.path.join(bookfolder, part[3]))
                         logger.debug("Metadata written to %s" % part[3])
@@ -255,13 +257,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             # read metadata from first file
             params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                       '-f', 'ffmetadata', '-y', metadata]
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            if loggerpostprocess.isEnabledFor(logging.DEBUG):
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                                         lazylibrarian.DBFILE.replace('.db', "_ffmpeg-meta-%s.log" %
-                                                                      now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename("ffmpeg-meta-%s.log" % now().replace(':', '-').replace(' ', '-'))
             else:
                 ffmpeg_env = None
             try:
@@ -282,13 +283,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             for part in parts:
                 params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
                           '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                if loggerpostprocess.isEnabledFor(logging.DEBUG):
                     params.append('-report')
                     logger.debug(str(params))
                     ffmpeg_env = os.environ.copy()
                     ffmpeg_env["FFREPORT"] = "file=" + \
-                        lazylibrarian.DBFILE.replace('.db', "_ffmpeg-part-%s.log" %
-                                                     now().replace(':', '-').replace(' ', '-'))
+                        DIRS.get_tmpfilename("ffmpeg-part-%s.log" % now().replace(':', '-').replace(' ', '-'))
                 else:
                     ffmpeg_env = None
                 try:
@@ -326,7 +326,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                                 if not lyne.startswith('START=') and not lyne.startswith('END='):
                                     if not lyne.startswith('title='):
                                         o.write(lyne)
-                    remove(metadata)
+                    remove_file(metadata)
                     os.rename(os.path.join(bookfolder, "newmetadata.ll"), metadata)
 
                 with open(metadata, 'a', encoding="utf-8") as f:
@@ -343,14 +343,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             params.extend(get_list(ffmpeg_options))
             params.append('-y')
             params.append(os.path.join(bookfolder, outfile))
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            if loggerpostprocess.isEnabledFor(logging.DEBUG):
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                                         lazylibrarian.DBFILE.replace('.db',
-                                                                      "_ffmpeg-merge-%s.log" %
-                                                                      now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename("ffmpeg-merge-%s.log" % now().replace(':', '-').replace(' ', '-'))
             else:
                 ffmpeg_env = None
             res = ''
@@ -380,58 +378,61 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                       '-metadata', 'track="1/1"']
 
             db = database.DBConnection()
-            match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
-            audio_path = os.path.join(bookfolder, parts[0][3])
-            if match:
-                id3r = id3read(audio_path)
-                if not match['Narrator'] and id3r['narrator']:
-                    db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
-                # noinspection PyUnusedLocal
-                artist = id3r['artist']
-                # noinspection PyUnusedLocal
-                composer = id3r['composer']
-                # noinspection PyUnusedLocal
-                album_artist = id3r['albumartist']
-                # noinspection PyUnusedLocal
-                album = id3r['album']
-                # title = id3r.title
-                # "unused" locals are used in eval() statement below
-                # noinspection PyUnusedLocal
-                comment = id3r['comment']
-                # noinspection PyUnusedLocal
-                author = authorname
-                # noinspection PyUnusedLocal
-                media_type = "Audiobook"
-                # noinspection PyUnusedLocal
-                genre = match['BookGenre']
-                # noinspection PyUnusedLocal
-                description = match['BookDesc']
-                # noinspection PyUnusedLocal
-                date = match['BookDate']
-                if date == '0000':
+            try:
+                match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
+                audio_path = os.path.join(bookfolder, parts[0][3])
+                if match:
+                    id3r = id3read(audio_path)
+                    if not match['Narrator'] and id3r['narrator']:
+                        db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
                     # noinspection PyUnusedLocal
-                    date = ''
+                    artist = id3r['artist']
+                    # noinspection PyUnusedLocal
+                    composer = id3r['composer']
+                    # noinspection PyUnusedLocal
+                    album_artist = id3r['albumartist']
+                    # noinspection PyUnusedLocal
+                    album = id3r['album']
+                    # title = id3r.title
+                    # "unused" locals are used in eval() statement below
+                    # noinspection PyUnusedLocal
+                    comment = id3r['comment']
+                    # noinspection PyUnusedLocal
+                    author = authorname
+                    # noinspection PyUnusedLocal
+                    media_type = "Audiobook"
+                    # noinspection PyUnusedLocal
+                    genre = match['BookGenre']
+                    # noinspection PyUnusedLocal
+                    description = match['BookDesc']
+                    # noinspection PyUnusedLocal
+                    date = match['BookDate']
+                    if date == '0000':
+                        # noinspection PyUnusedLocal
+                        date = ''
 
-                if bookfile:
-                    title = bookfile
+                    if bookfile:
+                        title = bookfile
+                    else:
+                        title = "%s - %s" % (authorname, bookname)
+                        if match['SeriesDisplay']:
+                            series = match['SeriesDisplay'].split('<br>')[0].strip()
+                            if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
+                                title = "%s (%s)" % (title, series)
+                                outfile, extn = os.path.splitext(outfile)
+                                outfile = "%s (%s)%s" % (outfile, series, extn)
+                    params.extend(['-metadata', "title=%s" % title])
+                    for item in ['artist', 'album_artist', 'composer', 'album', 'author',
+                                 'date', 'comment', 'description', 'genre', 'media_type']:
+                        value = eval(item)
+                        if value:
+                            params.extend(['-metadata', "%s=%s" % (item, value)])
                 else:
-                    title = "%s - %s" % (authorname, bookname)
-                    if match['SeriesDisplay']:
-                        series = match['SeriesDisplay'].split('<br>')[0].strip()
-                        if series and '$SerName' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
-                            title = "%s (%s)" % (title, series)
-                            outfile, extn = os.path.splitext(outfile)
-                            outfile = "%s (%s)%s" % (outfile, series, extn)
-                params.extend(['-metadata', "title=%s" % title])
-                for item in ['artist', 'album_artist', 'composer', 'album', 'author',
-                             'date', 'comment', 'description', 'genre', 'media_type']:
-                    value = eval(item)
-                    if value:
-                        params.extend(['-metadata', "%s=%s" % (item, value)])
-            else:
-                params.extend(['-metadata', "album=%s" % bookname,
-                               '-metadata', "artist=%s" % authorname,
-                               '-metadata', "title=%s" % bookfile])
+                    params.extend(['-metadata', "album=%s" % bookname,
+                                   '-metadata', "artist=%s" % authorname,
+                                   '-metadata', "title=%s" % bookfile])
+            finally:
+                db.close()
 
             tempfile = os.path.join(bookfolder, "tempaudio%s" % extn)
             if extn == '.m4b':
@@ -442,13 +443,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 b2a = False
 
             params.append(tempfile)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            if loggerpostprocess.isEnabledFor(logging.DEBUG):
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                                         lazylibrarian.DBFILE.replace('.db', "_ffmpeg-merge_tag-%s.log" %
-                                                                      now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename("ffmpeg-merge_tag-%s.log" % now().replace(':', '-').replace(' ', '-'))
             else:
                 ffmpeg_env = None
             try:
@@ -459,7 +459,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
                 outfile = os.path.join(bookfolder, outfile)
-                remove(outfile)
+                remove_file(outfile)
                 if b2a:
                     tempfile.replace('.m4a', '.m4b')
                 os.rename(tempfile, outfile)
@@ -471,16 +471,17 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.error("%s: %s" % (type(e).__name__, str(e)))
                 return
 
-        if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] and len(parts) > 1:
+        if not CONFIG.get_bool('KEEP_SEPARATEAUDIO') and len(parts) > 1:
             logger.debug("Removing %d part files" % len(parts))
             for part in parts:
-                remove(os.path.join(bookfolder, part[3]))
+                remove_file(os.path.join(bookfolder, part[3]))
 
-    remove(partslist)
-    remove(metadata)
+    remove_file(partslist)
+    remove_file(metadata)
 
 
 def preprocess_magazine(bookfolder, cover=0):
+    logger = logging.getLogger(__name__)
     logger.debug("Preprocess magazine %s cover=%s" % (bookfolder, cover))
     try:
         sourcefile = None
@@ -494,17 +495,17 @@ def preprocess_magazine(bookfolder, cover=0):
             logger.error("No suitable sourcefile found in %s" % bookfolder)
             return
 
-        dpi = check_int(lazylibrarian.CONFIG['SHRINK_MAG'], 0)
+        dpi = CONFIG.get_int('SHRINK_MAG')
         cover = check_int(cover, 0)
 
-        if not dpi and not (lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover > 1):
+        if not dpi and not (CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1):
             logger.debug("No preprocessing required")
             return
 
         # reordering or shrinking pages is quite slow if the source is on a networked drive
         # so work on a local copy, then move it over.
         original = os.path.join(bookfolder, sourcefile)
-        srcfile = safe_copy(original, os.path.join(lazylibrarian.CACHEDIR, sourcefile))
+        srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, sourcefile))
 
         if dpi:
             logger.debug("Resizing %s to %s dpi" % (srcfile, dpi))
@@ -516,13 +517,13 @@ def preprocess_magazine(bookfolder, cover=0):
                 new_size = 0
             logger.debug("New size %s, was %s" % (human_size(new_size), human_size(old_size)))
             if new_size and new_size < old_size:
-                remove(srcfile)
+                remove_file(srcfile)
                 os.rename(shrunkfile, srcfile)
                 _ = setperm(srcfile)
             elif shrunkfile:
-                remove(shrunkfile)
+                remove_file(shrunkfile)
 
-        if lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover > 1:
+        if CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1:
             if not PdfFileWriter:
                 logger.error("PdfFileWriter not found")
             else:
@@ -536,7 +537,7 @@ def preprocess_magazine(bookfolder, cover=0):
                     while p < cnt:
                         if p != cover:
                             output.addPage(input1.getPage(p))
-                        p = p + 1
+                        p += 1
                     with open(srcfile + 'new', "wb") as outputStream:
                         output.write(outputStream)
                 logger.debug("%s has %d pages. Cover from page %d" % (srcfile, cnt, cover + 1))
@@ -544,9 +545,9 @@ def preprocess_magazine(bookfolder, cover=0):
                     sz = os.stat(srcfile + 'new').st_size
                 except Exception as e:
                     sz = 0
-                    logger.warn("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
+                    logger.warning("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
                 if sz:
-                    remove(srcfile)
+                    remove_file(srcfile)
                     newcopy = safe_move(srcfile + 'new', original + 'new')
                     os.rename(newcopy, original)
                     _ = setperm(original)

@@ -10,9 +10,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 
-import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database
 from lazylibrarian.formatter import get_list, unaccented, plural, date_format
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
@@ -33,6 +34,7 @@ def search_item(item=None, bookid=None, cat=None):
     if not item:
         return results
 
+    logger = logging.getLogger(__name__)
     book = {}
     searchterm = unaccented(item, only_ascii=False, umlauts=False)
 
@@ -44,9 +46,12 @@ def search_item(item=None, bookid=None, cat=None):
 
     if cat in ['book', 'audio']:
         db = database.DBConnection()
-        cmd = 'SELECT authorName,bookName,bookSub from books,authors WHERE books.AuthorID=authors.AuthorID'
-        cmd += ' and bookID=?'
-        match = db.match(cmd, (bookid,))
+        try:
+            cmd = 'SELECT authorName,bookName,bookSub from books,authors WHERE books.AuthorID=authors.AuthorID'
+            cmd += ' and bookID=?'
+            match = db.match(cmd, (bookid,))
+        finally:
+            db.close()
         if match:
             book['authorName'] = match['authorName']
             book['bookName'] = match['bookName']
@@ -55,27 +60,26 @@ def search_item(item=None, bookid=None, cat=None):
             logger.debug('Forcing general search')
             cat = 'general'
 
-    nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
-    nprov += lazylibrarian.use_direct() + lazylibrarian.use_irc()
+    nprov = CONFIG.total_active_providers()
     logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
-    if lazylibrarian.use_nzb():
+    if CONFIG.use_nzb():
         resultlist, nprov = iterate_over_newznab_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_tor():
+    if CONFIG.use_tor():
         resultlist, nprov = iterate_over_torrent_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_direct():
+    if CONFIG.use_direct():
         resultlist, nprov = iterate_over_direct_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_irc():
+    if CONFIG.use_irc():
         resultlist, nprov = iterate_over_irc_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_rss():
+    if CONFIG.use_rss():
         resultlist, nprov, dltypes = iterate_over_rss_sites()
         if nprov and dltypes != 'M':
             results += resultlist
@@ -123,7 +127,7 @@ def search_item(item=None, bookid=None, cat=None):
             if not size:
                 size = '1000'
             if date:
-                date = date_format(date)
+                date = date_format(date, context=title)
             url = url.encode('utf-8')
             if mode == 'torznab':
                 # noinspection PyTypeChecker

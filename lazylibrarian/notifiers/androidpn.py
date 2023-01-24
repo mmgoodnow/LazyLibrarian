@@ -18,14 +18,12 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-import lazylibrarian
-from lazylibrarian import logger
+import logging
+import requests
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import proxy_list
-from lazylibrarian.formatter import check_int
-
-import urllib3
-import requests
 
 
 class AndroidPNNotifier:
@@ -45,10 +43,11 @@ class AndroidPNNotifier:
             'username': username,
             'message': msg,
         }
+        logger = logging.getLogger(__name__)
         proxies = proxy_list()
         # send the request
         try:
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+            timeout = CONFIG.get_int('HTTP_TIMEOUT')
             r = requests.get(url, params=data, timeout=timeout, proxies=proxies)
             status = str(r.status_code)
             if status.startswith('2'):
@@ -57,7 +56,7 @@ class AndroidPNNotifier:
 
             # HTTP status 404 if the provided email address isn't a AndroidPN user.
             if status == '404':
-                logger.warn("ANDROIDPN: Username is wrong/not a AndroidPN email. AndroidPN will send an email to it")
+                logger.warning("ANDROIDPN: Username is wrong/not a AndroidPN email. AndroidPN will send an email to it")
             # For HTTP status code 401's, it is because you are passing in either an
             # invalid token, or the user has not added your service.
             elif status == '401':
@@ -97,16 +96,17 @@ class AndroidPNNotifier:
         """
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_ANDROIDPN'] and not force:
+        if not CONFIG.get_bool('USE_ANDROIDPN') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         # fill in omitted parameters
         if not username:
-            username = lazylibrarian.CONFIG['ANDROIDPN_USERNAME']
+            username = CONFIG['ANDROIDPN_USERNAME']
         if not url:
-            url = lazylibrarian.CONFIG['ANDROIDPN_URL']
+            url = CONFIG['ANDROIDPN_URL']
         if not broadcast:
-            broadcast = lazylibrarian.CONFIG['ANDROIDPN_BROADCAST']
+            broadcast = CONFIG.get_bool('ANDROIDPN_BROADCAST')
             if broadcast:
                 broadcast = 'Y'
             else:
@@ -125,14 +125,14 @@ class AndroidPNNotifier:
     #
 
     def notify_snatch(self, ep_name, fail=False):
-        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONSNATCH']:
+        if CONFIG.get_bool('ANDROIDPN_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(notifyStrings[NOTIFY_FAIL], ep_name)
             else:
                 self._notify(notifyStrings[NOTIFY_SNATCH], ep_name)
 
     def notify_download(self, ep_name):
-        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONDOWNLOAD']:
+        if CONFIG.get_bool('ANDROIDPN_NOTIFY_ONDOWNLOAD'):
             self._notify(notifyStrings[NOTIFY_DOWNLOAD], ep_name)
 
     def test_notify(self):

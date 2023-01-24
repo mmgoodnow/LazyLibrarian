@@ -13,10 +13,12 @@
 import os
 import shutil
 import traceback
+import logging
 
-import lazylibrarian
-from lazylibrarian import database, logger
-from lazylibrarian.common import csv_file, safe_move, path_isdir, syspath, remove
+from lazylibrarian import database
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.configtypes import ConfigDict
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move, csv_file
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
     make_unicode, split_title
 from lazylibrarian.importer import search_for, import_book, add_author_name_to_db, update_totals
@@ -30,16 +32,19 @@ except ImportError:
 
 # noinspection PyArgumentList
 def dump_table(table, savedir=None, status=None):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         columns = db.select('PRAGMA table_info(%s)' % table)
         if not columns:  # no such table
-            logger.warn("No such table [%s]" % table)
+            logger.warning("No such table [%s]" % table)
             return 0
 
         if not path_isdir(savedir):
-            savedir = lazylibrarian.DATADIR
+            savedir = DIRS.DATADIR
+        else:
+            savedir = str(savedir)
 
         headers = ''
         for item in columns:
@@ -68,24 +73,28 @@ def dump_table(table, savedir=None, status=None):
             msg = "Exported %s %s to %s" % (count, plural(count, "item"), csvfile)
             logger.info(msg)
         return count
-
     except Exception:
         msg = 'Unhandled exception in dump_table: %s' % traceback.format_exc()
         logger.error(msg)
         return 0
+    finally:
+        db.close()
 
 
 def restore_table(table, savedir=None, status=None):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         columns = db.select('PRAGMA table_info(%s)' % table)
         if not columns:  # no such table
-            logger.warn("No such table [%s]" % table)
+            logger.warning("No such table [%s]" % table)
             return 0
 
         if not path_isdir(savedir):
-            savedir = lazylibrarian.DATADIR
+            savedir = DIRS.DATADIR
+        else:
+            savedir = str(savedir)
 
         headers = ''
 
@@ -140,13 +149,16 @@ def restore_table(table, savedir=None, status=None):
         msg = 'Unhandled exception in restore_table: %s' % traceback.format_exc()
         logger.error(msg)
         return 0
+    finally:
+        db.close()
 
 
 def export_csv(search_dir=None, status="Wanted", library=''):
     """ Write a csv file to the search_dir containing all books marked as "Wanted" """
+    logger = logging.getLogger(__name__)
     msg = 'Export CSV'
     if not library:
-        if lazylibrarian.SHOW_AUDIO:
+        if CONFIG.get_bool('AUDIO_TAB'):
             library = 'AudioBook'
         else:
             library = 'eBook'
@@ -154,31 +166,33 @@ def export_csv(search_dir=None, status="Wanted", library=''):
     try:
         if not search_dir:
             msg = "Alternate Directory not configured"
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
         elif not path_isdir(search_dir):
             msg = "Alternate Directory [%s] not found" % search_dir
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
         elif not os.access(syspath(search_dir), os.W_OK | os.X_OK):
             msg = "Alternate Directory [%s] not writable" % search_dir
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
 
         csvfile = os.path.join(search_dir, "%s %s - %s.csv" % (status, library, now().replace(':', '-')))
 
         db = database.DBConnection()
-
-        cmd = 'SELECT BookID,AuthorName,BookName,BookIsbn,books.AuthorID FROM books,authors '
-        if library == 'eBook':
-            cmd += 'WHERE books.Status=? and books.AuthorID = authors.AuthorID'
-        else:
-            cmd += 'WHERE AudioStatus=? and books.AuthorID = authors.AuthorID'
-        find_status = db.select(cmd, (status,))
+        try:
+            cmd = 'SELECT BookID,AuthorName,BookName,BookIsbn,books.AuthorID FROM books,authors '
+            if library == 'eBook':
+                cmd += 'WHERE books.Status=? and books.AuthorID = authors.AuthorID'
+            else:
+                cmd += 'WHERE AudioStatus=? and books.AuthorID = authors.AuthorID'
+            find_status = db.select(cmd, (status,))
+        finally:
+            db.close()
 
         if not find_status:
             msg = "No %s marked as %s" % (library, status)
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
         count = 0
         # noinspection PyArgumentList
@@ -210,68 +224,72 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     Return database entry, or False if not found
     """
     db = database.DBConnection()
-    bookmatch = ""
-    isbn10 = ""
-    isbn13 = ""
-    bookid = ""
-    bookname = item['Title']
+    try:
+        bookmatch = ""
+        isbn10 = ""
+        isbn13 = ""
+        bookid = ""
+        bookname = item['Title']
 
-    bookname = make_unicode(bookname)
-    if 'ISBN' in item:
-        isbn10 = item['ISBN']
-    if 'ISBN13' in item:
-        isbn13 = item['ISBN13']
-    if 'BookID' in item:
-        bookid = item['BookID']
+        bookname = make_unicode(bookname)
+        if 'ISBN' in item:
+            isbn10 = item['ISBN']
+        if 'ISBN13' in item:
+            isbn13 = item['ISBN13']
+        if 'BookID' in item:
+            bookid = item['BookID']
 
-    # try to find book in our database using bookid or isbn, or if that fails, name matching
-    cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus,Requester,'
-    cmd += 'AudioRequester FROM books,authors where books.AuthorID = authors.AuthorID '
-    if bookid:
-        fullcmd = cmd + 'and BookID=?'
-        bookmatch = db.match(fullcmd, (bookid,))
-    if not bookmatch:
-        if is_valid_isbn(isbn10):
-            fullcmd = cmd + 'and BookIsbn=?'
-            bookmatch = db.match(fullcmd, (isbn10,))
-    if not bookmatch:
-        if is_valid_isbn(isbn13):
-            fullcmd = cmd + 'and BookIsbn=?'
-            bookmatch = db.match(fullcmd, (isbn13,))
-    if not bookmatch:
-        bookid, _ = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library,
-                                    reason=reason)
+        # try to find book in our database using bookid or isbn, or if that fails, name matching
+        cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus,Requester,'
+        cmd += 'AudioRequester FROM books,authors where books.AuthorID = authors.AuthorID '
         if bookid:
             fullcmd = cmd + 'and BookID=?'
             bookmatch = db.match(fullcmd, (bookid,))
+        if not bookmatch:
+            if is_valid_isbn(isbn10):
+                fullcmd = cmd + 'and BookIsbn=?'
+                bookmatch = db.match(fullcmd, (isbn10,))
+        if not bookmatch:
+            if is_valid_isbn(isbn13):
+                fullcmd = cmd + 'and BookIsbn=?'
+                bookmatch = db.match(fullcmd, (isbn13,))
+        if not bookmatch:
+            bookid, _ = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library,
+                                        reason=reason)
+            if bookid:
+                fullcmd = cmd + 'and BookID=?'
+                bookmatch = db.match(fullcmd, (bookid,))
+    finally:
+        db.close()
     return bookmatch
 
 
-def import_csv(search_dir=None, status='Wanted', library=''):
+def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', config: ConfigDict = CONFIG) -> str:
     """ Find a csv file in the search_dir and process all the books in it,
         adding authors to the database if not found
         and marking the books as "Wanted"
-        Optionally delete the file on successful completion
+        Delete the file on successful completion if 'DELETE_CSV' is True
     """
+    logger = logging.getLogger(__name__)
     msg = 'Import CSV'
     if not library:
-        library = 'audio' if lazylibrarian.SHOW_AUDIO else 'eBook'
-    # noinspection PyBroadException
-    try:
-        if not search_dir:
-            msg = "Alternate Directory not configured"
-            logger.warn(msg)
-            return msg
-        elif not path_isdir(search_dir):
-            msg = "Alternate Directory [%s] not found" % search_dir
-            logger.warn(msg)
-            return msg
+        library = 'audio' if CONFIG.get_bool('AUDIO_TAB') else 'eBook'
+    if not search_dir:
+        msg = "Alternate Directory not configured"
+        logger.warning(msg)
+        return msg
+    elif not path_isdir(search_dir):
+        msg = "Alternate Directory [%s] not found" % search_dir
+        logger.warning(msg)
+        return msg
 
+    # noinspection PyBroadException
+    db = database.DBConnection()
+    try:
         csvfile = csv_file(search_dir, library=library)
 
         headers = None
 
-        db = database.DBConnection()
         bookcount = 0
         authcount = 0
         skipcount = 0
@@ -280,7 +298,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
 
         if not csvfile:
             msg = "No %s CSV file found in %s" % (library, search_dir)
-            logger.warn(msg)
+            logger.warning(msg)
             return msg
 
         logger.debug('Reading file %s' % csvfile)
@@ -291,12 +309,12 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                 headers = row
                 if 'Author' not in headers or 'Title' not in headers:
                     msg = 'Invalid CSV file found %s' % csvfile
-                    logger.warn(msg)
+                    logger.warning(msg)
                     return msg
             elif row:
                 total += 1
                 item = dict(list(zip(headers, row)))
-                authorname = format_author_name(item['Author'])
+                authorname = format_author_name(item['Author'], postfix=config.get_list('NAME_POSTFIX'))
                 title = make_unicode(item['Title'])
 
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
@@ -315,7 +333,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     if new:
                         authcount += 1
                     if not authorid:
-                        logger.warn("Authorname %s not added to database" % authorname)
+                        logger.warning("Authorname %s not added to database" % authorname)
 
                 if authorid:
                     bookmatch = finditem(item, authorname, library=library, reason='import_csv: %s' % csvfile)
@@ -344,7 +362,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     searchterm = "%s <ll> %s" % (title, authorname)
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
-                        if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                        if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
                                 and result['authorid'] == authorid:
                             bookmatch = result
                             break
@@ -355,7 +373,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                             searchterm = "%s <ll> %s" % (title, authorname)
                             results = search_for(unaccented(searchterm, only_ascii=False))
                             for result in results:
-                                if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                                if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
                                         and result['authorid'] == authorid:
                                     bookmatch = result
                                     break
@@ -379,20 +397,20 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     msg = "Skipping book %s by %s" % (title, authorname)
                     if not results:
                         msg += ', No results found'
-                        logger.warn(msg)
+                        logger.warning(msg)
                     elif bookmatch and not imported:
                         msg += ', Failed to import %s' % bookmatch['bookid']
-                        logger.warn(msg)
+                        logger.warning(msg)
                     else:
                         msg += ', No match found'
-                        logger.warn(msg)
+                        logger.warning(msg)
                         msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
                                                                     results[0]['book_fuzz'],
                                                                     results[0]['authorname'],
                                                                     results[0]['bookname'])
                         if results[0]['authorid'] != authorid:
                             msg += ' wrong authorid'
-                        logger.warn(msg)
+                        logger.warning(msg)
                     skipcount += 1
 
         msg = "Found %i %s%s in csv file, %i already existing or Wanted" % (total, library,
@@ -403,21 +421,21 @@ def import_csv(search_dir=None, status='Wanted', library=''):
               (authcount, plural(authcount, "author"), bookcount, plural(bookcount, library),
                status, skipcount, plural(skipcount, library))
         logger.info(msg)
-        if lazylibrarian.CONFIG['DELETE_CSV']:
+        if CONFIG.get_bool('DELETE_CSV'):
             if skipcount == 0:
                 logger.info("Deleting %s on successful completion" % csvfile)
                 try:
-                    remove(csvfile)
+                    remove_file(csvfile)
                 except OSError as why:
-                    logger.warn('Unable to delete %s: %s' % (csvfile, why.strerror))
+                    logger.warning('Unable to delete %s: %s' % (csvfile, why.strerror))
             else:
-                logger.warn("Not deleting %s as not all books found" % csvfile)
+                logger.warning("Not deleting %s as not all books found" % csvfile)
                 if path_isdir(csvfile + '.fail'):
                     try:
                         shutil.rmtree(csvfile + '.fail')
                     except Exception as why:
-                        logger.warn("Unable to remove %s, %s %s" % (csvfile + '.fail',
-                                                                    type(why).__name__, str(why)))
+                        logger.warning("Unable to remove %s, %s %s" % (csvfile + '.fail',
+                                                                       type(why).__name__, str(why)))
                 try:
                     _ = safe_move(csvfile, csvfile + '.fail')
                 except Exception as e:
@@ -431,11 +449,12 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     try:
                         with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                             f.write('test')
-                        remove(os.path.join(parent, 'll_temp'))
+                        remove_file(os.path.join(parent, 'll_temp'))
                     except Exception as why:
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
     except Exception:
         msg = 'Unhandled exception in import_csv: %s' % traceback.format_exc()
         logger.error(msg)
     finally:
+        db.close()
         return msg

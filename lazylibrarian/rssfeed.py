@@ -16,10 +16,11 @@
 import os
 import time
 import datetime
+import logging
 import traceback
 
-import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian import database
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import mime_type, path_exists
 from urllib.parse import unquote_plus
 
@@ -32,8 +33,9 @@ except ImportError:
 
 def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
     res = ''
-    if not lazylibrarian.CONFIG['RSS_ENABLED']:
+    if not CONFIG.get_bool('RSS_ENABLED'):
         return res
+    logger = logging.getLogger(__name__)
     # noinspection PyBroadException
     try:
         podcast = False
@@ -44,7 +46,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             cmd += "BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
             baselink = baseurl + '/book_wall&have=1'
         elif ftype == 'AudioBook':
-            podcast = lazylibrarian.CONFIG['RSS_PODCAST']
+            podcast = CONFIG.get_bool('RSS_PODCAST')
             cmd = "select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
             cmd += "from books,authors where "
             if authorid:
@@ -69,12 +71,15 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             return res
 
         db = database.DBConnection()
-        if authorid:
-            results = db.select(cmd, (authorid, limit))
-        elif onetitle:
-            results = db.select(cmd, (unquote_plus(onetitle).replace('&amp;', '&'), limit))
-        else:
-            results = db.select(cmd, (limit,))
+        try:
+            if authorid:
+                results = db.select(cmd, (authorid, limit))
+            elif onetitle:
+                results = db.select(cmd, (unquote_plus(onetitle).replace('&amp;', '&'), limit))
+            else:
+                results = db.select(cmd, (limit,))
+        finally:
+            db.close()
         items = []
         logger.debug("Found %s %s" % (len(results), ftype))
 
@@ -181,7 +186,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             image='%s/serve_img/%s%s.png' % (baseurl, user, ''),
             explicit="clean",
             categories=iTunesCategory(name='AudioBooks', subcategory='Recent AudioBooks'),
-            owner=iTunesOwner(name='LazyLibrarian', email=lazylibrarian.CONFIG['ADMIN_EMAIL']))
+            owner=iTunesOwner(name='LazyLibrarian', email=CONFIG['ADMIN_EMAIL']))
 
         title = "%s Recent Downloads" % ftype
         if authorid and results:

@@ -3,7 +3,7 @@
 import os
 import os.path as osp
 
-from icrawler.storage import BaseStorage
+from lib.icrawler.storage import BaseStorage
 
 
 class FileSystem(BaseStorage):

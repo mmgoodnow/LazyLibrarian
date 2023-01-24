@@ -15,28 +15,31 @@ import datetime
 import os
 import traceback
 import uuid
+import logging
 from shutil import copyfile
 
 import lazylibrarian
-from lazylibrarian import database, logger
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
-from lazylibrarian.common import walk, setperm, path_isfile, syspath
-from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, get_list, unaccented, sanitize
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
+from lazylibrarian.formatter import plural, check_int, now, get_list, unaccented, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
 
 
 def comic_scan(comicid=None):
+    logger = logging.getLogger(__name__)
     lazylibrarian.COMIC_UPDATE = 1
     title = ''
     # noinspection PyBroadException
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         if comicid:
             mags = db.match('select Title from comics WHERE ComicID=?', (comicid,))
             if mags:
                 title = mags['Title']
-        mag_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
+        mag_path = CONFIG['COMIC_DEST_FOLDER']
         if title and '$Title' in mag_path:
             comic_name = unaccented(sanitize(title), only_ascii=False)
             mag_path = mag_path.replace('$Title', comic_name)
@@ -47,10 +50,10 @@ def comic_scan(comicid=None):
         while '$' in mag_path:
             mag_path = os.path.dirname(mag_path)
 
-        if lazylibrarian.CONFIG['COMIC_RELATIVE']:
-            mag_path = os.path.join(lazylibrarian.directory('eBook'), mag_path)
-        
-        if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
+        if CONFIG.get_bool('COMIC_RELATIVE'):
+            mag_path = os.path.join(get_directory('eBook'), mag_path)
+
+        if CONFIG.get_bool('FULL_SCAN') and not onetitle:
             cmd = 'select Title,IssueID,IssueFile,comics.ComicID from comics,comicissues '
             cmd += 'WHERE comics.ComicID = comicissues.ComicID'
             mags = db.select(cmd)
@@ -76,7 +79,7 @@ def comic_scan(comicid=None):
                     logger.debug('Comic %s (%s) details reset' % (title, comicid))
 
             # now check the comic titles and delete any with no issues
-            if lazylibrarian.CONFIG['COMIC_DELFOLDER']:
+            if CONFIG.get_bool('COMIC_DELFOLDER'):
                 cmd = 'select Title,ComicID,(select count(*) as counter from comicissues '
                 cmd += 'where comics.comicid = comicissues.comicid) as issues from comics order by Title'
                 mags = db.select(cmd)
@@ -88,11 +91,11 @@ def comic_scan(comicid=None):
                         logger.debug('Comic %s deleted as no issues found' % title)
                         db.action('DELETE from comics WHERE ComicID=?', (comicid,))
 
-        logger.info(' Checking [%s] for %s' % (mag_path, lazylibrarian.CONFIG['COMIC_TYPE']))
+        logger.info(' Checking [%s] for %s' % (mag_path, CONFIG['COMIC_TYPE']))
 
         for rootdir, _, filenames in walk(mag_path):
             for fname in filenames:
-                if is_valid_booktype(fname, booktype='comic'):
+                if CONFIG.is_valid_booktype(fname, booktype='comic'):
                     title = ''
                     issue = ''
                     start = ''
@@ -221,7 +224,7 @@ def comic_scan(comicid=None):
                                 logger.debug("Adding issue %s %s" % (title, issue))
                                 coverfile = create_mag_cover(issuefile, refresh=True)
                                 if coverfile and path_isfile(coverfile):
-                                    hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                    hashname = os.path.join(DIRS.CACHEDIR, 'comic', '%s.jpg' % myhash)
                                     copyfile(coverfile, hashname)
                                     setperm(hashname)
                                     new_value_dict['Cover'] = 'cache/comic/%s.jpg' % myhash
@@ -254,7 +257,7 @@ def comic_scan(comicid=None):
                                 data.update(new_value_dict)
                                 data['Title'] = title
                                 data['Publisher'] = publisher
-                                if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+                                if not CONFIG.get_bool('IMP_COMICOPF'):
                                     logger.debug('create_comic_opf is disabled')
                                 else:
                                     _ = create_comic_opf(dest_path, data, global_name, overwrite=True)
@@ -264,7 +267,7 @@ def comic_scan(comicid=None):
                             with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                                 f.write(u'comic')
                         except IOError as e:
-                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+                            logger.warning("Unable to create/write to ignorefile: %s" % str(e))
 
                         # see if this issues date values are useful
                         control_value_dict = {"ComicID": comicid}
@@ -295,7 +298,7 @@ def comic_scan(comicid=None):
                             db.upsert("comics", new_value_dict, control_value_dict)
                     else:
                         logger.debug("No match for %s" % fname)
-        if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
+        if CONFIG.get_bool('FULL_SCAN') and not onetitle:
             magcount = db.match("select count(*) from comics")
             isscount = db.match("select count(*) from comicissues")
             logger.info("Comic scan complete, found %s %s, %s %s" %
@@ -304,7 +307,8 @@ def comic_scan(comicid=None):
         else:
             logger.info("Comic scan complete")
         lazylibrarian.COMIC_UPDATE = 0
-
     except Exception:
         lazylibrarian.COMIC_UPDATE = 0
         logger.error('Unhandled exception in comic_scan: %s' % traceback.format_exc())
+    finally:
+        db.close()

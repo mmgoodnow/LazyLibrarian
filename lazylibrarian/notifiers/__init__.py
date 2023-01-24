@@ -16,22 +16,23 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import traceback
+
+from lazylibrarian.config2 import CONFIG
 from . import androidpn
+from . import apprise_notify
 from . import boxcar
 from . import custom_notify
 from . import email_notify
-from . import prowl
 from . import growl
+from . import prowl
 from . import pushbullet
 from . import pushover
 from . import slack
-from . import tweet
 from . import telegram
-from . import apprise_notify
-import lazylibrarian
-from lazylibrarian import logger
-from lazylibrarian.common import set_redactlist
+from . import tweet
+from ..telemetry import TELEMETRY
 
 # online
 twitter_notifier = tweet.TwitterNotifier()
@@ -62,44 +63,53 @@ notifiers = [
     apprise_notifier,
 ]
 
+APPRISE_VER: str = apprise_notify.APPRISE_CANLOAD
+
+
 def custom_notify_download(bookid):
+    logger = logging.getLogger(__name__)
     try:
+        TELEMETRY.record_usage_data('Notify/Download/Custom')
         custom_notifier.notify_download(bookid)
     except Exception as e:
-        logger.warn('Custom notify download failed: %s' % str(e))
+        logger.warning('Custom notify download failed: %s' % str(e))
         logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
 def custom_notify_snatch(bookid, fail=False):
+    logger = logging.getLogger(__name__)
     try:
+        TELEMETRY.record_usage_data('Notify/Snatch/Custom')
         custom_notifier.notify_snatch(bookid, fail=fail)
     except Exception as e:
-        logger.warn('Custom notify snatch failed: %s' % str(e))
+        logger.warning('Custom notify snatch failed: %s' % str(e))
         logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
 def notify_download(title, bookid=None):
-    set_redactlist()
-    for item in lazylibrarian.REDACTLIST:
+    logger = logging.getLogger(__name__)
+    for item in CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
+        TELEMETRY.record_usage_data('Notify/Download')
         for n in notifiers:
             if 'EmailNotifier' in str(n):
                 n.notify_download(title, bookid=bookid)
             else:
                 n.notify_download(title)
     except Exception as e:
-        logger.warn('Notify download failed: %s' % str(e))
+        logger.warning('Notify download failed: %s' % str(e))
         logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
 def notify_snatch(title, fail=False):
-    set_redactlist()
-    for item in lazylibrarian.REDACTLIST:
+    logger = logging.getLogger(__name__)
+    for item in CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
+        TELEMETRY.record_usage_data('Notify/Snatch')
         for n in notifiers:
             n.notify_snatch(title, fail=fail)
     except Exception as e:
-        logger.warn('Notify snatch failed: %s' % str(e))
+        logger.warning('Notify snatch failed: %s' % str(e))
         logger.error('Unhandled exception: %s' % traceback.format_exc())

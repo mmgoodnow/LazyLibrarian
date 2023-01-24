@@ -2,8 +2,8 @@
 import html5lib
 from bs4 import BeautifulSoup
 
-from icrawler import Crawler, Parser, Feeder, ImageDownloader
-from icrawler.builtin.filter import Filter
+from lib.icrawler import Crawler, Parser, Feeder, ImageDownloader
+from lib.icrawler.builtin.filter import Filter
 
 
 class BingFeeder(Feeder):

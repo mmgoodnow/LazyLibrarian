@@ -11,17 +11,20 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import socket
 import ssl
 from time import sleep
 
-import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian.filesystem import get_directory
+from lazylibrarian.config2 import CONFIG
 from xmlrpc.client import Binary, ServerProxy
 
 
 def get_server():
-    host = lazylibrarian.CONFIG['RTORRENT_HOST']
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    host = CONFIG['RTORRENT_HOST']
     if not host:
         logger.error("rtorrent error: No host found, check your config")
         return False, ''
@@ -30,9 +33,9 @@ def get_server():
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
 
-    if lazylibrarian.CONFIG['RTORRENT_USER']:
-        user = lazylibrarian.CONFIG['RTORRENT_USER']
-        password = lazylibrarian.CONFIG['RTORRENT_PASS']
+    if CONFIG['RTORRENT_USER']:
+        user = CONFIG['RTORRENT_USER']
+        password = CONFIG['RTORRENT_PASS']
         parts = host.split('://')
         host = parts[0] + '://' + user + ':' + password + '@' + parts[1]
 
@@ -40,7 +43,7 @@ def get_server():
         socket.setdefaulttimeout(20)  # so we don't freeze if server is not there
         if host.startswith("https://"):
             context = ssl.create_default_context()
-            if not lazylibrarian.CONFIG['SSL_VERIFY']:
+            if not CONFIG.get_bool('SSL_VERIFY'):
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
             server = ServerProxy(host, context=context)
@@ -48,8 +51,7 @@ def get_server():
             server = ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug("rTorrent client version = %s" % version)
+        loggerdlcomms.debug("rTorrent client version = %s" % version)
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed
         logger.error("xmlrpc_client error: %s" % repr(e))
@@ -57,11 +59,12 @@ def get_server():
     if version:
         return server, version
     else:
-        logger.warn('No response from rTorrent server')
+        logger.warning('No response from rTorrent server')
         return False, ''
 
 
 def add_torrent(tor_url, hash_id, data=None):
+    logger = logging.getLogger(__name__)
     server, version = get_server()
     if server is False:
         return False, 'rTorrent unable to connect to server'
@@ -88,21 +91,21 @@ def add_torrent(tor_url, hash_id, data=None):
             sleep(1)
             retries -= 1
 
-        label = lazylibrarian.CONFIG['RTORRENT_LABEL']
+        label = CONFIG['RTORRENT_LABEL']
         if label:
             if version.startswith('0.9') or version.startswith('1.'):
                 server.d.custom1.set(hash_id, label)
             else:
                 server.d.set_custom1(hash_id, label)
 
-        directory = lazylibrarian.CONFIG['RTORRENT_DIR']
+        directory = CONFIG['RTORRENT_DIR']
         if directory:
             if version.startswith('0.9') or version.startswith('1.'):
-                server.d.directory.set(hash_id, directory)
+                get_directory.set(hash_id, directory)
             else:
                 server.d.set_directory(hash_id, directory)
 
-        if not lazylibrarian.CONFIG['TORRENT_PAUSED']:
+        if not CONFIG.get_bool('TORRENT_PAUSED'):
             server.d.start(hash_id)
 
     except Exception as e:
@@ -114,7 +117,7 @@ def add_torrent(tor_url, hash_id, data=None):
     name = get_name(hash_id)
     if name:
         if version.startswith('0.9') or version.startswith('1.'):
-            directory = server.d.directory(hash_id)
+            directory = get_directory(hash_id)
             label = server.d.custom1(hash_id)
         else:
             directory = server.d.get_directory(hash_id)
@@ -197,7 +200,7 @@ def get_folder(hash_id):
             name = ''
             while retries:
                 if version.startswith('0.9') or version.startswith('1.'):
-                    name = server.d.directory(tor)
+                    name = get_directory(tor)
                 else:
                     name = server.d.get_directory(tor)
                 if tor.upper() not in name:

@@ -1,5 +1,6 @@
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <feed xmlns="http://www.w3.org/2005/Atom"
       xmlns:xhtml="http://www.w3.org/1999/xhtml"
@@ -11,7 +12,7 @@
     <updated>${opds['updated']}</updated>
     <author>
         <name>LazyLibrarian Server</name>
-        <uri>https://${lazylibrarian.CONFIG['GIT_HOST']}/${lazylibrarian.CONFIG['GIT_USER']}/${lazylibrarian.CONFIG['GIT_REPO']}</uri>
+        <uri>https://${CONFIG['GIT_HOST']}/${CONFIG['GIT_USER']}/${CONFIG['GIT_REPO']}</uri>
     </author>
     %for link in opds['links']:
     <%

@@ -13,15 +13,16 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import traceback
 
-import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian import database
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import only_punctuation
-from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, \
     direct_dl_method, irc_dl_method
-from lazylibrarian.formatter import unaccented, replace_all, get_list, now, check_int, disp_name
+from lazylibrarian.formatter import unaccented, replace_all, get_list, now, check_int
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import get_searchterm
 
@@ -44,7 +45,7 @@ def process_result_list(resultlist, book, searchtype, source):
         # controlValueDict = match[3]
         # dlpriority = match[4]
 
-        if score < int(lazylibrarian.CONFIG['MATCH_RATIO']):
+        if score < CONFIG.get_int('MATCH_RATIO'):
             return 0
         return download_result(match, book)
     return 0
@@ -58,8 +59,10 @@ def find_best_result(resultlist, book, searchtype, source):
         return:     highest scoring match, or None if no match
     """
     # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
+    loggerfuzz = logging.getLogger('special.fuzz')
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
         # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
         dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
                     ',': ' ', '*': '', '(': '', ')': '', '[': '', ']': '', '#': '', '\'': '',
@@ -78,15 +81,15 @@ def find_best_result(resultlist, book, searchtype, source):
             title = title.split('(')[0].strip()
 
         if book['library'] == 'AudioBook':
-            reject_list = get_list(lazylibrarian.CONFIG['REJECT_AUDIO'], ',')
-            maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXAUDIO'], 0)
-            minsize = check_int(lazylibrarian.CONFIG['REJECT_MINAUDIO'], 0)
+            reject_list = get_list(CONFIG['REJECT_AUDIO'], ',')
+            maxsize = CONFIG.get_int('REJECT_MAXAUDIO')
+            minsize = CONFIG.get_int('REJECT_MINAUDIO')
             auxinfo = 'AudioBook'
 
         else:  # elif book['library'] == 'eBook':
-            reject_list = get_list(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
-            maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXSIZE'], 0)
-            minsize = check_int(lazylibrarian.CONFIG['REJECT_MINSIZE'], 0)
+            reject_list = get_list(CONFIG['REJECT_WORDS'], ',')
+            maxsize = CONFIG.get_int('REJECT_MAXSIZE')
+            minsize = CONFIG.get_int('REJECT_MINSIZE')
             auxinfo = 'eBook'
 
         if source == 'nzb':
@@ -109,14 +112,12 @@ def find_best_result(resultlist, book, searchtype, source):
                 book_match = fuzz.token_set_ratio(title.replace(author, ''), only_title)
             if 'booksearch' in res and res['booksearch'] == 'bibliotik':
                 # bibliotik only returns book title, not author name
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                    logger.debug("bibliotik, ignoring author fuzz")
+                loggerfuzz.debug("bibliotik, ignoring author fuzz")
                 author_match = 100
             else:
                 author_match = fuzz.token_set_ratio(author, result_title)
 
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                logger.debug("%s author/book Match: %s/%s %s at %s" %
+            loggerfuzz.debug("%s author/book Match: %s/%s %s at %s" %
                              (source.upper(), author_match, book_match, result_title, res[prefix + 'prov']))
 
             rejected = False
@@ -126,7 +127,7 @@ def find_best_result(resultlist, book, searchtype, source):
                 rejected = True
                 logger.debug("Rejecting %s, no URL found" % result_title)
 
-            if not rejected and lazylibrarian.CONFIG['BLACKLIST_FAILED']:
+            if not rejected and CONFIG.get_bool('BLACKLIST_FAILED'):
                 cmd = 'SELECT * from wanted WHERE NZBurl=? and Status="Failed"'
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
@@ -145,7 +146,7 @@ def find_best_result(resultlist, book, searchtype, source):
                                      (res[prefix + 'title'], blacklisted['NZBprov']))
                         rejected = True
 
-            if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
+            if not rejected and CONFIG.get_bool('BLACKLIST_PROCESSED'):
                 cmd = 'SELECT * from wanted WHERE NZBurl=?'
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
@@ -237,7 +238,7 @@ def find_best_result(resultlist, book, searchtype, source):
                     new_value_dict['NZBprov'] = res['tor_feed']
                     new_value_dict['NZBtitle'] = res[prefix + 'title']
 
-                if author_match >= lazylibrarian.CONFIG['MATCH_RATIO']:
+                if author_match >= CONFIG.get_int('MATCH_RATIO'):
                     score = book_match
                 else:
                     score = (book_match + author_match) / 2  # as a percentage
@@ -252,11 +253,11 @@ def find_best_result(resultlist, book, searchtype, source):
                 typelist = ''
 
                 if new_value_dict['AuxInfo'] == 'eBook':
-                    words = [x for x in words if x not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])]
-                    typelist = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+                    words = [x for x in words if x not in get_list(CONFIG['EBOOK_TYPE'])]
+                    typelist = get_list(CONFIG['EBOOK_TYPE'])
                 elif new_value_dict['AuxInfo'] == 'AudioBook':
-                    words = [x for x in words if x not in get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])]
-                    typelist = get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+                    words = [x for x in words if x not in get_list(CONFIG['AUDIOBOOK_TYPE'])]
+                    typelist = get_list(CONFIG['AUDIOBOOK_TYPE'])
                 score -= len(words)
                 # prioritise titles that include the ebook types we want
                 # add more points for booktypes nearer the left in the list
@@ -277,7 +278,7 @@ def find_best_result(resultlist, book, searchtype, source):
             # controlValueDict = highest[2]
             dlpriority = highest[3]
 
-            if score < int(lazylibrarian.CONFIG['MATCH_RATIO']):
+            if score < CONFIG.get_int('MATCH_RATIO'):
                 logger.info('Nearest match (%s%%): %s using %s search for %s %s' %
                             (score, new_value_dict['NZBtitle'], searchtype, book['authorName'], book['bookName']))
             else:
@@ -289,6 +290,8 @@ def find_best_result(resultlist, book, searchtype, source):
         return None
     except Exception:
         logger.error('Unhandled exception in find_best_result: %s' % traceback.format_exc())
+    finally:
+        db.close()
 
 
 def download_result(match, book):
@@ -299,9 +302,9 @@ def download_result(match, book):
                 2 if we snatched it
     """
     # noinspection PyBroadException
+    logger = logging.getLogger(__name__)
+    db = database.DBConnection()
     try:
-        db = database.DBConnection()
-
         new_value_dict = match[1]
         control_value_dict = match[2]
 
@@ -352,13 +355,13 @@ def download_result(match, book):
                         (new_value_dict["AuxInfo"], new_value_dict["NZBtitle"], new_value_dict["NZBprov"]))
             custom_notify_snatch("%s %s" % (new_value_dict["BookID"], new_value_dict['AuxInfo']))
             notify_snatch("%s %s from %s at %s" %
-                          (new_value_dict["AuxInfo"], new_value_dict["NZBtitle"], disp_name(new_value_dict["NZBprov"]),
-                           now()))
+                          (new_value_dict["AuxInfo"], new_value_dict["NZBtitle"],
+                           CONFIG.disp_name(new_value_dict["NZBprov"]), now()))
             # at this point we could add NZBprov to the blocklist with a short timeout, a second or two?
             # This would implement a round-robin search system. Blocklist with an incremental counter.
             # If number of active providers == number blocklisted, so no unblocked providers are left,
             # either sleep for a while, or unblock the one with the lowest counter.
-            schedule_job(action='Start', target='PostProcessor')
+            schedule_job(SchedulerCommand.START, target='PostProcessor')
             return 2  # we found it
         else:
             db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
@@ -367,3 +370,5 @@ def download_result(match, book):
     except Exception:
         logger.error('Unhandled exception in download_result: %s' % traceback.format_exc())
         return 0
+    finally:
+        db.close()

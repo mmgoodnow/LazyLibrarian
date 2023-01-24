@@ -1,8 +1,13 @@
-import lazylibrarian
-from lazylibrarian import logger
+# This file is part of Lazylibrarian.
+#
+# Purpose:
+#  Handle the general purpose Apprise notification engine. It is optional and is
+#  only available if the Apprise module is installed.
+import logging
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import plural
-
 
 try:
     # noinspection PyUnresolvedReferences
@@ -10,9 +15,9 @@ try:
     # noinspection PyUnresolvedReferences
     from apprise import NotifyType, AppriseAsset, Apprise
 
-    lazylibrarian.APPRISE = getattr(apprise, '__version__', 'Unknown Version')
+    APPRISE_CANLOAD = getattr(apprise, '__version__', 'Unknown Version')
 except ImportError as e:
-    lazylibrarian.APPRISE = str(e)
+    APPRISE_CANLOAD = ''
 
 
 # noinspection PyUnresolvedReferences
@@ -23,6 +28,7 @@ class AppriseNotifier:
 
     @staticmethod
     def _send_apprise(event=None, message=None, url=None):
+        logger = logging.getLogger(__name__)
         try:
             asset = AppriseAsset()
             asset.default_extension = ".png"
@@ -40,7 +46,7 @@ class AppriseNotifier:
         if url is not None:
             apobj.add(url)
         else:
-            for item in lazylibrarian.APPRISE_PROV:
+            for item in CONFIG.providers('APPRISE'):
                 if event == notifyStrings[NOTIFY_DOWNLOAD] and item['DOWNLOAD']:
                     apobj.add(item['URL'])
                 elif event == notifyStrings[NOTIFY_SNATCH] and item['SNATCH']:
@@ -51,11 +57,7 @@ class AppriseNotifier:
                     apobj.add(item['URL'])
 
         if apobj is None:
-            logger.warn("Apprise notifier is not initialised")
-            return False
-
-        if len(apobj) == 0:
-            logger.debug("Apprise notifier has no services set")
+            logger.warning("Apprise notifier is not initialised")
             return False
 
         title = "LazyLibrarian"
@@ -87,7 +89,7 @@ class AppriseNotifier:
     #
     # noinspection PyUnresolvedReferences
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.APPRISE:
+        if APPRISE_CANLOAD:
             if fail:
                 self._notify(event=notifyStrings[NOTIFY_FAIL], message=title, url=None)
             else:
@@ -97,7 +99,7 @@ class AppriseNotifier:
 
     def notify_download(self, title):
         # noinspection PyUnresolvedReferences
-        if lazylibrarian.APPRISE:
+        if APPRISE_CANLOAD:
             self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
         else:
             return True
@@ -109,7 +111,7 @@ class AppriseNotifier:
     @staticmethod
     def notify_types():
         res = []
-        if not lazylibrarian.APPRISE:
+        if not APPRISE_CANLOAD:
             return res
         try:
             apobj = Apprise()

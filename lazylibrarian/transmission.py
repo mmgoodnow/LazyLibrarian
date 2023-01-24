@@ -10,15 +10,13 @@
 #  You should have received a copy of the GNU General Public License
 #  along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import requests
 import time
-import lazylibrarian
-from lazylibrarian import logger
-from lazylibrarian.formatter import check_int
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import proxy_list
 from urllib.parse import urlparse, urlunparse
-
-import urllib3
-import requests
 
 # This is just a simple script to send torrents to transmission. The
 # intention is to turn this into a class where we can check the state
@@ -31,16 +29,17 @@ tr_version = 0
 
 
 def add_torrent(link, directory=None, metainfo=None):
+    logger = logging.getLogger(__name__)
     method = 'torrent-add'
     if metainfo:
         arguments = {'metainfo': metainfo}
     else:
         arguments = {'filename': link}
     if not directory:
-        directory = lazylibrarian.CONFIG['TRANSMISSION_DIR']
+        directory = CONFIG['TRANSMISSION_DIR']
     if directory:
         arguments['download-dir'] = directory
-    arguments['paused'] = True if lazylibrarian.CONFIG['TORRENT_PAUSED'] else False
+    arguments['paused'] = CONFIG.get_bool('TORRENT_PAUSED')
 
     logger.debug('add_torrent args(%s)' % arguments)
     response, res = torrent_action(method, arguments)  # type: dict
@@ -65,6 +64,7 @@ def add_torrent(link, directory=None, metainfo=None):
 
 
 def get_torrent_name(torrentid):  # uses hashid
+    logger = logging.getLogger(__name__)
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['name', 'percentDone', 'labels']}
     retries = 3
@@ -86,6 +86,7 @@ def get_torrent_name(torrentid):  # uses hashid
 
 
 def get_torrent_folder(torrentid):  # uses hashid
+    logger = logging.getLogger(__name__)
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['downloadDir', 'percentDone']}
     retries = 3
@@ -107,6 +108,7 @@ def get_torrent_folder(torrentid):  # uses hashid
 
 
 def get_torrent_folder_by_id(torrentid):  # uses transmission id
+    logger = logging.getLogger(__name__)
     method = 'torrent-get'
     arguments = {'fields': ['name', 'percentDone', 'id']}
     retries = 3
@@ -133,6 +135,8 @@ def get_torrent_folder_by_id(torrentid):  # uses transmission id
 
 
 def get_torrent_files(torrentid):  # uses hashid
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['id', 'files']}
     retries = 3
@@ -140,8 +144,7 @@ def get_torrent_files(torrentid):  # uses hashid
         response, _ = torrent_action(method, arguments)  # type: dict
         if response:
             if len(response['arguments']['torrents'][0]['files']):
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                    logger.debug("get_torrent_files: %s" % str(response['arguments']['torrents'][0]['files']))
+                loggerdlcomms.debug("get_torrent_files: %s" % str(response['arguments']['torrents'][0]['files']))
                 return response['arguments']['torrents'][0]['files']
         else:
             logger.debug('get_torrent_files: No response from transmission')
@@ -155,6 +158,8 @@ def get_torrent_files(torrentid):  # uses hashid
 
 
 def get_torrent_progress(torrentid):  # uses hashid
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['id', 'percentDone', 'errorString', 'status']}
     retries = 3
@@ -166,8 +171,7 @@ def get_torrent_progress(torrentid):  # uses hashid
                     err = response['arguments']['torrents'][0]['errorString']
                     res = response['arguments']['torrents'][0]['percentDone']
                     fin = (response['arguments']['torrents'][0]['status'] == 0)  # TR_STATUS_STOPPED == 0
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                        logger.debug("get_torrent_progress: %s,%s,%s" % (err, res, fin))
+                    loggerdlcomms.debug("get_torrent_progress: %s,%s,%s" % (err, res, fin))
                     try:
                         res = int(float(res) * 100)
                         return res, err, fin
@@ -236,6 +240,7 @@ def set_label(torrentid, label):
 def remove_torrent(torrentid, remove_data=False):
     global rpc_version
 
+    logger = logging.getLogger(__name__)
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['isFinished', 'name', 'status']}
 
@@ -251,7 +256,7 @@ def remove_torrent(torrentid, remove_data=False):
         if finished:
             logger.debug('%s has finished seeding, removing torrent and data' % name)
             remove = True
-        elif not lazylibrarian.CONFIG['SEED_WAIT']:
+        elif not CONFIG.get_bool('SEED_WAIT'):
             if (rpc_version < 14 and status == 8) or (rpc_version >= 14 and status in [5, 6]):
                 logger.debug('%s is seeding, removing torrent and data anyway' % name)
                 remove = True
@@ -269,7 +274,7 @@ def remove_torrent(torrentid, remove_data=False):
         # no torrents, already removed?
         return True
     except Exception as e:
-        logger.warn('Unable to remove torrent %s, %s %s' % (torrentid, type(e).__name__, str(e)))
+        logger.warning('Unable to remove torrent %s, %s %s' % (torrentid, type(e).__name__, str(e)))
         return False
 
     return False
@@ -292,15 +297,16 @@ def check_link():
 def torrent_action(method, arguments):
     global session_id, host_url, rpc_version, tr_version
 
-    username = lazylibrarian.CONFIG['TRANSMISSION_USER']
-    password = lazylibrarian.CONFIG['TRANSMISSION_PASS']
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+    username = CONFIG['TRANSMISSION_USER']
+    password = CONFIG['TRANSMISSION_PASS']
 
     if host_url:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug("Using existing host %s" % host_url)
+        loggerdlcomms.debug("Using existing host %s" % host_url)
     else:
-        host = lazylibrarian.CONFIG['TRANSMISSION_HOST']
-        port = check_int(lazylibrarian.CONFIG['TRANSMISSION_PORT'], 0)
+        host = CONFIG['TRANSMISSION_HOST']
+        port = CONFIG.get_int('TRANSMISSION_PORT')
 
         if not host or not port:
             res = 'Invalid transmission host or port, check your config'
@@ -323,31 +329,28 @@ def torrent_action(method, arguments):
             parts[1] += ":%s" % port
 
         if not parts[2].endswith("/rpc"):
-            if lazylibrarian.CONFIG['TRANSMISSION_BASE']:
-                parts[2] += "/%s/rpc" % lazylibrarian.CONFIG['TRANSMISSION_BASE'].strip('/')
+            if CONFIG['TRANSMISSION_BASE']:
+                parts[2] += "/%s/rpc" % CONFIG['TRANSMISSION_BASE'].strip('/')
             else:
                 parts[2] += "/transmission/rpc"
 
         host_url = urlunparse(parts)
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug('Transmission host %s' % host_url)
+        loggerdlcomms.debug('Transmission host %s' % host_url)
 
     # blank username is valid
     auth = (username, password) if password else None
     proxies = proxy_list()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = CONFIG.get_int('HTTP_TIMEOUT')
     # Retrieve session id
     if session_id:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug('Using existing session_id %s' % session_id)
+        loggerdlcomms.debug('Using existing session_id %s' % session_id)
     else:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug('Requesting session_id')
+        loggerdlcomms.debug('Requesting session_id')
         try:
-            if host_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+            if host_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout,
-                                        verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                        if lazylibrarian.CONFIG['SSL_CERTS'] else True)
+                                        verify=CONFIG['SSL_CERTS']
+                                        if CONFIG['SSL_CERTS'] else True)
             else:
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout, verify=False)
         except Exception as e:
@@ -391,8 +394,7 @@ def torrent_action(method, arguments):
     # Prepare real request
     headers = {'x-transmission-session-id': session_id}
     data = {'method': method, 'arguments': arguments}
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('Transmission request %s' % str(data))
+    loggerdlcomms.debug('Transmission request %s' % str(data))
     try:
         response = requests.post(host_url, json=data, headers=headers, proxies=proxies,
                                  auth=auth, timeout=timeout)
@@ -408,8 +410,7 @@ def torrent_action(method, arguments):
             return False, res
         try:
             res = response.json()
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug('Transmission returned %s' % str(res))
+            loggerdlcomms.debug('Transmission returned %s' % str(res))
         except ValueError:
             res = "Expected json, Transmission returned %s" % response.text
             logger.error(res)

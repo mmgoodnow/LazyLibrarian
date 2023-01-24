@@ -1,500 +1,128 @@
 <script type="text/javascript">
-    function initThisPage()
+    (function() {
+        document.addEventListener("DOMContentLoaded", function () {
+            // Checkbox handler, plus either hide/show or slide it down/up
+            function toggleElement(checkboxId, elementId, reverse=false) {
+                function updateState(state, useSlide) {
+                    const showit = (state ? !reverse : reverse) //  XOR in js
+                    if (useSlide) {
+                        $(elementId)[showit ? "slideDown" : "slideUp"]();
+                    } else {
+                        $(elementId)[showit ? "show" : "hide"]();
+                    }
+                }
+                const checked = $(checkboxId).is(":checked");
+                updateState(checked, false);
 
+                $(checkboxId).click(function () {
+                    updateState(this.checked, true);
+                })
+            }
+
+            // Handler for dropdown that has a detailed element (Log options)
+            function toggleSelectElement(selectId, elementId, detailedValue) {
+                function updateState(state) {
+                    $(elementId)[state ? "show" : "hide"]();
+                }
+                const selectedValue = $(selectId).val();
+                const show_detailed = selectedValue === detailedValue;
+                updateState(show_detailed)
+
+                $(selectId).change(function() {
+                    updateState( $(selectId).val() === detailedValue);
+                });
+            }
+
+            // Register all the elements that need to react to change of state
+            // Interface
+            toggleElement("#https_enabled", "#https_options");
+            toggleElement("#ssl_verify", "#ssl_options");
+            toggleElement("#user_accounts", "#admin_options");
+            toggleElement("#user_accounts", "#rss_options");
+            toggleElement("#user_accounts", "#webserver_options", true);
+            toggleElement("#api_enabled", "#api_options");
+            toggleElement("#opds_enabled", "#opdsoptions");
+            toggleElement("#audio_tab", "#graudio_options"); // A sub-setting on the Importing page
+            toggleSelectElement("#log_type", "#debug_options", "Debug");
+
+            //Downloaders
+            toggleElement("#tor_downloader_deluge", "#deluge_options");
+            toggleElement("#tor_downloader_transmission", "#transmission_options");
+            toggleElement("#tor_downloader_rtorrent", "#rtorrent_options");
+            toggleElement("#tor_downloader_utorrent", "#utorrent_options");
+            toggleElement("#tor_downloader_qbittorrent", "#qbittorrent_options");
+            toggleElement("#tor_downloader_blackhole", "#tor_blackhole_options");
+            toggleElement("#nzb_downloader_sabnzbd", "#sabnzbd_options");
+            toggleElement("#nzb_downloader_nzbget", "#nzbget_options");
+            toggleElement("#use_synology", "#synology_options");
+            toggleElement("#nzb_downloader_blackhole", "#nzb_blackhole_options");
+            toggleElement("#opds_authentication", "#opdscredentials");
+
+            // Importing
+            toggleElement("#gr_sync", "#grsync_options");
+            toggleElement("#gr_syncuser", "#gruser_options");
+            toggleElement("#gr_syncuser", "#grlibrary_options");
+
+            // Providers
+            toggleElement("#show_direct_prov", "#direct_prov");
+            toggleElement("#show_newz_prov", "#newz_prov");
+            toggleElement("#show_torz_prov", "#torz_prov");
+            toggleElement("#show_rss_prov", "#rss_prov");
+            toggleElement("#show_tor_prov", "#tor_prov");
+            toggleElement("#show_irc_prov", "#irc_prov");
+            toggleElement("#rss_enabled", "#rssoptions");
+
+            // Processing
+            toggleElement("#calibre_use_server", "#calibre_options");
+
+            // Notifications
+            toggleElement("#use_twitter", "#twitteroptions");
+            toggleElement("#use_boxcar", "#boxcaroptions");
+            toggleElement("#use_pushbullet", "#pushbulletoptions");
+            toggleElement("#use_pushover", "#pushoveroptions");
+            toggleElement("#use_androidpn", "#androidpnoptions");
+            toggleElement("#androidpn_broadcast", "#androidpn_username");
+            toggleElement("#use_prowl", "#prowloptions");
+            toggleElement("#use_growl", "#growloptions");
+            toggleElement("#use_telegram", "#telegramoptions");
+            toggleElement("#use_slack", "#slackoptions");
+            toggleElement("#use_custom", "#customoptions");
+            toggleElement("#use_email", "#emailoptions");
+            toggleElement("#use_email_custom_format", "#email_custom_format_options");
+
+            // Telemetry
+            toggleElement("#telemetry_enable", "#telemetry_options");
+        });
+    })();
+
+    function initThisPage()
     {
         "use strict";
+        // when the page first loads, hide all tab headers and panels
+        $("li[role='presentation']").attr("aria-selected", "false");
+        $("li[role='presentation']").removeClass('active');
+        //$("div[role='tabpanel']").attr("aria-hidden", "true");
+        $("div[role='tabpanel']").removeClass('active');
+        // which one do we want to show
+        const tabnum = $("#config_tab_num").val();
+        const tabid = $("#" + tabnum);
+        const tabpanel = tabid.attr('aria-controls');
+        const tabpanelid = $("#" + tabpanel);
 
-        if ($("#calibre_use_server").is(":checked"))
-            {
-                    $("#calibre_options").show();
-            }
-        else
-            {
-                    $("#calibre_options").hide();
-            }
-        $("#calibre_use_server").click(function(){
-                if ($("#calibre_use_server").is(":checked"))
-                {
-                        $("#calibre_options").slideDown();
-                }
-                else
-                {
-                        $("#calibre_options").slideUp();
-                }
+        // show the tab header and panel we want
+        tabpanelid.addClass('active');
+        tabid.attr("aria-selected", "true");
+        tabid.addClass('active');
+        $("div[role='tab-table']").removeClass('hidden');
+
+        // when a tab is clicked
+        $("li[role='presentation']").click(function(){
+            const tabnum = $(this).attr('id');
+            $("#config_tab_num").val(tabnum);
+            $.get('set_current_tabs', {'config_tab': tabnum });
         });
 
-        if ($("#gr_sync").is(":checked"))
-            {
-                    $("#grsync_options").show();
-            }
-        else
-            {
-                    $("#grsync_options").hide();
-            }
-
-        $("#gr_sync").click(function(){
-                if ($("#gr_sync").is(":checked"))
-                {
-                        $("#grsync_options").slideDown();
-                }
-                else
-                {
-                        $("#grsync_options").slideUp();
-                }
-        });
-
-        if ($("#gr_syncuser").is(":checked"))
-            {
-                    $("#gruser_options").show();
-                    $("#grlibrary_options").hide();
-            }
-        else
-            {
-                    $("#grlibrary_options").show();
-                    $("#gruser_options").hide();
-            }
-
-        $("#gr_syncuser").click(function(){
-                if ($("#gr_syncuser").is(":checked"))
-                {
-                        $("#gruser_options").slideDown();
-                        $("#grlibrary_options").slideUp();
-                }
-                else
-                {
-                        $("#grlibrary_options").slideDown();
-                        $("#gruser_options").slideUp();
-                }
-        });
-
-        if ($("#user_accounts").is(":checked"))
-            {
-                    $("#admin_options").show();
-                    $("#rss_options").show();
-                    $("#webserver_options").hide();
-            }
-            else
-            {
-                    $("#webserver_options").show();
-                    $("#admin_options").hide();
-                    $("#rss_options").hide();
-            }
-
-        $("#user_accounts").click(function(){
-                if ($("#user_accounts").is(":checked"))
-                {
-                        $("#webserver_options").slideUp();
-                        $("#admin_options").slideDown();
-                        $("#rss_options").slideDown();
-                }
-                else
-                {
-                        $("#admin_options").slideUp();
-                        $("#rss_options").slideUp();
-                        $("#webserver_options").slideDown();
-                }
-        });
-
-        if ($("#https_enabled").is(":checked"))
-            {
-                    $("#https_options").show();
-            }
-            else
-            {
-                    $("#https_options").hide();
-            }
-
-        $("#https_enabled").click(function(){
-                if ($("#https_enabled").is(":checked"))
-                {
-                        $("#https_options").slideDown();
-                }
-                else
-                {
-                        $("#https_options").slideUp();
-                }
-        });
-        if ($("#ssl_verify").is(":checked"))
-            {
-                    $("#ssl_options").show();
-            }
-            else
-            {
-                    $("#ssl_options").hide();
-            }
-
-        $("#ssl_verify").click(function(){
-                if ($("#ssl_verify").is(":checked"))
-                {
-                        $("#ssl_options").slideDown();
-                }
-                else
-                {
-                        $("#ssl_options").slideUp();
-                }
-        });
-
-        if ($("#audio_tab").is(":checked"))
-            {
-                    $("#graudio_options").show();
-            }
-            else
-            {
-                    $("#graudio_options").hide();
-            }
-
-        $("#audio_tab").click(function(){
-                if ($("#audiobook_enabled").is(":checked"))
-                {
-                        $("#graudio_options").slideDown();
-                }
-                else
-                {
-                        $("#graudio_options").slideUp();
-                }
-        });
-
-        if ($("#api_enabled").is(":checked"))
-            {
-                    $("#api_options").show();
-            }
-            else
-            {
-                    $("#api_options").hide();
-            }
-
-        $("#api_enabled").click(function(){
-                if ($("#api_enabled").is(":checked"))
-                {
-                        $("#api_options").slideDown();
-                }
-                else
-                {
-                        $("#api_options").slideUp();
-                }
-        });
-
-        if ($("#show_direct_prov").is(":checked"))
-            {
-                    $("#direct_prov").show();
-            }
-        else
-            {
-                    $("#direct_prov").hide();
-            }
-
-        $("#show_direct_prov").click(function(){
-                if ($("#show_direct_prov").is(":checked"))
-                {
-                        $("#direct_prov").slideDown();
-                }
-                else
-                {
-                        $("#direct_prov").slideUp();
-                }
-        });
-
-        if ($("#show_newz_prov").is(":checked"))
-            {
-                    $("#newz_prov").show();
-            }
-        else
-            {
-                    $("#newz_prov").hide();
-            }
-
-        $("#show_newz_prov").click(function(){
-                if ($("#show_newz_prov").is(":checked"))
-                {
-                        $("#newz_prov").slideDown();
-                }
-                else
-                {
-                        $("#newz_prov").slideUp();
-                }
-        });
-
-        if ($("#show_torz_prov").is(":checked"))
-            {
-                    $("#torz_prov").show();
-            }
-        else
-            {
-                    $("#torz_prov").hide();
-            }
-
-        $("#show_torz_prov").click(function(){
-                if ($("#show_torz_prov").is(":checked"))
-                {
-                        $("#torz_prov").slideDown();
-                }
-                else
-                {
-                        $("#torz_prov").slideUp();
-                }
-        });
-
-        if ($("#show_rss_prov").is(":checked"))
-            {
-                    $("#rss_prov").show();
-            }
-        else
-            {
-                    $("#rss_prov").hide();
-            }
-
-        $("#show_rss_prov").click(function(){
-                if ($("#show_rss_prov").is(":checked"))
-                {
-                        $("#rss_prov").slideDown();
-                }
-                else
-                {
-                        $("#rss_prov").slideUp();
-                }
-        });
-
-         if ($("#show_tor_prov").is(":checked"))
-            {
-                    $("#tor_prov").show();
-            }
-        else
-            {
-                    $("#tor_prov").hide();
-            }
-
-        $("#show_tor_prov").click(function(){
-                if ($("#show_tor_prov").is(":checked"))
-                {
-                        $("#tor_prov").slideDown();
-                }
-                else
-                {
-                        $("#tor_prov").slideUp();
-                }
-        });
-
-        if ($("#show_irc_prov").is(":checked"))
-            {
-                    $("#irc_prov").show();
-            }
-        else
-            {
-                    $("#irc_prov").hide();
-            }
-
-        $("#show_irc_prov").click(function(){
-                if ($("#show_irc_prov").is(":checked"))
-                {
-                        $("#irc_prov").slideDown();
-                }
-                else
-                {
-                        $("#irc_prov").slideUp();
-                }
-        });
-
-       if ($("#tor_downloader_blackhole").is(":checked"))
-            {
-                    $("#tor_blackhole_options").show();
-            }
-        else
-            {
-                    $("#tor_blackhole_options").hide();
-            }
-
-        $("#tor_downloader_blackhole").click(function(){
-                if ($("#tor_downloader_blackhole").is(":checked"))
-                {
-                        $("#tor_blackhole_options").slideDown();
-                }
-                else
-                {
-                        $("#tor_blackhole_options").slideUp();
-                }
-        });
-
-        if ($("#tor_downloader_deluge").is(":checked"))
-            {
-                    $("#deluge_options").show();
-            }
-        else
-            {
-                    $("#deluge_options").hide();
-            }
-        $("#tor_downloader_deluge").click(function(){
-                if ($("#tor_downloader_deluge").is(":checked"))
-                {
-                        $("#deluge_options").slideDown();
-                }
-                else
-                {
-                        $("#deluge_options").slideUp();
-                }
-        });
-
-        if ($("#tor_downloader_transmission").is(":checked"))
-            {
-                    $("#transmission_options").show();
-            }
-        else
-            {
-                    $("#transmission_options").hide();
-            }
-        $("#tor_downloader_transmission").click(function(){
-                if ($("#tor_downloader_transmission").is(":checked"))
-                {
-                        $("#transmission_options").slideDown();
-                }
-                else
-                {
-                        $("#transmission_options").slideUp();
-                }
-        });
-
-        if ($("#tor_downloader_utorrent").is(":checked"))
-            {
-                    $("#utorrent_options").show();
-            }
-        else
-            {
-                    $("#utorrent_options").hide();
-            }
-
-        $("#tor_downloader_utorrent").click(function(){
-                if ($("#tor_downloader_utorrent").is(":checked"))
-                {
-                        $("#utorrent_options").slideDown();
-                }
-                else
-                {
-                        $("#utorrent_options").slideUp();
-                }
-        });
-
-        if ($("#tor_downloader_rtorrent").is(":checked"))
-            {
-                    $("#rtorrent_options").show();
-            }
-        else
-            {
-                    $("#rtorrent_options").hide();
-            }
-
-        $("#tor_downloader_rtorrent").click(function(){
-                if ($("#tor_downloader_rtorrent").is(":checked"))
-                {
-                        $("#rtorrent_options").slideDown();
-                }
-                else
-                {
-                        $("#rtorrent_options").slideUp();
-                }
-        });
-
-        if ($("#tor_downloader_qbittorrent").is(":checked"))
-            {
-                    $("#qbittorrent_options").show();
-            }
-        else
-            {
-                    $("#qbittorrent_options").hide();
-            }
-
-        $("#tor_downloader_qbittorrent").click(function(){
-                if ($("#tor_downloader_qbittorrent").is(":checked"))
-                {
-                        $("#qbittorrent_options").slideDown();
-                }
-                else
-                {
-                        $("#qbittorrent_options").slideUp();
-                }
-        });
-
-        if ($("#nzb_downloader_blackhole").is(":checked"))
-            {
-                    $("#nzb_blackhole_options").show();
-            }
-        else
-            {
-                    $("#nzb_blackhole_options").hide();
-            }
-
-        $("#nzb_downloader_blackhole").click(function(){
-                if ($("#nzb_downloader_blackhole").is(":checked"))
-                {
-                        $("#nzb_blackhole_options").slideDown();
-                }
-                else
-                {
-                        $("#nzb_blackhole_options").slideUp();
-                }
-        });
-
-        if ($("#nzb_downloader_sabnzbd").is(":checked"))
-            {
-                    $("#sabnzbd_options").show();
-            }
-        else
-            {
-                    $("#sabnzbd_options").hide();
-            }
-        $("#nzb_downloader_sabnzbd").click(function(){
-                if ($("#nzb_downloader_sabnzbd").is(":checked"))
-                {
-                        $("#sabnzbd_options").slideDown();
-                }
-                else
-                {
-                        $("#sabnzbd_options").slideUp();
-                }
-        });
-
-        if ($("#nzb_downloader_nzbget").is(":checked"))
-            {
-                    $("#nzbget_options").show();
-            }
-        else
-            {
-                    $("#nzbget_options").hide();
-            }
-        $("#nzb_downloader_nzbget").click(function(){
-                if ($("#nzb_downloader_nzbget").is(":checked"))
-                {
-                        $("#nzbget_options").slideDown();
-                }
-                else
-                {
-                        $("#nzbget_options").slideUp();
-                }
-        });
-
-        if ($("#use_synology").is(":checked"))
-            {
-                    $("#synology_options").show();
-            }
-        else
-            {
-                    $("#synology_options").hide();
-            }
-        $("#use_synology").click(function(){
-                if ($("#use_synology").is(":checked"))
-                {
-                        $("#synology_options").slideDown();
-                }
-                else
-                {
-                        $("#synology_options").slideUp();
-                }
-        });
-
-        $('#generate_api').click(function () {
-            $.get("generate_api",
-                function (data) { });
-        });
-
-        $('#showblocked').on('click', function(e) {
+        $('#showblocked').on('click', function() {
             $.get('showblocked', function(data) {
                 bootbox.dialog({
                     title: 'Provider Status',
@@ -503,7 +131,7 @@
                         prompt: {
                             label: "Clear Blocklist",
                             className: 'btn-danger',
-                            callback: function(result){ $.get("clearblocked", function(e) {}); }
+                            callback: function(){ $.get("clearblocked", function(e) {}); }
                         },
                         primary: {
                             label: "Close",
@@ -514,108 +142,48 @@
             });
         });
 
-        if ($("#rss_enabled").is(":checked"))
-          {
-            $("#rssoptions").show();
-          }
-          else
-          {
-              $("#rssoptions").hide();
-          }
-
-        $("#rss_enabled").click(function(){
-          if ($("#rss_enabled").is(":checked"))
-          {
-            $("#rssoptions").slideDown();
-          }
-          else
-          {
-            $("#rssoptions").slideUp();
-          }
-        });
-
-        if ($("#opds_enabled").is(":checked"))
-          {
-            $("#opdsoptions").show();
-          }
-          else
-          {
-              $("#opdsoptions").hide();
-          }
-
-        $("#opds_enabled").click(function(){
-          if ($("#opds_enabled").is(":checked"))
-          {
-            $("#opdsoptions").slideDown();
-          }
-          else
-          {
-            $("#opdsoptions").slideUp();
-          }
-        });
-
-        if ($("#opds_authentication").is(":checked"))
-          {
-            $("#opdscredentials").show();
-          }
-          else
-          {
-            $("#opdscredentials").hide();
-          }
-
-        $("#opds_authentication").click(function(){
-          if ($("#opds_authentication").is(":checked"))
-          {
-            $("#opdscredentials").slideDown();
-          }
-          else
-          {
-            $("#opdscredentials").slideUp();
-          }
-        });
-
-        $("button[role='testprov']").on('click', function(e) {
-            var prov = $(this).val();
-            var host = ""
-            var api = ""
+        $("button[role='testprov']").on('click', function() {
+            let prov = $(this).val();
+            let host = ""
+            let api = ""
             if ( 'KAT TPB WWT ZOO TDL TRF LIME'.indexOf(prov) >= 0 ) {
-                var host = $("#" + prov.toLowerCase() + "_host").val();
-                var api = $("#" + prov.toLowerCase() + "_seeders").val();
+                host = $("#" + prov.toLowerCase() + "_host").val();
+                api = $("#" + prov.toLowerCase() + "_seeders").val();
             }
             if ( 'BOK BFI'.indexOf(prov) >= 0 ) {
-                var host = $("#" + prov.toLowerCase() + "_host").val();
+                host = $("#" + prov.toLowerCase() + "_host").val();
             }
-            if ( prov.indexOf('gen_') == 0 ) {
-                var host = $("#" + prov.toLowerCase() + "_host").val();
-                var api = $("#" + prov.toLowerCase() + "_search").val();
+            if ( prov.indexOf('gen_') === 0 ) {
+                host = $("#" + prov.toLowerCase() + "_host").val();
+                api = $("#" + prov.toLowerCase() + "_search").val();
             }
-            if ( prov.indexOf('newznab_') == 0 ) {
-                var host = $("#" + prov.toLowerCase() + "_host").val();
-                var api = $("#" + prov.toLowerCase() + "_api").val();
+            if ( prov.indexOf('newznab_') === 0 ) {
+                host = $("#" + prov.toLowerCase() + "_host").val();
+                api = $("#" + prov.toLowerCase() + "_api").val();
             }
-            if ( prov.indexOf('torznab_') == 0 ) {
-                var host = $("#" + prov.toLowerCase() + "_host").val();
-                var ap = $("#" + prov.toLowerCase() + "_api").val();
-                var seed = $("#" + prov.toLowerCase() + "_seeders").val();
-                var api = ap + ' : ' + seed
+            if ( prov.indexOf('torznab_') === 0 ) {
+                host = $("#" + prov.toLowerCase() + "_host").val();
+                let ap = $("#" + prov.toLowerCase() + "_api").val();
+                let seed = $("#" + prov.toLowerCase() + "_seeders").val();
+                api = ap + ' : ' + seed
             }
-            if ( prov.indexOf('rss_') == 0 ) {
-                var host = $("#" + prov.toLowerCase() + "_host").val();
+            if ( prov.indexOf('rss_') === 0 ) {
+                host = $("#" + prov.toLowerCase() + "_host").val();
             }
-            if ( prov.indexOf('irc_') == 0 ) {
-                var server = $("#" + prov.toLowerCase() + "_server").val();
-                var channel = $("#" + prov.toLowerCase() + "_channel").val();
-                var host = server + ' : ' + channel
-                var nick = $("#" + prov.toLowerCase() + "_botnick").val();
-                var pass = $("#" + prov.toLowerCase() + "_botpass").val();
-                var search = $("#" + prov.toLowerCase() + "_search").val();
-                var api = nick + ' : ' + pass + ' : ' + search
+            if ( prov.indexOf('irc_') === 0 ) {
+                let server = $("#" + prov.toLowerCase() + "_server").val();
+                let channel = $("#" + prov.toLowerCase() + "_channel").val();
+                host = server + ' : ' + channel
+                let nick = $("#" + prov.toLowerCase() + "_botnick").val();
+                let pass = $("#" + prov.toLowerCase() + "_botpass").val();
+                let search = $("#" + prov.toLowerCase() + "_search").val();
+                api = nick + ' : ' + pass + ' : ' + search
             }
-            if ( prov.indexOf('apprise_') == 0 ) {
-                var host = $("#" + prov.toLowerCase() + "_url").val();
-                var s = ($("#" + prov.toLowerCase() + "_snatch").prop('checked') == true) ? '1' : '0';
-                var d = ($("#" + prov.toLowerCase() + "_download").prop('checked') == true) ? '1' : '0';
-                var api = s + ':' + d
+            if ( prov.indexOf('apprise_') === 0 ) {
+                host = $("#" + prov.toLowerCase() + "_url").val();
+                let s = ($("#" + prov.toLowerCase() + "_snatch").prop('checked') === true) ? '1' : '0';
+                let d = ($("#" + prov.toLowerCase() + "_download").prop('checked') === true) ? '1' : '0';
+                api = s + ':' + d
             }
             $("#myAlert").removeClass('hidden');
             $.get('testprovider', {'name': prov, 'host': host, 'api': api},
@@ -634,7 +202,7 @@
             });
         });
 
-        $('#show_stats').on('click', function(e) {
+        $('#show_stats').on('click', function() {
             $.get('show_stats', function(data) {
                 bootbox.dialog({
                     title: 'Database Stats',
@@ -649,7 +217,7 @@
             });
         });
 
-        $('#show_jobs').on('click', function(e) {
+        $('#show_jobs').on('click', function() {
             $.get('show_jobs', function(data) {
                 bootbox.dialog({
                     title: 'Job Status',
@@ -658,12 +226,12 @@
                         stopit: {
                             label: "<i class=\"fa fa-ban\"></i> Stop Jobs",
                             className: 'btn-warning',
-                            callback: function(result){ $.get("stop_jobs", function(e) {}); }
+                            callback: function(){ $.get("stop_jobs", function(e) {}); }
                         },
                         restart: {
                             label: "<i class=\"fa fa-sync\"></i> Restart Jobs",
                             className: 'btn-info',
-                            callback: function(result){ $.get("restart_jobs", function(e) {}); }
+                            callback: function(){ $.get("restart_jobs", function(e) {}); }
                         },
                         primary: {
                             label: "Close",
@@ -674,7 +242,7 @@
             });
         });
 
-        $('#show_apprise').on('click', function(e) {
+        $('#show_apprise').on('click', function() {
             $.get('show_apprise', function(data) {
                 bootbox.dialog({
                     title: 'Supported Types',
@@ -690,13 +258,13 @@
         });
 
         $('#test_sabnzbd').on('click', function() {
-            var host = $.trim($("#sab_host").val());
-            var port = $.trim($("#sab_port").val());
-            var user = $.trim($("#sab_user").val());
-            var pwd = $.trim($("#sab_pass").val());
-            var api = $.trim($("#sab_api").val());
-            var cat = $.trim($("#sab_cat").val());
-            var subdir = $.trim($("#sab_subdir").val());
+            let host = $.trim($("#sab_host").val());
+            let port = $.trim($("#sab_port").val());
+            let user = $.trim($("#sab_user").val());
+            let pwd = $.trim($("#sab_pass").val());
+            let api = $.trim($("#sab_api").val());
+            let cat = $.trim($("#sab_cat").val());
+            let subdir = $.trim($("#sab_subdir").val());
             $.get("test_sabnzbd", {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'api': api, 'cat': cat, 'subdir': subdir},
             function(data) {
                 bootbox.dialog({
@@ -712,13 +280,13 @@
             });
         });
 
-        $('#test_nzbget').on('click', function(e) {
-            var host = $.trim($("#nzbget_host").val());
-            var port = $.trim($("#nzbget_port").val());
-            var user = $.trim($("#nzbget_user").val());
-            var pwd = $.trim($("#nzbget_pass").val());
-            var cat = $.trim($("#nzbget_category").val());
-            var pri = $.trim($("#nzbget_priority").val());
+        $('#test_nzbget').on('click', function() {
+            let host = $.trim($("#nzbget_host").val());
+            let port = $.trim($("#nzbget_port").val());
+            let user = $.trim($("#nzbget_user").val());
+            let pwd = $.trim($("#nzbget_pass").val());
+            let cat = $.trim($("#nzbget_category").val());
+            let pri = $.trim($("#nzbget_priority").val());
             $.get('test_nzbget', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'cat': cat, 'pri': pri},
                 function(data) {
                 bootbox.dialog({
@@ -734,12 +302,12 @@
             });
         });
 
-        $('#test_synology').on('click', function(e) {
-            var host = $.trim($("#synology_host").val());
-            var port = $.trim($("#synology_port").val());
-            var user = $.trim($("#synology_user").val());
-            var pwd = $.trim($("#synology_pass").val());
-            var dir = $.trim($("#synology_dir").val());
+        $('#test_synology').on('click', function() {
+            let host = $.trim($("#synology_host").val());
+            let port = $.trim($("#synology_port").val());
+            let user = $.trim($("#synology_user").val());
+            let pwd = $.trim($("#synology_pass").val());
+            let dir = $.trim($("#synology_dir").val());
             $.get('test_synology', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'dir': dir},
                 function(data) {
                 bootbox.dialog({
@@ -756,13 +324,13 @@
         });
 
         $('#test_deluge').on('click', function() {
-            var host = $.trim($("#deluge_host").val());
-            var base = $.trim($("#deluge_base").val());
-            var cert = $.trim($("#deluge_cert").val());
-            var port = $.trim($("#deluge_port").val());
-            var user = $.trim($("#deluge_user").val());
-            var pwd = $.trim($("#deluge_pass").val());
-            var label = $.trim($("#deluge_label").val());
+            let host = $.trim($("#deluge_host").val());
+            let base = $.trim($("#deluge_base").val());
+            let cert = $.trim($("#deluge_cert").val());
+            let port = $.trim($("#deluge_port").val());
+            let user = $.trim($("#deluge_user").val());
+            let pwd = $.trim($("#deluge_pass").val());
+            let label = $.trim($("#deluge_label").val());
             $.get("test_deluge", {'host': host, 'port': port, 'base': base, 'cert': cert, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                     bootbox.dialog({
@@ -778,12 +346,12 @@
             });
         });
 
-        $('#test_transmission').on('click', function(e) {
-            var host = $.trim($("#transmission_host").val());
-            var port = $.trim($("#transmission_port").val());
-            var base = $.trim($("#transmission_base").val());
-            var user = $.trim($("#transmission_user").val());
-            var pwd = $.trim($("#transmission_pass").val());
+        $('#test_transmission').on('click', function() {
+            let host = $.trim($("#transmission_host").val());
+            let port = $.trim($("#transmission_port").val());
+            let base = $.trim($("#transmission_base").val());
+            let user = $.trim($("#transmission_user").val());
+            let pwd = $.trim($("#transmission_pass").val());
             $.get('test_transmission', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd},
                 function(data) {
                 bootbox.dialog({
@@ -800,12 +368,12 @@
         });
 
         $('#test_qbittorrent').on('click', function() {
-            var host = $.trim($("#qbittorrent_host").val());
-            var port = $.trim($("#qbittorrent_port").val());
-            var base = $.trim($("#qbittorrent_base").val());
-            var user = $.trim($("#qbittorrent_user").val());
-            var pwd = $.trim($("#qbittorrent_pass").val());
-            var label = $.trim($("#qbittorrent_label").val());
+            let host = $.trim($("#qbittorrent_host").val());
+            let port = $.trim($("#qbittorrent_port").val());
+            let base = $.trim($("#qbittorrent_base").val());
+            let user = $.trim($("#qbittorrent_user").val());
+            let pwd = $.trim($("#qbittorrent_pass").val());
+            let label = $.trim($("#qbittorrent_label").val());
             $.get('test_qbittorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
@@ -821,13 +389,13 @@
             });
         });
 
-        $('#test_utorrent').on('click', function(e) {
-            var host = $.trim($("#utorrent_host").val());
-            var port = $.trim($("#utorrent_port").val());
-            var base = $.trim($("#utorrent_base").val());
-            var user = $.trim($("#utorrent_user").val());
-            var pwd = $.trim($("#utorrent_pass").val());
-            var label = $.trim($("#utorrent_label").val());
+        $('#test_utorrent').on('click', function() {
+            let host = $.trim($("#utorrent_host").val());
+            let port = $.trim($("#utorrent_port").val());
+            let base = $.trim($("#utorrent_base").val());
+            let user = $.trim($("#utorrent_user").val());
+            let pwd = $.trim($("#utorrent_pass").val());
+            let label = $.trim($("#utorrent_label").val());
             $.get('test_utorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
@@ -843,12 +411,12 @@
             });
         });
 
-        $('#test_rtorrent').on('click', function(e) {
-            var host = $.trim($("#rtorrent_host").val());
-            var dir = $.trim($("#rtorrent_dir").val());
-            var user = $.trim($("#rtorrent_user").val());
-            var pwd = $.trim($("#rtorrent_pass").val());
-            var label = $.trim($("#rtorrent_label").val());
+        $('#test_rtorrent').on('click', function() {
+            let host = $.trim($("#rtorrent_host").val());
+            let dir = $.trim($("#rtorrent_dir").val());
+            let user = $.trim($("#rtorrent_user").val());
+            let pwd = $.trim($("#rtorrent_pass").val());
+            let label = $.trim($("#rtorrent_label").val());
             $.get('test_rtorrent', {'host': host, 'dir': dir, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
@@ -864,282 +432,7 @@
             });
         });
 
-        if ($("#use_twitter").is(":checked"))
-                {
-                        $("#twitteroptions").show();
-                }
-        else
-                {
-                        $("#twitteroptions").hide();
-                }
-
-        $("#use_twitter").click(function(){
-                if ($("#use_twitter").is(":checked"))
-                {
-                        $("#twitteroptions").slideDown();
-                }
-                else
-                {
-                        $("#twitteroptions").slideUp();
-                }
-        });
-
-        if ($("#use_boxcar").is(":checked"))
-                {
-                        $("#boxcaroptions").show();
-                }
-        else
-                {
-                        $("#boxcaroptions").hide();
-                }
-
-        $("#use_boxcar").click(function(){
-                if ($("#use_boxcar").is(":checked"))
-                {
-                        $("#boxcaroptions").slideDown();
-                }
-                else
-                {
-                        $("#boxcaroptions").slideUp();
-                }
-        });
-
-        if ($("#fullscan").is(":checked"))
-                {
-                        $("#fullscanoptions").show();
-                }
-        else
-                {
-                        $("#fullscanoptions").hide();
-                }
-
-        $("#fullscan").click(function(){
-                if ($("#fullscan").is(":checked"))
-                {
-                        $("#fullscanoptions").slideDown();
-                }
-                else
-                {
-                        $("#fullscanoptions").slideUp();
-                }
-        });
-
-        if ($("#use_pushbullet").is(":checked"))
-                {
-                        $("#pushbulletoptions").show();
-                }
-        else
-                {
-                        $("#pushbulletoptions").hide();
-                }
-
-        $("#use_pushbullet").click(function(){
-                if ($("#use_pushbullet").is(":checked"))
-                {
-                        $("#pushbulletoptions").slideDown();
-                }
-                else
-                {
-                        $("#pushbulletoptions").slideUp();
-                }
-        });
-
-        if ($("#use_pushover").is(":checked"))
-                {
-                        $("#pushoveroptions").show();
-                }
-        else
-                {
-                        $("#pushoveroptions").hide();
-                }
-        $("#use_pushover").click(function(){
-                if ($("#use_pushover").is(":checked"))
-                {
-                        $("#pushoveroptions").slideDown();
-                }
-                else
-                {
-                        $("#pushoveroptions").slideUp();
-                }
-        });
-
-        if ($("#use_androidpn").is(":checked"))
-                {
-                        $("#androidpnoptions").show();
-                }
-        else
-                {
-                        $("#androidpnoptions").hide();
-                }
-        $("#use_androidpn").click(function(){
-                if ($("#use_androidpn").is(":checked"))
-                {
-                    $("#androidpnoptions").slideDown();
-                }
-                else
-                {
-                    $("#androidpnoptions").slideUp();
-                }
-        });
-
-        if ($("#androidpn_broadcast").is(":checked"))
-                {
-                        $("#androidpn_username").hide();
-                }
-        else
-                {
-                        $("#androidpn_username").show();
-                }
-        $("#androidpn_broadcast").click(function(){
-                if ($("#androidpn_broadcast").is(":checked"))
-                {
-                    $("#androidpn_username").slideUp();
-                }
-                else
-                {
-                    $("#androidpn_username").slideDown();
-                }
-        });
-
-            $("#use_prowl").click(function(){
-                    if ($("#use_prowl").is(":checked"))
-                    {
-                            $("#prowloptions").slideDown();
-                    }
-                    else
-                    {
-                            $("#prowloptions").slideUp();
-                    }
-            });
-
-            if ($("#use_prowl").is(":checked"))
-                    {
-                            $("#prowloptions").show();
-                    }
-            else
-                    {
-                            $("#prowloptions").hide();
-                    }
-
-            $("#use_growl").click(function(){
-                    if ($("#use_growl").is(":checked"))
-                    {
-                            $("#growloptions").slideDown();
-                    }
-                    else
-                    {
-                            $("#growloptions").slideUp();
-                    }
-            });
-
-            if ($("#use_growl").is(":checked"))
-                    {
-                            $("#growloptions").show();
-                    }
-            else
-                    {
-                            $("#growloptions").hide();
-                    }
-
-            $("#use_telegram").click(function(){
-                    if ($("#use_telegram").is(":checked"))
-                    {
-                            $("#telegramoptions").slideDown();
-                    }
-                    else
-                    {
-                            $("#telegramoptions").slideUp();
-                    }
-            });
-
-            if ($("#use_telegram").is(":checked"))
-                    {
-                            $("#telegramoptions").show();
-                    }
-            else
-                    {
-                            $("#telegramoptions").hide();
-                    }
-
-        if ($("#use_slack").is(":checked"))
-                {
-                        $("#slackoptions").show();
-                }
-        else
-                {
-                        $("#slackoptions").hide();
-                }
-
-        $("#use_slack").click(function(){
-                if ($("#use_slack").is(":checked"))
-                {
-                        $("#slackoptions").slideDown();
-                }
-                else
-                {
-                        $("#slackoptions").slideUp();
-                }
-        });
-
-        if ($("#use_custom").is(":checked"))
-                {
-                        $("#customoptions").show();
-                }
-        else
-                {
-                        $("#customoptions").hide();
-                }
-
-        $("#use_custom").click(function(){
-                if ($("#use_custom").is(":checked"))
-                {
-                        $("#customoptions").slideDown();
-                }
-                else
-                {
-                        $("#customoptions").slideUp();
-                }
-        });
-
-        if ($("#use_email").is(":checked"))
-                {
-                        $("#emailoptions").show();
-
-                        if ($("#use_email_custom_format").is(":checked")) {
-                            $("#email_custom_format_options").show();
-                        }
-                        else {
-                            $("#email_custom_format_options").hide();
-                        }
-                }
-        else
-                {
-                        $("#emailoptions").hide();
-                }
-
-        $("#use_email").click(function(){
-                if ($("#use_email").is(":checked"))
-                {
-                        $("#emailoptions").slideDown();
-                }
-                else
-                {
-                        $("#emailoptions").slideUp();
-                }
-        });
-
-        $("#use_email_custom_format").click(function(){
-                if ($("#use_email_custom_format").is(":checked"))
-                {
-                        $("#email_custom_format_options").slideDown();
-                }
-                else
-                {
-                        $("#email_custom_format_options").slideUp();
-                }
-        });
-
-        $('#sysinfo').on('click', function(e) {
+        $('#sysinfo').on('click', function() {
             $.get('log_header', function(data) {
                 bootbox.dialog({
                     title: 'System Info',
@@ -1154,7 +447,7 @@
             });
         });
 
-        $('#savefilters').on('click', function(e) {
+        $('#savefilters').on('click', function() {
             $.get('save_filters', function(data) {
                 bootbox.dialog({
                     title: 'Export Filters',
@@ -1169,7 +462,7 @@
             });
         });
 
-        $('#loadfilters').on('click', function(e) {
+        $('#loadfilters').on('click', function() {
             $.get('load_filters', function(data) {
                 bootbox.dialog({
                     title: 'Import Filters',
@@ -1186,10 +479,10 @@
 
 
         $('#test_grauth').click(function () {
-            var gr_api = $.trim($("#gr_api").val());
-            var gr_secret = $.trim($("#gr_secret").val());
-            var oauth_token = $.trim($("#gr_oauth_token").val());
-            var oauth_secret = $.trim($("#gr_oauth_secret").val());
+            let gr_api = $.trim($("#gr_api").val());
+            let gr_secret = $.trim($("#gr_secret").val());
+            let oauth_token = $.trim($("#gr_oauth_token").val());
+            let oauth_secret = $.trim($("#gr_oauth_secret").val());
             $.get("test_grauth", {'gr_api': gr_api, 'gr_secret': gr_secret, 'oauth_token': oauth_token, 'oauth_secret': oauth_secret},
                 function (data) {
                     bootbox.dialog({
@@ -1206,11 +499,11 @@
         });
 
         $('#grauth_step1').click(function () {
-            var gr_api = $.trim($("#gr_api").val());
-            var gr_secret = $.trim($("#gr_secret").val());
+            let gr_api = $.trim($("#gr_api").val());
+            let gr_secret = $.trim($("#gr_secret").val());
             $.get("grauth_step1", {'gr_api': gr_api, 'gr_secret': gr_secret},
                 function (data) {
-                if ( data.substr(0, 4) == 'http') { bootbox.dialog({
+                if ( data.substr(0, 4) === 'http') { bootbox.dialog({
                         title: 'GoodReads Auth',
                         message: '<pre>A new tab or page should open at GoodReads to authorise lazylibrarian. Follow the prompts, then go back to LazyLibrarian and request oAuth2\nIf the page does not open, visit this link...\n'+data+'</pre>',
                         buttons: {
@@ -1244,7 +537,7 @@
                             primary: {
                                 label: "Close",
                                 className: 'btn-primary',
-                                callback: function(){ document.location.reload(true); }
+                                callback: function(){ document.location.reload(); }
                             }
                         }
                     });
@@ -1260,7 +553,7 @@
 
         $('#twitter_step2').click(function () {
             $('#testTwitter-result').html('');
-            var twitter_key = $("#twitter_key").val();
+            let twitter_key = $("#twitter_key").val();
             $.get("twitter_step2", {'key': twitter_key},
                 function (data) { $('#testTwitter-result').html(data); });
         });
@@ -1282,7 +575,7 @@
         });
 
         $('#test_boxcar').click(function () {
-            var token = $.trim($("#boxcar_token").val());
+            let token = $.trim($("#boxcar_token").val());
             $.get("test_boxcar", {'token': token},
                 function (data) {
                     bootbox.dialog({
@@ -1299,8 +592,8 @@
         });
 
         $('#test_pushbullet').click(function () {
-            var token = $.trim($("#pushbullet_token").val());
-            var device = $.trim($("#pushbullet_deviceid").val());
+            let token = $.trim($("#pushbullet_token").val());
+            let device = $.trim($("#pushbullet_deviceid").val());
             $.get("test_pushbullet", {'token': token, 'device': device},
                 function (data) {
                     bootbox.dialog({
@@ -1317,10 +610,10 @@
             });
 
         $('#test_pushover').click(function () {
-            var token = $.trim($("#pushover_apitoken").val());
-            var keys = $.trim($("#pushover_keys").val());
-            var priority = $.trim($("#pushover_priority").val());
-            var device = $.trim($("#pushover_device").val());
+            let token = $.trim($("#pushover_apitoken").val());
+            let keys = $.trim($("#pushover_keys").val());
+            let priority = $.trim($("#pushover_priority").val());
+            let device = $.trim($("#pushover_device").val());
             $.get("test_pushover", {'apitoken': token, 'keys': keys, 'priority': priority, 'device': device},
                 function (data) {
                     bootbox.dialog({
@@ -1337,8 +630,8 @@
         });
 
         $('#test_prowl').click(function () {
-            var apikey = $.trim($("#prowl_apikey").val());
-            var priority = $.trim($("#prowl_priority").val());
+            let apikey = $.trim($("#prowl_apikey").val());
+            let priority = $.trim($("#prowl_priority").val());
             $.get("test_prowl", {'apikey': apikey, 'priority': priority},
                 function (data) {
                     bootbox.dialog({
@@ -1355,8 +648,8 @@
         });
 
         $('#test_growl').click(function () {
-            var host = $.trim($("#growl_host").val());
-            var password = $.trim($("#growl_password").val());
+            let host = $.trim($("#growl_host").val());
+            let password = $.trim($("#growl_password").val());
             $.get("test_growl", {'host': host, 'password': password},
                 function (data) {
                     bootbox.dialog({
@@ -1373,8 +666,8 @@
         });
 
         $('#test_telegram').click(function () {
-            var token = $.trim($("#telegram_token").val());
-            var userid = $.trim($("#telegram_userid").val());
+            let token = $.trim($("#telegram_token").val());
+            let userid = $.trim($("#telegram_userid").val());
             $.get("test_telegram", {'token': token, 'userid': userid},
                 function (data) {
                     bootbox.dialog({
@@ -1391,8 +684,8 @@
         });
 
         $('#test_slack').click(function () {
-            var token = $.trim($("#slack_token").val());
-            var url = $.trim($("#slack_url").val());
+            let token = $.trim($("#slack_token").val());
+            let url = $.trim($("#slack_url").val());
             $.get("test_slack", {'token': token, 'url': url},
                 function (data) {
                     bootbox.dialog({
@@ -1409,7 +702,7 @@
         });
 
         $('#test_custom').click(function () {
-            var script = $.trim($("#custom_script").val());
+            let script = $.trim($("#custom_script").val());
             $.get("test_custom", {'script': script},
                 function (data) {
                     bootbox.dialog({
@@ -1426,15 +719,15 @@
         });
 
         $('#test_email').click(function () {
-            var tls = ($("#email_tls").prop('checked') == true) ? 'True' : 'False';
-            var ssl = ($("#email_ssl").prop('checked') == true) ? 'True' : 'False';
-            var sendfile = ($("#email_sendfile_ondownload").prop('checked') == true) ? 'True' : 'False';
-            var emailfrom = $.trim($("#email_from").val());
-            var emailto = $.trim($("#email_to").val());
-            var server = $.trim($("#email_smtp_server").val());
-            var user = $.trim($("#email_smtp_user").val());
-            var password = $.trim($("#email_smtp_password").val());
-            var port = $.trim($("#email_smtp_port").val());
+            let tls = ($("#email_tls").prop('checked') === true) ? 'True' : 'False';
+            let ssl = ($("#email_ssl").prop('checked') === true) ? 'True' : 'False';
+            let sendfile = ($("#email_sendfile_ondownload").prop('checked') === true) ? 'True' : 'False';
+            let emailfrom = $.trim($("#email_from").val());
+            let emailto = $.trim($("#email_to").val());
+            let server = $.trim($("#email_smtp_server").val());
+            let user = $.trim($("#email_smtp_user").val());
+            let password = $.trim($("#email_smtp_password").val());
+            let port = $.trim($("#email_smtp_port").val());
             $.get("test_email", {'tls': tls, 'ssl': ssl, 'emailfrom': emailfrom, 'emailto': emailto, 'server': server, 'user': user, 'password': password, 'port': port, 'sendfile': sendfile},
                 function (data) {
                     bootbox.dialog({
@@ -1451,9 +744,9 @@
         });
 
         $("#test_androidpn").click(function () {
-            var androidpn_url = $.trim($("#androidpn_url").val());
-            var androidpn_username = $.trim($("#androidpn_username").val());
-            var androidpn_broadcast = ($("#androidpn_broadcast").prop('checked') == true) ? 'Y' : 'N';
+            let androidpn_url = $.trim($("#androidpn_url").val());
+            let androidpn_username = $.trim($("#androidpn_username").val());
+            let androidpn_broadcast = ($("#androidpn_broadcast").prop('checked') === true) ? 'Y' : 'N';
             $.get("test_androidpn", {'url': androidpn_url, 'username': androidpn_username, 'broadcast': androidpn_broadcast},
                 function (data) {
                     bootbox.dialog({
@@ -1470,7 +763,7 @@
         });
 
         $('#test_calibredb').click(function () {
-            var prg = $.trim($("#imp_calibredb").val());
+            let prg = $.trim($("#imp_calibredb").val());
             $.get("test_calibredb", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
@@ -1486,7 +779,7 @@
                 });
         });
         $('#test_ebookconvert').click(function () {
-            var prg = $.trim($("#ebook_convert").val());
+            let prg = $.trim($("#ebook_convert").val());
             $.get("test_ebook_convert", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
@@ -1503,7 +796,7 @@
         });
 
         $('#test_ffmpeg').click(function () {
-            var prg = $.trim($("#ffmpeg").val());
+            let prg = $.trim($("#ffmpeg").val());
             $.get("test_ffmpeg", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
@@ -1520,7 +813,7 @@
         });
 
         $('#test_preprocessor').click(function () {
-            var prg = $.trim($("#ext_preprocessor").val());
+            let prg = $.trim($("#ext_preprocessor").val());
             $.get("test_preprocessor", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
@@ -1537,43 +830,16 @@
         });
 
         $('#http_look').change(function() {
-            if ($(this).val() == 'bookstrap') {
+            if ($(this).val() === 'bookstrap') {
                 $('#bookstrap_options').removeClass("hidden");
             } else {
                 $('#bookstrap_options').addClass("hidden");
             }
         });
 
-        // when the page first loads, hide all tab headers and panels
-        $("li[role='presentation']").attr("aria-selected", "false");
-        $("li[role='presentation']").removeClass('active');
-        //$("div[role='tabpanel']").attr("aria-hidden", "true");
-        $("div[role='tabpanel']").removeClass('active');
-        // which one do we want to show
-        var tabnum = $("#current_tab").val();
-        var tabid = $("#" + tabnum);
-        var tabpanel = tabid.attr('aria-controls');
-        var tabpanelid = $("#" + tabpanel);
-        // show the tab header and panel we want
-        //tabpanelid.attr("aria-hidden", "false");
-        tabpanelid.addClass('active');
-        tabid.attr("aria-selected", "true");
-        tabid.addClass('active');
-        eraseCookie("configTab");
-        createCookie("configTab", tabnum, 0);
-        $("div[role='tab-table']").removeClass('hidden');
-
-        // when a tab is clicked
-        $("li[role='presentation']").click(function(){
-            var tabnum = $(this).attr('id');    // store current tab for python
-            eraseCookie("configTab");
-            createCookie("configTab", tabnum, 0);
-            $("#current_tab").val(tabnum);
-        });
-
-
-       $('#checkforupdates').on('click', function(e) {
+       $('#checkforupdates').on('click', function() {
             eraseCookie("ignoreUpdate");
+            eraseCookie("ignoreTelemetry");
             $("#myAlert").removeClass('hidden');
             $.get('check_for_updates', function(data) {
                 $("#myAlert").addClass('hidden');
@@ -1584,7 +850,90 @@
                         primary: {
                             label: "Close",
                             className: 'btn-primary',
-                            callback: function(){ location.reload(true); }
+                            callback: function(){ location.reload(); }
+                        },
+                    }
+                });
+            });
+        });
+
+       $('#generate_api').on('click', function() {
+            $("#myAlert").removeClass('hidden');
+            $.get('generate_api', function(data) {
+                $("#myAlert").addClass('hidden');
+                bootbox.dialog({
+                    title: 'Generate API',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(){ location.reload(); }
+                        },
+                    }
+                });
+            });
+        });
+
+        // Refresh telemetry data when the page has loaded
+        $('window').ready(function() {
+            let send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            let send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
+            $.get('get_telemetry_data', {'send_config': send_config, 'send_usage': send_usage},
+            function(data) {
+                $("#telemetry_data").val(data)
+            });
+        });
+
+        $('#telemetry_refresh').on('click', function() {
+            let send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            let send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
+            $.get('get_telemetry_data', {'send_config': send_config, 'send_usage': send_usage},
+            function(data) {
+                $("#telemetry_data").val(data)
+            });
+        });
+
+        $('#telemetry_reset').on('click', function() {
+            let send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            let send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
+            $.get('reset_telemetry_usage_data', function() {});
+            $.get('get_telemetry_data', {'send_config': send_config, 'send_usage': send_usage},
+            function(data) {
+                $("#telemetry_data").val(data)
+            });
+        });
+
+        $('#test_telemetry_server').on('click', function() {
+            let server = $.trim($("#telemetry_server").val());
+            $.get('test_telemetry_server', {'server': server},
+                function(data) {
+                bootbox.dialog({
+                    title: 'Telemetry server connection',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary'
+                        }
+                    }
+                });
+            });
+        });
+
+        $('#telemetry_submit').on('click', function() {
+            let server = $.trim($("#telemetry_server").val());
+            let send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            let send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
+            $.get('submit_telemetry_data', {'server': server, 'send_config': send_config, 'send_usage': send_usage},
+                function(data) {
+                bootbox.dialog({
+                    title: 'Submitted telemetry data',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
                         },
                     }
                 });

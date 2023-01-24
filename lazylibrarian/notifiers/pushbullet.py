@@ -17,9 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-import lazylibrarian
+import logging
 
-from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
 from .pushbullet2 import PushBullet
@@ -33,14 +33,15 @@ class PushbulletNotifier:
     @staticmethod
     def _send_pushbullet(message=None, event=None, pushbullet_token=None, pushbullet_deviceid=None, force=False):
 
-        if not lazylibrarian.CONFIG['USE_PUSHBULLET'] and not force:
+        if not CONFIG['USE_PUSHBULLET'] and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         if pushbullet_token is None:
-            pushbullet_token = lazylibrarian.CONFIG['PUSHBULLET_TOKEN']
+            pushbullet_token = CONFIG['PUSHBULLET_TOKEN']
         if pushbullet_deviceid is None:
-            if lazylibrarian.CONFIG['PUSHBULLET_DEVICEID']:
-                pushbullet_deviceid = lazylibrarian.CONFIG['PUSHBULLET_DEVICEID']
+            if CONFIG['PUSHBULLET_DEVICEID']:
+                pushbullet_deviceid = CONFIG['PUSHBULLET_DEVICEID']
 
         logger.debug("Pushbullet event: " + str(event))
         logger.debug("Pushbullet message: " + str(message))
@@ -71,13 +72,14 @@ class PushbulletNotifier:
         username: The username to send the notification to (optional, defaults to the username in the config)
         force: If True then the notification will be sent even if pushbullet is disabled in the config
         """
+        logger = logging.getLogger(__name__)
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warn("Pushbullet: could not convert  message: %s" % e)
+            logger.warning("Pushbullet: could not convert  message: %s" % e)
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_PUSHBULLET'] and not force:
+        if not CONFIG['USE_PUSHBULLET'] and not force:
             return False
         logger.debug("Pushbullet: Sending notification " + str(message))
 
@@ -88,14 +90,14 @@ class PushbulletNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONSNATCH']:
+        if CONFIG.get_bool('PUSHBULLET_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONDOWNLOAD']:
+        if CONFIG.get_bool('PUSHBULLET_NOTIFY_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD])
 
     def test_notify(self, title="Test"):

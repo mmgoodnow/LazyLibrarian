@@ -91,3 +91,6 @@ form label {
         text-align: right;
     }
 }
+textarea#telemetry_data {
+    font-family: monospace;
+}

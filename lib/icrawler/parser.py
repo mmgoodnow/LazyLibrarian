@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import platform
 import time
 from threading import current_thread
-import lazylibrarian
 import queue
 from urllib.parse import urlsplit
 
-from icrawler.utils import ThreadPool
+from lib.icrawler.utils import ThreadPool
 
+USER_AGENT = f'LazyLibrarian on {platform.system()}-{platform.release()}'
 
 class Parser(ThreadPool):
     """Base class for parser.
@@ -93,7 +94,7 @@ class Parser(ThreadPool):
                     base_url = '{0.scheme}://{0.netloc}'.format(urlsplit(url))
                     response = self.session.get(url,
                                                 timeout=req_timeout,
-                                                headers={'Referer': base_url, 'User-Agent': lazylibrarian.common.get_user_agent()})
+                                                headers={'Referer': base_url, 'User-Agent': USER_AGENT})
                 except Exception as e:
                     self.logger.error(
                         'Exception caught when fetching page %s, '

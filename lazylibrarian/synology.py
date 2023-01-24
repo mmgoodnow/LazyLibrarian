@@ -12,9 +12,10 @@
 
 
 import json
+import logging
 import re
-import lazylibrarian
-from lazylibrarian import logger
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import check_int, make_unicode
 from urllib.parse import urlencode
@@ -78,6 +79,7 @@ def _error_msg(errnum, api):
 def _login(hosturl):
     # Query the DownloadStation for api info and then log user in
     # return auth_cgi,task_cgi,sid or "","",""
+    logger = logging.getLogger(__name__)
     url = hosturl + 'query.cgi'
     params = {
         "api": "SYNO.API.Info",
@@ -104,8 +106,8 @@ def _login(hosturl):
         "api": "SYNO.API.Auth",
         "version": "2",
         "method": "login",
-        "account": lazylibrarian.CONFIG['SYNOLOGY_USER'],
-        "passwd": lazylibrarian.CONFIG['SYNOLOGY_PASS'],
+        "account": CONFIG['SYNOLOGY_USER'],
+        "passwd": CONFIG['SYNOLOGY_PASS'],
         "session": "DownloadStation",
         "format": "sid"
     }
@@ -149,6 +151,7 @@ def _list_tasks(task_cgi, sid):
         "_sid": sid
     }
 
+    logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
 
     if success:
@@ -177,6 +180,7 @@ def _get_info(task_cgi, sid, download_id):
         "_sid": sid
     }
 
+    logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
     logger.debug("Result from getInfo = %s" % repr(result))
     if success:
@@ -206,6 +210,7 @@ def _delete_task(task_cgi, sid, download_id, remove_data):
         "_sid": sid
     }
 
+    logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
     logger.debug("Result from delete: %s" % repr(result))
     if success:
@@ -236,6 +241,7 @@ def _pause_task(task_cgi, sid, download_id):
         "_sid": sid
     }
 
+    logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
     logger.debug("Result from pause: %s" % repr(result))
     if success:
@@ -263,10 +269,11 @@ def _add_torrent_uri(task_cgi, sid, torurl):
         "method": "create",
         "session": "DownloadStation",
         "uri": torurl,
-        "destination": lazylibrarian.CONFIG['SYNOLOGY_DIR'],
+        "destination": CONFIG['SYNOLOGY_DIR'],
         "_sid": sid
     }
 
+    logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
     logger.debug("Result from create = %s" % repr(result))
     res = ''
@@ -280,18 +287,18 @@ def _add_torrent_uri(task_cgi, sid, torurl):
             # DownloadStation doesn't return the download_id for the newly added uri
             # which we need for monitoring progress & deleting etc.
             # so we have to scan the task list to get the id
-            logger.warn(torurl)  # REMOVE ME
+            logger.warning(torurl)  # REMOVE ME
             try:
                 matchstr = re.findall(r"urn:btih:([\w]{32,40})", torurl)[0]
             except (re.error, IndexError, TypeError):
                 matchstr = torurl.replace(' ', '+')
             matchstr = make_unicode(matchstr)
-            logger.warn(matchstr)  # REMOVE ME
+            logger.warning(matchstr)  # REMOVE ME
             for task in _list_tasks(task_cgi, sid):  # type: dict
-                logger.warn(str(task))  # REMOVE ME
+                logger.warning(str(task))  # REMOVE ME
                 if task['id']:
                     info = _get_info(task_cgi, sid, task['id'])  # type: dict
-                    logger.warn(str(info))  # REMOVE ME
+                    logger.warning(str(info))  # REMOVE ME
                     try:
                         uri = info['additional']['detail']['uri']
                         if matchstr in uri:  # this might be us
@@ -300,14 +307,14 @@ def _add_torrent_uri(task_cgi, sid, torurl):
                                     errmsg = task['status_extra']['error_detail']
                                 except KeyError:
                                     errmsg = "No error details"
-                                logger.warn(errmsg)  # REMOVE ME
+                                logger.warning(errmsg)  # REMOVE ME
                                 if errmsg == 'torrent_duplicate':
                                     # should we delete the duplicate here, or just return the id?
                                     # if the original is still active we might find it further down the list
                                     _ = _delete_task(task_cgi, sid, task['id'], False)
                                 else:
                                     res = "Synology task [%s] failed: %s" % (task['title'], errmsg)
-                                    logger.warn(res)
+                                    logger.warning(res)
                                     return False, res
                             else:
                                 logger.debug('Synology task %s for %s' % (task['id'], task['title']))
@@ -326,10 +333,11 @@ def _add_torrent_uri(task_cgi, sid, torurl):
 
 def _host_url():
     # Build webapi_url from config settings
-    host = lazylibrarian.CONFIG['SYNOLOGY_HOST']
-    port = check_int(lazylibrarian.CONFIG['SYNOLOGY_PORT'], 0)
+    logger = logging.getLogger(__name__)
+    host = CONFIG['SYNOLOGY_HOST']
+    port = CONFIG.get_int('SYNOLOGY_PORT')
     if not host or not port:
-        logger.debug("Invalid Synology host or port, check your config")
+        logger.debug(f"Invalid Synology host or port, check your config: {host}:{port}")
         return False
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
@@ -384,6 +392,7 @@ def get_name(download_id):
 def get_folder(download_id):
     # get the name of a download from it's download_id
     # return "" if not found
+    logger = logging.getLogger(__name__)
     hosturl = _host_url()
     if hosturl:
         auth_cgi, task_cgi, sid = _login(hosturl)
@@ -394,7 +403,7 @@ def get_folder(download_id):
                 try:
                     return result['additional']['detail']['destination']
                 except Exception as e:
-                    logger.warn(e)
+                    logger.warning(e)
     return ""
 
 

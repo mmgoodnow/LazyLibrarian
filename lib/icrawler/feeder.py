@@ -3,7 +3,7 @@
 import os.path as osp
 from threading import current_thread
 
-from icrawler.utils import ThreadPool
+from lib.icrawler.utils import ThreadPool
 
 
 class Feeder(ThreadPool):

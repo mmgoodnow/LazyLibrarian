@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import lazylibrarian
-from lazylibrarian import logger, database
+import logging
+
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import run_script
 
@@ -27,38 +29,42 @@ class CustomNotifier:
     def _notify(message, event, force=False):
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_CUSTOM'] and not force:
+        if not CONFIG.get_bool('USE_CUSTOM') and not force:
             return False
 
+        logger = logging.getLogger(__name__)
         logger.debug('Custom Event: %s' % event)
         logger.debug('Custom Message: %s' % message)
         db = database.DBConnection()
-        if event == "Test":
-            # grab the first entry in the book table and wanted table
-            book = db.match('SELECT * from books')
-            wanted = db.match('SELECT * from wanted')
-            ident = 'eBook'
-        else:
-            # message is a bookid followed by type (eBook/AudioBook)
-            # or a magazine title followed by it's NZBUrl
-            words = message.split()
-            ident = words[-1]
-            bookid = " ".join(words[:-1])
-            book = db.match('SELECT * from books where BookID=?', (bookid,))
-            if not book:
-                book = db.match('SELECT * from magazines where Title=?', (bookid,))
-
-            if event == 'Added to Library':
-                wanted_status = 'Processed'
+        try:
+            if event == "Test":
+                # grab the first entry in the book table and wanted table
+                book = db.match('SELECT * from books')
+                wanted = db.match('SELECT * from wanted')
+                ident = 'eBook'
             else:
-                wanted_status = 'Snatched'
+                # message is a bookid followed by type (eBook/AudioBook)
+                # or a magazine title followed by it's NZBUrl
+                words = message.split()
+                ident = words[-1]
+                bookid = " ".join(words[:-1])
+                book = db.match('SELECT * from books where BookID=?', (bookid,))
+                if not book:
+                    book = db.match('SELECT * from magazines where Title=?', (bookid,))
 
-            if ident in ['eBook', 'AudioBook']:
-                wanted = db.match('SELECT * from wanted where BookID=? AND AuxInfo=? AND Status=?',
-                                  (bookid, ident, wanted_status))
-            else:
-                wanted = db.match('SELECT * from wanted where BookID=? AND NZBUrl=? AND Status=?',
-                                  (bookid, ident, wanted_status))
+                if event == 'Added to Library':
+                    wanted_status = 'Processed'
+                else:
+                    wanted_status = 'Snatched'
+
+                if ident in ['eBook', 'AudioBook']:
+                    wanted = db.match('SELECT * from wanted where BookID=? AND AuxInfo=? AND Status=?',
+                                      (bookid, ident, wanted_status))
+                else:
+                    wanted = db.match('SELECT * from wanted where BookID=? AND NZBUrl=? AND Status=?',
+                                      (bookid, ident, wanted_status))
+        finally:
+            db.close()
 
         if book:
             # noinspection PyTypeChecker
@@ -85,8 +91,8 @@ class CustomNotifier:
 
         try:
             # call the custom notifier script here, passing dictionary deconstructed as strings
-            if lazylibrarian.CONFIG['CUSTOM_SCRIPT']:
-                params = [lazylibrarian.CONFIG['CUSTOM_SCRIPT']]
+            if CONFIG['CUSTOM_SCRIPT']:
+                params = [CONFIG['CUSTOM_SCRIPT']]
                 for item in dictionary:
                     params.append(item)
                     if hasattr(dictionary[item], 'encode'):
@@ -102,11 +108,11 @@ class CustomNotifier:
                     logger.debug(res)
                     return True
             else:
-                logger.warn('Error sending custom notification: Check config')
+                logger.warning('Error sending custom notification: Check config')
                 return False
 
         except Exception as e:
-            logger.warn('Error sending custom notification: %s' % e)
+            logger.warning('Error sending custom notification: %s' % e)
             return False
 
     #
@@ -114,14 +120,14 @@ class CustomNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONSNATCH']:
+        if CONFIG.get_bool('CUSTOM_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONDOWNLOAD']:
+        if CONFIG.get_bool('CUSTOM_NOTIFY_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD])
 
     def test_notify(self, title="Test"):

@@ -11,18 +11,24 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import threading
 import traceback
 import time
+
 import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import database
 from lazylibrarian.formatter import plural, check_int, thread_name
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.resultlist import find_best_result, download_result
+from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_book():
+    logger = logging.getLogger(__name__)
     if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
         search_book()
     else:
@@ -30,13 +36,14 @@ def cron_search_book():
 
 
 def good_enough(match):
-    if match and int(match[0]) >= check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
+    if match and int(match[0]) >= CONFIG.get_int('MATCH_RATIO'):
         return True
     return False
 
 
 def warn_mode(mode):
     # don't nag. Show warning messages no more than every 20 mins
+    logger = logging.getLogger(__name__)
     timenow = int(time.time())
     if mode == 'rss':
         if check_int(lazylibrarian.TIMERS['NO_RSS_MSG'], 0) + 1200 < timenow:
@@ -65,7 +72,7 @@ def warn_mode(mode):
             return
     else:
         return
-    logger.warn('No %s providers are available. Check config and blocklist' % mode)
+    logger.warning('No %s providers are available. Check config and blocklist' % mode)
 
 
 def search_book(books=None, library=None):
@@ -73,6 +80,8 @@ def search_book(books=None, library=None):
     books is a list of new books to add, or None for backlog search
     library is "eBook" or "AudioBook" or None to search all book types
     """
+    TELEMETRY.record_usage_data('Search/Book')
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -121,12 +130,10 @@ def search_book(books=None, library=None):
             db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             return
 
-        nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
-        nprov += lazylibrarian.use_direct() + lazylibrarian.use_irc()
-
+        nprov = CONFIG.total_active_providers()
         if nprov == 0:
             msg = "SearchBooks - No providers to search"
-            blocked = len(lazylibrarian.PROVIDER_BLOCKLIST)
+            blocked = BLOCKHANDLER.number_blocked()
             if blocked:
                 msg += " (there %s %s in blocklist)" % (plural(blocked, "is"), blocked)
             else:
@@ -136,22 +143,22 @@ def search_book(books=None, library=None):
             return
 
         modelist = []
-        if lazylibrarian.use_nzb():
+        if CONFIG.use_nzb():
             modelist.append('nzb')
-        if lazylibrarian.use_tor():
+        if CONFIG.use_tor():
             modelist.append('tor')
-        if lazylibrarian.use_direct():
+        if CONFIG.use_direct():
             modelist.append('direct')
-        if lazylibrarian.use_rss():
+        if CONFIG.use_rss():
             modelist.append('rss')
-        if lazylibrarian.use_irc():
+        if CONFIG.use_irc():
             modelist.append('irc')
 
         logger.info('Searching %s %s %s for %i %s' %
                     (nprov, plural(nprov, "provider"), str(modelist), len(searchbooks),
                      plural(len(searchbooks), library)))
-        logger.info("Provider Blocklist contains %s %s" % (len(lazylibrarian.PROVIDER_BLOCKLIST),
-                                                           plural(len(lazylibrarian.PROVIDER_BLOCKLIST), 'entry')))
+        logger.info("Provider Blocklist contains %s %s" % (BLOCKHANDLER.number_blocked(),
+                                                           plural(BLOCKHANDLER.number_blocked(), 'entry')))
 
         for searchbook in searchbooks:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLBOOKS":
@@ -163,14 +170,14 @@ def search_book(books=None, library=None):
             if searchbook['AuthorName']:
                 searchterm = searchbook['AuthorName']
             else:
-                logger.warn("No AuthorName for %s" % searchbook['BookID'])
+                logger.warning("No AuthorName for %s" % searchbook['BookID'])
 
             if searchbook['BookName']:
                 if len(searchterm):
                     searchterm += ' '
                 searchterm += searchbook['BookName']
             else:
-                logger.warn("No BookName for %s" % searchbook['BookID'])
+                logger.warning("No BookName for %s" % searchbook['BookID'])
 
             if searchbook['BookSub']:
                 if len(searchterm):
@@ -181,8 +188,8 @@ def search_book(books=None, library=None):
                 cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
-                    logger.warn('eBook %s %s already marked snatched in wanted table' %
-                                (searchbook['AuthorName'], searchbook['BookName']))
+                    logger.warning('eBook %s %s already marked snatched in wanted table' %
+                                   (searchbook['AuthorName'], searchbook['BookName']))
                 else:
                     searchlist.append(
                         {"bookid": searchbook['BookID'],
@@ -196,8 +203,8 @@ def search_book(books=None, library=None):
                 cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
-                    logger.warn('AudioBook %s %s already marked snatched in wanted table' %
-                                (searchbook['AuthorName'], searchbook['BookName']))
+                    logger.warning('AudioBook %s %s already marked snatched in wanted table' %
+                                   (searchbook['AuthorName'], searchbook['BookName']))
                 else:
                     searchlist.append(
                         {"bookid": searchbook['BookID'],
@@ -209,7 +216,7 @@ def search_book(books=None, library=None):
 
         # only get rss results once per run, as they are not search specific
         rss_resultlist = None
-        if lazylibrarian.use_rss():
+        if CONFIG.use_rss():
             rss_resultlist, nprov, dltypes = iterate_over_rss_sites()
             if not nprov or (library == 'Audiobook' and 'A' not in dltypes) or \
                             (library == 'eBook' and 'E' not in dltypes) or \
@@ -222,7 +229,7 @@ def search_book(books=None, library=None):
                 logger.debug("Aborting %s" % threadname)
                 break
             do_search = True
-            if lazylibrarian.CONFIG['DELAYSEARCH'] and not force:
+            if CONFIG.get_bool('DELAYSEARCH') and not force:
                 res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
                                (book['bookid'], book['library']))
                 if not res:
@@ -248,7 +255,7 @@ def search_book(books=None, library=None):
                 else:
                     searchtype = 'book'
 
-                if lazylibrarian.use_nzb():
+                if CONFIG.use_nzb():
                     resultlist, nprov = iterate_over_newznab_sites(book, searchtype)
                     if not nprov:
                         warn_mode('nzb')
@@ -262,7 +269,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_tor():
+                if CONFIG.use_tor():
                     resultlist, nprov = iterate_over_torrent_sites(book, searchtype)
                     if not nprov:
                         warn_mode('tor')
@@ -276,7 +283,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_direct():
+                if CONFIG.use_direct():
                     resultlist, nprov = iterate_over_direct_sites(book, searchtype)
                     if not nprov:
                         warn_mode('direct')
@@ -290,7 +297,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_irc():
+                if CONFIG.use_irc():
                     resultlist, nprov = iterate_over_irc_sites(book, searchtype)
                     if not nprov:
                         warn_mode('irc')
@@ -304,7 +311,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_rss() and rss_resultlist:
+                if CONFIG.use_rss() and rss_resultlist:
                     match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                     if not good_enough(match):
                         logger.info("RSS search for %s %s returned no results." %
@@ -316,7 +323,7 @@ def search_book(books=None, library=None):
 
                 # if you can't find the book, try author/title without any "(extended details, series etc)"
                 if not matches and '(' in book['bookName']:
-                    if lazylibrarian.use_nzb():
+                    if CONFIG.use_nzb():
                         resultlist, nprov = iterate_over_newznab_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('nzb')
@@ -330,7 +337,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_tor():
+                    if CONFIG.use_tor():
                         resultlist, nprov = iterate_over_torrent_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('tor')
@@ -344,7 +351,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_direct():
+                    if CONFIG.use_direct():
                         resultlist, nprov = iterate_over_direct_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('direct')
@@ -358,7 +365,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_irc():
+                    if CONFIG.use_irc():
                         resultlist, nprov = iterate_over_irc_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('irc')
@@ -372,7 +379,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_rss() and rss_resultlist:
+                    if CONFIG.use_rss() and rss_resultlist:
                         match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                         if not good_enough(match):
                             logger.info("RSS short search for %s %s returned no results." %
@@ -384,7 +391,7 @@ def search_book(books=None, library=None):
 
                 # if you can't find the book under "books", you might find under general search
                 # general search is the same as booksearch for torrents, irc and rss, no need to check again
-                if not matches and lazylibrarian.use_nzb():
+                if not matches and CONFIG.use_nzb():
                     resultlist, nprov = iterate_over_newznab_sites(book, 'general' + searchtype)
                     if not nprov:
                         warn_mode('nzb')
@@ -400,7 +407,7 @@ def search_book(books=None, library=None):
 
                 # if still not found, try general search again without any "(extended details, series etc)"
                 # shortgeneral is the same as shortbook for torrents, irc and rss, no need to check again
-                if not matches and lazylibrarian.use_nzb() and '(' in book['searchterm']:
+                if not matches and CONFIG.use_nzb() and '(' in book['searchterm']:
                     resultlist, nprov = iterate_over_newznab_sites(book, 'shortgeneral' + searchtype)
                     if not nprov:
                         warn_mode('nzb')
@@ -416,7 +423,7 @@ def search_book(books=None, library=None):
 
                 # if still not found, try general search again with title only
                 if not matches:
-                    if lazylibrarian.use_nzb():
+                    if CONFIG.use_nzb():
                         resultlist, nprov = iterate_over_newznab_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('nzb')
@@ -430,7 +437,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_tor():
+                    if CONFIG.use_tor():
                         resultlist, nprov = iterate_over_torrent_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('tor')
@@ -444,7 +451,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_direct():
+                    if CONFIG.use_direct():
                         resultlist, nprov = iterate_over_direct_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('direct')
@@ -460,7 +467,7 @@ def search_book(books=None, library=None):
 
                     # irchighway says search results without both author and title will be
                     # silently rejected but that doesn't seem to be actioned...
-                    if lazylibrarian.use_irc():
+                    if CONFIG.use_irc():
                         resultlist, nprov = iterate_over_irc_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('irc')
@@ -474,7 +481,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_rss():
+                    if CONFIG.use_rss():
                         match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                         if not good_enough(match):
                             logger.info("RSS title search for %s %s returned no results." %
@@ -491,7 +498,7 @@ def search_book(books=None, library=None):
                 if download_result(highest, book) > 1:
                     book_count += 1  # we found it
                 db.action("DELETE from failedsearch WHERE BookID=? AND Library=?", (book['bookid'], book['library']))
-            elif lazylibrarian.CONFIG['DELAYSEARCH'] and not force and do_search and len(modelist):
+            elif CONFIG.get_bool('DELAYSEARCH') and not force and do_search and len(modelist):
                 res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
                                (book['bookid'], book['library']))
                 if res:
@@ -503,7 +510,7 @@ def search_book(books=None, library=None):
                           {'Count': 0, 'Interval': interval + 1, 'Time': time.time()},
                           {'BookID': book['bookid'], 'Library': book['library']})
 
-            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+            time.sleep(CONFIG.get_int('SEARCH_RATELIMIT'))
 
         logger.info("Search for Wanted items complete, found %s %s" % (book_count, plural(book_count, "book")))
 
@@ -511,4 +518,5 @@ def search_book(books=None, library=None):
         logger.error('Unhandled exception in search_book: %s' % traceback.format_exc())
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        db.close()
         thread_name("WEBSERVER")

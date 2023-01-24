@@ -18,10 +18,12 @@ import os
 import re
 import unicodedata
 import threading
+import logging
+from typing import List, Optional, Union
 
 import lazylibrarian
+from lazylibrarian.configenums import OnChangeReason
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
-
 
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
 namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
@@ -34,10 +36,27 @@ umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd
 apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
 
 
+# noinspection PyUnusedLocal
+class ImportPrefs:
+    LANG_LIST = []
+    SPLIT_LIST = []
+
+    @classmethod
+    def lang_changed(cls, languages: str, reason: OnChangeReason = OnChangeReason.SETTING):
+        """ Called automatically when CONFIG[IMP_PREFLANG] changes value """
+        cls.LANG_LIST = get_list(languages, ',')
+
+    @classmethod
+    def nosplit_changed(cls, nosplits: str, reason: OnChangeReason = OnChangeReason.SETTING):
+        """ Called automatically when CONFIG[IMP_NOSPLIT] changes value """
+        cls.SPLIT_LIST = get_list(nosplits, ',')
+
+
 # noinspection PyDeprecation
-def thread_name(name=None):
+def thread_name(name=None) -> str:
     if name:
         threading.current_thread().name = name
+        return name
     else:
         return threading.current_thread().name
 
@@ -175,13 +194,12 @@ def book_series(bookname):
     return series, seriesnum
 
 
-
 def now():
     dtnow = datetime.datetime.now()
     return dtnow.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def today():
+def today() -> str:
     dtnow = datetime.datetime.now()
     return dtnow.strftime("%Y-%m-%d")
 
@@ -230,7 +248,7 @@ def nzbdate2format(nzbdate):
         return "1970-01-01"
 
 
-def date_format(datestr, formatstr="$Y-$m-$d"):
+def date_format(datestr, formatstr="$Y-$m-$d", context=''):
     # return date formatted in requested style
     # $d	Day of the month as a zero-padded decimal number
     # $b	Month as abbreviated name
@@ -239,6 +257,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     # $y	Year without century as a zero-padded decimal number
     # $Y	Year with century as a decimal number
     # datestr are stored in lazylibrarian as YYYY-MM-DD or YYYY-MM-DD HH:MM:SS or nnnn for issue number
+    # If context is provided as a parameter, it will be used to provide more informative error messages.
 
     # Dates from providers are in various formats, need to consolidate them so we can sort...
     # Newznab/Torznab Tue, 23 Aug 2016 17:33:26 +0100
@@ -255,6 +274,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     if datestr.isdigit():  # just issue number or year
         return datestr
 
+    logger = logging.getLogger(__name__)
     dateparts = datestr.split(' +')[0].split(';')[0].replace(
         '-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
     if len(dateparts) == 1:  # one "word" might need splitting
@@ -311,7 +331,10 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
         d, m, y, hh, mm = 0, 0, 0, 0, 0
 
     if not m:
-        lazylibrarian.logger.warn("Unrecognised datestr [%s]" % datestr)
+        msg = f"Unrecognised datestr {datestr}"
+        if context:
+            msg = f'{msg} for {context}'
+        logger.warning(msg)
         return datestr
 
     try:
@@ -335,7 +358,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
             '$B', lazylibrarian.MONTHNAMES[int(datestr[5:7])][0].title()).replace(
             '$b', lazylibrarian.MONTHNAMES[int(datestr[5:7])][1].title())
     except Exception:
-        lazylibrarian.logger.error("Invalid datestr [%s]" % datestr)
+        logger.error("Invalid datestr [%s]" % datestr)
         return datestr
 
 
@@ -395,12 +418,12 @@ def plural(var, phrase=""):
     so copy -> copies, entry -> entries  etc
     """
     translates = {
-                    'copy': 'copies',
-                    'entry': 'entries',
-                    'shelf': 'shelves',
-                    'series': 'series',
-                    'is': 'are',
-                 }
+        'copy': 'copies',
+        'entry': 'entries',
+        'shelf': 'shelves',
+        'series': 'series',
+        'is': 'are',
+    }
     if check_int(var, 0) == 1:
         return phrase
     res = translates.get(phrase, '')
@@ -438,6 +461,17 @@ def check_float(var, default):
             return float(default)
         except (ValueError, TypeError):
             return 0.0
+
+
+def pretty_approx_time(seconds: int) -> str:
+    """ Return a string representing the parameter in a nice human readable (approximate) way """
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, seconds = divmod(rem, 60)
+    locals_ = locals()
+    magnitudes_str = ("{n} {magnitude}".format(n=int(locals_[magnitude]), magnitude=magnitude)
+                      for magnitude in ("days", "hours", "minutes", "seconds") if locals_[magnitude])
+    return ", ".join(magnitudes_str)
 
 
 def human_size(num):
@@ -512,7 +546,7 @@ def make_utf8bytes(txt):
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-def make_unicode(txt):
+def make_unicode(txt: Optional[str]) -> Optional[Union[str, bytes]]:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     if isinstance(txt, str):  # nothing to do if already unicode
@@ -530,7 +564,8 @@ def make_unicode(txt):
             return txt.decode(encoding)
         except (UnicodeError, LookupError):
             pass
-    lazylibrarian.logger.debug("Unable to decode name [%s]" % repr(txt))
+    logger = logging.getLogger(__name__)
+    logger.debug("Unable to decode name [%s]" % repr(txt))
     return txt
 
 
@@ -553,7 +588,8 @@ def make_bytestr(txt):
             return txt.encode(encoding)
         except UnicodeError:
             pass
-    lazylibrarian.logger.debug("Unable to encode name [%s]" % repr(txt))
+    logger = logging.getLogger(__name__)
+    logger.debug("Unable to encode name [%s]" % repr(txt))
     return txt
 
 
@@ -566,11 +602,11 @@ def is_valid_isbn(isbn):
         return False
     isbn = isbn.replace('-', '').replace(' ', '')
     if len(isbn) == 13 and isbn.isdigit():
-         return True
-    if len(isbn) == 10 and isbn[:9].isdigit(): # Validate checksum
+        return True
+    if len(isbn) == 10 and isbn[:9].isdigit():  # Validate checksum
         xsum = 0
         for i in range(9):
-            xsum += check_int(isbn[i], 0) * (10-i)
+            xsum += check_int(isbn[i], 0) * (10 - i)
         if isbn[9] in "Xx":
             xsum += 10
         else:
@@ -579,38 +615,14 @@ def is_valid_isbn(isbn):
     return False
 
 
-def is_valid_type(filename, extras='jpg, opf'):
+def is_valid_type(filename: str, extensions: List[str], extras='jpg, opf') -> bool:
     """
     Check if filename has an extension we can process.
     returns True or False
     """
-    type_list = list(set(get_list(lazylibrarian.CONFIG['MAG_TYPE']) +
-                         get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']) +
-                         get_list(lazylibrarian.CONFIG['EBOOK_TYPE']) +
-                         get_list(lazylibrarian.CONFIG['COMIC_TYPE']) +
-                         get_list(extras)))
+    type_list = extensions + get_list(extras)
     extn = os.path.splitext(filename)[1].lstrip('.')
-    if extn and extn.lower() in type_list:
-        return True
-    return False
-
-
-def is_valid_booktype(filename, booktype=None):
-    """
-    Check if filename extension is one we want
-    """
-    if booktype.startswith('mag'):  # default is book
-        booktype_list = get_list(lazylibrarian.CONFIG['MAG_TYPE'])
-    elif booktype.startswith('audio'):
-        booktype_list = get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
-    elif booktype == 'comic':
-        booktype_list = get_list(lazylibrarian.CONFIG['COMIC_TYPE'])
-    else:
-        booktype_list = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
-    extn = os.path.splitext(filename)[1].lstrip('.')
-    if extn and extn.lower() in booktype_list:
-        return True
-    return False
+    return extn and extn.lower() in type_list
 
 
 def get_list(st, c=None):
@@ -636,15 +648,15 @@ def safe_unicode(obj, *args):
     """ return the unicode representation of obj """
     return str(obj, *args)
 
+
 def split_title(author, book):
     """
     Strips the author name from book title and
     returns the book name part split into (name, subtitle and series)
     """
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-        lazylibrarian.logger.debug("%s [%s]" % (author, book))
+    matchlogger = logging.getLogger('special.matching')
+    matchlogger.debug("%s [%s]" % (author, book))
     bookseries = ''
-    splitlist = get_list(lazylibrarian.CONFIG['IMP_NOSPLIT'], ',')
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
         book = book.split(author + ':')[1].strip()
@@ -666,11 +678,10 @@ def split_title(author, book):
             bookname = parts[0].strip()
             booksub = parts[1].rstrip(':').strip()
             if booksub.find(')'):
-                for item in splitlist:
+                for item in ImportPrefs.SPLIT_LIST:
                     if f"({item})" == booksub.lower():
                         booksub = ""
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-                lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
+            matchlogger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
             return bookname, booksub, bookseries
 
     # if not (words in braces at end of string)
@@ -684,24 +695,25 @@ def split_title(author, book):
         booksub = parts[1].rstrip(':').strip()
         bookname_lower = bookname.lower()
         booksub_lower = booksub.lower()
-        for item in splitlist:
+        for item in ImportPrefs.SPLIT_LIST:
             if item and booksub_lower.startswith(item) or bookname_lower.startswith(item):
                 bookname = book
                 booksub = ''
                 break
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-        lazylibrarian.logger.debug("Name[%s] Sub[%s] Series[%s]" % (bookname, booksub, bookseries))
+
+    logger = logging.getLogger(__name__)
+    logger.debug("Name[%s] Sub[%s] Series[%s]" % (bookname, booksub, bookseries))
     return bookname, booksub, bookseries
 
 
-def format_author_name(author):
+def format_author_name(author: str, postfix: List[str]) -> str:
     """ get authorname in a consistent format """
+    fuzzlogger = logging.getLogger('special.fuzz')
     author = make_unicode(author)
     # if multiple authors assume the first one is primary
     if '& ' in author:
         author = author.split('& ')[0].strip()
     if "," in author:
-        postfix = get_list(lazylibrarian.CONFIG['NAME_POSTFIX'])
         words = author.split(',')
         if len(words) == 2:
             # Need to handle names like "L. E. Modesitt, Jr." or "J. Springmann, Phd"
@@ -714,9 +726,7 @@ def format_author_name(author):
                 forename = words[1].strip()
                 surname = words[0].strip()
             if author != forename + ' ' + surname:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                    lazylibrarian.logger.debug('Formatted authorname [%s] to [%s %s]' %
-                                               (author, forename, surname))
+                fuzzlogger.debug('Formatted authorname [%s] to [%s %s]' % (author, forename, surname))
                 author = forename + ' ' + surname
     # reformat any initials, we want to end up with L.E. Modesitt Jr
     if len(author) > 2 and author[1] in '. ':
@@ -726,9 +736,7 @@ def format_author_name(author):
             forename = forename + surname[0] + '.'
             surname = surname[2:].strip()
         if author != forename + ' ' + surname:
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                lazylibrarian.logger.debug('Stripped authorname [%s] to [%s %s]' %
-                                           (author, forename, surname))
+            fuzzlogger.debug('Stripped authorname [%s] to [%s %s]' % (author, forename, surname))
             author = forename + ' ' + surname
 
     res = ' '.join(author.split())  # ensure no extra whitespace
@@ -737,7 +745,7 @@ def format_author_name(author):
     return res
 
 
-def sort_definite(title):
+def sort_definite(title: str, articles=List[str]) -> str:
     """
     Return the sort string for a title, moving prefixes
     we want to ignore to the end, like The or A
@@ -746,19 +754,19 @@ def sort_definite(title):
     if len(words) < 2:
         return title
     word = words.pop(0)
-    if word.lower() in get_list(lazylibrarian.CONFIG['NAME_DEFINITE']):
+    if word.lower() in articles:
         return ' '.join(words) + ', ' + word
     return title
 
 
-def surname_first(authorname):
-    """ swap authorname round into surname, forenames for display and sorting"""
+def surname_first(authorname: str, postfixes: List[str]) -> str:
+    """ Swap authorname round into surname, forenames for display and sorting"""
     words = get_list(authorname)
     if len(words) < 2:
         return authorname
     res = words.pop()
 
-    if res.strip('.').lower() in get_list(lazylibrarian.CONFIG['NAME_POSTFIX']):
+    if res.strip('.').lower() in postfixes:
         res = words.pop() + ' ' + res
     return res + ', ' + ' '.join(words)
 
@@ -778,8 +786,9 @@ def clean_name(name, extras=None):
     return name
 
 
-def no_umlauts(s):
-    if 'de' not in get_list(lazylibrarian.CONFIG['IMP_PREFLANG']):
+def no_umlauts(s: str) -> str:
+    """ Replace umlauts from the string, unless German is a preferred language """
+    if 'de' not in ImportPrefs.LANG_LIST:
         return s
 
     s = replace_all(s, umlaut_dict)
@@ -853,41 +862,42 @@ def replace_quotes_with(text, char):
     """
     if not text:
         return ''
-    replaces = re.compile('[%s]' % re.escape(''.join(lazylibrarian.common.quotes)))
+    replaces = re.compile('[%s]' % re.escape(''.join(quotes)))
     return replaces.sub(char, text)
 
 
-def disp_name(provider):
-    """
-    Strange function. Returns the display name of a provider that
-    matches the host name provided as parameter, if any.
-    If not, returns the host name provided, shortened if too long.
-    """
-    provname = ''
-    for item in lazylibrarian.NEWZNAB_PROV:
-        if item['HOST'].strip('/') == provider:
-            provname = item['DISPNAME']
-            break
-    if not provname:
-        for item in lazylibrarian.TORZNAB_PROV:
-            if item['HOST'].strip('/') == provider:
-                provname = item['DISPNAME']
-                break
-    if not provname:
-        for item in lazylibrarian.RSS_PROV:
-            if item['HOST'].strip('/') == provider:
-                provname = item['DISPNAME']
-                break
-    if not provname:
-        for item in lazylibrarian.IRC_PROV:
-            if item['NAME'] == provider:
-                provname = item['DISPNAME']
-                break
-    if not provname:
-        provname = provider
+# list of all ascii and non-ascii quotes/apostrophes
+# quote list: https://en.wikipedia.org/wiki/Quotation_mark
 
-    if len(provname) > 20:
-        while len(provname) > 20 and '/' in provname:
-            provname = provname.split('/', 1)[1]
-        provname = provname.replace('/', ' ')
-    return provname
+quotes = [
+    u'\u0022',  # quotation mark (")
+    u'\u0027',  # apostrophe (')
+    u'\u0060',  # grave-accent
+    u'\u00ab',  # left-pointing double-angle quotation mark
+    u'\u00bb',  # right-pointing double-angle quotation mark
+    u'\u2018',  # left single quotation mark
+    u'\u2019',  # right single quotation mark
+    u'\u201a',  # single low-9 quotation mark
+    u'\u201b',  # single high-reversed-9 quotation mark
+    u'\u201c',  # left double quotation mark
+    u'\u201d',  # right double quotation mark
+    u'\u201e',  # double low-9 quotation mark
+    u'\u201f',  # double high-reversed-9 quotation mark
+    u'\u2039',  # single left-pointing angle quotation mark
+    u'\u203a',  # single right-pointing angle quotation mark
+    u'\u300c',  # left corner bracket
+    u'\u300d',  # right corner bracket
+    u'\u300e',  # left white corner bracket
+    u'\u300f',  # right white corner bracket
+    u'\u301d',  # reversed double prime quotation mark
+    u'\u301e',  # double prime quotation mark
+    u'\u301f',  # low double prime quotation mark
+    u'\ufe41',  # presentation form for vertical left corner bracket
+    u'\ufe42',  # presentation form for vertical right corner bracket
+    u'\ufe43',  # presentation form for vertical left corner white bracket
+    u'\ufe44',  # presentation form for vertical right corner white bracket
+    u'\uff02',  # fullwidth quotation mark
+    u'\uff07',  # fullwidth apostrophe
+    u'\uff62',  # halfwidth left corner bracket
+    u'\uff63',  # halfwidth right corner bracket
+]

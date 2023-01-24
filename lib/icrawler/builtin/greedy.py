@@ -6,7 +6,7 @@ import html5lib
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlsplit
 
-from icrawler import Crawler, Feeder, Parser, ImageDownloader
+from lib.icrawler import Crawler, Feeder, Parser, ImageDownloader
 
 
 class GreedyFeeder(Feeder):

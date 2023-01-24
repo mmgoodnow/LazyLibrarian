@@ -15,16 +15,14 @@
 # Purpose:
 #   Common, basic functions for LazyLibrary
 
-import glob
+import logging
 import mako
 import os
 import platform
 import random
-import shutil
 import string
 import sys
 import time
-import traceback
 import subprocess
 
 import zipfile
@@ -38,102 +36,19 @@ import webencodings
 import bs4
 import html5lib
 
-try:
-    # noinspection PyUnresolvedReferences
-    import psutil
-    PSUTIL = True
-except ImportError:
-    PSUTIL = False
-
 import lazylibrarian
-from lazylibrarian import logger, database
-from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
-    get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
+from lazylibrarian import database
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.configdefs import CONFIG_GIT
+from lazylibrarian.formatter import get_list, make_unicode
+from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm
+from lazylibrarian.logconfig import LOGCONFIG
 
 
-# list of all ascii and non-ascii quotes/apostrophes
-# quote list: https://en.wikipedia.org/wiki/Quotation_mark
-quotes = [
-    u'\u0022',  # quotation mark (")
-    u'\u0027',  # apostrophe (')
-    u'\u0060',  # grave-accent
-    u'\u00ab',  # left-pointing double-angle quotation mark
-    u'\u00bb',  # right-pointing double-angle quotation mark
-    u'\u2018',  # left single quotation mark
-    u'\u2019',  # right single quotation mark
-    u'\u201a',  # single low-9 quotation mark
-    u'\u201b',  # single high-reversed-9 quotation mark
-    u'\u201c',  # left double quotation mark
-    u'\u201d',  # right double quotation mark
-    u'\u201e',  # double low-9 quotation mark
-    u'\u201f',  # double high-reversed-9 quotation mark
-    u'\u2039',  # single left-pointing angle quotation mark
-    u'\u203a',  # single right-pointing angle quotation mark
-    u'\u300c',  # left corner bracket
-    u'\u300d',  # right corner bracket
-    u'\u300e',  # left white corner bracket
-    u'\u300f',  # right white corner bracket
-    u'\u301d',  # reversed double prime quotation mark
-    u'\u301e',  # double prime quotation mark
-    u'\u301f',  # low double prime quotation mark
-    u'\ufe41',  # presentation form for vertical left corner bracket
-    u'\ufe42',  # presentation form for vertical right corner bracket
-    u'\ufe43',  # presentation form for vertical left corner white bracket
-    u'\ufe44',  # presentation form for vertical right corner white bracket
-    u'\uff02',  # fullwidth quotation mark
-    u'\uff07',  # fullwidth apostrophe
-    u'\uff62',  # halfwidth left corner bracket
-    u'\uff63',  # halfwidth right corner bracket
-]
-
-
-def elapsed_since(start):
-    return time.strftime("%H:%M:%S", time.gmtime(time.time() - start))
-
-
-def get_process_memory():
-    process = psutil.Process(os.getpid())
-    return process.memory_info().rss
-
-
-def track(func):
-    # decorator to show memory usage and running time of a function
-    # to use, from lazylibrarian.common import track
-    # then decorate the function(s) to track  eg...
-    # @track
-    # def search_book():
-    def wrapper(*args, **kwargs):
-        if PSUTIL:
-            mem_before = get_process_memory()
-            start = time.time()
-            result = func(*args, **kwargs)
-            elapsed_time = elapsed_since(start)
-            mem_after = get_process_memory()
-            logger.debug("{}: memory before: {:,}, after: {:,}, consumed: {:,}; exec time: {}".format(
-                func.__name__,
-                mem_before, mem_after, mem_after - mem_before,
-                elapsed_time))
-        else:
-            logger.debug("psutil is not installed")
-            result = func(*args, **kwargs)
-        return result
-    return wrapper
-
-
-def cpu_use():
-    if PSUTIL:
-        p = psutil.Process()
-        blocking = p.cpu_percent(interval=1)
-        nonblocking = p.cpu_percent(interval=None)
-        return "Blocking %s%% Non-Blocking %s%% %s" % (blocking, nonblocking, p.cpu_times())
-    else:
-        return "Unknown - install psutil"
-
-
-def get_user_agent():
+def get_user_agent() -> str:
     # Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36
-    if lazylibrarian.CONFIG['USER_AGENT']:
-        return lazylibrarian.CONFIG['USER_AGENT']
+    if CONFIG['USER_AGENT']:
+        return CONFIG['USER_AGENT']
     else:
         return 'LazyLibrarian' + ' (' + platform.system() + ' ' + platform.release() + ')'
 
@@ -142,7 +57,7 @@ def multibook(foldername, recurse=False):
     # Check for more than one book in the folder(tree). Note we can't rely on basename
     # being the same, so just check for more than one bookfile of the same type
     # Return which type we found multiples of, or empty string if no multiples
-    filetypes = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+    filetypes = CONFIG['EBOOK_TYPE']
 
     if recurse:
         for _, _, f in walk(foldername):
@@ -166,255 +81,13 @@ def multibook(foldername, recurse=False):
     return ''
 
 
-def path_isfile(name):
-    return os.path.isfile(syspath(name))
-
-
-def path_isdir(name):
-    return os.path.isdir(syspath(name))
-
-
-def path_exists(name):
-    return os.path.exists(syspath(name))
-
-
-def path_islink(name):
-    return os.path.islink(syspath(name))
-
-
-def remove(name):
-    try:
-        os.remove(syspath(name))
-    except OSError as err:
-        if err.errno == 2:  # does not exist is ok
-            pass
-        else:
-            logger.warn("Failed to remove %s : %s" % (name, err.strerror))
-            pass
-    except Exception as err:
-        logger.warn("Failed to remove %s : %s" % (name, str(err)))
-        pass
-
-
-def listdir(name):
-    """
-    listdir ensuring bytestring for unix,
-    so we don't baulk if filename doesn't fit utf-8 on return
-    and ensuring utf-8 and adding path requirements for windows
-    All returns are unicode
-    """
-    if os.path.__name__ == 'ntpath':
-        dname = syspath(name)
-        if not dname.endswith('\\'):
-            dname = dname + '\\'
-        try:
-            return os.listdir(dname)
-        except Exception as err:
-            logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(err)))
-            return []
-
-    return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
-
-
-def walk(top, topdown=True, onerror=None, followlinks=False):
-    """
-    duplicate of os.walk, except for unix we use bytestrings for listdir
-    return top, dirs, nondirs as unicode
-    """
-    islink, join, isdir = path_islink, os.path.join, path_isdir
-
-    try:
-        top = make_unicode(top)
-        if os.path.__name__ != 'ntpath':
-            names = os.listdir(make_bytestr(top))
-            names = [make_unicode(name) for name in names]
-        else:
-            names = os.listdir(top)
-    except (os.error, TypeError) as err:  # Windows can return TypeError if path is too long
-        if onerror is not None:
-            onerror(err)
-        return
-
-    dirs, nondirs = [], []
-    for name in names:
-        try:
-            if isdir(join(top, name)):
-                dirs.append(name)
-            else:
-                nondirs.append(name)
-        except Exception as err:
-            logger.error("[%s][%s] %s" % (repr(top), repr(name), str(err)))
-    if topdown:
-        yield top, dirs, nondirs
-    for name in dirs:
-        new_path = join(top, name)
-        if followlinks or not islink(new_path):
-            for x in walk(new_path, topdown, onerror, followlinks):
-                yield x
-    if not topdown:
-        yield top, dirs, nondirs
-
-
-def make_dirs(dest_path, new=False):
-    """ os.makedirs only seems to set the right permission on the final leaf directory
-        not any intermediate parents it creates on the way, so we'll try to do it ourselves
-        setting permissions as we go. Could use recursion but probably aren't many levels to do...
-        Build a list of missing intermediate directories in reverse order, exit when we encounter
-        an existing directory or hit root level. Set permission on any directories we create.
-        If new, try to remove any pre-existing directory and contents.
-        return True or False """
-
-    to_make = []
-    dest_path = syspath(dest_path)
-    if new:
-        shutil.rmtree(dest_path, ignore_errors=True)
-
-    while not path_isdir(dest_path):
-        # noinspection PyUnresolvedReferences
-        to_make.insert(0, dest_path)
-        parent = os.path.dirname(dest_path)
-        if parent == dest_path:
-            break
-        else:
-            dest_path = parent
-
-    for entry in to_make:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-            logger.debug("mkdir: [%s]" % repr(entry))
-        try:
-            os.mkdir(entry)  # mkdir uses umask, so set perm ourselves
-            _ = setperm(entry)  # failing to set perm might not be fatal
-        except OSError as why:
-            # os.path.isdir() has some odd behaviour on Windows, says the directory does NOT exist
-            # then when you try to mkdir complains it already exists.
-            # Ignoring the error might just move the problem further on?
-            # Something similar seems to occur on Google Drive filestream
-            # but that returns Error 5 Access is denied
-            # Trap errno 17 (linux file exists) and 183 (windows already exists)
-            if why.errno in [17, 183]:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-                    logger.debug("Ignoring mkdir already exists errno %s: [%s]" % (why.errno, repr(entry)))
-                pass
-            elif 'exists' in str(why):
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-                    logger.debug("Ignoring %s: [%s]" % (why, repr(entry)))
-                pass
-            else:
-                logger.error('Unable to create directory %s: [%s]' % (why, repr(entry)))
-                return False
-    return True
-
-
-WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
-
-
-def syspath(path, prefix=True):
-    """Convert a path for use by the operating system. In particular,
-    paths on Windows must receive a magic prefix and must be converted
-    to Unicode before they are sent to the OS. To disable the magic
-    prefix on Windows, set `prefix` to False---but only do this if you
-    *really* know what you're doing.
-    """
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-        logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
-
-    if os.path.__name__ != 'ntpath':
-        return path
-
-    if not isinstance(path, str):
-        # Beets currently represents Windows paths internally with UTF-8
-        # arbitrarily. But earlier versions used MBCS because it is
-        # reported as the FS encoding by Windows. Try both.
-        try:
-            path = path.decode('utf-8')
-        except UnicodeError:
-            # The encoding should always be MBCS, Windows' broken
-            # Unicode representation.
-            encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
-            path = path.decode(encoding, 'replace')
-
-    if 1 < len(path) < 4 and path[1] == ':':  # it's just a drive letter (E: or E:/)
-        return path
-
-    # the html cache addressing uses forwardslash as a separator but Windows file system needs backslash
-    s = path.find(lazylibrarian.CACHEDIR)
-    if s >= 0 and '/' in path:
-        path = path.replace('/', '\\')
-        # logger.debug("cache path changed [%s] to [%s]" % (opath, path))
-
-    if not path.startswith('.'):  # Don't affect relative paths
-        # Add the magic prefix if it isn't already there.
-        # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
-        if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
-            if path.startswith(u'\\\\'):
-                # UNC path. Final path should look like \\?\UNC\...
-                path = u'UNC' + path[1:]
-            path = WINDOWS_MAGIC_PREFIX + path
-
-    return path
-
-
-def safe_move(src, dst, action='move'):
-    """ Move or copy src to dst
-        Retry without accents if unicode error as some file systems can't handle (some) accents
-        Retry with some characters stripped if bad filename
-        e.g. Windows can't handle <>?"*:| (and maybe others) in filenames
-        Return (new) dst if success """
-
-    if src == dst:  # nothing to do
-        return dst
-
-    while action:  # might have more than one problem...
-        try:
-            if action == 'copy':
-                shutil.copyfile(syspath(src), syspath(dst))
-            elif path_isdir(src) and dst.startswith(src):
-                shutil.copytree(syspath(src), syspath(dst))
-            else:
-                shutil.move(syspath(src), syspath(dst))
-            return dst
-
-        except UnicodeEncodeError:
-            newdst = unaccented(dst)
-            if newdst != dst:
-                dst = newdst
-            else:
-                raise
-
-        except (IOError, OSError) as err:  # both needed for different python versions
-            if err.errno == 22:  # bad mode or filename
-                logger.debug("src=[%s] dst=[%s]" % (src, dst))
-                drive, path = os.path.splitdrive(dst)
-                logger.debug("drive=[%s] path=[%s]" % (drive, path))
-                # strip some characters windows can't handle
-                newpath = replace_all(path, namedic)
-                # windows filenames can't end in space or dot
-                while newpath and newpath[-1] in '. ':
-                    newpath = newpath[:-1]
-                # anything left? has it changed?
-                if newpath and newpath != path:
-                    dst = os.path.join(drive, newpath)
-                    logger.debug("dst=[%s]" % dst)
-                else:
-                    raise
-            else:
-                raise
-        except Exception:
-            raise
-    return dst
-
-
-def safe_copy(src, dst):
-    return safe_move(src, dst, action='copy')
-
-
 def proxy_list():
     proxies = None
-    if lazylibrarian.CONFIG['PROXY_HOST']:
+    if CONFIG['PROXY_HOST']:
         proxies = {}
-        for item in get_list(lazylibrarian.CONFIG['PROXY_TYPE']):
+        for item in get_list(CONFIG['PROXY_TYPE']):
             if item in ['http', 'https']:
-                proxies.update({item: lazylibrarian.CONFIG['PROXY_HOST']})
+                proxies.update({item: CONFIG['PROXY_HOST']})
     return proxies
 
 
@@ -451,145 +124,6 @@ def pwd_check(password):
     if any(char.isspace() for char in password):
         return False
     return True
-
-
-def octal(value, default):
-    if not value:
-        return default
-    try:
-        value = int(str(value), 8)
-        return value
-    except ValueError:
-        return default
-
-
-def setperm(file_or_dir):
-    """
-    Force newly created directories to rwxr-xr-x and files to rw-r--r--
-    or other value as set in config
-    """
-    if not file_or_dir:
-        return False
-
-    if path_isdir(file_or_dir):
-        perm = octal(lazylibrarian.CONFIG['DIR_PERM'], 0o755)
-    elif path_isfile(file_or_dir):
-        perm = octal(lazylibrarian.CONFIG['FILE_PERM'], 0o644)
-    else:
-        # not a file or a directory (symlink?)
-        return False
-
-    want_perm = oct(perm)[-3:].zfill(3)
-    st = os.stat(syspath(file_or_dir))
-    old_perm = oct(st.st_mode)[-3:].zfill(3)
-    if old_perm == want_perm:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-            logger.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
-        return True
-
-    try:
-        os.chmod(syspath(file_or_dir), perm)
-    except Exception as err:
-        logger.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir,
-                                                                    type(err).__name__, str(err)))
-        return False
-
-    st = os.stat(syspath(file_or_dir))
-    new_perm = oct(st.st_mode)[-3:].zfill(3)
-
-    if new_perm == want_perm:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-            logger.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
-        return True
-    else:
-        logger.debug("Failed to set permission %s for %s, got %s" % (want_perm, file_or_dir, new_perm))
-    return False
-
-
-def any_file(search_dir=None, extn=None):
-    # find a file with specified extension in a directory, any will do
-    # return full pathname of file, or empty string if none found
-    if search_dir is None or extn is None:
-        return ""
-    if path_isdir(search_dir):
-        for fname in listdir(search_dir):
-            if fname.endswith(extn):
-                return os.path.join(search_dir, fname)
-    return ""
-
-
-def opf_file(search_dir=None):
-    if search_dir is None:
-        return ""
-    cnt = 0
-    res = ''
-    meta = ''
-    if path_isdir(search_dir):
-        for fname in listdir(search_dir):
-            if fname.endswith('.opf'):
-                if fname == 'metadata.opf':
-                    meta = os.path.join(search_dir, fname)
-                else:
-                    res = os.path.join(search_dir, fname)
-                cnt += 1
-        if cnt > 2 or cnt == 2 and not meta:
-            logger.debug("Found %d conflicting opf in %s" % (cnt, search_dir))
-            res = ''
-        elif res:  # prefer bookname.opf over metadata.opf
-            return res
-        elif meta:
-            return meta
-    return res
-
-
-def bts_file(search_dir=None):
-    if 'bts' not in get_list(lazylibrarian.CONFIG['SKIPPED_EXT']):
-        return ''
-    return any_file(search_dir, '.bts')
-
-
-def csv_file(search_dir=None, library=None):
-    if search_dir and path_isdir(search_dir):
-        try:
-            for fname in listdir(search_dir):
-                if fname.endswith('.csv'):
-                    if not library or library in fname:
-                        return os.path.join(search_dir, fname)
-        except Exception as err:
-            logger.warn('Listdir error [%s]: %s %s' % (search_dir, type(err).__name__, str(err)))
-    return ''
-
-
-def jpg_file(search_dir=None):
-    return any_file(search_dir, '.jpg')
-
-
-def book_file(search_dir=None, booktype=None, recurse=False):
-    # find a book/mag file in this directory (tree), any book will do
-    # return full pathname of book/mag as bytes, or empty bytestring if none found
-    if booktype is None:
-        return ""
-
-    if path_isdir(search_dir):
-        if recurse:
-            # noinspection PyBroadException
-            try:
-                for r, _, f in walk(search_dir):
-                    # our walk returns unicode
-                    for item in f:
-                        if is_valid_booktype(item, booktype=booktype):
-                            return os.path.join(r, item)
-            except Exception:
-                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
-        else:
-            # noinspection PyBroadException
-            try:
-                for fname in listdir(search_dir):
-                    if is_valid_booktype(fname, booktype=booktype):
-                        return os.path.join(make_unicode(search_dir), fname)
-            except Exception:
-                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
-    return ""
 
 
 def mime_type(filename):
@@ -639,208 +173,51 @@ def module_available(module_name):
     return loader is not None
 
 
-
-def get_calibre_id(data):
-    logger.debug(str(data))
-    fname = data.get('BookFile', '')
-    if fname:  # it's a book
-        author = data.get('AuthorName', '')
-        title = data.get('BookName', '')
-    else:
-        title = data.get('IssueDate', '')
-        if title:  # it's a magazine issue
-            author = data.get('Title', '')
-            fname = data.get('IssueFile', '')
-        else:  # assume it's a comic issue
-            title = data.get('IssueID', '')
-            author = data.get('ComicID', '')
-            fname = data.get('IssueFile', '')
-    try:
-        fname = os.path.dirname(fname)
-        calibre_id = fname.rsplit('(', 1)[1].split(')')[0]
-        if not calibre_id.isdigit():
-            calibre_id = ''
-    except IndexError:
-        calibre_id = ''
-    if not calibre_id:
-        # ask calibre for id of this issue
-        res, err, rc = lazylibrarian.calibre.calibredb('search', ['author:"%s" title:"%s"' % (author, title)])
-        if not rc:
-            try:
-                calibre_id = res.split(',')[0].strip()
-            except IndexError:
-                calibre_id = ''
-    logger.debug('Calibre ID [%s]' % calibre_id)
-    return calibre_id
-
-
-def show_stats():
-    gb_status = "Active"
-    for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-        if entry["name"] == 'googleapis':
-            if int(time.time()) < int(entry['resume']):
-                gb_status = "Blocked"
-            break
-
-    result = ["Cache %i %s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
-                                          plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
-                                          check_int(lazylibrarian.CACHE_MISS, 0)),
-              "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
-                  lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
-                  lazylibrarian.TIMERS['SLEEP_CV']),
-              "GoogleBooks API %i calls, %s" % (lazylibrarian.GB_CALLS, gb_status)]
-
-    db = database.DBConnection()
-    snatched = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
-    if snatched['counter']:
-        result.append("%i Snatched %s" % (snatched['counter'], plural(snatched['counter'], "item")))
-    else:
-        result.append("No Snatched items")
-
-    series_stats = []
-    res = db.match("SELECT count(*) as counter FROM series")
-    series_stats.append(['Series', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Total>0 and Have=0")
-    series_stats.append(['Empty', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Total>0 AND Have=Total")
-    series_stats.append(['Full', res['counter']])
-    res = db.match('SELECT count(*) as counter FROM series WHERE Status="Ignored"')
-    series_stats.append(['Ignored', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Total=0")
-    series_stats.append(['Blank', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Updated>0")
-    series_stats.append(['Monitor', res['counter']])
-    overdue = is_overdue('series')[0]
-    series_stats.append(['Overdue', overdue])
-
-    mag_stats = []
-    if lazylibrarian.SHOW_MAGS:
-        res = db.match("SELECT count(*) as counter FROM magazines")
-        mag_stats.append(['Magazine', res['counter']])
-        res = db.match("SELECT count(*) as counter FROM issues")
-        mag_stats.append(['Issues', res['counter']])
-        cmd = 'select (select count(*) as counter from issues where magazines.title = issues.title) '
-        cmd += 'as counter from magazines where counter=0'
-        res = db.match(cmd)
-        mag_stats.append(['Empty', len(res)])
-
-    if lazylibrarian.SHOW_COMICS:
-        res = db.match("SELECT count(*) as counter FROM comics")
-        mag_stats.append(['Comics', res['counter']])
-        res = db.match("SELECT count(*) as counter FROM comicissues")
-        mag_stats.append(['Issues', res['counter']])
-        cmd = 'select (select count(*) as counter from comicissues where comics.comicid = comicissues.comicid) '
-        cmd += 'as counter from comics where counter=0'
-        res = db.match(cmd)
-        mag_stats.append(['Empty', len(res)])
-
-    book_stats = []
-    audio_stats = []
-    missing_stats = []
-    res = db.match("SELECT count(*) as counter FROM books")
-    book_stats.append(['eBooks', res['counter']])
-    audio_stats.append(['Audio', res['counter']])
-    res = db.select("SELECT Status,count(*) as counter from books group by Status")
-    statusdict = {}
-    for item in res:
-        statusdict[item['Status']] = item['counter']
-    for item in ['Have', 'Open', 'Wanted', 'Ignored']:
-        book_stats.append([item, statusdict.get(item, 0)])
-    res = db.select("SELECT AudioStatus,count(*) as counter from books group by AudioStatus")
-    statusdict = {}
-    for item in res:
-        statusdict[item['AudioStatus']] = item['counter']
-    for item in ['Have', 'Open', 'Wanted', 'Ignored']:
-        audio_stats.append([item, statusdict.get(item, 0)])
-    for column in ['BookGenre', 'BookDesc']:
-        cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and "
-        cmd += "(%s is null or %s = '')"
-        res = db.match(cmd % (column, column))
-        missing_stats.append([column.replace('Book', 'No'), res['counter']])
-    cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookGenre='Unknown'"
-    res = db.match(cmd)
-    missing_stats.append(['X_Genre', res['counter']])
-    cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookDesc='No Description'"
-    res = db.match(cmd)
-    missing_stats.append(['X_Desc', res['counter']])
-    for column in ['BookISBN', 'BookLang']:
-        cmd = "SELECT count(*) as counter FROM books WHERE "
-        cmd += "(%s is null or %s = '' or %s = 'Unknown')"
-        res = db.match(cmd % (column, column, column))
-        missing_stats.append([column.replace('Book', 'No'), res['counter']])
-    cmd = "SELECT count(*) as counter FROM genres"
-    res = db.match(cmd)
-    missing_stats.append(['Genres', res['counter']])
-
-    if not lazylibrarian.SHOW_AUDIO:
-        audio_stats = []
-
-    author_stats = []
-    res = db.match("SELECT count(*) as counter FROM authors")
-    author_stats.append(['Authors', res['counter']])
-    for status in ['Active', 'Wanted', 'Ignored', 'Paused']:
-        res = db.match('SELECT count(*) as counter FROM authors WHERE Status="%s"' % status)
-        author_stats.append([status, res['counter']])
-    res = db.match("SELECT count(*) as counter FROM authors WHERE HaveEBooks+HaveAudioBooks=0")
-    author_stats.append(['Empty', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM authors WHERE TotalBooks=0")
-    author_stats.append(['Blank', res['counter']])
-    overdue = is_overdue('author')[0]
-    author_stats.append(['Overdue', overdue])
-    for stats in [author_stats, book_stats, missing_stats, series_stats, audio_stats, mag_stats]:
-        if len(stats):
-            header = ''
-            data = ''
-            for item in stats:
-                header += "%8s" % item[0]
-                data += "%8i" % item[1]
-            result.append('')
-            result.append(header)
-            result.append(data)
-    return result
-
-
-
-def clear_log():
-    lazylibrarian.LOGLIST = []
-    error = False
-    if os.name == 'nt':
-        return "Screen log cleared"
-
-    logger.lazylibrarian_log.stop_logger()
-    for f in glob.glob(lazylibrarian.CONFIG['LOGDIR'] + "/*.log*"):
+def create_support_zip() -> (str, str):
+    """ Create a zip file for support purposes.
+    Returns a status message and the full name of the zip file """
+    outfile = DIRS.get_tmpfilename('support.zip')
+    with zipfile.ZipFile(outfile, 'w', compression=zipfile.ZIP_DEFLATED) as myzip:
         try:
-            os.remove(syspath(f))
-        except OSError as err:
-            error = err.strerror
-            logger.debug("Failed to remove %s : %s" % (f, error))
+            # Add logfiles
+            logfiles = LOGCONFIG.get_redacted_logfilenames()
+            if not logfiles:
+                msg = 'No redacted log files included. Please enable redacted log files.'
+            else:
+                for logfile in logfiles:
+                    myzip.write(logfile, arcname=os.path.basename(logfile))
+                msg = f'Included {len(logfiles)} redacted logfiles.'
+            # Add 'log header'
+            header = log_header()
+            myzip.writestr('systeminfo.txt', header)
+            # Add config.ini, redacted
+            count, configstr = CONFIG.save_config_to_string(save_all=False, redact=True)
+            myzip.writestr('config-redacted.ini', configstr)
+            msg += f'  Included systeminfo.txt and {count} items of redacted config.ini.'
+        except IOError as e:
+            msg = f'Error creating support.zip file: {type(e).__name__}, {str(e)}'
+        finally:
+            myzip.close()
 
-    logger.lazylibrarian_log.init_logger(loglevel=lazylibrarian.LOGLEVEL)
-
-    if error:
-        return 'Failed to clear logfiles: %s' % error
-    else:
-        return "Log cleared, level set to [%s]- Log Directory is [%s]" % (
-            lazylibrarian.LOGLEVEL, lazylibrarian.CONFIG['LOGDIR'])
+    return msg, outfile
 
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
-def log_header(online=True):
-    from lazylibrarian.config import CONFIG_GIT
-
-    popen_list = [sys.executable, lazylibrarian.FULL_PATH]
-    popen_list += lazylibrarian.ARGS
+def log_header(online=True) -> str:
+    logger = logging.getLogger(__name__)
+    popen_list = [sys.executable, DIRS.FULL_PATH]
+    popen_list += DIRS.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
-    header += "config file: %s\n" % lazylibrarian.CONFIGFILE
-    header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
-    header += 'Loglevel: %s\n' % lazylibrarian.LOGLEVEL
+    header += "config file: %s\n" % CONFIG.configfilename
+    header += 'Interface: %s\n' % CONFIG['HTTP_LOOK']
+    header += 'Loglevel: %s\n' % logging.getLevelName(logger.getEffectiveLevel())
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
     for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
-            timestamp = check_int(lazylibrarian.CONFIG[item], 0)
+            timestamp = CONFIG.get_int(item)
             header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
         else:
-            header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
+            header += '%s: %s\n' % (item.lower(), CONFIG[item])
     try:
         header += 'package version: %s\n' % lazylibrarian.version.PACKAGE_VERSION
     except AttributeError:
@@ -852,7 +229,10 @@ def log_header(online=True):
 
     db_version = 0
     db = database.DBConnection()
-    result = db.match('PRAGMA user_version')
+    try:
+        result = db.match('PRAGMA user_version')
+    finally:
+        db.close()
     if result and result[0]:
         value = str(result[0])
         if value.isdigit():
@@ -873,12 +253,13 @@ def log_header(online=True):
     header += "requests: %s\n" % getattr(requests, '__version__', None)
     if online:
         try:
-            if lazylibrarian.CONFIG['SSL_VERIFY']:
+            if CONFIG.get_bool('SSL_VERIFY'):
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                           verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                           if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
+                                           verify=CONFIG['SSL_CERTS']
+                                           if CONFIG['SSL_CERTS'] else True).json()['tls_version']
             else:
-                logger.info('Checking TLS version, you can ignore any "InsecureRequestWarning" message')
+                logger.info('Checking TLS version')
+                requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
                                            verify=False).json()['tls_version']
             if '1.2' not in tls_version and '1.3' not in tls_version:
@@ -892,8 +273,9 @@ def log_header(online=True):
     header += "mako: %s\n" % getattr(mako, '__version__', None)
     header += "webencodings: %s\n" % getattr(webencodings, 'VERSION', None)
 
-    if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
-        header += "apprise: %s\n" % lazylibrarian.APPRISE
+    from lazylibrarian.notifiers import APPRISE_VER
+    if APPRISE_VER and APPRISE_VER[0].isdigit():
+        header += "apprise: %s\n" % APPRISE_VER
     else:
         header += "apprise: not found\n"
     if lazylibrarian.UNRARLIB == 1:
@@ -916,7 +298,7 @@ def log_header(online=True):
         import PIL
         vers = getattr(PIL, '__version__', None)
         header += "python imaging: %s\n" % vers
-        import icrawler
+        import lib.icrawler as icrawler
         header += "icrawler: %s\n" % getattr(icrawler, '__version__', None)
     except ImportError:
         header += "python imaging: not found, unable to use icrawler\n"
@@ -1004,119 +386,6 @@ def log_header(online=True):
     return header
 
 
-def set_redactlist():
-    if len(lazylibrarian.REDACTLIST):
-        return
-
-    lazylibrarian.REDACTLIST = []
-    wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
-    if lazylibrarian.CONFIG['HOSTREDACT']:
-        wordlist.append('_HOST')
-    for key in lazylibrarian.CONFIG.keys():
-        if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
-            for word in wordlist:
-                if word in key and lazylibrarian.CONFIG[key]:
-                    lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
-    for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
-        if lazylibrarian.CONFIG[key]:
-            lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
-    for item in lazylibrarian.NEWZNAB_PROV:
-        if item['API']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['API'])
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.TORZNAB_PROV:
-        if item['API']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['API'])
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.RSS_PROV:
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.GEN_PROV:
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.APPRISE_PROV:
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['URL']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['URL'])
-
-    logger.debug("Redact list has %d %s" % (len(lazylibrarian.REDACTLIST),
-                                            plural(len(lazylibrarian.REDACTLIST), "entry")))
-
-
-def save_log():
-    if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
-        return 'LOGDIR does not exist'
-
-    basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
-    outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
-    set_redactlist()
-
-    out = open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
-
-    nextfile = True
-    extn = 0
-    redacts = 0
-    while nextfile:
-        fname = basename
-        if extn > 0:
-            fname = fname + '.' + str(extn)
-        if not path_exists(fname):
-            logger.debug("logfile [%s] does not exist" % fname)
-            nextfile = False
-        else:
-            logger.debug('Processing logfile [%s]' % fname)
-            linecount = 0
-            lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
-            for line in lines:
-                for item in lazylibrarian.REDACTLIST:
-                    if item in line:
-                        line = line.replace(item, '<redacted>')
-                        redacts += 1
-
-                item = "Apprise: url:"
-                startpos = line.find(item)
-                if startpos >= 0:
-                    startpos += len(item)
-                    endpos = line.find('//', startpos)
-                    line = line[:endpos] + '<redacted>'
-                    redacts += 1
-
-                out.write(line)
-                if "Debug log ON" in line:
-                    logger.debug('Found "Debug log ON" line %s in %s' % (linecount, fname))
-                    nextfile = False
-                    break
-                linecount += 1
-            extn += 1
-
-    if path_exists(lazylibrarian.CONFIGFILE):
-        out.write(u'---END-CONFIG---------------------------------\n')
-        lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
-        for line in lines:
-            for item in lazylibrarian.REDACTLIST:
-                if item in line:
-                    line = line.replace(item, '<redacted>')
-                    redacts += 1
-            out.write(line)
-        out.write(u'---CONFIG-------------------------------------\n')
-    out.close()
-    logfile = open(syspath(outfile + '.log'), 'w', encoding='utf-8')
-    logfile.write(log_header())
-    linecount = 0
-    lines = reversed(list(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8")))
-    for line in lines:
-        logfile.write(line)
-        linecount += 1
-    remove(outfile + '.tmp')
-    logger.debug("Redacted %s passwords/apikeys" % redacts)
-    logger.debug("%s log lines written to %s" % (linecount, outfile + '.log'))
-    with zipfile.ZipFile(outfile + '.zip', 'w') as myzip:
-        myzip.write(outfile + '.log', 'debug.log')
-    remove(outfile + '.log')
-    return "Debug log saved as %s" % (outfile + '.zip')
-
-
 def zip_audio(source, zipname, bookid):
     """ Zip up all the audiobook parts in source folder to zipname
         Check if zipfile already exists, if not create a new one
@@ -1124,6 +393,7 @@ def zip_audio(source, zipname, bookid):
         including any .jpg etc.
         Return full path to zipfile
     """
+    logger = logging.getLogger(__name__)
     zip_file = os.path.join(source, zipname + '.zip')
     if not path_exists(zip_file):
         logger.debug('Zipping up %s' % zipname)
@@ -1147,6 +417,7 @@ def zip_audio(source, zipname, bookid):
 
 
 def run_script(params):
+    logger = logging.getLogger(__name__)
     if os.name == 'nt' and params[0].endswith('.py'):
         params.insert(0, sys.executable)
     logger.debug(str(params))
@@ -1157,9 +428,9 @@ def run_script(params):
         else:
             p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug(make_unicode(res))
-            logger.debug(make_unicode(err))
+        dlcommslogger = logging.getLogger('special.dlcomms')
+        dlcommslogger.debug(make_unicode(res))
+        dlcommslogger.debug(make_unicode(err))
         return p.returncode, make_unicode(res), make_unicode(err)
     except Exception as er:
         err = "run_script exception: %s %s" % (type(er).__name__, str(er))
@@ -1171,11 +442,12 @@ def calibre_prg(prgname):
     # Try to locate a calibre ancilliary program
     # Try explicit path or in the calibredb location
     # or in current path or system path
+    logger = logging.getLogger(__name__)
     target = ''
     if prgname == 'ebook-convert':
-        target = lazylibrarian.CONFIG['EBOOK_CONVERT']
+        target = CONFIG['EBOOK_CONVERT']
     if not target:
-        calibre = lazylibrarian.CONFIG['IMP_CALIBREDB']
+        calibre = CONFIG['IMP_CALIBREDB']
         if calibre:
             target = os.path.join(os.path.dirname(calibre), prgname)
         else:
@@ -1219,4 +491,3 @@ def only_punctuation(value):
         if c not in string.punctuation and c not in string.whitespace:
             return False
     return True
-

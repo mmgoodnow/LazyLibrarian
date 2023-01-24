@@ -10,7 +10,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
 import os
 import sys
 try:
@@ -23,11 +22,13 @@ try:
     import cherrypy_cors
 except ImportError:
     import lib.cherrypy_cors as cherrypy_cors
+import logging
 from shutil import copyfile
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.webServe import WebInterface
-from lazylibrarian.common import syspath, path_exists
+from lazylibrarian.filesystem import DIRS, syspath, path_exists
 
 cp_ver = getattr(cherrypy, '__version__', None)
 if cp_ver and int(cp_ver.split('.')[0]) >= 10:
@@ -38,6 +39,7 @@ if cp_ver and int(cp_ver.split('.')[0]) >= 10:
 
 
 def initialize(options=None):
+    logger = logging.getLogger(__name__)
     if options is None:
         options = {}
     https_enabled = options['https_enabled']
@@ -48,7 +50,7 @@ def initialize(options=None):
 
     if https_enabled:
         if not (path_exists(https_cert) and path_exists(https_key)):
-            logger.warn("Disabled HTTPS because of missing certificate and key.")
+            logger.warning("Disabled HTTPS because of missing certificate and key.")
             https_enabled = False
 
     options_dict = {
@@ -79,8 +81,8 @@ def initialize(options=None):
     conf = {
         '/': {
             # 'tools.staticdir.on': True,
-            # 'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data'),
-            'tools.staticdir.root': os.path.join(lazylibrarian.PROG_DIR, 'data'),
+            # 'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data'),
+            'tools.staticdir.root': os.path.join(DIRS.PROG_DIR, 'data'),
             'tools.proxy.on': options['http_proxy']  # pay attention to X-Forwarded-Proto header
         },
         '/api': {
@@ -91,72 +93,72 @@ def initialize(options=None):
         },
         '/interfaces': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'interfaces')
+            'tools.staticdir.dir': 'interfaces'
         },
         '/images': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'images')
+            'tools.staticdir.dir': 'images'
         },
         '/cache': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': lazylibrarian.CACHEDIR
+            'tools.staticdir.dir': DIRS.CACHEDIR
         },
         '/css': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'css')
+            'tools.staticdir.dir': 'css'
         },
         '/js': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'js')
+            'tools.staticdir.dir': 'js'
         },
         '/favicon.ico': {
             'tools.staticfile.on': True,
             # 'tools.staticfile.filename': "images/favicon.ico"
-            'tools.staticfile.filename': os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'favicon.ico')
+            'tools.staticfile.filename': os.path.join(DIRS.PROG_DIR, 'data', 'images', 'favicon.ico')
         },
         '/opensearch.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearch.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearch.xml')
         },
         '/opensearchbooks.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchbooks.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchbooks.xml')
         },
         '/opensearchcomics.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchcomics.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchcomics.xml')
         },
         '/opensearchgenres.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchgenres.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchgenres.xml')
         },
         '/opensearchmagazines.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchmagazines.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchmagazines.xml')
         },
         '/opensearchseries.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchseries.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchseries.xml')
         },
         '/opensearchauthors.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchauthors.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchauthors.xml')
         },
         '/nzbfile.nzb': {
             'tools.staticfile.on': True,
             'tools.auth_basic.on': False,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'nzbfile.nzb')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'nzbfile.nzb')
         }
     }
 
-    if lazylibrarian.CONFIG['PROXY_LOCAL']:
+    if CONFIG['PROXY_LOCAL']:
         conf['/'].update({
             # NOTE default if not specified is to use apache style X-Forwarded-Host
             # 'tools.proxy.local': 'X-Forwarded-Host'  # this is for apache2
             # 'tools.proxy.local': 'Host'  # this is for nginx
             # 'tools.proxy.local': 'X-Host'  # this is for lighthttpd
             # 'tools.proxy.local': 'X-Forwarded-For' or 'X-Real-IP' # this is for caddy
-            'tools.proxy.local': lazylibrarian.CONFIG['PROXY_LOCAL']
+            'tools.proxy.local': CONFIG['PROXY_LOCAL']
         })
     if options['http_pass'] != "":
         logger.info("Web server %s authentication is enabled, username is '%s'" %
@@ -209,7 +211,7 @@ def initialize(options=None):
     else:
         conf['/opds'] = {'tools.auth_basic.on': False}
 
-    opensearch = os.path.join(lazylibrarian.PROG_DIR, 'data', 'opensearch.template')
+    opensearch = os.path.join(DIRS.PROG_DIR, 'data', 'opensearch.template')
     if path_exists(opensearch):
         with open(syspath(opensearch), 'r') as s:
             data = s.read().splitlines()
@@ -220,7 +222,7 @@ def initialize(options=None):
                      ('Comics', 'RecentComics'),
                      ('Genres', 'Genres'),
                      ('Series', 'Series')]:
-            with open(syspath(os.path.join(lazylibrarian.CACHEDIR, 'opensearch%s.xml' % item[0].lower())), 'w') as t:
+            with open(syspath(os.path.join(DIRS.CACHEDIR, 'opensearch%s.xml' % item[0].lower())), 'w') as t:
                 for lyne in data:
                     t.write(lyne.replace('{label}', item[0]).replace(
                                       '{func}', 't=%s&amp;' % item[1]).replace(
@@ -229,10 +231,10 @@ def initialize(options=None):
 
     cherrypy.tree.mount(WebInterface(), str(options['http_root']), config=conf)
 
-    if lazylibrarian.CHERRYPYLOG:
+    if LOGCONFIG.is_logger_enabled_for('special.cherrypy', logging.DEBUG):
         cherrypy.config.update({
-            'log.access_file': os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'cherrypy.access.log'),
-            'log.error_file': os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'cherrypy.error.log'),
+            'log.access_file': DIRS.get_logfile('cherrypy.access.log'),
+            'log.error_file': DIRS.get_logfile('cherrypy.error.log'),
         })
     lazylibrarian.STOPTHREADS = False
     cherrypy.engine.autoreload.subscribe()
@@ -260,15 +262,15 @@ def initialize(options=None):
                         msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_cmd))
         else:
             msg += ' Please install psutil to get more info'
-        logger.warn(msg)
-        logger.warn(str(e))
+        logger.warning(msg)
+        logger.warning(str(e))
         print(msg)
         print(str(e))
         sys.exit(1)
 
-    icon = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll.png')
+    icon = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'll.png')
     if path_exists(icon):
-        newicon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        newicon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         copyfile(icon, newicon)
     cherrypy.server.wait()
 
@@ -284,9 +286,9 @@ def error_page_401(status, message, traceback, version):
     """ Custom handler for 401 error """
     body = 'Error %s: ' % status
     if str(status) == '401':
-        body = body + 'You need to provide a valid username and password. '
+        body += 'You need to provide a valid username and password. '
     if message:
-        body = body + message
+        body += message
     title = "I'm not getting out of bed"
     return r'''
 <html>

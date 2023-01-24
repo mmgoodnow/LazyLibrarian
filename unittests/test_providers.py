@@ -4,14 +4,15 @@
 #   Testing parsing XML from providers
 
 import unittest
-import unittesthelpers
 from xml.etree import ElementTree
 
+from lazylibrarian.config2 import wishlist_type
 from lazylibrarian import providers
+from unittests.unittesthelpers import LLTestCase
 
 
-class ProvidersTest(unittesthelpers.LLTestCase):
- 
+class ProvidersTest(LLTestCase):
+
     def test_ReturnResultsFieldsBySearchTypeForBook(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
                 "authorName": 'input_authorname', "searchterm": 'safe_searchterm'}
@@ -54,7 +55,7 @@ class ProvidersTest(unittesthelpers.LLTestCase):
 
         result = providers.return_results_by_search_type(book, nzb, search_mode='book', host='hostname')
         self.assertEqual({'bookid': 'input_bookid', 'nzbdate': 'Sat, 02 Mar 2013 06:51:28 +0100', 'nzbtitle':
-                          'Debbie Macomber - When First They Met (html)', 'nzbsize': '192447', 'nzburl': 'http', 
+                          'Debbie Macomber - When First They Met (html)', 'nzbsize': '192447', 'nzburl': 'http',
                           'nzbprov': 'hostname', 'nzbmode': 'book', 'priority': 0}, result)
 
     def test_ReturnResultsFieldsBySearchTypeForMag(self):
@@ -110,8 +111,9 @@ class ProvidersTest(unittesthelpers.LLTestCase):
         nzb = list(resultxml.findall("./channel/item//"))
         result = providers.return_results_by_search_type(book, nzb, 'hostname', 'mag')
         self.assertEqual(
-            {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100', 'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
-             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 
+            {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100',
+             'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
+             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4',
              'nzbprov': 'hostname', 'nzbmode': 'mag', 'priority': 0}, result)
 
     def test_ReturnResultsFieldsBySearchTypeForGeneral(self):
@@ -167,9 +169,26 @@ class ProvidersTest(unittesthelpers.LLTestCase):
         nzb = list(resultxml.findall("./channel/item//"))
         result = providers.return_results_by_search_type(book, nzb, 'hostname', None)
         self.assertEqual(
-            {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100', 'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
-             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 
+            {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100',
+             'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
+             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4',
              'nzbprov': 'hostname', 'nzbmode': None, 'priority': 0}, result)
+
+    def test_wishlist_type(self):
+        provs = [
+            ('https://www.goodreads.com/review/list_rss/userid', 'goodreads'),
+            ('https://www.goodreads.com/list/show/143500.Best_Books_of_the_Decade_2020_s', 'listopia'),
+            ('https://www.goodreads.com/book/show/title', 'listopia'),
+            ('https://www.amazon.co.uk/charts', 'amazon'),
+            ('https://www.nytimes.com/books/best-sellers/', 'ny_times'),
+            ('https://best-books.publishersweekly.com/pw/best-books/2022/top-10', 'publishersweekly'),
+            ('https://apps.npr.org/best-books/#year=2022', 'apps.npr.org'),
+            ('https://www.penguinrandomhouse.com/books/all-best-sellers', 'penguinrandomhouse'),
+            ('https://www.barnesandnoble.com/b/books/_/N-1fZ29Z8q8', 'barnesandnoble'),
+            ('https://somewhere-else.com/', '')
+        ]
+        for p in provs:
+            self.assertEqual(wishlist_type(p[0]), p[1])
 
 
 if __name__ == '__main__':

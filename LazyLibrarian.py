@@ -16,16 +16,15 @@
 # Purpose:
 #   Main file for starting LazyLibrarian
 
-from __future__ import print_function
-
+import logging
+import signal
 import sys
 import time
 
 import lazylibrarian
-from lazylibrarian import startup, webStart, logger, notifiers
+from lazylibrarian import startup, webStart
 from lazylibrarian.formatter import thread_name
-import configparser
-
+from lazylibrarian.cleanup import UNBUNDLER
 
 # The following should probably be made configurable at the settings level
 # This fix is put in place for systems with broken SSL (like QNAP)
@@ -34,6 +33,7 @@ if opt_out_of_certificate_verification:
     # noinspection PyBroadException
     try:
         import ssl
+
         # noinspection PyProtectedMember
         ssl._create_default_https_context = ssl._create_unverified_context
     except Exception:
@@ -41,61 +41,67 @@ if opt_out_of_certificate_verification:
 
 # ==== end block (should be configurable at settings level)
 
-if sys.version[0] != '3':
-    sys.stderr.write("This version of lazylibrarian requires python 3\n")
+MIN_PYTHON_VERSION = (3, 7)
+
+if sys.version_info < MIN_PYTHON_VERSION:
+    sys.stderr.write("This version of Lazylibrarian requires Python %d.%d or later.\n" % MIN_PYTHON_VERSION)
     exit(0)
-    
+
+
+def sig_shutdown():
+    lazylibrarian.SIGNAL = 'shutdown'
+
+
 def main():
-   # rename this thread
+    # rename this thread
     thread_name("MAIN")
+    starter = startup.StartupLazyLibrarian()
+    # Set up a console-only logger until config is read
+    starter.init_loggers(console_only=True)
+    # Read command line and return options
+    options, configfile = starter.startup_parsecommandline(__file__, args=sys.argv[1:])
+    # Load config.ini and initialize CONFIG and DIRS
+    starter.load_config(configfile)
+    # Read logging config and initialize loggers
+    starter.init_loggers(console_only=False)
+    # Run initialization that needs CONFIG to be loaded
+    starter.init_misc(lazylibrarian.config2.CONFIG)
+    starter.init_caches(lazylibrarian.config2.CONFIG)
+    starter.init_database()
+    starter.init_build_debug_header(online=True)
+    starter.init_build_lists(lazylibrarian.config2.CONFIG)
+    logger = logging.getLogger(__name__)
 
-    options = startup.startup_parsecommandline(__file__, args = sys.argv[1:], seconds_to_sleep = 2)
-
-    startup.init_logs()
-    startup.init_config()
-    startup.init_caches()
-    startup.init_database()
-    startup.init_build_debug_header(online = True)
-    startup.init_build_lists()
-
-    version_file = startup.create_version_file('version.txt')
-    startup.init_version_checks(version_file)
-
-    if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
-        logger.info("Apprise library (%s) installed" % lazylibrarian.APPRISE)
-    else:
-        logger.warn("Looking for Apprise library: %s" % lazylibrarian.APPRISE)
-        lazylibrarian.APPRISE = ''
-        lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] = False
+    version_file = starter.create_version_file('version.txt')
+    starter.init_version_checks(version_file)
 
     if lazylibrarian.DAEMON:
         lazylibrarian.daemonize()
 
     # Try to start the server.
     if options.port:
-        lazylibrarian.CONFIG['HTTP_PORT'] = options.port
+        lazylibrarian.config2.CONFIG.set_int('HTTP_PORT', options.port)
         logger.info('Starting LazyLibrarian on forced port: %s, webroot "%s"' %
-                    (lazylibrarian.CONFIG['HTTP_PORT'], lazylibrarian.CONFIG['HTTP_ROOT']))
+                    (lazylibrarian.config2.CONFIG['HTTP_PORT'], lazylibrarian.config2.CONFIG['HTTP_ROOT']))
     else:
-        lazylibrarian.CONFIG['HTTP_PORT'] = int(lazylibrarian.CONFIG['HTTP_PORT'])
         logger.info('Starting LazyLibrarian on port: %s, webroot "%s"' %
-                    (lazylibrarian.CONFIG['HTTP_PORT'], lazylibrarian.CONFIG['HTTP_ROOT']))
+                    (lazylibrarian.config2.CONFIG['HTTP_PORT'], lazylibrarian.config2.CONFIG['HTTP_ROOT']))
 
     webStart.initialize({
-        'http_port': lazylibrarian.CONFIG['HTTP_PORT'],
-        'http_host': lazylibrarian.CONFIG['HTTP_HOST'],
-        'http_root': lazylibrarian.CONFIG['HTTP_ROOT'],
-        'http_user': lazylibrarian.CONFIG['HTTP_USER'],
-        'http_pass': lazylibrarian.CONFIG['HTTP_PASS'],
-        'http_proxy': lazylibrarian.CONFIG['HTTP_PROXY'],
-        'https_enabled': lazylibrarian.CONFIG['HTTPS_ENABLED'],
-        'https_cert': lazylibrarian.CONFIG['HTTPS_CERT'],
-        'https_key': lazylibrarian.CONFIG['HTTPS_KEY'],
-        'opds_enabled': lazylibrarian.CONFIG['OPDS_ENABLED'],
-        'opds_authentication': lazylibrarian.CONFIG['OPDS_AUTHENTICATION'],
-        'opds_username': lazylibrarian.CONFIG['OPDS_USERNAME'],
-        'opds_password': lazylibrarian.CONFIG['OPDS_PASSWORD'],
-        'authentication': lazylibrarian.CONFIG['AUTH_TYPE'],
+        'http_port': lazylibrarian.config2.CONFIG.get_int('HTTP_PORT'),
+        'http_host': lazylibrarian.config2.CONFIG['HTTP_HOST'],
+        'http_root': lazylibrarian.config2.CONFIG['HTTP_ROOT'],
+        'http_user': lazylibrarian.config2.CONFIG['HTTP_USER'],
+        'http_pass': lazylibrarian.config2.CONFIG['HTTP_PASS'],
+        'http_proxy': lazylibrarian.config2.CONFIG.get_bool('HTTP_PROXY'),
+        'https_enabled': lazylibrarian.config2.CONFIG.get_bool('HTTPS_ENABLED'),
+        'https_cert': lazylibrarian.config2.CONFIG['HTTPS_CERT'],
+        'https_key': lazylibrarian.config2.CONFIG['HTTPS_KEY'],
+        'opds_enabled': lazylibrarian.config2.CONFIG['OPDS_ENABLED'],
+        'opds_authentication': lazylibrarian.config2.CONFIG.get_bool('OPDS_AUTHENTICATION'),
+        'opds_username': lazylibrarian.config2.CONFIG['OPDS_USERNAME'],
+        'opds_password': lazylibrarian.config2.CONFIG['OPDS_PASSWORD'],
+        'authentication': lazylibrarian.config2.CONFIG['AUTH_TYPE'],
         'login_timeout': 43800,
     })
 
@@ -104,28 +110,31 @@ def main():
     else:
         lazylibrarian.LOGINUSER = None
 
-    if lazylibrarian.CONFIG['LAUNCH_BROWSER'] and not options.nolaunch:
-        startup.launch_browser(lazylibrarian.CONFIG['HTTP_HOST'],
-                                     lazylibrarian.CONFIG['HTTP_PORT'],
-                                     lazylibrarian.CONFIG['HTTP_ROOT'])
+    if lazylibrarian.config2.CONFIG.get_bool('LAUNCH_BROWSER') and not options.nolaunch:
+        starter.launch_browser(lazylibrarian.config2.CONFIG['HTTP_HOST'],
+                               lazylibrarian.config2.CONFIG['HTTP_PORT'],
+                               lazylibrarian.config2.CONFIG['HTTP_ROOT'])
 
-    startup.start_schedulers()
+    starter.start_schedulers()
+
+    signal.signal(signal.SIGTERM, sig_shutdown)
 
     while True:
         if not lazylibrarian.SIGNAL:
             try:
                 time.sleep(1)
             except KeyboardInterrupt:
-                startup.shutdown(exit=True)
+                starter.shutdown(doquit=True)
         else:
             if lazylibrarian.SIGNAL == 'shutdown':
-                startup.shutdown(exit=True)
+                starter.shutdown(doquit=True)
             elif lazylibrarian.SIGNAL == 'restart':
-                startup.shutdown(restart=True)
+                starter.shutdown(restart=True)
             elif lazylibrarian.SIGNAL == 'update':
-                startup.shutdown(update=True)
+                starter.shutdown(update=True)
             lazylibrarian.SIGNAL = None
 
 
 if __name__ == "__main__":
+    UNBUNDLER.prepare_module_unbundling()
     main()

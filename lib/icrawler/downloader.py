@@ -6,7 +6,7 @@ from PIL import Image
 from io import BytesIO
 import queue
 from urllib.parse import urlparse
-from icrawler.utils import ThreadPool
+from lib.icrawler.utils import ThreadPool
 
 
 class Downloader(ThreadPool):

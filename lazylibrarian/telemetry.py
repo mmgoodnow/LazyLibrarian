@@ -21,9 +21,21 @@ import datetime
 import json
 import os
 import sys
-import requests
+import time
+import logging
 from collections import defaultdict
-from lazylibrarian import config, common, logger
+from http.client import responses
+from typing import Optional
+
+import requests
+
+from lazylibrarian import database
+from lazylibrarian.common import proxy_list
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.config2 import LLConfigHandler
+from lazylibrarian.formatter import thread_name
+from lazylibrarian.processcontrol import get_info_on_caller
+
 
 class LazyTelemetry(object):
     """Handles basic telemetry gathering for LazyLibrarian, helping
@@ -55,15 +67,15 @@ class LazyTelemetry(object):
         return cls._instance
 
     def ensure_server_id(self, _config):
-        """ Get unique, anonymous ID for this installation """
+        """ Get unique, anonymous ID for self installation """
         server = self._data["server"]
         if "id" not in server:
-            id = _config['SERVER_ID'] if 'SERVER_ID' in _config else None
-            if not id:
+            serverid = _config['SERVER_ID']
+            if not serverid:
                 import uuid
-                id = uuid.uuid4().hex
-                _config['SERVER_ID'] = id
-            server["id"] = id
+                serverid = uuid.uuid4().hex
+                _config['SERVER_ID'] = serverid
+            server["id"] = serverid
 
         return server["id"]
 
@@ -82,9 +94,9 @@ class LazyTelemetry(object):
     def get_usage_telemetry(self):
         return self._data["usage"]
 
-    def set_install_data(self, _config, testing=False):
+    def set_install_data(self, _config: LLConfigHandler, testing=False):
         """ Update telemetry with data bout the installation """
-        self.ensure_server_id(_config) # Make sure it has an ID
+        self.ensure_server_id(_config)  # Make sure it has an ID
         server = self.get_server_telemetry()
         up = datetime.datetime.now() - self._boottime
         server["install_type"] = _config['INSTALL_TYPE']
@@ -98,10 +110,10 @@ class LazyTelemetry(object):
             server["uptime_seconds"] = round(up.total_seconds())
             server["python_ver"] = str(sys.version)
 
-    def set_config_data(self, _config):
-        import lazylibrarian # To get access to the _PROV objects
-
+    def set_config_data(self, _config: LLConfigHandler):
         cfg_telemetry = self.get_config_telemetry()
+        cfg_telemetry['switches'] = ''
+        cfg_telemetry["params"] = ''
 
         # Record whether particular on/off features are configured
         for key in [
@@ -123,8 +135,9 @@ class LazyTelemetry(object):
             'USE_TWITTER', 'USE_BOXCAR', 'USE_PUSHBULLET', 'USE_PUSHOVER',
             'USE_ANDROIDPN', 'USE_TELEGRAM', 'USE_PROWL', 'USE_GROWL',
             'USE_SLACK', 'USE_CUSTOM', 'USE_EMAIL',
-            ]:
-            if _config[key]:
+        ]:
+            item = _config.get_item(key)
+            if item and item.is_enabled():
                 cfg_telemetry['switches'] += f"{key} "
 
         # Record the actual config of these features
@@ -132,78 +145,151 @@ class LazyTelemetry(object):
             cfg_telemetry[key] = _config[key]
 
         # Record whether these are configured differently from the default
-        default = {}
         for key in ['GR_API', 'GB_API', 'LT_DEVKEY', 'IMP_PREFLANG',
-            'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
-            _, _, default = config.CONFIG_DEFINITIONS[key]
-            if _config[key] != default:
+                    'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
+            item = _config.get_item(key)
+            if item and not item.is_default():
                 cfg_telemetry["params"] += f"{key} "
 
         # Count how many of each provider are configured
-        for provider in [(lazylibrarian.NEWZNAB_PROV, "NEWZNAB"),
-            (lazylibrarian.TORZNAB_PROV, "TORZNAB"),
-            (lazylibrarian.RSS_PROV, "RSS"),
-            (lazylibrarian.IRC_PROV, "IRC"),
-            (lazylibrarian.RSS_PROV, "RSS"),
-            (lazylibrarian.GEN_PROV, "GEN"),
-            ]:
-            count = sum([1 for prov in provider[0] if prov["ENABLED"] and prov["HOST"]])
-            cfg_telemetry[provider[1]] = count
+        for provider in ["NEWZNAB", "TORZNAB", "RSS", "IRC", "GEN"]:
+            cfg_telemetry[provider] = _config.count_in_use(provider)
 
         # Count how many Apprise notifications are configured
-        count = sum([1 for prov in lazylibrarian.APPRISE_PROV if prov["URL"]])
-        cfg_telemetry["APPRISE"] = count
+        cfg_telemetry["APPRISE"] = _config.count_in_use('APPRISE')
 
-
-    def record_usage_data(self, counter):
+    def record_usage_data(self, counter: Optional[str] = None):
         usg = self.get_usage_telemetry()
+        if not counter:
+            # Use the module/name of the caller
+            caller_module, caller_function, _ = get_info_on_caller(depth=1)
+            if caller_module == 'telemetry' and caller_function == 'record_usage_data':
+                # We were called via the helper function, find the real caller:
+                caller_module, caller_function, _ = get_info_on_caller(depth=2)
+            counter = f'{caller_module}/{caller_function}'
         assert not any([c in counter for c in ' "=']), "Counter must be plain text"
         usg[counter] += 1
 
-    def get_json(self, pretty=False):
-        return json.dumps(obj=self._data, indent = 2 if pretty else None)
+    def clear_usage_data(self):
+        usg = self.get_usage_telemetry()
+        usg.clear()
 
-    def construct_data_string(this, components=None):
+    def get_json(self, send_config: bool, send_usage: bool, pretty=False):
+        senddata = {'server': self._data['server']}
+        if send_config:
+            senddata['config'] = self._data['config']
+        if send_usage:
+            senddata['usage'] = self._data['usage']
+        return json.dumps(senddata, indent=2 if pretty else None)
+
+    def get_data_for_ui_preview(self, send_config: bool, send_usage: bool):
+        self.set_install_data(CONFIG, testing=False)
+        self.set_config_data(CONFIG)
+        return self.get_json(send_config, send_usage, pretty=True)
+
+    def construct_data_string(self, send_config: bool, send_usage: bool, send_server: bool = True):
         """ Returns a data string to send to telemetry server.
         If components = None, includes all parts. Otherwise, includes specified parts only """
         data = []
-        if not components or 'server' in components:
-            data.append(f"server={json.dumps(obj=this.get_server_telemetry(),separators=(',', ':'))}")
-        if not components or 'config' in components:
-            data.append(f"config={json.dumps(obj=this.get_config_telemetry(),separators=(',', ':'))}")
-        if not components or 'usage' in components:
-            data.append(f"usage={json.dumps(obj=this.get_usage_telemetry(),separators=(',', ':'))}")
+        if send_server:
+            data.append(f"server={json.dumps(obj=self.get_server_telemetry(), separators=(',', ':'))}")
+        if send_config:
+            data.append(f"config={json.dumps(obj=self.get_config_telemetry(), separators=(',', ':'))}")
+        if send_usage:
+            data.append(f"usage={json.dumps(obj=self.get_usage_telemetry(), separators=(',', ':'))}")
 
         datastr = '&'.join(data)
         return datastr
 
-    def get_data_url(self, server='localhost', port=9174, config=None):
-        return f"http://{server}:{port}/send?{self.construct_data_string()}"
+    def get_data_url(self, server: str, send_config: bool, send_usage: bool):
+        return f"{server}/send?{self.construct_data_string(send_config, send_usage)}"
 
-    def submit_data(self, _config):
-        """ Submits LL telemetry data
-        Returns status message and true/false depending on whether it was successful"""
-
-        proxies = common.proxy_list()
+    @staticmethod
+    def _send_url(url: str):
+        """ Sends url to the telemetry server, returns result """
+        logger = logging.getLogger(__name__)
+        proxies = proxy_list()
         timeout = 5
         headers = {'User-Agent': 'LazyLibrarian'}
-        payload = {"timeout": timeout, "proxies": proxies}
-        url = self.get_data_url(config=_config)
+        if proxies:
+            payload = {"timeout": timeout, "proxies": proxies}
+        else:
+            payload = {"timeout": timeout}
         try:
+            logger.debug(f'GET {url}')
             r = requests.get(url, verify=False, params=payload, headers=headers)
         except requests.exceptions.Timeout as e:
-            logger.error("submit_data: Timeout sending telemetry %s" % url)
+            logger.error("_send_url: Timeout sending telemetry %s" % url)
             return "Timeout %s" % str(e), False
         except Exception as e:
             return "Exception %s: %s" % (type(e).__name__, str(e)), False
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
-            return r.text, True # Success
-
-        try:
-            # noinspection PyProtectedMember
-            msg = requests.status_codes._codes[r.status_code][0]
-        except Exception:
+            return r.text, True  # Success
+        if r.status_code in responses:
+            msg = responses[r.status_code]
+        else:
             msg = r.text
         return "Response status %s: %s" % (r.status_code, msg), False
 
+    def submit_data(self, server: str, send_config: bool, send_usage: bool):
+        """ Submits LL telemetry data
+        Returns status message and true/false depending on whether it was successful"""
+
+        logger = logging.getLogger(__name__)
+        url = self.get_data_url(server, send_config, send_usage)
+        logger.info(f"Sending telemetry data ({len(url)} bytes)")
+        return self._send_url(url)
+
+    def test_server(self, server: str) -> str:
+        """ Try to connect to the configured server """
+        try:
+            serverid, ok = self._send_url(server)
+            if ok and serverid:
+                status, ok = self._send_url(f'{server}/status')
+                # Use just the first line of both, in case there is an error
+                id1 = serverid.split('\n')[0]
+                status1 = status.split('\n')[0] if status else ''
+                return f"Server ID: {id1}\n\nStatus:\n{status1}"
+            else:
+                return f"Error connecting to server: {serverid}"
+        except requests.exceptions:
+            return "Error connecting to server"
+
+
+# Global functions
+
+TELEMETRY = LazyTelemetry()
+
+
+def record_usage_data(counter: Optional[str] = None):
+    """ Convenience function for recording usage """
+    TELEMETRY.record_usage_data(counter)
+
+
+def telemetry_send() -> str:
+    """ Routine called by scheduler, to regularly send telemetry data """
+    threadname = thread_name()
+    if "Thread-" in threadname:
+        thread_name("TELEMETRYSEND")
+    logger = logging.getLogger(__name__)
+    db = database.DBConnection()
+    try:
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
+        TELEMETRY.set_install_data(CONFIG, testing=False)
+        TELEMETRY.set_config_data(CONFIG)
+        if CONFIG['TELEMETRY_SERVER'] == '':
+            result, status = 'No telemetry server configured', False
+        else:
+            server = CONFIG['TELEMETRY_SERVER']
+            send_config = CONFIG.get_bool('TELEMETRY_SEND_CONFIG')
+            send_usage = CONFIG.get_bool('TELEMETRY_SEND_USAGE')
+            result, status = TELEMETRY.submit_data(server, send_config, send_usage)
+            if result:
+                result = result.splitlines()[0]  # Return only the first line
+        logger.debug(f'Telemetry data sending: {result}, {status}')
+    finally:
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        db.close()
+        thread_name(threadname)
+    return result

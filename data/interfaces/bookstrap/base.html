@@ -1,5 +1,6 @@
 <%
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <!doctype html>
 <html>
@@ -185,7 +186,7 @@
               <ul class="nav navbar-nav">
                 <!--li><a href="home" class="navbarele">Authors</a></li-->
                 %if perm > 0:
-                  %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+                  %if CONFIG['USER_ACCOUNTS']:
                     %if lazylibrarian.SHOWLOGOUT == 1:
                       <li><a href="logout" class="navbarele" id="logout">Logout</a></li>
                     %endif
@@ -194,25 +195,25 @@
                     %endif
                   %endif
                 %endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Authors':
+                % if CONFIG['HOMEPAGE'] != 'Authors':
                   <li><a id="authors" href="authors" class="navbarele">Authors</a></li>
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'eBooks':
-                % if lazylibrarian.SHOW_EBOOK:
+                % if CONFIG['HOMEPAGE'] != 'eBooks':
+                % if CONFIG['EBOOK_TAB']:
                   % if perm&lazylibrarian.perm_ebook:
                   <li><a id="books" href="books" class="navbarele">eBooks</a></li>
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Series':
-                % if lazylibrarian.SHOW_SERIES:
+                % if CONFIG['HOMEPAGE'] != 'Series':
+                % if CONFIG['SERIES_TAB']:
                   %if perm&lazylibrarian.perm_series:
                   <li><a id="series" href="series" class="navbarele">Series</a></li>
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'AudioBooks':
-                % if lazylibrarian.SHOW_AUDIO:
+                % if CONFIG['HOMEPAGE'] != 'AudioBooks':
+                % if CONFIG['AUDIO_TAB']:
                   %if perm&lazylibrarian.perm_audio:
                   <li><a id="audio" href="audio" class="navbarele">
                   <div class="shorten" data-abbr="Audio">
@@ -222,8 +223,8 @@
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Magazines':
-                % if lazylibrarian.SHOW_MAGS:
+                % if CONFIG['HOMEPAGE'] != 'Magazines':
+                % if CONFIG['MAG_TAB']:
                   %if perm&lazylibrarian.perm_magazines:
                   <li><a id="magazines" href="magazines" class="navbarele">
                   <div class="shorten" data-abbr="Mags">
@@ -233,17 +234,17 @@
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Comics':
-                % if lazylibrarian.SHOW_COMICS:
+                % if CONFIG['HOMEPAGE'] != 'Comics':
+                % if CONFIG['COMIC_TAB']:
                   %if perm&lazylibrarian.perm_comics:
                   <li><a id="comics" href="comics" class="navbarele">Comics</a></li>
                   % endif
                 % endif
                 % endif
                 %if perm&lazylibrarian.perm_managebooks:
-                  % if lazylibrarian.SHOW_AUDIO:
+                  % if CONFIG['AUDIO_TAB']:
                     <li><a id="amanage" href="manage" class="navbarele">Manage</a></li>
-                  % elif lazylibrarian.SHOW_EBOOK:
+                  % elif CONFIG['EBOOK_TAB']:
                     <li><a id="emanage" href="manage" class="navbarele">Manage</a></li>
                   % endif
                 % endif
@@ -273,58 +274,85 @@
       <button onclick="topFunction()" id="myBtn" title="Go to top"><i class="fa fa-arrow-up"></i></button>
     </div>
     <script type="text/javascript">
-      msg = '';
-      % if not lazylibrarian.SUPPRESS_UPDATE:
-      % if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' or lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+      msg = ''
+      % if perm&lazylibrarian.perm_config:
+        % if not CONFIG['TELEMETRY_ENABLE']:
+          title = 'LazyLibrarian Telemetry'
+          msg = '<div class="input-group">LazyLibrarian has the ability to send basic information about the installation, how it is configured,'
+          msg += ' and how it is used to a server. This helps the developers figure out where it is worth improving, and which parts nobody uses.'
+          msg += ' All telemetry information is 100% anonymized.<br><br>'
+          msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Enable Telemetry" id="enableTelemetry">Turn on</a>&nbsp;'
+          msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ask me again later" id="ignoreTelemetry">Maybe Later</a></div>'
+          if (readCookie('ignoreTelemetry') != null) { msg = '' }
+        % elif CONFIG['INSTALL_TYPE'] == 'git' or CONFIG['INSTALL_TYPE'] == 'source':
           title = 'LazyLibrarian Update'
-          % if not lazylibrarian.CONFIG['CURRENT_VERSION']:
-              msg = '<div class="input-group">You are running an unknown version of lazylibrarian</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release">Update</a></div>'
-          % elif (lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source' and lazylibrarian.CONFIG['CURRENT_VERSION'] == 'No Version File' ):
-              msg = '<div class="input-group">You are running an unknown version via source install</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release">Update</a></div>'
-          % elif lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION']:
-              % if lazylibrarian.CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
-                  msg = '<div class="input-group">Unable to get the latest version from git</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
-              % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] < 0:
-                  msg = '<div class="input-group">Running a local updated version. Push changes to git or rollback to Master release</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
-              % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] > 1:
-                  msg = '<div class="input-group">New version available. You are ${lazylibrarian.CONFIG['COMMITS_BEHIND']} commits behind.'
-                  % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
-                    msg += '</div> <strong>Manual update is required</strong>'
-                  % endif
-                  msg += '<div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;'
-                  % if "**MANUAL**" not in lazylibrarian.COMMIT_LIST:
-                    msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
-                  % endif
-                  msg += '<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
-              % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] == 1:
-                  msg = '<div class="input-group">New version available. You are one commit behind.'
-                  % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
-                    msg += '</div> <strong>Manual update is required</strong>'
-                  % endif
-                  msg += '<div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;'
-                  % if "**MANUAL**" not in lazylibrarian.COMMIT_LIST:
-                    msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
-                  % endif
-                  msg += '<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
+          % if not CONFIG['CURRENT_VERSION']:
+              msg = '<div class="input-group">You are running an unknown version of lazylibrarian'
+          % elif (CONFIG['INSTALL_TYPE'] == 'source' and CONFIG['CURRENT_VERSION'] == 'No Version File' ):
+              msg = '<div class="input-group">You are running an unknown version via source install'
+          % elif CONFIG['CURRENT_VERSION'] != CONFIG['LATEST_VERSION']:
+            % if CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
+              msg = '<div class="input-group">Unable to get the latest version from git'
+            % elif CONFIG.get_int('COMMITS_BEHIND') < 0:
+              msg = '<div class="input-group">Running a local updated version. Push changes to git or rollback to Master release'
+            % elif CONFIG.get_int('COMMITS_BEHIND') == 1:
+              msg = '<div class="input-group">New version available. You are one commit behind.'
+            % elif CONFIG.get_int('COMMITS_BEHIND') > 1:
+              msg = '<div class="input-group">New version available. You are ${CONFIG['COMMITS_BEHIND']} commits behind.'
+            % endif
+            % if CONFIG.get_int('COMMITS_BEHIND') > 0:
+              % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
+                msg += '<strong>Manual update is required</strong>'
               % endif
+              msg += '</div><div>'
+              % if "**MANUAL**" not in lazylibrarian.COMMIT_LIST:
+                  msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
+              % endif
+              msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Show Changes" id="getChangelog">Changes</a>&nbsp;'
+            % endif
+          % else:
+            msg = ''
           % endif
+          if (msg.length) {
+            msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a></div>'
+          }
+          if (readCookie('ignoreUpdate') != null) { msg = '' }
         % endif
       % endif
 
       $(document).ready(function() {
-        if (readCookie('ignoreUpdate') != null) { msg = '' }
-
+          
         if (msg != '') {
           $.notify({
               icon: "images/ll48.png",
               title: '<strong>'+title+'</strong>',
               message: msg
           },{
-              icon_type: 'image'
-          },{
-                type: 'warning'
+              icon_type: 'image',
+              type: 'info',
+              delay: 20000
             });
         }
+
+        $('#ignoreTelemetry').click(function() {
+            createCookie("ignoreTelemetry", true, 14);
+            location.reload(true);
+        });
+       $('#enableTelemetry').on('click', function(e) {
+            $.get('enable_telemetry', function(data) {
+                bootbox.dialog({
+                    title: 'Enable Telemetry',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(){ location.reload(true); }
+                        },
+                    }
+                });
+            });
+        });
 
         $('#ignoreUpdate').click(function() {
             createCookie("ignoreUpdate", true, 1);

@@ -1,17 +1,18 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
     from lazylibrarian import formatter
+    from lazylibrarian.logconfig import LOGCONFIG
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
     <div id="subhead_menu">
-      <a href="clear_log" class="button btn btn-sm btn-primary"><i class="far fa-square"></i> Clear Log </a>
-      %if lazylibrarian.LOGLEVEL >= 2:
-      <a href="toggle_log" class="button btn btn-sm btn-primary"><i class="fa fa-stop"></i> Stop Debug Log</a>
-      <a href="save_log" class="button btn btn-sm btn-primary"><i class="fa fa-save"></i> Save Debug Log</a>
-      %else:
-      <a href="toggle_log" class="button btn btn-sm btn-primary"><i class="fa fa-play"></i> Start Debug Log</a>
+      <a href="clear_log" class="button btn btn-sm btn-primary"><i class="far fa-square"></i> Clear screen Log </a>
+      <a href="toggle_detailed_logs" class="button btn btn-sm btn-primary"><i class="fa fa-list-ul"></i> Toggle detail/summary </a>
+      <a href="delete_logs" class="button btn btn-sm btn-primary"><i class="far fa-square"></i> Delete Log Files </a>
+      %if CONFIG.get_bool('LOGFILEREDACT'):
+      <a href="get_support_zip" class="button btn btn-sm btn-primary"><i class="fa fa-save"></i> Get Support ZIP </a>
       %endif
     </div>
   </div>
@@ -36,11 +37,11 @@
         </select>
       </div>
     </div>
-    %if lazylibrarian.CONFIG['TOGGLES'] == True:
+    %if CONFIG['TOGGLES']:
       <div class="toggles col-xs-12 col-sm-7 text-right">
         Toggle: <a class="toggle-vis" data-column="0"> Timestamp</a>
         <a class="toggle-vis" data-column="1"> Level</a>
-        %if lazylibrarian.LOGLEVEL >= 2:
+        %if CONFIG['DETAILEDUILOG']:
           <a class="toggle-vis" data-column="2"> Thread</a>
           <a class="toggle-vis" data-column="3"> File</a>
           <a class="toggle-vis" data-column="4"> Method</a>
@@ -55,7 +56,7 @@
         <tr>
           <th class="timestamp">Timestamp</th>
           <th class="level">Level</th>
-          %if lazylibrarian.LOGLEVEL >= 2:
+          %if CONFIG['DETAILEDUILOG']:
             <th class="thead">Thread</th>
             <th class="file">File</th>
             <th class="method">Method</th>
@@ -75,7 +76,7 @@
         var oTable = $('#log_table').DataTable({
                 "bAutoWidth": false,
                 "aoColumnDefs": [
-                    %if lazylibrarian.LOGLEVEL >= 2:
+                    %if CONFIG.get_int('DETAILEDUILOG') > 0:
                     { "sWidth": "3%", "aTargets": [ 0,1,2,3,4,5 ] },
                     { "sWidth": "60%", "aTargets": [ 6 ] }
                     %else:
@@ -94,7 +95,7 @@
                     "sInfoFiltered":"(filtered from _MAX_ total rows)"
                 },
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "sPaginationType": "full_numbers",
                 "aaSorting": [],
                 "bServerSide": true,
@@ -106,7 +107,7 @@
                     } else {
                         $('td', nRow).closest('tr').addClass("text-info");
                     }
-                    %if lazylibrarian.LOGLEVEL < 2:
+                    %if CONFIG.get_int('DETAILEDUILOG') == 0:
                         $('td', nRow).eq(2).addClass("hidden");
                         $('td', nRow).eq(3).addClass("hidden");
                         $('td', nRow).eq(4).addClass("hidden");

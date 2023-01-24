@@ -15,56 +15,28 @@
 #   Hold a few basic routines used widely, until they can be moved out
 
 
-from __future__ import print_function
-from __future__ import with_statement
-
 import os
 import sys
 import threading
-import time
-from shutil import rmtree
+import logging
 
-from lazylibrarian import logger, database, notifiers # Must keep notifiers here
-from lazylibrarian.common import path_isdir, syspath, module_available
-from lazylibrarian.formatter import get_list, make_unicode
-from lazylibrarian.providers import provider_is_blocked
-import configparser
-import urllib3
-import requests
-
+from lazylibrarian import config2
+from lazylibrarian.filesystem import syspath
 
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
-FULL_PATH = None
-PROG_DIR = ''
-ARGS = None
-DAEMON = False
-SIGNAL = None
-PIDFILE = ''
-DATADIR = ''
-CONFIGFILE = ''
-SYS_ENCODING = ''
-LOGLEVEL = 1
-LOGINUSER = None
-CONFIG = {} # The configuration used, read from config.ini
-CFG = None # A ConfigParser used to read the .ini file
-DBFILE = None
-COMMIT_LIST = ''
-SHOWLOGOUT = 1
-CHERRYPYLOG = 0
-REQUESTSLOG = 0
-DOCKER = False
-STOPTHREADS = False
-
-# APPRISE not defined here, but in notifiers
-
-# Transients used by logger process
-LOGLIST = []
-LOGTOGGLE = 2  # normal debug
-LOGTYPE = ''
+DAEMON = False  # True if running as a daemon
+SIGNAL = None  # Signals global state of LL to threads/scheduler. 'restart', 'update', 'shutdown' or ''/None
+PIDFILE = ''  # If running as a daemon, the name of the file holding the PID
+SYS_ENCODING = ''  # A copy of CONFIG['SYS_ENCODING'] that can be overridden
+LOGINUSER = None  # UserID of currently logged in user, if any
+COMMIT_LIST = ''  # List of git commits since last update. If it includes "**MANUAL**", don't update.
+SHOWLOGOUT = 1  # If 1, the Logout option is shown in the UI.
+REQUESTSLOG = 0  # If 1, sets http.client.HTTPConnection.debuglevel=1.
+DOCKER = False  # Set to True if we discover LL is running inside of Docker
+STOPTHREADS = False  # Part of the scheduling state machine. Should move to a scheduling class?
 
 # These are globals
-SUPPRESS_UPDATE = False
 UPDATE_MSG = ''
 TIMERS = {
             'NO_TOR_MSG': 0,
@@ -84,28 +56,12 @@ TIMERS = {
             'SLEEP_BOK': 0.0,
         }
 IGNORED_AUTHORS = 0
-CURRENT_TAB = '1'
 CACHE_HIT = 0
 CACHE_MISS = 0
 IRC_CACHE_EXPIRY = 2 * 24 * 3600
-GB_CALLS = 0
 MONTHNAMES = []
-CACHEDIR = ''
-NEWZNAB_PROV = []
-TORZNAB_PROV = []
-NABAPICOUNT = ''
-RSS_PROV = []
-IRC_PROV = []
-GEN_PROV = []
-APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
-PROVIDER_BLOCKLIST = []
 USER_BLOCKLIST = []
-SHOW_EBOOK = 1
-SHOW_MAGS = 1
-SHOW_SERIES = 1
-SHOW_AUDIO = 0
-SHOW_COMICS = 0
 MAG_UPDATE = 0
 EBOOK_UPDATE = 0
 AUDIO_UPDATE = 0
@@ -120,28 +76,11 @@ GC_BEFORE = {}
 GC_AFTER = {}
 UNRARLIB = 0
 RARFILE = None
-REDACTLIST = []
 FFMPEGVER = ''
 FFMPEGAAC = ''
 SAB_VER = (0, 0, 0)
 NEWUSER_MSG = ''
 NEWFILE_MSG = ''
-
-# extended loglevels
-log_matching = 1 << 2  # 4 magazine/comic date/name matching
-log_searching = 1 << 3  # 8 extra search logging
-log_dlcomms = 1 << 4  # 16 detailed downloader communication
-log_dbcomms = 1 << 5  # 32 database comms
-log_postprocess = 1 << 6  # 64 detailed postprocessing
-log_fuzz = 1 << 7  # 128 fuzzy logic
-log_serverside = 1 << 8  # 256 serverside processing
-log_fileperms = 1 << 9  # 512 changes to file permissions
-log_grsync = 1 << 10  # 1024 detailed goodreads sync
-log_cache = 1 << 11  # 2048 cache results
-log_libsync = 1 << 12  # 4096 librarysync details
-log_admin = 1 << 13  # 8192 admin logging
-log_cherrypy = 1 << 14  # 16384 cherrypy logging
-log_requests = 1 << 15  # 32768 requests httpclient logging
 
 # user permissions
 perm_config = 1 << 0  # 1 access to config page
@@ -199,191 +138,19 @@ isbn_978_dict = {
 }
 
 
-def directory(dirname):
-    usedir = ''
-    if dirname == "eBook":
-        usedir = CONFIG['EBOOK_DIR']
-    elif dirname == "AudioBook" or dirname == "Audio":
-        usedir = CONFIG['AUDIO_DIR']
-    elif dirname == "Download":
-        try:
-            usedir = get_list(CONFIG['DOWNLOAD_DIR'], ',')[0]
-        except IndexError:
-            usedir = ''
-    elif dirname == "Alternate":
-        usedir = CONFIG['ALTERNATE_DIR']
-    elif dirname == "Testdata":
-        usedir = CONFIG['TESTDATA_DIR']
-    else:
-        return usedir
-    # ./ and .\ denotes relative to program path, useful for testing
-    if usedir and len(usedir) >= 2 and usedir[0] == ".":
-        if usedir[1] == "/" or usedir[1] == "\\":
-           usedir = PROG_DIR + "/" + usedir[2:]
-           if os.path.__name__ == 'ntpath':
-               usedir = usedir.replace('/', '\\')
-    if usedir and not path_isdir(usedir):
-        try:
-            os.makedirs(syspath(usedir))
-            logger.info("Created new %s folder: %s" % (dirname, usedir))
-        except OSError as e:
-            logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DATADIR))
-            usedir = DATADIR
-    if usedir and path_isdir(usedir):
-        try:
-            with open(syspath(os.path.join(usedir, 'll_temp')), 'w') as f:
-                f.write('test')
-            os.remove(syspath(os.path.join(usedir, 'll_temp')))
-        except Exception as why:
-            logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DATADIR, str(why)))
-            usedir = syspath(usedir)
-            logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
-                                                                                    oct(os.stat(usedir).st_mode),
-                                                                                    os.stat(usedir).st_uid,
-                                                                                    os.stat(usedir).st_gid,
-                                                                                    os.access(usedir, os.W_OK),
-                                                                                    os.access(usedir, os.X_OK)))
-            usedir = DATADIR
-    else:
-        logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DATADIR))
-        usedir = DATADIR
-
-    return make_unicode(usedir)
-
-
-
-def wishlist_type(host):
-    """
-    Return type of wishlist at host, or empty string if host is not a wishlist
-    (Quite fragile, take care)
-    """
-    # GoodReads rss feeds
-    if 'goodreads' in host and 'list_rss' in host:
-        return 'goodreads'
-    # GoodReads Listopia html pages
-    if 'goodreads' in host and '/list/show/' in host:
-        return 'listopia'
-    # GoodReads most_read html pages (Listopia format)
-    if 'goodreads' in host and '/book/' in host:
-        return 'listopia'
-    # Amazon charts html pages
-    if 'amazon' in host and '/charts' in host:
-        return 'amazon'
-    # NYTimes best-sellers html pages
-    if 'nytimes' in host and 'best-sellers' in host:
-        return 'ny_times'
-    # Publisherweekly best-seller in category
-    if 'publishersweekly' in host and '/pw/' in host:
-        return 'publishersweekly'
-    # Publisherweekly best-seller in category
-    if 'apps.npr.org' in host and '/best-books/' in host:
-        return 'apps.npr.org'
-    if 'penguinrandomhouse' in host:
-        return 'penguinrandomhouse'
-    if 'barnesandnoble' in host:
-        return 'barnesandnoble'
-
-    return ''
-
-
-def bok_dlcount():
-    db = database.DBConnection()
-    yesterday = time.time() - 24*60*60
-    grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
-                      (yesterday,))
-    db.close()
-    if grabs:
-        return len(grabs), grabs[0]['completed']
-    return 0, 0
-
-
-def use_rss():
-    """
-    Returns number of RSS providers that are not wishlists, and are not blocked
-    """
-    count = 0
-    for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and not wishlist_type(provider['HOST']) and not \
-                provider_is_blocked(provider['HOST']):
-            count += 1
-    return count
-
-
-def use_irc():
-    """
-    Returns number of IRC active providers that are not blocked
-    """
-    count = 0
-    for provider in IRC_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['SERVER']):
-            count += 1
-    return count
-
-
-def use_wishlist():
-    """
-    Returns number of RSS providers that are wishlists and not blocked
-    """
-    count = 0
-    for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and wishlist_type(provider['HOST']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    return count
-
-
-def use_nzb():
-    """
-    Returns number of nzb active providers that are not blocked
-    (Includes Newznab and Torznab providers)
-    """
-    count = 0
-    for provider in NEWZNAB_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    for provider in TORZNAB_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    return count
-
-
-def use_tor():
-    """
-    Returns number of TOR providers that are not blocked
-    """
-    count = 0
-    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-        if bool(CONFIG[provider]) and not provider_is_blocked(provider):
-            count += 1
-    return count
-
-
-def use_direct():
-    """
-    Returns number of enabled direct book providers
-    """
-    count = 0
-    for provider in GEN_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    if bool(CONFIG['BOK']) and not provider_is_blocked('BOK'):
-        count += 1
-    if bool(CONFIG['BFI']) and not provider_is_blocked('BFI'):
-        count += 1
-    return count
-
-
 def daemonize():
     """
     Fork off as a daemon
     """
     # active_count in python 3.9 but camelCase name still supported
+    logger = logging.getLogger(__name__)
     if 'activeCount' in dir(threading):
         # noinspection PyDeprecation
         threadcount = threading.activeCount()
     else:
         threadcount = threading.active_count()
     if threadcount != 1:
-        logger.warn('There are %d active threads. Daemonizing may cause strange behavior.' % threadcount)
+        logger.warning('There are %d active threads. Daemonizing may cause strange behavior.' % threadcount)
 
     sys.stdout.flush()
     sys.stderr.flush()

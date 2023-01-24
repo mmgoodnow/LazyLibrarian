@@ -8,8 +8,8 @@ import html5lib
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
 
-from icrawler import Crawler, Feeder, Parser, ImageDownloader
-from icrawler.builtin.filter import Filter
+from lib.icrawler import Crawler, Feeder, Parser, ImageDownloader
+from lib.icrawler.builtin.filter import Filter
 
 
 class GoogleFeeder(Feeder):
@@ -148,7 +148,7 @@ class GoogleParser(Parser):
         uris = []
         for img in images:
             if img.has_attr('src'):
-                if '/images/branding/' not in img['src']:  # ignore google branded images
+                if '/images/branding/' not in img['src'] and '/images/icons/' not in img['src']:  # ignore google branded images
                     uris.append(img['src'])
         return [{'file_url': uri} for uri in uris]
 

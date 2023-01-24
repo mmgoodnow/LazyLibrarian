@@ -11,16 +11,18 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import time
+import logging
 import traceback
 from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian import database
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
-    make_utf8bytes, seconds_to_midnight, check_float, check_int
+    make_utf8bytes, seconds_to_midnight
 
-import html5lib
 from bs4 import BeautifulSoup
 
 
@@ -29,6 +31,7 @@ def redirect_url(genhost, url):
         libgen might send us a book url that still contains http://libgen.io/  or /libgen.io/
         so we might need to redirect it to users genhost setting """
 
+    logger = logging.getLogger(__name__)
     myurl = urlparse(url)
     if myurl.netloc.lower() != 'libgen.io':
         return url
@@ -51,38 +54,39 @@ def redirect_url(genhost, url):
 
 
 def bok_sleep():
+    cachelogger = logging.getLogger('special.cache')
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_BOK']
-    limit = check_float(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0.0)
+    limit = CONFIG.get_int('SEARCH_RATELIMIT')
     # make sure bok leaves at least a 2-second delay between calls to prevent "Too many requests from your IP"
     if limit < 2.0:
         limit = 2.0
     if delay < limit:
         sleep_time = limit - delay
         lazylibrarian.TIMERS['SLEEP_BOK'] += sleep_time
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
-            logger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
+        cachelogger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_BOK'] = time_now
 
 
 def direct_bok(book=None, prov=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "zlibrary"
     if not prov:
         prov = 'BOK'
-    if lazylibrarian.providers.provider_is_blocked(provider):
+    if BLOCKHANDLER.is_blocked(provider):
         if test:
             return False
         return [], "provider is already blocked"
 
-    bok_today = lazylibrarian.bok_dlcount()[0]
-    if bok_today and bok_today >= check_int(lazylibrarian.CONFIG[prov + '_DLLIMIT'], 5):
+    bok_today = bok_dlcount()[0]
+    if bok_today and bok_today >= CONFIG.get_int(prov + '_DLLIMIT'):
         if test:
             return False
         return [], "download limit reached"
 
-    host = lazylibrarian.CONFIG[prov + '_HOST']
+    host = CONFIG[prov + '_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -118,7 +122,7 @@ def direct_bok(book=None, prov=None, test=False):
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
-                lazylibrarian.providers.block_provider(provider, errmsg)
+                BLOCKHANDLER.block_provider(provider, errmsg)
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -151,7 +155,7 @@ def direct_bok(book=None, prov=None, test=False):
 
                 logger.debug("Found %s rows for %s" % (len(rows), book['searchterm']))
                 for row in rows:
-                    if lazylibrarian.providers.provider_is_blocked(provider):
+                    if BLOCKHANDLER.is_blocked(provider):
                         next_page = False
                         break
                     url = None
@@ -188,18 +192,18 @@ def direct_bok(book=None, prov=None, test=False):
                                     if 'WARNING' in res and '24 hours' in res:
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
-                                        count, oldest = lazylibrarian.bok_dlcount()
-                                        if count and count >= check_int(lazylibrarian.CONFIG[prov + '_DLLIMIT'], 5):
+                                        count, oldest = bok_dlcount()
+                                        if count and count >= CONFIG.get_int(prov + '_DLLIMIT'):
                                             # rolling 24hr delay if limit reached
                                             delay = oldest + 24*60*60 - time.time()
                                         else:
                                             delay = seconds_to_midnight()
-                                        lazylibrarian.providers.block_provider(provider, msg, delay=delay)
-                                        logger.warn(msg)
+                                        BLOCKHANDLER.block_provider(provider, msg, delay=delay)
+                                        logger.warning(msg)
                                         url = None
                                     elif 'Too many requests' in res:
-                                        lazylibrarian.providers.block_provider(provider, res)
-                                        logger.warn(res)
+                                        BLOCKHANDLER.block_provider(provider, res)
+                                        logger.warning(res)
                                         url = None
                                 else:
                                     link = a.get('href')
@@ -228,7 +232,7 @@ def direct_bok(book=None, prov=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': 'direct',
-                            'priority': lazylibrarian.CONFIG[prov + '_DLPRIORITY']
+                            'priority': CONFIG[prov + '_DLPRIORITY']
                         })
                         logger.debug('Found %s, Size %s' % (title, size))
                     next_page = True
@@ -242,13 +246,13 @@ def direct_bok(book=None, prov=None, test=False):
             return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
-            logger.warn('Maximum results page search reached, still more results available')
+        if 0 < CONFIG.get_int('MAX_PAGES') < page:
+            logger.warning('Maximum results page search reached, still more results available')
             next_page = False
         else:
             bok_sleep()
 
-        if lazylibrarian.providers.provider_is_blocked(provider):
+        if BLOCKHANDLER.is_blocked(provider):
             errmsg = "provider_is_blocked"
             next_page = False
 
@@ -257,16 +261,17 @@ def direct_bok(book=None, prov=None, test=False):
 
 
 def direct_bfi(book=None, prov=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     provider = "BookFi"
     if not prov:
         prov = 'BFI'
-    if lazylibrarian.providers.provider_is_blocked(provider):
+    if BLOCKHANDLER.is_blocked(provider):
         if test:
             return False
         return [], "provider_is_blocked"
 
-    host = lazylibrarian.CONFIG['BFI_HOST']
+    host = CONFIG['BFI_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -295,7 +300,7 @@ def direct_bfi(book=None, prov=None, test=False):
             # may have ip based access limits
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
             errmsg = result
-            lazylibrarian.providers.block_provider(provider, errmsg)
+            BLOCKHANDLER.block_provider(provider, errmsg)
         else:
             logger.debug(search_url)
             logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -315,7 +320,7 @@ def direct_bfi(book=None, prov=None, test=False):
                 rows = []
 
             for row in rows:
-                if lazylibrarian.providers.provider_is_blocked(provider):
+                if BLOCKHANDLER.is_blocked(provider):
                     break
                 rowsoup = BeautifulSoup(str(row), 'html5lib')
                 title = rowsoup.find('h3', itemprop='name').text
@@ -348,7 +353,7 @@ def direct_bfi(book=None, prov=None, test=False):
                         'tor_url': url,
                         'tor_size': str(size),
                         'tor_type': 'direct',
-                        'priority': lazylibrarian.CONFIG[prov + '_DLPRIORITY']
+                        'priority': CONFIG[prov + '_DLPRIORITY']
                     })
                     logger.debug('Found %s, Size %s' % (title, size))
 
@@ -360,7 +365,7 @@ def direct_bfi(book=None, prov=None, test=False):
         logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
         return len(results)
 
-    if lazylibrarian.providers.provider_is_blocked(provider):
+    if BLOCKHANDLER.is_blocked(provider):
         errmsg = "provider_is_blocked"
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
@@ -368,6 +373,7 @@ def direct_bfi(book=None, prov=None, test=False):
 
 
 def direct_gen(book=None, prov=None, test=False):
+    logger = logging.getLogger(__name__)
     errmsg = ''
     host = ''
     search = ''
@@ -375,11 +381,11 @@ def direct_gen(book=None, prov=None, test=False):
     provider = "libgen"
     if not prov:
         prov = 'GEN_0'
-    if lazylibrarian.providers.provider_is_blocked(prov):
+    if BLOCKHANDLER.is_blocked(prov):
         if test:
             return False
         return [], "provider_is_blocked"
-    for entry in lazylibrarian.GEN_PROV:
+    for entry in CONFIG.providers('GEN'):
         if entry['NAME'].lower() == prov.lower():
             host = entry['HOST']
             if not host.startswith('http'):
@@ -419,7 +425,7 @@ def direct_gen(book=None, prov=None, test=False):
             else:
                 if "?s=" in search or "&s=" in search:
                     search = search.replace("?req=", "").replace("&req=", "")
-                params["s"] = make_utf8bytes(book['searchterm'])[0]   
+                params["s"] = make_utf8bytes(book['searchterm'])[0]
         elif 'search.php' in search:
             params = {
                 "view": "simple",
@@ -465,7 +471,7 @@ def direct_gen(book=None, prov=None, test=False):
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
-                lazylibrarian.providers.block_provider(prov, errmsg)
+                BLOCKHANDLER.block_provider(prov, errmsg)
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -539,7 +545,7 @@ def direct_gen(book=None, prov=None, test=False):
 
                     elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
                         try:
-                            author = format_author_name(td[0].text)
+                            author = format_author_name(td[0].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
                             title = td[2].text
                             newsoup = None
                             if '/' in td[4].text:
@@ -562,7 +568,7 @@ def direct_gen(book=None, prov=None, test=False):
                     elif 'search.php' in search and len(td) > 8:
                         # Non-fiction
                         try:
-                            author = format_author_name(td[1].text)
+                            author = format_author_name(td[1].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
                             title = td[2].text
                             size = td[7].text.upper()
                             extn = td[8].text
@@ -670,8 +676,8 @@ def direct_gen(book=None, prov=None, test=False):
                 return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
-            logger.warn('Maximum results page search reached, still more results available')
+        if 0 < CONFIG.get_int('MAX_PAGES') < page:
+            logger.warning('Maximum results page search reached, still more results available')
             next_page = False
 
         # try to detect libgen mirrors not honouring "page="
@@ -684,11 +690,24 @@ def direct_gen(book=None, prov=None, test=False):
                 if cnt > 1:
                     break
             if cnt > 1:
-                logger.warn('Duplicate results page found from provider')
+                logger.warning('Duplicate results page found from provider')
                 next_page = False
         else:
-            logger.warn('No results found from provider')
+            logger.warning('No results found from provider')
             next_page = False
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
+
+
+def bok_dlcount() -> (int, int):
+    db = database.DBConnection()
+    try:
+        yesterday = time.time() - 24*60*60
+        grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
+                          (yesterday,))
+    finally:
+        db.close()
+    if grabs:
+        return len(grabs), grabs[0]['completed']
+    return 0, 0

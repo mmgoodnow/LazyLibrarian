@@ -1,8 +1,9 @@
+import logging
 import os
-import lazylibrarian
-from lazylibrarian import logger
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-from lazylibrarian.common import syspath
+from lazylibrarian.filesystem import DIRS, syspath
 
 try:
     import gntp.notifier as gntp_notifier
@@ -16,18 +17,18 @@ class GrowlNotifier:
 
     @staticmethod
     def _send_growl(growl_host=None, growl_password=None, event=None, message=None, force=False):
-
+        logger = logging.getLogger(__name__)
         title = "LazyLibrarian"
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_GROWL'] and not force:
+        if not CONFIG.get_bool('USE_GROWL') and not force:
             return False
 
         if not growl_host:
-            growl_host = lazylibrarian.CONFIG['GROWL_HOST']
+            growl_host = CONFIG['GROWL_HOST']
 
         if growl_password is None:
-            growl_password = lazylibrarian.CONFIG['GROWL_PASSWORD']
+            growl_password = CONFIG['GROWL_PASSWORD']
 
         logger.debug(u"Growl: title: " + title)
         logger.debug(u"Growl: event: " + event)
@@ -62,15 +63,15 @@ class GrowlNotifier:
         try:
             growl.register()
         except gntp_notifier.errors.NetworkError:
-            logger.warn(u'Growl notification failed: network error')
+            logger.warning(u'Growl notification failed: network error')
             return False
 
         except gntp_notifier.errors.AuthError:
-            logger.warn(u'Growl notification failed: authentication error')
+            logger.warning(u'Growl notification failed: authentication error')
             return False
 
         # Send it, including an image if available
-        image_file = os.path.join(lazylibrarian.PROG_DIR, "data/images/ll.png")
+        image_file = os.path.join(DIRS.PROG_DIR, "data", "images", "ll.png")
         if os.path.exists(image_file):
             with open(syspath(image_file), 'rb') as f:
                 image = f.read()
@@ -86,7 +87,7 @@ class GrowlNotifier:
                 icon=image
             )
         except gntp_notifier.errors.NetworkError:
-            logger.warn(u'Growl notification failed: network error')
+            logger.warning(u'Growl notification failed: network error')
             return False
 
         logger.info(u"Growl notification sent.")
@@ -97,14 +98,14 @@ class GrowlNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['GROWL_ONSNATCH']:
+        if CONFIG.get_bool('GROWL_ONSNATCH'):
             if fail:
                 self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_FAIL], message=title)
             else:
                 self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['GROWL_ONDOWNLOAD']:
+        if CONFIG.get_bool('GROWL_ONDOWNLOAD'):
             self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
 
     # noinspection PyUnusedLocal

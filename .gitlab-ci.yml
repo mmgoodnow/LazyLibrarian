@@ -23,6 +23,10 @@ variables:
 
 .standard_job: # The basis for all jobs using a standard Python interpreter
   stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: always # Run only manually, by triggering run on the web
+    - when: never  # Never run when the source is a "push", for now
   before_script:
     - python --version  # So it's in the log
     - pip install virtualenv
@@ -33,6 +37,12 @@ variables:
 
 test_all_mods:
   extends: .standard_job
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: always # Run only manually, by triggering run on the web
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always # Run this one on schedule
+    - when: never  # Never run when the source is a "push", for now
   script:
     - scripts/ci/install-optional-modules.sh
     - scripts/ci/runtests.sh
