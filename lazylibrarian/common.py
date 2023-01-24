@@ -30,6 +30,7 @@ import re
 import ssl
 import sqlite3
 import cherrypy
+import httplib2
 import urllib3
 import requests
 import webencodings
@@ -246,6 +247,7 @@ def log_header(online=True) -> str:
         header += "mac_ver: %s\n" % str(platform.mac_ver())
     elif uname[0] == 'Windows':
         header += "win_ver: %s\n" % str(platform.win32_ver())
+    header += "httplib2: %s\n" % getattr(httplib2, '__version__', None)
     if 'urllib3' in globals():
         header += "urllib3: %s\n" % getattr(urllib3, '__version__', None)
     else:

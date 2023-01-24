@@ -626,7 +626,15 @@ class StartupLazyLibrarian:
             else:
                 self.logger.debug('Not updating, LazyLibrarian has local changes')
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
         if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+=======
+        if '** MANUAL **' in lazylibrarian.COMMIT_LIST:
+>>>>>>> Stashed changes
+=======
+        if '** MANUAL **' in lazylibrarian.COMMIT_LIST:
+>>>>>>> Stashed changes
             lazylibrarian.SIGNAL = None
             self.logger.info("Update available, but needs manual installation")
 

@@ -301,11 +301,27 @@
               msg = '<div class="input-group">New version available. You are ${CONFIG['COMMITS_BEHIND']} commits behind.'
             % endif
             % if CONFIG.get_int('COMMITS_BEHIND') > 0:
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
               % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
                 msg += '<strong>Manual update is required</strong>'
               % endif
               msg += '</div><div>'
               % if "**MANUAL**" not in lazylibrarian.COMMIT_LIST:
+=======
+              % if "** MANUAL **" in lazylibrarian.COMMIT_LIST:
+                msg += '<strong>Manual update is required</strong>'
+              % endif
+              msg += '</div><div>'
+              % if "** MANUAL **" not in lazylibrarian.COMMIT_LIST:
+>>>>>>> Stashed changes
+=======
+              % if "** MANUAL **" in lazylibrarian.COMMIT_LIST:
+                msg += '<strong>Manual update is required</strong>'
+              % endif
+              msg += '</div><div>'
+              % if "** MANUAL **" not in lazylibrarian.COMMIT_LIST:
+>>>>>>> Stashed changes
                   msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
               % endif
               msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Show Changes" id="getChangelog">Changes</a>&nbsp;'

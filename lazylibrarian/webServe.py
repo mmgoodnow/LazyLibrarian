@@ -5609,7 +5609,15 @@ class WebInterface(object):
                                            plural(CONFIG.get_int('COMMITS_BEHIND'), "commit"))
             messages = lazylibrarian.COMMIT_LIST.replace('\n', '<br>')
             message = message + '<br><small>' + messages
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+=======
+            if '** MANUAL **' in lazylibrarian.COMMIT_LIST:
+>>>>>>> Stashed changes
+=======
+            if '** MANUAL **' in lazylibrarian.COMMIT_LIST:
+>>>>>>> Stashed changes
                 message += "Update needs manual installation"
         else:
             message = "unknown version"
@@ -5845,13 +5853,21 @@ class WebInterface(object):
         logger = logging.getLogger(__name__)
         # lazylibrarian.config_write()
         lazylibrarian.SIGNAL = 'shutdown'
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
         message = 'closing ...'
+=======
+        message = 'closed'
+>>>>>>> Stashed changes
+=======
+        message = 'closed'
+>>>>>>> Stashed changes
         icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
             logger.debug("remove %s" % icon)
             remove_file(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Close library",
-                              message=message, timer=30)
+                              message=message, timer=0)
 
     @cherrypy.expose
     def restart(self):
