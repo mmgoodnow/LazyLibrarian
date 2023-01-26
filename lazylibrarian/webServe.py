@@ -4929,6 +4929,11 @@ class WebInterface(object):
                 res = db.match('SELECT SendTo from users where UserID=?', (user,))
                 if res and res['SendTo']:
                     email = res['SendTo']
+                else:
+                    email = ''
+            else:
+                user = 0
+                email = ''
         finally:
             db.close()
         # use server-side processing
@@ -6418,7 +6423,10 @@ class WebInterface(object):
     def grauth_step2(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         ga = grsync.GrAuth()
-        return ga.goodreads_oauth2()
+        res = ga.goodreads_oauth2()
+        if "Authorisation complete" in res:
+            CONFIG.set_bool('GR_SYNC', True)
+        return res
 
     @cherrypy.expose
     def test_gr_auth(self, **kwargs):
