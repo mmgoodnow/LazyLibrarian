@@ -150,9 +150,9 @@ class TelemetryDB:
                         (serverid, os, first_seen, last_seen, last_uptime, longest_uptime, ll_version, 
                         ll_installtype, python_ver)
                         VALUES
-                        ('{server["id"]}', '{server["os"]}', {nowstr}, {nowstr}, {server["uptime_seconds"]},
-                            {server["uptime_seconds"]}, {server["version"]}', '{server["install_type"]}', 
-                            {server["python_ver"]}') """)
+                        ('{server["id"]}', '{server["os"]}', {nowstr}, {nowstr}, '{server["uptime_seconds"]}',
+                            '{server["uptime_seconds"]}', '{server["version"]}', '{server["install_type"]}', 
+                            '{server["python_ver"]}') """)
                     cursor.execute(stmt)
             finally:
                 cursor.close()
@@ -210,6 +210,9 @@ class TelemetryDB:
         try:
             cursor = self._connect()
             if telemetry_data in ['usage', 'all']:
+                stmt = "SELECT COUNT(DISTINCT serverid) from ll_telemetry"
+                res = cursor.execute(stmt).fetchone()
+                distinct = res[0]
                 last_hour_date_time = datetime.datetime.now() - datetime.timedelta(minutes=60)
                 stmt = f"SELECT COUNT(*) as  last_hour from ll_telemetry where datetime > '{last_hour_date_time}'"
                 res = cursor.execute(stmt).fetchone()
@@ -229,7 +232,7 @@ class TelemetryDB:
                 stmt = f"SELECT COUNT(*) from ll_telemetry"
                 res = cursor.execute(stmt).fetchone()
                 all_time = res[0]
-                result['usage'] = {'Last_Hour': last_hour, 'Last_Day': last_day, 'Last_Week': last_week,
+                result['usage'] = {'Distinct': distinct, 'Last_Hour': last_hour, 'Last_Day': last_day, 'Last_Week': last_week,
                                    'Last_Four_Weeks': last_month, 'All_Time': all_time}
             if telemetry_data in ['servers', 'all']:
                 versions = {}
