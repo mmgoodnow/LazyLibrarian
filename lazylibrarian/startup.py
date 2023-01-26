@@ -97,7 +97,7 @@ class StartupLazyLibrarian:
                      dest='port', default=None,
                      help="Force webinterface to listen on this port")
         p.add_option('--noipv6',
-                     dest='noipv6', default=None,
+                     dest='noipv6', default=None, action="store_true",
                      help="Do not attempt to use IPv6")
         p.add_option('--datadir',
                      dest='datadir', default=None,
