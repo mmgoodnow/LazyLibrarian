@@ -103,7 +103,7 @@ class StartupLazyLibrarian:
                      dest='datadir', default=None,
                      help="Path to the data directory")
         p.add_option('--debug',
-                     dest='debug', default=None,
+                     dest='debug', default=None, action="store_true",
                      help="Set DEBUG level logging")
         p.add_option('--config',
                      dest='config', default=None,
