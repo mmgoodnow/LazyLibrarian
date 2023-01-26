@@ -3961,7 +3961,7 @@ class WebInterface(object):
 
         return serve_template(
             templatename="coverwall.html", title=title, results=mod_issues, redirect="magazines",
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def comic_wall(self, comicid=None):
@@ -4009,7 +4009,7 @@ class WebInterface(object):
 
         return serve_template(
             templatename="coverwall.html", title=title, results=mod_issues, redirect="comic",
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def book_wall(self, have='0'):
@@ -4054,7 +4054,7 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def author_wall(self, have='1'):
@@ -4092,7 +4092,7 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def audio_wall(self):
@@ -4128,12 +4128,12 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def wall_columns(self, redirect=None, count=None, have=0, title=''):
         title = title.split(' (')[0].replace(' ', '+')
-        columns = check_int(CONFIG['WALL_COLUMNS'], 6)
+        columns = check_int(CONFIG.get_int('WALL_COLUMNS'), 6)
         if count == 'up' and columns <= 12:
             columns += 1
         elif count == 'down' and columns > 1:
