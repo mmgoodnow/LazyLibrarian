@@ -290,7 +290,7 @@ class TelemetryDB:
                 cursor.close()
         if not result:
             result = f"{telemetry_data} Not implemented yet"
-        return json.dumps(result)
+        return json.dumps(result, indent=2)
 
     def add_telemetry(self, telemetry_data):
         """ Add telemetry received from LL to the database
