@@ -84,7 +84,7 @@ class TelemetryDB:
             self.logger.debug(f'Execute {create_statement}')
             try:
                 cursor.execute(create_statement)
-                self.logger.info(f'Created table ok')
+                self.logger.info(f'Table {tablename} ok')
             except Exception as e:
                 self.logger.error(f'Error creating table {tablename}: {str(e)}')
 
