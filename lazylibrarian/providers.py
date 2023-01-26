@@ -1973,7 +1973,7 @@ def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode
                                 logger.warning("%s does not support seeders" % provider['DISPNAME'])
                             else:
                                 # its torznab, check if minimum seeders relevant
-                                if thisnzb['seeders'].get_int() >= provider.get_int('SEEDERS'):
+                                if check_int(thisnzb['seeders'], 0) >= provider.get_int('SEEDERS'):
                                     nzbcount += 1
                                     results.append(thisnzb)
                                 else:
