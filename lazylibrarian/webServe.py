@@ -349,20 +349,21 @@ class WebInterface(object):
     def get_index(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
+        loggerserverside.debug(f"Start {iDisplayStart} Length {iDisplayLength} Col {iSortCol_0} Dir {sSortDir_0} Search [{sSearch}]")
         rows = []
         filtered = []
         rowlist = []
         userid = None
         userprefs = 0
-        cookie = cherrypy.request.cookie
-        if cookie and 'll_uid' in list(cookie.keys()):
-            userid = cookie['ll_uid'].value
-        if cookie and 'll_prefs' in list(cookie.keys()):
-            userprefs = check_int(cookie['ll_prefs'].value, 0)
-
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
+            if CONFIG.get_bool('USER_ACCOUNTS'):
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_prefs' in list(cookie.keys()):
+                    userprefs = check_int(cookie['ll_prefs'].value, 0)
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
