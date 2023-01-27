@@ -530,6 +530,23 @@ def check_db(upgradelog=None):
                     for author in authors:
                         db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
+            # update author images if exist and nophoto in database
+            authors = db.select("SELECT AuthorID FROM authors WHERE authorimg = 'images/nophoto.png'")
+            if authors:
+                msg = 'Checking %s author images' % len(authors)
+                lazylibrarian.UPDATE_MSG = msg
+                logger.warning(msg)
+                imgs = 0
+                for author in authors:
+                    filename = os.path.join(DIRS.CACHEDIR, 'author', '%s.jpg' % author['AuthorID'])
+                    if os.path.isfile(filename):
+                        cachefile = 'cache/author/%s.jpg' % author['AuthorID']
+                        imgs += 1
+                        db.action('UPDATE authors SET AuthorImg=? WHERE AuthorID=?', (cachefile, author["AuthorID"],))
+                if imgs:
+                    cnt += imgs
+                    logger.warning("Updated %s author images" % imgs)
+
             # remove series with no members
             lazylibrarian.UPDATE_MSG = 'Removing series with no members'
             series = db.select('SELECT SeriesID,SeriesName FROM series WHERE Total=0')
