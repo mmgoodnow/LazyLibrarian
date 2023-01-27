@@ -120,8 +120,7 @@ class LazyTelemetry(object):
             # General
             'USER_ACCOUNTS', 'EBOOK_TAB', 'COMIC_TAB', 'SERIES_TAB',
             'AUDIO_TAB', 'MAG_TAB', 'SHOW_GENRES',
-            'BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG',
-            'API_ENABLED',
+            'BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'API_ENABLED',
             # Downloaders
             'NZB_DOWNLOADER_SABNZBD', 'NZB_DOWNLOADER_NZBGET', 'USE_SYNOLOGY',
             'NZB_DOWNLOADER_BLACKHOLE',

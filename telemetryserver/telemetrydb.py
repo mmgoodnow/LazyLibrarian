@@ -67,7 +67,7 @@ class TelemetryDB:
         try:
             columns = cursor.execute('PRAGMA table_info(%s)' % tablename).fetchall()
             to_create = False
-            if not columns:  # check for no such table
+            if columns:  # check for no such table
                 to_create = not any(item[1].split()[0] == column.split()[0] for item in columns)
             if to_create:
                 alter_statement = f"ALTER TABLE {tablename} ADD COLUMN {column};"
@@ -290,7 +290,7 @@ class TelemetryDB:
                 cursor.close()
         if not result:
             result = f"{telemetry_data} Not implemented yet"
-        return json.dumps(result)
+        return json.dumps(result, indent=2)
 
     def add_telemetry(self, telemetry_data):
         """ Add telemetry received from LL to the database

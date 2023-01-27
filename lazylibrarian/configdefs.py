@@ -49,7 +49,6 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'HIST_REFRESH', 1000),
     ConfigBool('General', 'NO_IPV6', 0),
     ConfigStr('General', 'BOOKSTRAP_THEME', 'slate'),
-    ConfigBool('General', 'AUTHOR_IMG', 1),
     ConfigBool('General', 'BOOK_IMG', 1),
     ConfigBool('General', 'SERIES_TAB', 1),
     ConfigBool('General', 'AUDIO_TAB', 1),
