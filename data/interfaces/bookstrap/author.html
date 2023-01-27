@@ -282,10 +282,6 @@
             $('#chooselib').val('eBook')
         }
 
-        var show = ""+${CONFIG['BOOK_IMG']};
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
-
         var oTable = $('#book_table').DataTable(
             {
                 "order": [[ 6, 'desc' ]],
@@ -302,7 +298,6 @@
                         return '<input type="checkbox" id="N' + data + '" name="' + data + '" class="checkbox" />';} },
                     { targets: [1],
                         'class': 'text-center',
-                        'visible': showimg,
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2], 'class': "hidden" },

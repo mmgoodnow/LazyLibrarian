@@ -119,8 +119,7 @@ class LazyTelemetry(object):
         for key in [
             # General
             'USER_ACCOUNTS', 'EBOOK_TAB', 'COMIC_TAB', 'SERIES_TAB',
-            'AUDIO_TAB', 'MAG_TAB', 'SHOW_GENRES',
-            'BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'API_ENABLED',
+            'AUDIO_TAB', 'MAG_TAB', 'SHOW_GENRES', 'API_ENABLED',
             # Downloaders
             'NZB_DOWNLOADER_SABNZBD', 'NZB_DOWNLOADER_NZBGET', 'USE_SYNOLOGY',
             'NZB_DOWNLOADER_BLACKHOLE',

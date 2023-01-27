@@ -4256,7 +4256,7 @@ class WebInterface(object):
             user = 0
         # use server-side processing
         covers = 1
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('COMIC_IMG'):
+        if not CONFIG['TOGGLES']:
             covers = 0
         return serve_template(templatename="comics.html", title="Comics", comics=[],
                               covercount=covers, user=user, comic_filter=comic_filter)
@@ -4418,7 +4418,7 @@ class WebInterface(object):
         else:
             user = 0
         # use server-side processing
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('COMIC_IMG'):
+        if not CONFIG['TOGGLES']:
             covercount = 0
         else:
             covercount = 1
@@ -4939,7 +4939,7 @@ class WebInterface(object):
             db.close()
         # use server-side processing
         covers = 1
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
+        if not CONFIG['TOGGLES']:
             covers = 0
         return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
                               covercount=covers, user=user, email=email, mag_filter=mag_filter)
@@ -5051,7 +5051,7 @@ class WebInterface(object):
             firstpage = 'true'
 
         # use server-side processing
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
+        if not CONFIG['TOGGLES']:
             covercount = 0
         else:
             covercount = 1

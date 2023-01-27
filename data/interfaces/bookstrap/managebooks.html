@@ -182,10 +182,6 @@
     {
         var selected = [];
 
-        var show = ""+${CONFIG['BOOK_IMG']};
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
-
         $('#chooselib').val(getUrlVars()['library']);
 
         if ($("#chooselib").val() != 'AudioBook') {
@@ -285,7 +281,6 @@
                                 return '<input type="checkbox" id="Y' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
                             return '<input type="checkbox" id="Y' + data + '" name="' + data + '" class="checkbox" />';} },
                     { targets: [1],
-                        'visible': showimg,
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2], 'render': function(data, type, row) {

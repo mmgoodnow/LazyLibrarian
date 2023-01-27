@@ -118,10 +118,6 @@
         var intjob = 0;
         $('#comicfilter').val(getUrlVars()['comic_filter']);
 
-        var show = ""+${CONFIG.get_int('COMIC_IMG')}
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
-
         var oTable = $('#book_table').DataTable(
             {
                 "bAutoWidth": false,
@@ -138,7 +134,6 @@
                     return '<input type="checkbox" id="C' + data + '" name="' + data + '" class="checkbox" />';} },
                     { targets: [1],
                         'class': 'text-center',
-                        'visible': showimg,
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2],

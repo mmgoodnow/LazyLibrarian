@@ -127,10 +127,6 @@
         })
         $('#chooselanguage').val(getUrlVars()['book_lang']);
 
-        var show = ""+${CONFIG['BOOK_IMG']};
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
-
         var oTable = $('#book_table').DataTable({
             "dom": "<'row'<'col-xs-6'l><'col-xs-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>",
             "bAutoWidth": false,
@@ -146,7 +142,6 @@
                         return '<input type="checkbox" id="B' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
                     return '<input type="checkbox" id="B' + data + '" name="' + data + '" class="checkbox" />';} },
                 { targets: [1],
-                    'visible': showimg,
                     'render': function(data, type, row) {
                     return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                 { targets: [2], 'render': function(data, type, row) {

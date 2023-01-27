@@ -476,14 +476,6 @@
                     </fieldset>
                     <div class="row checkbox">
                       <div class="col-md-6">
-                        <% checked = 'checked="checked"' if CONFIG['BOOK_IMG'] else '' %>
-                        <label for="book_img" class="control-label">
-                        <input type="checkbox" id="book_img" name="book_img" value="1" ${checked} />
-                        Show Book Images</label>
-                      </div>
-                    </div>
-                    <div class="row checkbox">
-                      <div class="col-md-6">
                         <% checked = 'checked="checked"' if CONFIG['EBOOK_TAB'] else '' %>
                         <label for="ebook_tab" class="control-label">
                           <input type="checkbox" id="ebook_tab" name="ebook_tab" value="1" ${checked} />
@@ -503,30 +495,12 @@
                           <input type="checkbox" id="mag_tab" name="mag_tab" value="1" ${checked} />
                           Show Magazines</label>
                       </div>
-                      %if CONFIG['MAG_TAB']:
-                      <div class="col-md-6">
-                        <% checked = 'checked="checked"' if CONFIG['MAG_IMG'] else '' %>
-                        <label for="mag_img" class="control-label">
-                          <input type="checkbox" id="mag_img" name="mag_img" value="1" ${checked} />
-                          Show Magazine Images</label>
-                      </div>
-                      % endif
-                    </div>
-                    <div class="row checkbox">
                       <div class="col-md-6">
                         <% checked = 'checked="checked"' if CONFIG['COMIC_TAB'] else '' %>
                         <label for="comic_tab" class="control-label">
                           <input type="checkbox" id="comic_tab" name="comic_tab" value="1" ${checked} />
                           Show Comics</label>
                       </div>
-                      %if CONFIG.get_int('COMIC_TAB') > 0:
-                      <div class="col-md-6">
-                        <% checked = 'checked="checked"' if CONFIG['COMIC_IMG'] else '' %>
-                        <label for="comic_img" class="control-label">
-                          <input type="checkbox" id="comic_img" name="comic_img" value="1" ${checked} />
-                          Show Comic Images</label>
-                      </div>
-                      %endif
                     </div>
                     <div class="row checkbox">
                       <div class="col-md-6">
