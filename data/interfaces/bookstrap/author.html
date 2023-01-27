@@ -284,7 +284,7 @@
             $('#chooselib').val('eBook')
         }
 
-        var show = ""+${CONFIG['BOOK_IMG']};
+        var show = ""+${CONFIG.get_int('BOOK_IMG')};
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 

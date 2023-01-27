@@ -182,9 +182,9 @@
     {
         var selected = [];
 
-        var show = ""+${CONFIG['BOOK_IMG']};
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
+        var show = ""+${CONFIG.get_int('BOOK_IMG')};
+        if ( show != '1' ) { showimg = false }
+        else { showimg = true }
 
         $('#chooselib').val(getUrlVars()['library']);
 

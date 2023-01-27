@@ -137,9 +137,9 @@
         $('input.deletable').wrap('<span class="deleteicon" />').after($('<span/>').click(function() {
             $(this).prev('input').val('').trigger('change').focus();
         }));
-        var show = ""+${CONFIG['AUTHOR_IMG']};
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
+        var show = "${CONFIG.get_str('AUTHOR_IMG')};"
+        if ( show != '1' ) { showimg = false }
+        else { showimg = true }
 
         var table = $('#author_table').DataTable(
             {
