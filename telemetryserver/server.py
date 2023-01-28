@@ -33,6 +33,9 @@ def bottle_to_logger(fn):
 class TelemetryServer:
     config: configparser.ConfigParser
 
+    def __init__(self):
+        self._telemetry_db = None
+
     def initialize(self):
         # Parse command line
         # Read config file
@@ -62,7 +65,8 @@ class TelemetryServer:
         self.logger.debug('Initializing database')
         if self._telemetry_db.initialize():
             self.logger.debug('Run server')
-            telemetryweb.run_server(self._telemetry_db.add_telemetry, self._telemetry_db.read_telemetry)
+            telemetryweb.run_server(self._telemetry_db.add_telemetry, self._telemetry_db.read_telemetry,
+                                    self._telemetry_db.read_csv)
 
     def stop(self):
         self.logger.debug('Stopping server')

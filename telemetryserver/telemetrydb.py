@@ -7,6 +7,18 @@ import json
 import logging
 import sqlite3
 import time
+from typing import Dict, List
+from enum import Enum
+
+
+class IntervalLength(Enum):
+    """ Interval length in hours, for querying telemetry data """
+    DISTINCT = 0
+    HOUR = 1
+    DAY = 24
+    WEEK = 7*24
+    MONTH = 30*7*24
+    FOREVER = 1000*30*7*24
 
 
 class TelemetryDB:
@@ -202,87 +214,126 @@ class TelemetryDB:
         except Exception as e:
             raise Exception(f"Error updating telemetry data: {str(e)}")
 
-    def read_telemetry(self, telemetry_data):
-        """ Read telemetry data, returns data as json """
+    def read_csv(self, datatype: str, length: IntervalLength, intervals: int = 50) -> List[int]:
+        if datatype == 'servers':
+            return self.read_usage_telemetry_array(length, intervals)
+        else:
+            return []
+
+    def read_usage_telemetry_array(self, length: IntervalLength, intervals: int) -> List[int]:
+        """ Return the last 'intervals' readings, returning # of servers registered at that time """
+        res = []
+        for i in range(intervals):
+            res.append(self.read_usage_telemetry_interval(length, i))
+        return res
+
+    @staticmethod
+    def get_startend(length: IntervalLength, interval: int) -> (datetime, datetime):
+        """ Return the beginning and end of interval number interval of the right length"""
+        starttime = datetime.datetime.now() - datetime.timedelta(hours=(interval+1) * length.value)
+        endtime = starttime + datetime.timedelta(hours=length.value)
+        return starttime, endtime
+
+    def read_usage_telemetry_interval(self, length: IntervalLength, interval: int = 0) -> int:
+        """ Return usage telemetry for one IntervalLength in hours, return data for
+        'interval' number; 0 is most recent, 1 is a interval in the past, etc """
+        cursor = self._connect()
+        if length == IntervalLength.DISTINCT:
+            stmt = "SELECT COUNT(DISTINCT serverid) from ll_telemetry"
+        else:
+            starttime, endtime = self.get_startend(length, interval)
+            stmt = f"SELECT COUNT(DISTINCT serverid) as data from ll_telemetry where datetime > '{starttime}' and datetime <= '{endtime}'"
+        res = cursor.execute(stmt).fetchone()
+        return res[0]
+
+    def read_server_telemetry_interval(self, key: str, length: IntervalLength, interval: int = 0) -> Dict[str, int]:
+        """ For a given interval, return a dict of (value, count) """
+        versions = {}
+        starttime, endtime = self.get_startend(length, interval)
+        cursor = self._connect()
+        stmt = f"select distinct {key} from ll_servers"
+        res = cursor.execute(stmt).fetchall()
+        for item in res:
+            if length == IntervalLength.DISTINCT:
+                versions[item[0]] = 1
+            else:
+                stmt = f"""select count(*) as count from ll_servers 
+                    where {key} = '{item[0]}' and last_seen > '{starttime}' and last_seen <= '{endtime}'"""
+                tot = cursor.execute(stmt).fetchone()
+                versions[item[0]] = tot[0]
+        return versions
+
+    def read_switch_telemetry(self, telemetry_type: str, length: IntervalLength, interval: int = 0) -> Dict[str, int]:
+        """ Return telemetry for either switches or params for a given interval """
+        results = {}
+        starttime, endtime = self.get_startend(length, interval)
+        cursor = self._connect()
+        stmt = f"""select {telemetry_type} as data from ll_configs,ll_servers 
+                    where ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                    and last_seen > '{starttime}' and last_seen <= '{endtime}'"""
+        configs = cursor.execute(stmt).fetchall()
+        for conf in configs:
+            for item in conf[0].split():
+                if item not in results:
+                    results[item] = 1
+                else:
+                    results[item] += 1
+        return results
+
+    def read_config_telemetry(self, length: IntervalLength, interval: int = 0) -> Dict[str, int]:
+        """ Return telemetry for either switches or params for a given interval """
+        configs = {}
+        starttime, endtime = self.get_startend(length, interval)
+        cursor = self._connect()
+        stmt = f"""select distinct book_api from ll_configs,ll_servers where 
+                    ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                    and last_seen > '{starttime}' and last_seen <= '{endtime}'"""
+        res = cursor.execute(stmt).fetchall()
+        for item in res:
+            stmt = f"""select count(*) as count from ll_configs,ll_servers where book_api = '{item[0]}' and 
+                        ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                        and last_seen > '{starttime}' and last_seen <= '{endtime}'"""
+            tot = cursor.execute(stmt).fetchone()
+            configs[item[0]] = tot[0]
+        for key in ['newznab', 'torznab', 'rss', 'irc', 'gen', 'apprise']:
+            stmt = f"""select count(*) from ll_configs,ll_servers where {key} > 0 and 
+                        ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                        and last_seen > '{starttime}' and last_seen <= '{endtime}'"""
+            tot = cursor.execute(stmt).fetchone()
+            configs[key] = tot[0]
+        return configs
+
+    def read_telemetry(self, telemetry_data: str):
+        """ Read telemetry data summary, returns data as json """
         self.logger.debug(f'Reading telemetry data {telemetry_data}')
         result = {}
         cursor = None
         try:
-            cursor = self._connect()
             if telemetry_data in ['usage', 'all']:
-                stmt = "SELECT COUNT(DISTINCT serverid) from ll_telemetry"
-                res = cursor.execute(stmt).fetchone()
-                distinct = res[0]
-                last_hour_date_time = datetime.datetime.now() - datetime.timedelta(minutes=60)
-                stmt = f"SELECT COUNT(*) as  last_hour from ll_telemetry where datetime > '{last_hour_date_time}'"
-                res = cursor.execute(stmt).fetchone()
-                last_hour = res[0]
-                last_day_date_time = datetime.datetime.now() - datetime.timedelta(hours=24)
-                stmt = f"SELECT COUNT(*) as  last_day from ll_telemetry where datetime > '{last_day_date_time}'"
-                res = cursor.execute(stmt).fetchone()
-                last_day = res[0]
-                last_week_date_time = datetime.datetime.now() - datetime.timedelta(days=7)
-                stmt = f"SELECT COUNT(*) as  last_week from ll_telemetry where datetime > '{last_week_date_time}'"
-                res = cursor.execute(stmt).fetchone()
-                last_week = res[0]
-                last_month_date_time = datetime.datetime.now() - datetime.timedelta(days=28)
-                stmt = f"SELECT COUNT(*) as  last_month from ll_telemetry where datetime > '{last_month_date_time}'"
-                res = cursor.execute(stmt).fetchone()
-                last_month = res[0]
-                stmt = f"SELECT COUNT(*) from ll_telemetry"
-                res = cursor.execute(stmt).fetchone()
-                all_time = res[0]
+                distinct = self.read_usage_telemetry_interval(IntervalLength.DISTINCT)
+                last_hour = self.read_usage_telemetry_interval(IntervalLength.HOUR)
+                last_day = self.read_usage_telemetry_interval(IntervalLength.DAY)
+                last_week = self.read_usage_telemetry_interval(IntervalLength.WEEK)
+                last_month = self.read_usage_telemetry_interval(IntervalLength.MONTH)
+                all_time = self.read_usage_telemetry_interval(IntervalLength.FOREVER)
                 result['usage'] = {'Distinct': distinct, 'Last_Hour': last_hour, 'Last_Day': last_day, 'Last_Week': last_week,
                                    'Last_Four_Weeks': last_month, 'All_Time': all_time}
+            cursor = self._connect()
             if telemetry_data in ['servers', 'all']:
-                versions = {}
+                result['servers'] = {}
                 for key in ['python_ver', 'll_version', 'll_installtype']:
-                    stmt = f"select distinct {key} from ll_servers"
-                    res = cursor.execute(stmt).fetchall()
-                    for item in res:
-                        stmt = f"select count(*) as count from ll_servers where {key} = '{item[0]}'"
-                        tot = cursor.execute(stmt).fetchone()
-                        versions[item[0]] = tot[0]
-                result['servers'] = versions
+                    result['servers'][key] = self.read_server_telemetry_interval(key, IntervalLength.MONTH)
+
             if telemetry_data in ['switches', 'params', 'all']:
-                last_4wks_date_time = datetime.datetime.now() - datetime.timedelta(days=28)
                 if telemetry_data == 'all':
                     telemetry_types = ['switches', 'params']
                 else:
                     telemetry_types = [telemetry_data]
                 for telemetry_type in telemetry_types:
-                    results = {}
-                    stmt = f"""select {telemetry_type} as data from ll_configs,ll_servers 
-                                where ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
-                                and last_seen >= '{last_4wks_date_time}'"""
-                    configs = cursor.execute(stmt).fetchall()
-                    for conf in configs:
-                        for item in conf[0].split():
-                            if item not in results:
-                                results[item] = 1
-                            else:
-                                results[item] = results[item] + 1
-                    result[telemetry_type] = results
+                    result[telemetry_type] = self.read_switch_telemetry(telemetry_type, IntervalLength.MONTH)
+
             if telemetry_data in ['configs', 'all']:
-                configs = {}
-                last_4wks_date_time = datetime.datetime.now() - datetime.timedelta(days=28)
-                stmt = f"""select distinct book_api from ll_configs,ll_servers where 
-                            ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
-                            and last_seen >= '{last_4wks_date_time}'"""
-                res = cursor.execute(stmt).fetchall()
-                for item in res:
-                    stmt = f"""select count(*) as count from ll_configs,ll_servers where book_api = '{item[0]}' and 
-                                ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
-                                and last_seen >= '{last_4wks_date_time}'"""
-                    tot = cursor.execute(stmt).fetchone()
-                    configs[item[0]] = tot[0]
-                for key in ['newznab', 'torznab', 'rss', 'irc', 'gen', 'apprise']:
-                    stmt = f"""select count(*) from ll_configs,ll_servers where {key} > 0 and 
-                                ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
-                                and last_seen >= '{last_4wks_date_time}'"""
-                    tot = cursor.execute(stmt).fetchone()
-                    configs[key] = tot[0]
-                result['configs'] = configs
+                result['configs'] = self.read_config_telemetry(IntervalLength.MONTH)
         except Exception as e:
             raise Exception(f"Error reading data: {str(e)}")
         finally:
