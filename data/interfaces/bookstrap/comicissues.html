@@ -79,11 +79,6 @@
     {
         var selected = [];
         var intjob = 0;
-
-        var show = ""+${CONFIG.get_int('MAG_IMG')};
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
-
         var table = $('#book_table').DataTable(
             {
                 "bAutoWidth": false,
@@ -99,7 +94,6 @@
                         return '<input type="checkbox" id="X' + row[4] + '" name="' + row[4] + '" class="checkbox" />';} },
                     { targets: [1],
                         'class': 'text-center',
-                        'visible': showimg,
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2],

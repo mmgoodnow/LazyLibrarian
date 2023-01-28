@@ -775,7 +775,7 @@ class StartupLazyLibrarian:
                                 r = requests.get(server1)
                                 res = r.status_code
                                 if res == 200 or res == 401:
-                                    doquit = True
+                                    success = True
                                     break
                             except Exception:
                                 r = None
@@ -786,7 +786,7 @@ class StartupLazyLibrarian:
                                     r = requests.get(server2)
                                     res = r.status_code
                                     if res == 200 or res == 401:
-                                        doquit = True
+                                        success = True
                                         break
                                 except Exception:
                                     pass

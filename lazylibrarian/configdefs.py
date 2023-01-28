@@ -49,8 +49,6 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'HIST_REFRESH', 1000),
     ConfigBool('General', 'NO_IPV6', 0),
     ConfigStr('General', 'BOOKSTRAP_THEME', 'slate'),
-    ConfigBool('General', 'AUTHOR_IMG', 1),
-    ConfigBool('General', 'BOOK_IMG', 1),
     ConfigBool('General', 'SERIES_TAB', 1),
     ConfigBool('General', 'AUDIO_TAB', 1),
     ConfigBool('General', 'EBOOK_TAB', 1),
@@ -366,7 +364,6 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('PostProcess', 'DEL_COMPLETED', 1),
 
     ConfigFolder('Comics', 'COMIC_DEST_FOLDER', '_Comics/$Title/$Issue'),
-    ConfigBool('Comics', 'COMIC_IMG', 1),
     ConfigBool('Comics', 'COMIC_TAB', 0),
     ConfigBool('Comics', 'COMIC_RELATIVE', 1),
     ConfigBool('Comics', 'COMIC_DELFOLDER', 1),
@@ -377,7 +374,6 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('Comics', 'REJECT_MINCOMIC', 0),
     ConfigStr('Comics', 'CV_APIKEY', ''),  # ComicVine API key
 
-    ConfigBool('Magazines', 'MAG_IMG', 1),
     ConfigBool('Magazines', 'MAG_TAB', 1),
     ConfigStr('Magazines', 'MAG_COVERSWAP', ''),
     ConfigFolder('Magazines', 'MAG_DEST_FOLDER', '_Magazines/$Title/$IssueDate'),

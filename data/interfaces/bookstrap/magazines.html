@@ -119,10 +119,6 @@
         var intjob = 0;
         $('#magfilter').val(getUrlVars()['mag_filter']);
 
-        var show = ""+${CONFIG.get_int('MAG_IMG')};
-            if ( show != '1' ) { showimg = false }
-            else { showimg = true }
-
         var oTable = $('#book_table').DataTable(
             {
                 "dom": "<'row'<'col-xs-6'l><'col-xs-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>",
@@ -140,7 +136,6 @@
                     return '<input type="checkbox" id="M' + data + '" name="' + data + '" class="checkbox" />';} },
                     { targets: [1],
                         'class': 'text-center',
-                        'visible': showimg,
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2],

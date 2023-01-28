@@ -424,24 +424,30 @@ class Api(object):
     def _listnabproviders(self):
         TELEMETRY.record_usage_data()
         # custom output format for prowlarr
-        newzlist = self._provider_array('NEWZNAB')
-        for item in newzlist:
+        oldnewzlist = self._provider_array('NEWZNAB')
+        newzlist = []
+        for item in oldnewzlist:
+            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
+                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': ''}
             # merge prowlarr categories
-            item['Categories'] = ''
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
                 if item[key]:
-                    if item['Categories']:
-                        item['Categories'] += ','
-                    item['Categories'] += item[key]
+                    if entry['Categories']:
+                        entry['Categories'] += ','
+                    entry['Categories'] += item[key]
+            newzlist.append(entry)
 
-        torzlist = self._provider_array('TORZNAB')
-        for item in torzlist:
-            item['Categories'] = ''
+        oldtorzlist = self._provider_array('TORZNAB')
+        torzlist = []
+        for item in oldtorzlist:
+            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
+                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': ''}
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
                 if item[key]:
-                    if item['Categories']:
-                        item['Categories'] += ','
-                    item['Categories'] += item[key]
+                    if entry['Categories']:
+                        entry['Categories'] += ','
+                    entry['Categories'] += item[key]
+            torzlist.append(entry)
 
         tot = len(newzlist) + len(torzlist)
         self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))

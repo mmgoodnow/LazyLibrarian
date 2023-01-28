@@ -349,20 +349,21 @@ class WebInterface(object):
     def get_index(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
+        loggerserverside.debug(f"Start {iDisplayStart} Length {iDisplayLength} Col {iSortCol_0} Dir {sSortDir_0} Search [{sSearch}]")
         rows = []
         filtered = []
         rowlist = []
         userid = None
         userprefs = 0
-        cookie = cherrypy.request.cookie
-        if cookie and 'll_uid' in list(cookie.keys()):
-            userid = cookie['ll_uid'].value
-        if cookie and 'll_prefs' in list(cookie.keys()):
-            userprefs = check_int(cookie['ll_prefs'].value, 0)
-
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
+            if CONFIG.get_bool('USER_ACCOUNTS'):
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_prefs' in list(cookie.keys()):
+                    userprefs = check_int(cookie['ll_prefs'].value, 0)
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
@@ -3961,7 +3962,7 @@ class WebInterface(object):
 
         return serve_template(
             templatename="coverwall.html", title=title, results=mod_issues, redirect="magazines",
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def comic_wall(self, comicid=None):
@@ -4009,7 +4010,7 @@ class WebInterface(object):
 
         return serve_template(
             templatename="coverwall.html", title=title, results=mod_issues, redirect="comic",
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def book_wall(self, have='0'):
@@ -4054,7 +4055,7 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def author_wall(self, have='1'):
@@ -4092,7 +4093,7 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def audio_wall(self):
@@ -4128,12 +4129,12 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
-            columns=CONFIG['WALL_COLUMNS'])
+            columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
     def wall_columns(self, redirect=None, count=None, have=0, title=''):
         title = title.split(' (')[0].replace(' ', '+')
-        columns = check_int(CONFIG['WALL_COLUMNS'], 6)
+        columns = check_int(CONFIG.get_int('WALL_COLUMNS'), 6)
         if count == 'up' and columns <= 12:
             columns += 1
         elif count == 'down' and columns > 1:
@@ -4255,7 +4256,7 @@ class WebInterface(object):
             user = 0
         # use server-side processing
         covers = 1
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('COMIC_IMG'):
+        if not CONFIG['TOGGLES']:
             covers = 0
         return serve_template(templatename="comics.html", title="Comics", comics=[],
                               covercount=covers, user=user, comic_filter=comic_filter)
@@ -4417,7 +4418,7 @@ class WebInterface(object):
         else:
             user = 0
         # use server-side processing
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('COMIC_IMG'):
+        if not CONFIG['TOGGLES']:
             covercount = 0
         else:
             covercount = 1
@@ -4938,7 +4939,7 @@ class WebInterface(object):
             db.close()
         # use server-side processing
         covers = 1
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
+        if not CONFIG['TOGGLES']:
             covers = 0
         return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
                               covercount=covers, user=user, email=email, mag_filter=mag_filter)
@@ -5050,7 +5051,7 @@ class WebInterface(object):
             firstpage = 'true'
 
         # use server-side processing
-        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
+        if not CONFIG['TOGGLES']:
             covercount = 0
         else:
             covercount = 1
