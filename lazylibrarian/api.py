@@ -387,7 +387,8 @@ class Api(object):
                 db.close()
         return
 
-    def _provider_array(self, prov_type):
+    @staticmethod
+    def _provider_array(prov_type):
         # convert provider config values to a regular array of dicts with correct types
         array = CONFIG.providers(prov_type)
         providers = []
