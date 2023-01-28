@@ -1,13 +1,14 @@
 # Database for holding LazyLibrarian telemetry data
 #
 # 
+from collections import OrderedDict
 import configparser
 import datetime
 import json
 import logging
 import sqlite3
 import time
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from enum import Enum
 
 
@@ -214,17 +215,22 @@ class TelemetryDB:
         except Exception as e:
             raise Exception(f"Error updating telemetry data: {str(e)}")
 
-    def read_csv(self, datatype: str, length: IntervalLength, intervals: int = 50) -> List[int]:
+    def read_csv(self, datatype: str, length: IntervalLength, intervals: int = 50) -> List[Tuple[str, str]]:
         if datatype == 'servers':
-            return self.read_usage_telemetry_array(length, intervals)
+            data = self.read_usage_telemetry_array(length, intervals)
         else:
-            return []
+            data = []
+        return list(reversed(data))
 
-    def read_usage_telemetry_array(self, length: IntervalLength, intervals: int) -> List[int]:
+    def read_usage_telemetry_array(self, length: IntervalLength, intervals: int) -> List[Tuple[str, str]]:
         """ Return the last 'intervals' readings, returning # of servers registered at that time """
+        # Column headers
         res = []
         for i in range(intervals):
-            res.append(self.read_usage_telemetry_interval(length, i))
+            _, endtime = self.get_startend(length, i)
+            endtimestr = '{:%Y-%m-%d %H:%M:%S}'.format(endtime)
+            count = self.read_usage_telemetry_interval(length, i)
+            res.append((endtimestr, str(count)))
         return res
 
     @staticmethod
@@ -248,20 +254,28 @@ class TelemetryDB:
 
     def read_server_telemetry_interval(self, key: str, length: IntervalLength, interval: int = 0) -> Dict[str, int]:
         """ For a given interval, return a dict of (value, count) """
-        versions = {}
+        data = OrderedDict()
         starttime, endtime = self.get_startend(length, interval)
         cursor = self._connect()
         stmt = f"select distinct {key} from ll_servers"
         res = cursor.execute(stmt).fetchall()
         for item in res:
             if length == IntervalLength.DISTINCT:
-                versions[item[0]] = 1
+                data[item[0]] = 1
             else:
                 stmt = f"""select count(*) as count from ll_servers 
                     where {key} = '{item[0]}' and last_seen > '{starttime}' and last_seen <= '{endtime}'"""
                 tot = cursor.execute(stmt).fetchone()
-                versions[item[0]] = tot[0]
-        return versions
+                if key == 'longest_uptime':
+                    # Make it in hours, not seconds
+                    hours = str(int(item[0])//3600)
+                    if hours not in data:
+                        data[hours] = tot[0]
+                    else:
+                        data[hours] += tot[0]
+                else:
+                    data[item[0]] = tot[0]
+        return data
 
     def read_switch_telemetry(self, telemetry_type: str, length: IntervalLength, interval: int = 0) -> Dict[str, int]:
         """ Return telemetry for either switches or params for a given interval """
@@ -321,8 +335,16 @@ class TelemetryDB:
             cursor = self._connect()
             if telemetry_data in ['servers', 'all']:
                 result['servers'] = {}
-                for key in ['python_ver', 'll_version', 'll_installtype']:
+                for key in ['python_ver', 'll_version', 'll_installtype', 'os', 'longest_uptime']:
                     result['servers'][key] = self.read_server_telemetry_interval(key, IntervalLength.MONTH)
+                pvs = {}
+                for pv, count in result['servers']['python_ver'].items():
+                    pver = pv.split(' ')[0]
+                    if pver not in pvs:
+                        pvs[pver] = count
+                    else:
+                        pvs[pver] += count
+                result['servers']['python_justver'] = pvs
 
             if telemetry_data in ['switches', 'params', 'all']:
                 if telemetry_data == 'all':

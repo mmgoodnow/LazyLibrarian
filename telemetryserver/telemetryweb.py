@@ -2,6 +2,7 @@
 
 import logging
 import time
+from io import StringIO
 
 from bottle import route, run, request
 import telemetrydb
@@ -31,8 +32,11 @@ def get_csv_server(interval):
     except KeyError:
         return "Valid intervals are hour, day, week and month"
     result = _read_csv('servers', actual)
-    # Return a comma-separated list, with the most recent result at the end
-    return ",".join(map(str, reversed(result)))
+    # Return a comma-separated list
+    s = StringIO()
+    s.write('date,reports\n')
+    s.writelines([",".join(row) + '\n' for row in result])
+    return s.getvalue()
 
 
 @route('/help')
