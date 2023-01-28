@@ -81,6 +81,9 @@ class GoodReads:
                 resultxml = rootxml.iter('work')
                 loop_count = 1
                 while resultxml:
+                    contents = {}
+                    for item in rootxml.iter('books'):
+                        contents = item.attrib
                     for author in resultxml:
                         try:
                             if author.find('original_publication_year').text is None:
@@ -217,6 +220,9 @@ class GoodReads:
                         self.logger.warning('Maximum results page search reached, still more results available')
                     elif totalresults and resultcount >= totalresults:
                         # fix for goodreads bug on isbn searches
+                        resultxml = None
+                    elif contents.get('end') == contents.get('total'):
+                        # this was last page of results
                         resultxml = None
                     else:
                         url = set_url + '&page=' + str(loop_count)
@@ -448,6 +454,9 @@ class GoodReads:
                     if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                         self.logger.debug("Aborting %s" % threadname)
                         break
+                    contents = {}
+                    for item in rootxml.iter('books'):
+                        contents = item.attrib
                     for book in resultxml:
                         if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                             self.logger.debug("Aborting %s" % threadname)
@@ -1031,6 +1040,9 @@ class GoodReads:
                                 self.logger.debug(msg)
                     loop_count += 1
                     if 0 < CONFIG.get_int('MAX_BOOKPAGES') < loop_count:
+                        resultxml = None
+                    elif contents.get('end') == contents.get('total'):
+                        # this was last page of results
                         resultxml = None
                     else:
                         url = '/'.join([CONFIG['GR_URL'], 'author/list/' + gr_id + '.xml?' +
