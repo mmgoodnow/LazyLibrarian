@@ -429,7 +429,7 @@ class Api(object):
         newzlist = []
         for item in oldnewzlist:
             entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': ''}
+                     'Apikey': item['API'], 'Enabled': 1 if bool(item['ENABLED']) else 0, 'Categories': ''}
             # merge prowlarr categories
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
                 if item[key]:
@@ -442,7 +442,7 @@ class Api(object):
         torzlist = []
         for item in oldtorzlist:
             entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': ''}
+                     'Apikey': item['API'], 'Enabled': 1 if bool(item['ENABLED']) else 0, 'Categories': ''}
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
                 if item[key]:
                     if entry['Categories']:
