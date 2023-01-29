@@ -2,8 +2,10 @@
 
 import logging
 import time
+from io import StringIO
 
 from bottle import route, run, request
+import telemetrydb
 
 
 @route('/')
@@ -20,6 +22,21 @@ def stats(stat_type):
         return "Valid stats types: %s" % str(valid_types)
     result = _read_from_db(stat_type)
     return result
+
+
+@route('/csv/servers/<interval>')
+def get_csv_server(interval):
+    logger.debug(f"Getting server counts for {interval}")
+    try:
+        actual = telemetrydb.IntervalLength[interval.upper()]
+    except KeyError:
+        return "Valid intervals are hour, day, week and month"
+    result = _read_csv('servers', actual)
+    # Return a comma-separated list
+    s = StringIO()
+    s.write('date,reports\n')
+    s.writelines([",".join(row) + '\n' for row in result])
+    return s.getvalue()
 
 
 @route('/help')
@@ -75,14 +92,15 @@ def process_telemetry():
     return {'status': status}
 
 
-def run_server(add_to_db, read_from_db):
-    global logger, _add_to_db, _read_from_db
+def run_server(add_to_db, read_from_db, read_csv):
+    global logger, _add_to_db, _read_from_db, _read_csv
 
     logger = logging.getLogger(__name__)
     port = 9174
     logger.info(f"Starting web server on port {port}")
     _add_to_db = add_to_db  # Method handler
     _read_from_db = read_from_db  # Method handler
+    _read_csv = read_csv
     run(host='0.0.0.0', port=port, debug=True, quiet=True)
 
 
@@ -100,6 +118,7 @@ def pretty_approx_time(seconds: int) -> str:
 _starttime = time.time()
 _add_to_db = None
 _read_from_db = None
+_read_csv = None
 _received = 0
 _success = 0
 logger: logging.Logger
