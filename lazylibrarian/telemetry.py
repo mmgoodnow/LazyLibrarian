@@ -100,7 +100,8 @@ class LazyTelemetry(object):
         server = self.get_server_telemetry()
         up = datetime.datetime.now() - self._boottime
         server["install_type"] = _config['INSTALL_TYPE']
-        server["install_type"] += " DOCKER" if DOCKER
+        if DOCKER:
+            server["install_type"] += " DOCKER"
         server["version"] = _config['CURRENT_VERSION']
         if testing:
             server["os"] = 'nt'
