@@ -565,6 +565,8 @@ class Api(object):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: name'}}
             return
+
+        kwargs = {'name': 'NZBgeek (Prowlarr)', 'providertype': 'newznab', 'host': 'http://localhost:9696/6/api', 'prov_apikey': 'REDACTED', 'enabled': 'true', 'categories': '7010', 'altername': 'NZBgeek (Prowlarr)', 'dlpriority': '26'}
         hit = []
         miss = []
         name = kwargs.get('NAME', '')
@@ -584,10 +586,13 @@ class Api(object):
             providers = CONFIG.providers('GEN')
         elif name in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
             for arg in kwargs:
-                if arg in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT', 'SEEDERS']:
+                if arg in ['HOST', 'DLTYPES', 'DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
                     itemname = "%s_%s" % (name, arg)
                     if itemname in CONFIG:
-                        CONFIG.set_str(itemname, kwargs[arg])
+                        if arg in ['DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
+                            CONFIG.set_int(itemname, kwargs[arg])
+                        else:
+                            CONFIG.set_str(itemname, kwargs[arg])
                         hit += arg
                 elif arg == 'ENABLED':
                     hit.append(arg)
@@ -618,16 +623,19 @@ class Api(object):
                     elif arg == 'altername':  # prowlarr
                         hit.append(arg)
                         item['DISPNAME'] = kwargs[arg]
-                    elif arg.upper() == 'ENABLED':
+                    elif arg.upper() in ['ENABLED', 'MANUAL']:
                         hit.append(arg)
                         if kwargs[arg] in ['1', 1, True, 'True', 'true']:
                             val = True
                         else:
                             val = False
-                        item.set_bool('ENABLED', val)
+                        item.set_bool(arg.upper(), val)
                     elif arg.upper() in item:
                         hit.append(arg)
-                        item.set_str(arg.upper(), kwargs[arg])
+                        if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED']:
+                            item.set_int(arg.upper(), kwargs[arg])
+                        else:
+                            item.set_str(arg.upper(), kwargs[arg])
                     elif arg == 'prov_apikey':  # prowlarr
                         hit.append(arg)
                         item.set_str('API', kwargs[arg])
