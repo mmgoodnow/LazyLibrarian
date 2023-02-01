@@ -132,14 +132,14 @@ def get_current_version() -> str:
 
         if not output:
             logger.error('Couldn\'t find latest git installed version.')
-            cur_commit_hash = 'GIT Cannot establish version'
+            cur_commit_hash = 'GIT HEAD cannot establish version'
         else:
             cur_commit_hash = output.strip()
 
             # noinspection PyTypeChecker
             if not re.match('^[a-z0-9]+$', cur_commit_hash):
                 logger.error('Output doesn\'t look like a hash, not using it')
-                cur_commit_hash = 'GIT invalid hash return'
+                cur_commit_hash = 'No Hash found'
 
         version_string = cur_commit_hash
 
@@ -148,7 +148,7 @@ def get_current_version() -> str:
         version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
 
         if not os.path.isfile(version_file):
-            version_string = 'No Version File'
+            version_string = 'Missing Version File'
             logger.debug('Version file [%s] missing.' % version_file)
             return version_string
         else:
@@ -159,7 +159,7 @@ def get_current_version() -> str:
             if current_version:
                 version_string = current_version
             else:
-                version_string = 'No Version set in file'
+                version_string = 'Invalid Version file'
                 return version_string
     elif CONFIG['INSTALL_TYPE'] in ['package']:
         try:
@@ -169,7 +169,7 @@ def get_current_version() -> str:
         version_string = v
     else:
         logger.error('Install Type not set - cannot get version value')
-        version_string = 'Install type not set'
+        version_string = 'No Type set'
         return version_string
 
     updated = update_version_file(version_string)
@@ -248,7 +248,7 @@ def check_for_updates():
                         logger.warning('Suppressed auto-update as %s running' % name)
                         break
 
-            if not suppress and '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+            if not suppress and '** MANUAL **' in lazylibrarian.COMMIT_LIST:
                 suppress = True
                 logger.warning('Suppressed auto-update as manual install needed')
 
