@@ -1853,6 +1853,8 @@ class Api(object):
             'latest_version': CONFIG.get_str('LATEST_VERSION'),
             'commits_behind': CONFIG.get_int('COMMITS_BEHIND'),
         }
+        if lazylibrarian.DOCKER:
+            self.data["install_type"] += " DOCKER"
 
     def _getcurrentversion(self):
         TELEMETRY.record_usage_data()
