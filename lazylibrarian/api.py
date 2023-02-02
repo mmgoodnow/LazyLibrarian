@@ -217,7 +217,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'unsubscribe': '&user= &feed= remove a user from a feed',
             'listAlienAuthors': 'List authors not matching current book api',
             'listAlienBooks': 'List books not matching current book api',
-            'listNabProviders': 'List all newznab/torznab providers',
+            'listNabProviders': 'List all newznab/torznab providers, prowlarr compatible format',
             'listRSSProviders': 'List all rss/wishlist providers',
             'listTorrentProviders': 'List all torrent providers',
             'listIRCProviders': 'List all irc providers',
@@ -387,7 +387,8 @@ class Api(object):
                 db.close()
         return
 
-    def _provider_array(self, prov_type):
+    @staticmethod
+    def _provider_array(prov_type):
         # convert provider config values to a regular array of dicts with correct types
         array = CONFIG.providers(prov_type)
         providers = []
@@ -428,7 +429,7 @@ class Api(object):
         newzlist = []
         for item in oldnewzlist:
             entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': ''}
+                     'Apikey': item['API'], 'Enabled': 1 if bool(item['ENABLED']) else 0, 'Categories': ''}
             # merge prowlarr categories
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
                 if item[key]:
@@ -441,7 +442,7 @@ class Api(object):
         torzlist = []
         for item in oldtorzlist:
             entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': ''}
+                     'Apikey': item['API'], 'Enabled': 1 if bool(item['ENABLED']) else 0, 'Categories': ''}
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
                 if item[key]:
                     if entry['Categories']:
@@ -564,6 +565,8 @@ class Api(object):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: name'}}
             return
+
+        kwargs = {'name': 'NZBgeek (Prowlarr)', 'providertype': 'newznab', 'host': 'http://localhost:9696/6/api', 'prov_apikey': 'REDACTED', 'enabled': 'true', 'categories': '7010', 'altername': 'NZBgeek (Prowlarr)', 'dlpriority': '26'}
         hit = []
         miss = []
         name = kwargs.get('NAME', '')
@@ -583,10 +586,13 @@ class Api(object):
             providers = CONFIG.providers('GEN')
         elif name in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
             for arg in kwargs:
-                if arg in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT', 'SEEDERS']:
+                if arg in ['HOST', 'DLTYPES', 'DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
                     itemname = "%s_%s" % (name, arg)
                     if itemname in CONFIG:
-                        CONFIG.set_str(itemname, kwargs[arg])
+                        if arg in ['DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
+                            CONFIG.set_int(itemname, kwargs[arg])
+                        else:
+                            CONFIG.set_str(itemname, kwargs[arg])
                         hit += arg
                 elif arg == 'ENABLED':
                     hit.append(arg)
@@ -617,16 +623,19 @@ class Api(object):
                     elif arg == 'altername':  # prowlarr
                         hit.append(arg)
                         item['DISPNAME'] = kwargs[arg]
-                    elif arg.upper() == 'ENABLED':
+                    elif arg.upper() in ['ENABLED', 'MANUAL']:
                         hit.append(arg)
                         if kwargs[arg] in ['1', 1, True, 'True', 'true']:
                             val = True
                         else:
                             val = False
-                        item.set_bool('ENABLED', val)
+                        item.set_bool(arg.upper(), val)
                     elif arg.upper() in item:
                         hit.append(arg)
-                        item.set_str(arg.upper(), kwargs[arg])
+                        if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED']:
+                            item.set_int(arg.upper(), kwargs[arg])
+                        else:
+                            item.set_str(arg.upper(), kwargs[arg])
                     elif arg == 'prov_apikey':  # prowlarr
                         hit.append(arg)
                         item.set_str('API', kwargs[arg])
@@ -698,18 +707,19 @@ class Api(object):
             return
 
         num = len(providers)
+        empty_slot = providers[len(providers) -1]
+
         hit = []
         miss = []
-        provname = "%s%s" % (provname, num)
-        providers[-1]['NAME'] = provname
-        providers[-1]['DISPNAME'] = provname
+        provname = "%s_%s" % (provname, num - 1)
+        empty_slot['DISPNAME'] = provname
         for arg in kwargs:
             if arg == 'prov_apikey':
                 hit.append(arg)
-                providers[-1]['API'] = kwargs[arg]
+                empty_slot['API'] = kwargs[arg]
             elif arg == 'enabled':
                 hit.append(arg)
-                providers[-1]['ENABLED'] = kwargs[arg] == 'true'
+                empty_slot['ENABLED'] = kwargs[arg] == 'true'
             elif arg in ['altername', 'name']:
                 for existing in providers:
                     if kwargs[arg] and existing['DISPNAME'] == kwargs[arg]:
@@ -720,7 +730,7 @@ class Api(object):
                                      }
                         return
                 hit.append(arg)
-                providers[-1]['DISPNAME'] = kwargs[arg]
+                empty_slot['DISPNAME'] = kwargs[arg]
             elif arg == 'categories' and 'BOOKCAT' in providers[0]:
                 hit.append(arg)
                 # prowlarr only gives us one category list
@@ -736,13 +746,13 @@ class Api(object):
                         if bookcat:
                             bookcat += ','
                         bookcat += item
-                providers[-1]['BOOKCAT'] = bookcat
-                providers[-1]['AUDIOCAT'] = audiocat
-            elif arg == 'providertype':
+                empty_slot['BOOKCAT'] = bookcat
+                empty_slot['AUDIOCAT'] = audiocat
+            elif arg in ['providertype', 'type']:
                 hit.append(arg)
             elif arg.upper() in providers[0]:
                 hit.append(arg)
-                providers[-1][arg.upper()] = kwargs[arg]
+                empty_slot[arg.upper()] = kwargs[arg]
             else:
                 miss.append(arg)
         CONFIG.save_config_and_backup_old(section=section)

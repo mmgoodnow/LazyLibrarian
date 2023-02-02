@@ -204,7 +204,7 @@ class EmailNotifier:
                     custom_typelist = get_list(CONFIG['EMAIL_SEND_TYPE'])
                     typelist = get_list(CONFIG['EBOOK_TYPE'])
 
-                    if not CONFIG['USER_ACCOUNTS'].get_bool():
+                    if not CONFIG.get_bool('USER_ACCOUNTS'):
                         if custom_typelist:
                             preftype = custom_typelist[0]
                             logger.debug('Preferred filetype = %s' % preftype)

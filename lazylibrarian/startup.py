@@ -46,10 +46,15 @@ from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicod
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.notifiers import APPRISE_VER
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler, SchedulerCommand
+from pathlib import Path
 
 
 class StartupLazyLibrarian:
     logger: logging.Logger
+
+    def is_docker(self):
+        cgroup = Path("/proc/self/cgroup")
+        return Path('/.dockerenv').is_file() or cgroup.is_file() and cgroup.read_text().find('docker') > -1
 
     def startup_parsecommandline(self, mainfile, args, testing=False) -> (Any, str):
         """ Parse command line, return options and configfile to use """
@@ -60,7 +65,7 @@ class StartupLazyLibrarian:
         else:
             DIRS.set_fullpath_args(os.path.abspath(mainfile), sys.argv[1:])
 
-        lazylibrarian.DOCKER = '/config' in DIRS.ARGS and DIRS.FULL_PATH.startswith('/app/')
+        lazylibrarian.DOCKER = self.is_docker()
 
         lazylibrarian.SYS_ENCODING = None
 
