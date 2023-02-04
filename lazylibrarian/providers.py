@@ -535,8 +535,8 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                     else:
                         res = 0
                     if res >= provider.get_int('APILIMIT'):
-                        BLOCKHANDLER.BLOCKHANDLER.block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
-                                                                 provider['APILIMIT'], delay=seconds_to_midnight())
+                        BLOCKHANDLER.block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
+                                                    provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
                         provider.set_int('APICOUNT', res + 1)
 
@@ -581,8 +581,8 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                     else:
                         res = 0
                     if res >= provider.get_int('APILIMIT'):
-                        BLOCKHANDLER.BLOCKHANDLER.block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
-                                                                 provider['APILIMIT'], delay=seconds_to_midnight())
+                        BLOCKHANDLER.block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
+                                                    provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
                         provider.set_int('APICOUNT', res + 1)
 
@@ -659,7 +659,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
                     logger.error('iterate_over_torrent_sites called with unknown provider [%s]' % prov)
 
                 if error:
-                    BLOCKHANDLER.BLOCKHANDLER.block_provider(prov, error)
+                    BLOCKHANDLER.block_provider(prov, error)
                 else:
                     resultslist += results
                     providers += 1
@@ -1951,7 +1951,7 @@ def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode
                                 provider.set_int('APILIMIT', int(apimax))
                             apicurrent = limits.get('apicurrent')
                             if apicurrent:
-                                provider['APICOUNT'] = apicurrent
+                                provider.set_int('APICOUNT', int(apicurrent))
                             logger.debug("%s used %s of %s" % (provider['DISPNAME'],
                                                                provider['APICOUNT'],
                                                                provider['APILIMIT']))
