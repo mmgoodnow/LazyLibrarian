@@ -199,7 +199,7 @@ def serve_template(templatename, **kwargs):
 
             if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
                 if CONFIG.get_str('auth_type') == 'FORM':
-                    templatename = "formlogin.html"
+                    templatename = "login.html"  # TODO: fix formlogin
                 else:
                     templatename = "login.html"
             elif (templatename == 'config.html' and not perm & lazylibrarian.perm_config) or \
@@ -221,7 +221,7 @@ def serve_template(templatename, **kwargs):
                      and not perm & lazylibrarian.perm_search):
                 logger.warning('User %s attempted to access %s' % (username, templatename))
                 if CONFIG.get_str('auth_type') == 'FORM':
-                    templatename = "formlogin.html"
+                    templatename = "login.html"  # TODO: fix formlogin
                 else:
                     templatename = "login.html"
 
@@ -250,7 +250,12 @@ def serve_template(templatename, **kwargs):
 
         if templatename in ["login.html", "formlogin.html"]:
             cherrypy.response.cookie['ll_template'] = ''
-            return template.render(perm=0, title="Redirected", style=style)
+            if templatename == "login.html":
+                return template.render(perm=0, title="Redirected", style=style)
+            img = '/images/ll.png'
+            if CONFIG['HTTP_ROOT']:
+                img = '/%s%s' % (CONFIG['HTTP_ROOT'], img)
+            return template.render(perm=0, title='Login', img=img, from_page='/home')
 
         # keep template name for help context
         cherrypy.response.cookie['ll_template'] = templatename

@@ -2,6 +2,7 @@
 <%!
     import lazylibrarian
     import logging
+    from lazylibrarian.common import docker
     from lazylibrarian.config2 import CONFIG
     from lazylibrarian.logconfig import LOGCONFIG
     from lazylibrarian.notifiers import APPRISE_VER
@@ -9,7 +10,7 @@
 <%def name="headerIncludes()">
 <div id="subhead_container">
     <div id="subhead_menu">
-      %if lazylibrarian.DOCKER == False:
+      %if not docker():
         <a onclick="self.shutdownQA(this)" class="button btn btn-sm btn-danger" data-toggle="tooltip" data-placement="bottom" title="Terminate the LazyLibrarian process - Be careful if you're doing this remotely"><i class="fa fa-power-off"></i> Shutdown</a>
       %endif
       <a class="button btn btn-sm btn-warning" onclick="self.restartQA(this, '', '')"><i class="fa fa-sync"></i> Restart</a>

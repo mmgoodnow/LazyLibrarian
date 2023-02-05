@@ -36,7 +36,7 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header, create_support_zip
+from lazylibrarian.common import log_header, create_support_zip, docker
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
@@ -1853,7 +1853,7 @@ class Api(object):
             'latest_version': CONFIG.get_str('LATEST_VERSION'),
             'commits_behind': CONFIG.get_int('COMMITS_BEHIND'),
         }
-        if lazylibrarian.DOCKER:
+        if docker():
             self.data["install_type"] += " DOCKER"
 
     def _getcurrentversion(self):
