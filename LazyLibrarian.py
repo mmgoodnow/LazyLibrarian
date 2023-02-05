@@ -101,7 +101,7 @@ def main():
         'opds_authentication': lazylibrarian.config2.CONFIG.get_bool('OPDS_AUTHENTICATION'),
         'opds_username': lazylibrarian.config2.CONFIG['OPDS_USERNAME'],
         'opds_password': lazylibrarian.config2.CONFIG['OPDS_PASSWORD'],
-        'authentication': lazylibrarian.config2.CONFIG['AUTH_TYPE'],
+        'authentication': "BASIC",  # lazylibrarian.config2.CONFIG['AUTH_TYPE'],
         'login_timeout': 43800,
     })
 
