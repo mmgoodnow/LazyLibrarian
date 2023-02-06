@@ -187,11 +187,6 @@ class StartupLazyLibrarian:
             self.logger.info("Lazylibrarian (pid %s) is starting up..." % os.getpid())
             # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
             time.sleep(2)
-
-        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
-        if path_isfile(icon):
-            remove_file(icon)
-
         return options, configfile
 
     @staticmethod

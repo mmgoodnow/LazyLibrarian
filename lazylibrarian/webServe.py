@@ -5644,10 +5644,6 @@ class WebInterface(object):
         logger.debug('(webServe-Update) - Performing update')
         lazylibrarian.SIGNAL = 'update'
         message = 'Updating...'
-        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
-        if path_isfile(icon):
-            logger.debug("remove %s" % icon)
-            remove_file(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Updating",
                               message=message, timer=90)
 
@@ -5854,10 +5850,6 @@ class WebInterface(object):
         # lazylibrarian.config_write()
         lazylibrarian.SIGNAL = 'shutdown'
         message = 'closed'
-        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
-        if path_isfile(icon):
-            logger.debug("remove %s" % icon)
-            remove_file(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Close library",
                               message=message, timer=0)
 
@@ -5867,10 +5859,6 @@ class WebInterface(object):
         logger = logging.getLogger(__name__)
         lazylibrarian.SIGNAL = 'restart'
         message = 'reopening ...'
-        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
-        if path_isfile(icon):
-            logger.debug("remove %s" % icon)
-            remove_file(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Reopen library",
                               message=message, timer=50)
 
