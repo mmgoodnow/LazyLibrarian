@@ -37,7 +37,7 @@ from lazylibrarian import database, versioncheck
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import init_hex_caches, fetch_url
 from lazylibrarian.cleanup import UNBUNDLER
-from lazylibrarian.common import log_header
+from lazylibrarian.common import log_header, docker
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
@@ -59,8 +59,6 @@ class StartupLazyLibrarian:
             DIRS.set_fullpath_args(os.path.abspath(sys.executable), sys.argv[1:])
         else:
             DIRS.set_fullpath_args(os.path.abspath(mainfile), sys.argv[1:])
-
-        lazylibrarian.DOCKER = '/config' in DIRS.ARGS and DIRS.FULL_PATH.startswith('/app/')
 
         lazylibrarian.SYS_ENCODING = None
 
@@ -189,11 +187,6 @@ class StartupLazyLibrarian:
             self.logger.info("Lazylibrarian (pid %s) is starting up..." % os.getpid())
             # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
             time.sleep(2)
-
-        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
-        if path_isfile(icon):
-            remove_file(icon)
-
         return options, configfile
 
     @staticmethod
@@ -246,38 +239,10 @@ class StartupLazyLibrarian:
                 self.logger.error(msg)
 
         _ = init_hex_caches()
-        last_run_version = None
-        last_run_interface = None
         makocache = DIRS.get_mako_cachedir()
-        version_file = config.get_mako_versionfile()
-
-        if os.path.isfile(version_file):
-            with open(version_file, 'r') as fp:
-                last_time = fp.read().strip(' \n\r')
-            if ':' in last_time:
-                last_run_version, last_run_interface = last_time.split(':', 1)
-            else:
-                last_run_version = last_time
-
-        clean_cache = False
-        if last_run_version != sys.version.split()[0]:
-            if last_run_version:
-                self.logger.debug("Python version change (%s to %s)" % (last_run_version, sys.version.split()[0]))
-            else:
-                self.logger.debug("Previous python version unknown, now %s" % sys.version.split()[0])
-            clean_cache = True
-        if last_run_interface != config['HTTP_LOOK']:
-            if last_run_interface:
-                self.logger.debug("Interface change (%s to %s)" % (last_run_interface, config['HTTP_LOOK']))
-            else:
-                self.logger.debug("Previous interface unknown, now %s" % config['HTTP_LOOK'])
-            clean_cache = True
-        if clean_cache:
-            self.logger.debug("Clearing mako cache")
-            rmtree(makocache)
-            os.makedirs(makocache)
-            with open(version_file, 'w') as fp:
-                fp.write(sys.version.split()[0] + ':' + config['HTTP_LOOK'])
+        self.logger.debug("Clearing mako cache")
+        rmtree(makocache)
+        os.makedirs(makocache)
 
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either
@@ -666,11 +631,6 @@ class StartupLazyLibrarian:
 
         if not restart and not update:
             self.logger.info('LazyLibrarian (pid %s) is shutting down...' % os.getpid())
-            if lazylibrarian.DOCKER:
-                # force container to shutdown
-                # NOTE we don't seem to have sufficient permission to so this, so disabled the shutdown button
-                os.kill(1, signal.SIGKILL)
-
         # We are now shutting down. Remove all file handlers from the logger, keeping only console handlers
         rootlogger = logging.getLogger('root')
         for handler in rootlogger.handlers:
@@ -699,7 +659,7 @@ class StartupLazyLibrarian:
 
         if not doquit:
             self.logger.info('LazyLibrarian is restarting ...')
-            if not lazylibrarian.DOCKER:
+            if not docker():
                 # Try to use the currently running python executable, as it is known to work
                 # if not able to determine, sys.executable returns empty string or None
                 # and we have to go looking for it...

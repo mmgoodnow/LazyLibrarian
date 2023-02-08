@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, namedic
+from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, namedic, get_list
 
 
 class DirectoryHolder:
@@ -566,7 +566,7 @@ def get_directory(dirname):
         usedir = DIRS.config['AUDIO_DIR']
     elif dirname == "Download":
         try:
-            usedir = DIRS.config.get_list('DOWNLOAD_DIR')[0]
+            usedir = get_list(DIRS.config.get_str('DOWNLOAD_DIR'), ',')[0]
         except IndexError:
             usedir = ''
     elif dirname == "Alternate":

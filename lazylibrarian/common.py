@@ -36,6 +36,7 @@ import requests
 import webencodings
 import bs4
 import html5lib
+from pathlib import Path
 
 import lazylibrarian
 from lazylibrarian import database
@@ -202,6 +203,9 @@ def create_support_zip() -> (str, str):
 
     return msg, outfile
 
+def docker():
+    cgroup = Path("/proc/self/cgroup")
+    return Path('/.dockerenv').is_file() or cgroup.is_file() and cgroup.read_text().find('docker') > -1
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
 def log_header(online=True) -> str:
@@ -213,6 +217,7 @@ def log_header(online=True) -> str:
     header += 'Interface: %s\n' % CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % logging.getLevelName(logger.getEffectiveLevel())
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
+    header += 'Docker: %s\n' % lazylibrarian.DOCKER
     for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
             timestamp = CONFIG.get_int(item)

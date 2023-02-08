@@ -399,10 +399,6 @@ class LLConfigHandler(ConfigDict):
                 str(self.config['HOMEPAGE']) == 'Series' and not self.get_bool('SERIES_TAB'):
             self.config['HOMEPAGE'].set_str('')
 
-    @staticmethod
-    def get_mako_versionfile():
-        return path.join(DIRS.get_mako_cachedir(), 'python_version.txt')
-
     def post_save_actions(self, restart_jobs: bool = True, clear_counters: bool = False):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
         # Re-initialize cached loggers
@@ -416,9 +412,6 @@ class LLConfigHandler(ConfigDict):
             self.logger.debug("Clearing mako cache")
             shutil.rmtree(mako_dir)
             os.makedirs(mako_dir)
-            version_file = self.get_mako_versionfile()
-            with open(version_file, 'w') as fp:
-                fp.write(sys.version.split()[0] + ':' + interface.get_str())
 
         # Restart all scheduled jobs since the schedules may have changed
         if restart_jobs:
