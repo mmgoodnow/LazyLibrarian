@@ -42,7 +42,7 @@ from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, \
-    setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory
+    setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory, walk
 from lazylibrarian.formatter import unaccented, plural, now, today, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, sanitize, thread_name
@@ -602,7 +602,51 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
     return cnt
 
 
-def unpack_archive(archivename, download_dir, title):
+def unpack_multipart(source_dir, download_dir, title):
+    """ unpack multipart zip/rar files into one directory
+        returns new directory in download_dir with book in it, or empty string
+    """
+    logger = logging.getLogger(__name__)
+    # loggerpostprocess = logging.getLogger('special.postprocess')
+    TELEMETRY.record_usage_data('Process/MultiPart')
+    # noinspection PyBroadException
+    try:
+        targetdir = os.path.join(download_dir, title + '.unpack')
+        if not make_dirs(targetdir, new=True):
+            logger.error("Failed to create target dir %s" % targetdir)
+            return ''
+        for f in listdir(source_dir):
+            archivename = os.path.join(source_dir, f)
+            if zipfile.is_zipfile(archivename):
+                try:
+                    z = zipfile.ZipFile(archivename)
+                    for item in z.namelist():
+                        if not item.endswith('/'):
+                            # not if it's a directory
+                            logger.debug('Extracting %s to %s' % (item, targetdir))
+                            if os.path.__name__ == 'ntpath':
+                                dst = os.path.join(targetdir, item.replace('/', '\\'))
+                            else:
+                                dst = os.path.join(targetdir, item)
+                            with open(syspath(dst), "wb") as d:
+                                d.write(z.read(item))
+                except Exception as e:
+                    logger.error("Failed to unzip %s: %s" % (archivename, e))
+                    return ''
+        for f in listdir(targetdir):
+            if f.endswith('.rar'):
+                resultdir = unpack_archive(os.path.join(targetdir, f), targetdir, title, targetdir=targetdir)
+                if resultdir != targetdir:
+                    for d in listdir(resultdir):
+                        shutil.move(os.path.join(resultdir, d), os.path.join(targetdir, d))
+                break
+        return targetdir
+    except Exception:
+        logger.error('Unhandled exception in unpack_multipart: %s' % traceback.format_exc())
+        return ''
+
+
+def unpack_archive(archivename, download_dir, title, targetdir=''):
     """ See if archivename is an archive containing a book
         returns new directory in download_dir with book in it, or empty string
     """
@@ -612,7 +656,6 @@ def unpack_archive(archivename, download_dir, title):
     if not path_isfile(archivename):  # regular files only
         return ''
 
-    targetdir = ''
     # noinspection PyBroadException
     try:
         if zipfile.is_zipfile(archivename):
@@ -623,8 +666,8 @@ def unpack_archive(archivename, download_dir, title):
             except Exception as e:
                 logger.error("Failed to unzip %s: %s" % (archivename, e))
                 return ''
-
-            targetdir = os.path.join(download_dir, title + '.unpack')
+            if not targetdir:
+                targetdir = os.path.join(download_dir, title + '.unpack')
             if not make_dirs(targetdir, new=True):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
@@ -990,23 +1033,22 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 if path_isdir(pp_path):
                                     logger.debug('Found folder (%s%%) [%s] for %s %s' %
                                                  (match, pp_path, booktype, matchtitle))
-
-                                    found = False
+                                    # some magazines are packed as multi-part zip files, each zip contains a rar file
+                                    # and the rar files need assembling into the final magazine
+                                    zipfiles = 0
                                     for f in listdir(pp_path):
-                                        if is_valid_type(f, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
-                                            found = True
-                                            break
+                                        archivename = os.path.join(pp_path, f)
+                                        if zipfile.is_zipfile(archivename):
+                                            zipfiles += 1
+                                    if zipfiles > 1:
+                                        pp_path = unpack_multipart(pp_path, download_dir, matchtitle)
 
-                                    # unpack any archive found in top directory, but not comics
-                                    # only unpack first archive, we are only matching one download
-                                    if not found:
-                                        for f in listdir(pp_path):
-                                            if not is_valid_type(f, extensions=CONFIG.get_all_types_list(),
-                                                                 extras='cbr, cbz'):
-                                                res = unpack_archive(os.path.join(pp_path, f), download_dir, f)
-                                                if res:
-                                                    pp_path = res
-                                                    break
+                                    # folder name matches, look in subdirectories for a filename of a valid type
+                                    for r, _, f in walk(pp_path):
+                                        for item in f:
+                                            if is_valid_type(item, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
+                                                pp_path = os.path.dirname(os.path.join(r, item))
+                                                break
 
                                     skipped = False
 
