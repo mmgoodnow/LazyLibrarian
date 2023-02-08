@@ -1,9 +1,0 @@
-# Composes a LazyLibrarian  docker image for a web server
-version: '3'
-services:
-  server:
-    build: .
-    ports:
-      - "9174:9174"
-    volumes:
-      - /home/phil/.lazylibrarian/serverdata:/data
