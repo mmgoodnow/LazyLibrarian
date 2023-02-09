@@ -24,7 +24,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 import requests
 from lazylibrarian import version, database
-from lazylibrarian.common import get_user_agent, proxy_list
+from lazylibrarian.common import get_user_agent, proxy_list, docker
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, listdir, walk
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 from lazylibrarian.telemetry import TELEMETRY
@@ -476,7 +476,7 @@ def update():
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
             return False
-        if lazylibrarian.DOCKER:
+        if docker():
             msg = 'Docker does not allow upgrading the program inside the container,'
             msg += ' please rebuild your docker container instead'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))

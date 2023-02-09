@@ -268,10 +268,6 @@ def initialize(options=None):
         print(str(e))
         sys.exit(1)
 
-    icon = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'll.png')
-    if path_exists(icon):
-        newicon = os.path.join(DIRS.CACHEDIR, 'alive.png')
-        copyfile(icon, newicon)
     cherrypy.server.wait()
 
 
