@@ -615,6 +615,8 @@ class StartupLazyLibrarian:
     def start_schedulers():
         if CONFIG['GR_URL'] == 'https://goodreads.org':
             CONFIG.set_url('GR_URL', 'https://www.goodreads.com')
+        if CONFIG['TELEMETRY_SERVER'] == 'https://conceded-moose-5564.dataplicity.io/telemetry':
+            CONFIG.set_url('TELEMETRY_SERVER', 'https://lazylibrarian.telem.ch')
         # Crons and scheduled jobs started here
         # noinspection PyUnresolvedReferences
         startscheduler()
