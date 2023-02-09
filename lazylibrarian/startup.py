@@ -629,7 +629,8 @@ class StartupLazyLibrarian:
             if self.logger.isEnabledFor(logging.DEBUG):  # TODO add a separate setting
                 CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
             CONFIG.add_access_errors_to_log()
-            CONFIG.save_config_and_backup_old(restart_jobs=False)
+            if not (update and doquit):  # commandline update, don't save config as no filename
+                CONFIG.save_config_and_backup_old(restart_jobs=False)
 
         if not restart and not update:
             self.logger.info('LazyLibrarian (pid %s) is shutting down...' % os.getpid())
