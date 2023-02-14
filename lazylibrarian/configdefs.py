@@ -323,7 +323,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
                     'CLEANCACHE', 'lazylibrarian.cache.clean_cache', 'Clean cache', False, persist=False),
     # Interval is not used
     ConfigScheduler('SearchScan', 'AUTHORUPDATE_INTERVAL', 'author_update', 1, TimeUnit.MIN,
-                    'AUTHORUPDATE', 'lazylibrarian.scheduling.author_update', 'Upload authors', False, persist=False),
+                    'AUTHORUPDATE', 'lazylibrarian.scheduling.author_update', 'Update authors', False, persist=False),
     # Interval is not used
     ConfigScheduler('SearchScan', 'SERIESUPDATE_INTERVAL', 'series_update', 1, TimeUnit.MIN,
                     'SERIESUPDATE', 'lazylibrarian.scheduling.series_update', 'Update series', False, persist=False),
