@@ -720,7 +720,7 @@ def add_series_members(seriesid, refresh=False):
                     else:
                         # see if author status overrides defaults
                         author = db.match('select Status from authors WHERE AuthorID=?', (member[4],))
-                        if author['Status'] in ['Paused', 'Ignored', 'Wanted']:
+                        if author and author['Status'] in ['Paused', 'Ignored', 'Wanted']:
                             wanted_status = 'Skipped'
                             if author['Status'] == 'Wanted':
                                 wanted_status = 'Wanted'
