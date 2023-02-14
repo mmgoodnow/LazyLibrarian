@@ -168,10 +168,10 @@ class ConfigItem:
             logger.warning(f"Cannot set config[{self.key}] to {value}")
             return False
 
-    def _on_type_mismatch(self, value) -> bool:
+    def _on_type_mismatch(self, value, types) -> bool:
         self.accesses[Access.WRITE_ERR] += 1
         logger = logging.getLogger(__name__)
-        logger.warning(f"Cannot set config[{self.key}] to {value}: incorrect type")
+        logger.warning(f"Cannot set config[{self.key}] to {value}: incorrect type {types}")
         return False
 
     def get_accesses(self):
@@ -208,10 +208,10 @@ class ConfigStr(ConfigItem):
         return self.force_lower
 
     def set_int(self, value: int) -> bool:
-        return self._on_type_mismatch(value)
+        return self._on_type_mismatch(value, 'str/int')
 
     def set_bool(self, value: int) -> bool:
-        return self._on_type_mismatch(value)
+        return self._on_type_mismatch(value, 'str/bool')
 
 
 class ConfigInt(ConfigItem):
@@ -231,7 +231,7 @@ class ConfigInt(ConfigItem):
         return self._on_set(value)
 
     def set_str(self, value: str) -> bool:
-        return self._on_type_mismatch(value)
+        return self._on_type_mismatch(value, 'int/str')
 
     def set_from_ui(self, value: str) -> bool:
         try:
@@ -246,7 +246,7 @@ class ConfigInt(ConfigItem):
             return False
 
     def set_bool(self, value: bool) -> bool:
-        return self._on_type_mismatch(value)
+        return self._on_type_mismatch(value, 'int/bool')
 
     def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
         if tmpsection != self.section:
@@ -383,7 +383,7 @@ class ConfigBool(ConfigInt):
         return self.set_bool(bool(value))
 
     def set_str(self, value: str) -> bool:
-        return self._on_type_mismatch(value)
+        return self._on_type_mismatch(value, 'bool/str')
 
     def set_from_ui(self, value: bool) -> bool:
         if bool(value) != self.value:
