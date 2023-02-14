@@ -577,7 +577,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
             if not ignored:
                 if provider.get_int('APILIMIT'):
                     if 'APICOUNT' in provider:
-                        res = check_int(provider['APICOUNT'], 0)
+                        res = provider.get_int('APICOUNT')
                     else:
                         res = 0
                     if res >= provider.get_int('APILIMIT'):
@@ -1832,17 +1832,14 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict):
                 msg = ''
 
             if msg:
-                count = 0
                 for providertype in ['NEWZNAB', 'TORZNAB']:
-                    for provider in CONFIG.providers(providertype):
-                        while count < len(provider):
-                            if provider['HOST'] == provider['HOST']:
-                                if not provider['MANUAL']:
-                                    logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
-                                    provider[msg] = ""
-                                    CONFIG.save_config_and_backup_old(section=provider['NAME'])
-                                    return True
-                            count += 1
+                    for prov in CONFIG.providers(providertype):
+                        if prov['HOST'] == provider['HOST']:
+                            if not prov['MANUAL']:
+                                logger.error("Disabled %s=%s for %s" % (msg, prov[msg], prov['DISPNAME']))
+                                prov[msg] = ""
+                                CONFIG.save_config_and_backup_old(section=prov['NAME'])
+                                return True
             logger.error('Unable to disable searchtype [%s] for %s' % (search_type, provider['DISPNAME']))
     return False
 
