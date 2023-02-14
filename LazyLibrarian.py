@@ -48,7 +48,7 @@ if sys.version_info < MIN_PYTHON_VERSION:
     exit(0)
 
 
-def sig_shutdown():
+def sig_shutdown(*args):
     lazylibrarian.SIGNAL = 'shutdown'
 
 
