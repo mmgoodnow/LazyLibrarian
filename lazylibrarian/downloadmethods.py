@@ -17,6 +17,8 @@ import time
 import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
+
+# noinspection PyBroadException
 try:
     import magic
 except Exception:  # magic might fail for multiple reasons
@@ -34,7 +36,7 @@ from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unico
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_connect, irc_search
-from lazylibrarian.directparser import bok_dlcount
+from lazylibrarian.directparser import bok_dlcount, bok_login, session_get
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
@@ -267,37 +269,13 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     logger = logging.getLogger(__name__)
     source = "DIRECT"
     logger.debug("Starting Direct Download for [%s]" % dl_title)
-    proxies = proxy_list()
     headers = {'Accept-encoding': 'gzip', 'User-Agent': get_user_agent()}
     dl_url = make_unicode(dl_url)
     s = requests.Session()
     if provider == 'zlibrary':
         # do we need to log in?
         if CONFIG['BOK_USER'] and CONFIG['BOK_PASS']:
-            bok_login_url = CONFIG['BOK_LOGIN']
-            data = {
-                    "isModal": True,
-                    "email": CONFIG['BOK_USER'],
-                    "password": CONFIG['BOK_PASS'],
-                    "site_mode": "books",
-                    "action": "login",
-                    "isSingleLogin": 1,
-                    "redirectUrl": "",
-                    "gg_json_mode": 1
-                }
-            headers = {'User-Agent': get_user_agent()}
-
-            if bok_login_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
-                response = s.post(bok_login_url, data=data, timeout=90, headers=headers,
-                                  verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS']
-                                  else True)
-            else:
-                response = s.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
-            logger.debug("b-ok login response: %s" % response.status_code)
-            # use these login cookies for all 1-lib, z-library, b-ok domains
-            for c in s.cookies:
-                c.domain = ''
-
+            bok_login(s, headers)
         # zlibrary needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
         count, oldest = bok_dlcount()
@@ -313,17 +291,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         redirects += 1
         try:
             logger.debug("%s: [%s] %s" % (redirects, provider, str(headers)))
-            if not dl_url.startswith('http'):
-                if headers.get('Referer', '').startswith('https://'):
-                    dl_url = 'https://' + dl_url
-                else:
-                    dl_url = 'http://' + dl_url
-
-            if dl_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
-                r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies,
-                          verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
-            else:
-                r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
+            r = session_get(s, dl_url, headers)
         except requests.exceptions.Timeout:
             res = 'Timeout fetching file from url: %s' % dl_url
             logger.warning(res)
@@ -448,12 +416,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             if redirects and 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
                 host = CONFIG['BOK_HOST']
                 headers['Referer'] = dl_url
-
-                if dl_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
-                    r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies,
-                              verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
-                else:
-                    r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
+                r = session_get(s, dl_url, headers)
 
                 if not str(r.status_code).startswith('2'):
                     return False, "Unable to fetch %s: %s" % (r.url, r.status_code)

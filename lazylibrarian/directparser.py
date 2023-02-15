@@ -13,17 +13,19 @@
 import time
 import logging
 import traceback
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode, quote
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import database
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.common import get_user_agent
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes, seconds_to_midnight
 
 from bs4 import BeautifulSoup
+import requests
 
 
 def redirect_url(genhost, url):
@@ -69,6 +71,45 @@ def bok_sleep():
     lazylibrarian.TIMERS['LAST_BOK'] = time_now
 
 
+def session_get(sess, url, headers):
+    logger = logging.getLogger(__name__)
+    if headers.get('Referer', '').startswith('https') and url.startswith('http:'):
+        url = 'https:' + url[5:]
+    if url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
+        response = sess.get(url, headers=headers, timeout=90, verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
+    else:
+        response = sess.get(url, headers=headers, timeout=90, verify=False)
+    logger.debug("b-ok response: %s" % response.status_code)
+    return response
+
+
+def bok_login(sess, headers):
+    logger = logging.getLogger(__name__)
+    logger.debug("Logging in to %s" % CONFIG['BOK_LOGIN'])
+    bok_login_url = CONFIG['BOK_LOGIN']
+    data = {
+            "isModal": True,
+            "email": CONFIG['BOK_USER'],
+            "password": CONFIG['BOK_PASS'],
+            "site_mode": "books",
+            "action": "login",
+            "isSingleLogin": 1,
+            "redirectUrl": "",
+            "gg_json_mode": 1
+        }
+
+    if bok_login_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
+        response = sess.post(bok_login_url, data=data, timeout=90, headers=headers,
+                             verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
+    else:
+        response = sess.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
+    logger.debug("b-ok login response: %s" % response.status_code)
+    # use these login cookies for all 1-lib, z-library, b-ok domains
+    for c in sess.cookies:
+        c.domain = ''
+    logger.debug("Login Response:%s" % response)
+
+
 def direct_bok(book=None, prov=None, test=False):
     logger = logging.getLogger(__name__)
     errmsg = ''
@@ -86,7 +127,7 @@ def direct_bok(book=None, prov=None, test=False):
             return False
         return [], "download limit reached"
 
-    host = CONFIG[prov + '_HOST']
+    host = CONFIG[prov + '_HOST'].rstrip('/')
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -97,21 +138,25 @@ def direct_bok(book=None, prov=None, test=False):
     next_page = True
     if test:
         book['bookid'] = '0'
+    
+    headers = {'User-Agent': get_user_agent()}
+    s = requests.Session()
+    # do we need to log in?
+    if CONFIG['BOK_USER'] and CONFIG['BOK_PASS']:
+        bok_login(s, headers)
 
+    providerurl = url_fix(host + "/s/")
     while next_page:
-        params = {
-            "q": make_utf8bytes(book['searchterm'])[0]
-        }
+        params = {}
         if page > 1:
             params['page'] = page
 
-        providerurl = url_fix(host + "/s/")
-        search_url = providerurl + "?%s" % urlencode(params)
-
+        search_url = providerurl + quote(make_utf8bytes(book['searchterm'])[0]) + "%s" % urlencode(params)
         next_page = False
         bok_sleep()
-        result, success = fetch_url(search_url)
-        if not success or len(result) < 100:  # may return a "blocked" message
+        response = session_get(s, search_url, headers)
+        result = response.text
+        if len(result) < 100:  # may return a "blocked" message
             # may return 404 if no results, not really an error
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
@@ -182,15 +227,20 @@ def direct_bok(book=None, prov=None, test=False):
 
                     if url:
                         bok_sleep()
-                        res, succ = fetch_url(url)
-                        if succ:
+
+                        response = session_get(s, url, headers)
+                        result = response.text
+                        
+                        if not str(response.status_code).startswith('2'):
+                            logger.debug(str(result)[:20])
+                        else:
                             try:
-                                newsoup = BeautifulSoup(res, "html5lib")
+                                newsoup = BeautifulSoup(result, "html5lib")
                                 a = newsoup.find('a', {"class": "dlButton"})
                                 if not a:
                                     link = ''
-                                    if 'WARNING' in res and '24 hours' in res:
-                                        msg = res.split('WARNING')[1].split('24 hours')[0]
+                                    if 'WARNING' in result and '24 hours' in result:
+                                        msg = result.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
                                         count, oldest = bok_dlcount()
                                         if count and count >= CONFIG.get_int(prov + '_DLLIMIT'):
@@ -201,9 +251,9 @@ def direct_bok(book=None, prov=None, test=False):
                                         BLOCKHANDLER.block_provider(provider, msg, delay=delay)
                                         logger.warning(msg)
                                         url = None
-                                    elif 'Too many requests' in res:
-                                        BLOCKHANDLER.block_provider(provider, res)
-                                        logger.warning(res)
+                                    elif 'Too many requests' in result:
+                                        BLOCKHANDLER.block_provider(provider, result)
+                                        logger.warning(result)
                                         url = None
                                 else:
                                     link = a.get('href')
@@ -271,7 +321,7 @@ def direct_bfi(book=None, prov=None, test=False):
             return False
         return [], "provider_is_blocked"
 
-    host = CONFIG['BFI_HOST']
+    host = CONFIG['BFI_HOST'].rstrip('/')
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -387,7 +437,7 @@ def direct_gen(book=None, prov=None, test=False):
         return [], "provider_is_blocked"
     for entry in CONFIG.providers('GEN'):
         if entry['NAME'].lower() == prov.lower():
-            host = entry['HOST']
+            host = entry['HOST'].rstrip('/')
             if not host.startswith('http'):
                 host = 'http://' + host
             search = entry['SEARCH']
