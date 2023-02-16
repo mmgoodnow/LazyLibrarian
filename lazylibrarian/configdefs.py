@@ -277,7 +277,6 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigDownloadTypes('TDL', 'TDL_DLTYPES', 'A,E,M'),
     ConfigInt('TDL', 'TDL_SEEDERS', 0),
     ConfigStr('BOK', 'BOK_HOST', 'b-ok.cc'),
-    ConfigStr('BOK', 'BOK_LOGIN', "https://singlelogin.me/rpc.php"),
     ConfigStr('BOK', 'BOK_USER', ''),
     ConfigStr('BOK', 'BOK_PASS', ''),
     ConfigBool('BOK', 'BOK', 0),

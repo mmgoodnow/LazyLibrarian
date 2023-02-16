@@ -85,17 +85,11 @@ def session_get(sess, url, headers):
 
 def bok_login(sess, headers):
     logger = logging.getLogger(__name__)
-    logger.debug("Logging in to %s" % CONFIG['BOK_LOGIN'])
-    bok_login_url = CONFIG['BOK_LOGIN']
+    logger.debug("Logging in to %s" % CONFIG['BOK_HOST'])
+    bok_login_url = f"{CONFIG['BOK_HOST']}/login"
     data = {
-            "isModal": True,
-            "email": CONFIG['BOK_USER'],
             "password": CONFIG['BOK_PASS'],
-            "site_mode": "books",
-            "action": "login",
-            "isSingleLogin": 1,
-            "redirectUrl": "",
-            "gg_json_mode": 1
+            "auth": "1"
         }
 
     if bok_login_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
