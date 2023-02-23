@@ -24,7 +24,7 @@ ll_dependencies = (
     ('html5lib', '', ''),
     ('webencodings', '', ''),
     ('requests', '', ''),
-    ('chardet', '', '')
+    ('chardet', '', ''),
     ('urllib3', '', ''),
     ('pyOpenSSL', '', 'OpenSSL'),
     ('cherrypy', '', ''),
