@@ -415,7 +415,7 @@ class ConfigBool(ConfigInt):
 
 
 class ConfigEmail(ConfigStr):
-    """ A config item that is a string that must be a valid email address """
+    """ A config item that is a string that must be a valid email address or comma separated list of valid addresses"""
 
     def __init__(self, section: str, key: str, default: str, is_new: bool = False, persist: bool = True):
         super().__init__(section, key, default, force_lower=True, is_new=is_new, persist=persist)
@@ -427,17 +427,26 @@ class ConfigEmail(ConfigStr):
         value = str(value)
         if value == '':
             return True
-        else:
-            # Regular expression pattern to match email addresses
-            pattern = r"^[\w.+-]+@[\w.-]+\.[\w]+$"  # Allow + in emails
+        # Regular expression pattern to match email addresses
+        pattern = r"^[\w.+-]+@[\w.-]+\.[\w]+$"  # Allow + in emails
 
+        if ',' in value:
+            values = value.split(',')
+        else:
+            values = [value]
+
+        for value in values:
+            value = value.strip()
             # Check if email matches pattern
-            if match(pattern, value):
-                # Check if local part of email is not too long
-                if len(value.split("@")[0]) <= 64:
-                    # Check if domain name of email is not too long
-                    return len(value.split("@")[1]) <= 255
-            return False
+            if not match(pattern, value):
+                return False
+            # Check if local part of email is not too long
+            if len(value.split("@")[0]) > 64:
+                return False
+            # Check if domain name of email is not too long
+            if len(value.split("@")[1]) > 255:
+                return False
+        return True
 
 
 class ConfigCSV(ConfigStr):
