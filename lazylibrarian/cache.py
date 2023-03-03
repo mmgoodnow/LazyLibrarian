@@ -474,7 +474,7 @@ def clean_cache():
 
             # Verify the cover images referenced in the database are present, replace if not
             DBCleaner("book", "Cover", db, "books", "BookImg", "BookName", "BookID", "images/nocover.png").clean(),
-            DBCleaner("book", "Image", db, "authors", "AuthorImg", "AuthorName", "AuthorID",
+            DBCleaner("author", "Image", db, "authors", "AuthorImg", "AuthorName", "AuthorID",
                       "images/nophoto.png").clean(),
         ]
 
