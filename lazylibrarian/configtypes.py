@@ -418,7 +418,7 @@ class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address or comma separated list of valid addresses"""
 
     def __init__(self, section: str, key: str, default: str, is_new: bool = False, persist: bool = True):
-        super().__init__(section, key, default, force_lower=True, is_new=is_new, persist=persist)
+        super().__init__(section, key, default, force_lower=False, is_new=is_new, persist=persist)  # kindle email addresses are case sensitive
 
     def get_email(self) -> str:
         return self.get_str()
