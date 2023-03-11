@@ -489,6 +489,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         Return how many books you added """
     logger = logging.getLogger(__name__)
     loggerlibsync = logging.getLogger('special.libsync')
+    loggermatching = logging.getLogger('special.matching')
     destdir = get_directory(library)
     if not startdir:
         if not destdir:
@@ -633,6 +634,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
             "\\$Total", "(?P<total>.*?)").replace(
             "\\$Abridged", "(?P<abridged>.*?)").replace(
             "\\$\\$", "\\ ") + r'\.[' + booktypes + ']'
+        loggermatching.debug("Pattern [%s]" % match_string)
 
         # noinspection PyBroadException
         try:
@@ -805,6 +807,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                             if not author or not book:
                                 logger.debug("Pattern match failed [%s]" % files)
+                            else:
+                                logger.debug("Pattern match author[%s] book[%s]" % (author, book))
 
                         if publisher:
                             if publisher.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
