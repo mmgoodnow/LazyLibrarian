@@ -33,14 +33,15 @@ from thefuzz import fuzz
 from queue import Queue
 
 
-def is_valid_authorid(authorid: str) -> bool:
+def is_valid_authorid(authorid: str, api=None) -> bool:
     if not authorid or not isinstance(authorid, str):
         return False  # Reject blank, or non-string
+    if api is None:
+        api = CONFIG['BOOK_API']
     # GoogleBooks doesn't provide authorid so we use one of the other sources
-    if authorid.isdigit() and CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
+    if authorid.isdigit() and api in ['GoodReads', 'GoogleBooks']:
         return True
-    if authorid.startswith('OL') and authorid.endswith('A') and \
-            CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+    if authorid.startswith('OL') and authorid.endswith('A') and api in ['OpenLibrary', 'GoogleBooks']:
         return True
     return False
 
@@ -221,8 +222,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         new_author = not refresh
         entry_status = 'Active'
 
-        if is_valid_authorid(authorid):
-            dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
+        dbauthor = db.match("SELECT * from authors WHERE AuthorID=? or ol_id=? or gr_id=?", (authorid, authorid, authorid))
+        if dbauthor:
+            if CONFIG['BOOK_API'] == 'OpenLibrary' and not authorid.startswith('OL'):
+                authorid = dbauthor['ol_id']
+            if CONFIG['BOOK_API'] == 'GoodReads' and authorid.startswith('OL'):
+                authorid = dbauthor['gr_id']
+
+        if is_valid_authorid(authorid, CONFIG['BOOK_API']):
             if not dbauthor and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
                 dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
