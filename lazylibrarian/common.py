@@ -59,7 +59,7 @@ def multibook(foldername, recurse=False):
     # Check for more than one book in the folder(tree). Note we can't rely on basename
     # being the same, so just check for more than one bookfile of the same type
     # Return which type we found multiples of, or empty string if no multiples
-    filetypes = CONFIG['EBOOK_TYPE']
+    filetypes = get_list(CONFIG['EBOOK_TYPE'])
 
     if recurse:
         for _, _, f in walk(foldername):
@@ -453,12 +453,10 @@ def calibre_prg(prgname):
     target = ''
     if prgname == 'ebook-convert':
         target = CONFIG['EBOOK_CONVERT']
-    if not target:
-        calibre = CONFIG['IMP_CALIBREDB']
-        if calibre:
-            target = os.path.join(os.path.dirname(calibre), prgname)
-        else:
-            logger.debug("No calibredb configured")
+    elif CONFIG['EBOOK_CONVERT']:
+        target = os.path.join(os.path.dirname(CONFIG['EBOOK_CONVERT']), prgname)
+    elif CONFIG['IMP_CALIBREDB']:
+        target = os.path.join(os.path.dirname(CONFIG['IMP_CALIBREDB']), prgname)
 
     if not target or not os.path.exists(target):
         target = os.path.join(os.getcwd(), prgname)
