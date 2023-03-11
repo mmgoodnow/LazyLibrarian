@@ -166,11 +166,18 @@ def mailing_list(book_type, global_name, book_id):
                 if not link:
                     link = ''
                 if filename:
-                    logger.debug("Emailing %s to %s" % (filename, res['SendTo']))
-                    msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
-                        '{method}', ' is attached').replace('{link}', '')
-                    result = email_notifier.email_file(subject="Message from LazyLibrarian",
-                                                       message=msg, to_addr=res['SendTo'], files=[filename])
+                    if ',' in res['SendTo']:
+                        addrs = get_list(res['SendTo'])
+                    else:
+                        addrs = [res['SendTo']]
+                    for addr in addrs:
+                        logger.debug("Emailing %s to %s" % (filename, addr))
+                        msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
+                            '{method}', ' is attached').replace('{link}', '')
+                        result = email_notifier.email_file(subject="Message from LazyLibrarian",
+                                                           message=msg, to_addr=addr, files=[filename])
+                        if not result:
+                            break
                 else:
                     logger.debug("Notifying %s available to %s" % (global_name, res['SendTo']))
                     if not msg:

@@ -30,6 +30,7 @@ import traceback
 
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, ebook_convert
+from lazylibrarian.librarysync import get_book_info
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import is_valid_email, run_script, mime_type
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
@@ -120,6 +121,13 @@ class EmailNotifier:
                             logger.debug(msg)
                     message.attach(MIMEText(msg))
                 else:
+                    if '@kindle.com' in to_addr:
+                        # send-to-kindle needs embedded metadata
+                        metadata = get_book_info(f)
+                        if 'title' not in metadata or 'creator' not in metadata:
+                            basename, _ = os.path.splitext(f)
+                            if os.path.exists(basename + '.opf'):
+                                lazylibrarian.postprocess.write_meta(os.path.dirname(f), basename + '.opf')
                     subtype = mime_type(syspath(f)).split('/')[1]
                     logger.debug('Attaching %s %s' % (subtype, title))
                     with open(syspath(f), "rb") as fil:

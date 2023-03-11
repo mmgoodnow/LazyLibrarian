@@ -1818,13 +1818,15 @@ class WebInterface(object):
                         db.upsert("authors", {'Status': action}, {'AuthorID': authorid})
                         logger.info('Status set to "%s" for "%s"' % (action, check['AuthorName']))
                     elif action == "Delete":
-                        logger.info("Removing author and books: %s" % check['AuthorName'])
+                        logger.info("Deleting author and books: %s" % check['AuthorName'])
                         books = db.select("SELECT BookFile from books WHERE AuthorID=? AND BookFile is not null",
                                           (authorid,))
                         for book in books:
                             if path_exists(book['BookFile']):
                                 try:
-                                    rmtree(os.path.dirname(book['BookFile']), ignore_errors=True)
+                                    foldername = os.path.dirname(book['BookFile'])
+                                    logger.debug("Deleting folder: %s" % foldername)
+                                    rmtree(foldername, ignore_errors=True)
                                 except Exception as e:
                                     logger.warning('rmtree failed on %s, %s %s' %
                                                    (book['BookFile'], type(e).__name__, str(e)))
@@ -5846,7 +5848,6 @@ class WebInterface(object):
     @cherrypy.expose
     def shutdown(self):
         self.label_thread('SHUTDOWN')
-        logger = logging.getLogger(__name__)
         # lazylibrarian.config_write()
         lazylibrarian.SIGNAL = 'shutdown'
         message = 'closed'
@@ -5856,7 +5857,6 @@ class WebInterface(object):
     @cherrypy.expose
     def restart(self):
         self.label_thread('RESTART')
-        logger = logging.getLogger(__name__)
         lazylibrarian.SIGNAL = 'restart'
         message = 'reopening ...'
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Reopen library",
@@ -7061,19 +7061,32 @@ class WebInterface(object):
                 finally:
                     db.close()
                 if res and res['SendTo']:
-                    logger.debug("Emailing %s to %s" % (myfile, res['SendTo']))
-                    if name:
-                        msg = lazylibrarian.NEWFILE_MSG.replace('{name}', name).replace(
-                            '{method}', ' is attached').replace('{link}', '')
-                    result = notifiers.email_notifier.email_file(subject="Message from LazyLibrarian",
-                                                                 message=msg, to_addr=res['SendTo'],
-                                                                 files=[myfile])
-                    if result:
-                        msg = "Emailed file %s to %s" % (os.path.basename(myfile), res['SendTo'])
-                        logger.debug(msg)
+                    sent = []
+                    not_sent = []
+                    # sending files to kindles only seems to work if separate emails
+                    if ',' in res['SendTo']:
+                        addrs = get_list(res['SendTo'])
                     else:
-                        msg = "Failed to email file %s to %s" % (os.path.basename(myfile), res['SendTo'])
-                        logger.error(msg)
+                        addrs = [res['SendTo']]
+                    for addr in addrs:
+                        logger.debug("Emailing %s to %s" % (myfile, addr))
+                        if name:
+                            msg = lazylibrarian.NEWFILE_MSG.replace('{name}', name).replace(
+                                '{method}', ' is attached').replace('{link}', '')
+                        result = notifiers.email_notifier.email_file(subject="Message from LazyLibrarian",
+                                                                     message=msg, to_addr=addr, files=[myfile])
+                        if result:
+                            sent.append(addr)
+                        else:
+                            not_sent.append(addr)
+                    msg = ''
+                    if sent:
+                        msg = "Emailed file %s to %s " % (os.path.basename(myfile), ','.join(sent))
+                        logger.debug(msg)
+                    if not_sent:
+                        msg2 = "Failed to email file %s to %s" % (os.path.basename(myfile), ','.join(not_sent))
+                        logger.error(msg2)
+                        msg += msg2
                 return serve_template(templatename="choosetype.html", title='Send file',
                                       pop_message=msg, pop_types='', bookid='', valid='', email=email)
         if not name:
