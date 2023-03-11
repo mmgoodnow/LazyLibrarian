@@ -588,7 +588,7 @@ def name_vars(bookid, abridged=''):
     mydict = {}
     seriesnum = ''
     seriesname = ''
-
+    loggermatching = logging.getLogger('special.matching')
     db = database.DBConnection()
     try:
         if bookid == 'test':
@@ -750,13 +750,21 @@ def name_vars(bookid, abridged=''):
                                                                  mydict))).replace('sPart',
                                                                                    '$Part').replace('sTotal',
                                                                                                     '$Total')
+    if bookid != 'test':
+        loggermatching.debug(str(mydict))
     return mydict
 
 
 def replacevars(base, mydict):
+    if not base:
+        return ''
+    loggermatching = logging.getLogger('special.matching')
+    loggermatching.debug(base)
     for item in ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum',
                  '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total',
                  '$Abridged']:
         if item[1:] in mydict:
             base = base.replace(item, mydict[item[1:]].replace(os.sep, '_'))
-    return base.replace('$$', ' ')
+    base = base.replace('$$', ' ')
+    loggermatching.debug(base)
+    return base
