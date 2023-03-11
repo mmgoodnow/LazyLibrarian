@@ -109,6 +109,7 @@ def magazine_scan(title=None):
         match = match_string.replace(
             "\\$IssueDate", "(?P<issuedate>.*?)").replace(
             "\\$Title", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
+        loggermatching.debug("Pattern [%s]" % match)
 
         # noinspection PyBroadException
         try:
@@ -129,7 +130,7 @@ def magazine_scan(title=None):
                             if match:
                                 title = match.group("title").strip()
                                 issuedate = match.group("issuedate").strip()
-                                loggermatching.debug("Title pattern [%s][%s]" % (title, issuedate))
+                                loggermatching.debug("Title pattern [%s][%s] %s" % (title, issuedate, fname))
                                 if title.isdigit():
                                     match = False
                                 else:
