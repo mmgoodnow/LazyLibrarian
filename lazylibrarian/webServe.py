@@ -1330,10 +1330,10 @@ class WebInterface(object):
                 cmd = 'SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms,SendTo from users where UserID=?'
                 res = db.match(cmd, (cookie['ll_uid'].value,))
                 if res:
-                    to_read = set(get_list(res['ToRead']))
-                    have_read = set(get_list(res['HaveRead']))
-                    reading = set(get_list(res['Reading']))
-                    abandoned = set(get_list(res['Abandoned']))
+                    to_read = set(w.strip('"') for w in get_list(res['ToRead']))
+                    have_read = set(w.strip('"') for w in get_list(res['HaveRead']))
+                    reading = set(w.strip('"') for w in get_list(res['Reading']))
+                    abandoned = set(w.strip('"') for w in get_list(res['Abandoned']))
                     email = res['SendTo']
         finally:
             db.close()
@@ -1396,10 +1396,10 @@ class WebInterface(object):
                             res = db.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
                                            (cookie['ll_uid'].value,))
                             if res:
-                                to_read = set(get_list(res['ToRead']))
-                                have_read = set(get_list(res['HaveRead']))
-                                reading = set(get_list(res['Reading']))
-                                abandoned = set(get_list(res['Abandoned']))
+                                to_read = set(w.strip('"') for w in get_list(res['ToRead']))
+                                have_read = set(w.strip('"') for w in get_list(res['HaveRead']))
+                                reading = set(w.strip('"') for w in get_list(res['Reading']))
+                                abandoned = set(w.strip('"') for w in get_list(res['Abandoned']))
                                 members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
                                 if members:
                                     for item in members:
@@ -2386,10 +2386,10 @@ class WebInterface(object):
                     res = db.match(cmd, (userid,))
                     if res:
                         perm = check_int(res['Perms'], 0)
-                        to_read = set(get_list(res['ToRead']))
-                        have_read = set(get_list(res['HaveRead']))
-                        reading = set(get_list(res['Reading']))
-                        abandoned = set(get_list(res['Abandoned']))
+                        to_read = set(w.strip('"') for w in get_list(res['ToRead']))
+                        have_read = set(w.strip('"') for w in get_list(res['HaveRead']))
+                        reading = set(w.strip('"') for w in get_list(res['Reading']))
+                        abandoned = set(w.strip('"') for w in get_list(res['Abandoned']))
                         loggerserverside.debug("get_books userid %s read %s,%s,%s,%s" % (
                             cookie['ll_uid'].value, len(to_read), len(have_read), len(reading), len(abandoned)))
 
@@ -2402,7 +2402,7 @@ class WebInterface(object):
             cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
             cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
             cmd += ' WHERE books.AuthorID = authors.AuthorID'
-
+            loggerserverside.debug("ToRead %s Read %s Reading %s Abandoned %s" % (len(to_read), len(have_read), len(reading), len(abandoned)))
             types = []
             if CONFIG.get_bool('EBOOK_TAB'):
                 types.append('eBook')
@@ -3734,6 +3734,9 @@ class WebInterface(object):
         if 'marktype' in args:
             library = args['marktype']
 
+        if 'AuthorID' in args and authorid is None:
+            authorid = args['AuthorID']
+
         for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype', 'AuthorID']:
             args.pop(arg, None)
 
@@ -3758,10 +3761,10 @@ class WebInterface(object):
                         userdata = db.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
                                             (cookie['ll_uid'].value,))
                         if userdata:
-                            to_read = set(get_list(userdata['ToRead']))
-                            have_read = set(get_list(userdata['HaveRead']))
-                            reading = set(get_list(userdata['Reading']))
-                            abandoned = set(get_list(userdata['Abandoned']))
+                            to_read = set(w.strip('"') for w in get_list(userdata['ToRead']))
+                            have_read = set(w.strip('"') for w in get_list(userdata['HaveRead']))
+                            reading = set(w.strip('"') for w in get_list(userdata['Reading']))
+                            abandoned = set(w.strip('"') for w in get_list(userdata['Abandoned']))
 
                 for bookid in args:
                     if action in reading_lists:
