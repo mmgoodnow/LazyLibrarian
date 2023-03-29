@@ -10,10 +10,9 @@ import logging
 import os
 import re
 import shutil
-import sys
 from collections import Counter
 from configparser import ConfigParser
-from os import path, sep
+from os import sep
 from typing import Dict, List, Optional, Generator, Tuple
 
 from lazylibrarian import database
@@ -554,7 +553,7 @@ class LLConfigHandler(ConfigDict):
                     host = array.primary_host(inx)
                     ok = array.is_in_use(inx) and not BLOCKHANDLER.is_blocked(host)
                     if wishlist is not None:
-                        ok = ok and wishlist_type(host) == wishlist
+                        ok = ok and bool(wishlist_type(host)) == wishlist
                     if ok:
                         count += 1
         return count
