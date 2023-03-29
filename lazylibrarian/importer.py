@@ -222,14 +222,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         new_author = not refresh
         entry_status = 'Active'
 
-        dbauthor = db.match("SELECT * from authors WHERE AuthorID=? or ol_id=? or gr_id=?", (authorid, authorid, authorid))
-        if dbauthor:
-            if CONFIG['BOOK_API'] == 'OpenLibrary' and not authorid.startswith('OL'):
-                authorid = dbauthor['ol_id']
-            if CONFIG['BOOK_API'] == 'GoodReads' and authorid.startswith('OL'):
-                authorid = dbauthor['gr_id']
-
-        if is_valid_authorid(authorid, CONFIG['BOOK_API']):
+        dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
+        if is_valid_authorid(authorid, 'OpenLibrary') or is_valid_authorid(authorid, 'GoodReads'):
             if not dbauthor and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
                 dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
