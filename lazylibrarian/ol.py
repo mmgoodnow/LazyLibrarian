@@ -681,8 +681,10 @@ class OpenLibrary:
                         # try lookup by name
                         if title:
                             try:
+                                start = time.time()
                                 res = isbn_from_words(unaccented(title, only_ascii=False) + ' ' +
                                                       unaccented(auth_name, only_ascii=False))
+                                isbn_time += (time.time() - start)
                                 isbn_count += 1
                             except Exception as e:
                                 res = None
@@ -847,7 +849,9 @@ class OpenLibrary:
                                                id_librarything, reason, first_publish_year, bookpages))
 
                                     if 'nocover' in cover or 'nophoto' in cover:
+                                        start = time.time()
                                         cover = get_cover(key, title)
+                                        cover_time += (time.time() - start)
                                         cover_count += 1
                                     if cover and cover.startswith('http'):
                                         cache_cover(key, cover)
@@ -1098,7 +1102,9 @@ class OpenLibrary:
                                                                                reason, publish_date))
 
                                                                     if 'nocover' in cover or 'nophoto' in cover:
+                                                                        start = time.time()
                                                                         cover = get_cover(workid, title)
+                                                                        cover_time += (time.time() - start)
                                                                         cover_count += 1
                                                                     if cover and cover.startswith('http'):
                                                                         cache_cover(workid, cover)
@@ -1149,7 +1155,9 @@ class OpenLibrary:
                                           (authorid, title, cover, link, key, publish_date,
                                            lang, now(), book_status, '', audio_status, reason, first_publish_year))
                                 if 'nocover' in cover or 'nophoto' in cover:
+                                    start = time.time()
                                     cover = get_cover(key, title)
+                                    cover_time += (time.time() - start)
                                     cover_count += 1
                                 if cover and cover.startswith('http'):
                                     cache_cover(key, cover)
