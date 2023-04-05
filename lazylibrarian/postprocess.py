@@ -359,7 +359,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
         if not path_isdir(source_dir):
             logger.warning("%s is not a directory" % source_dir)
             return False
-        if source_dir.startswith(get_directory('eBook')):
+        if source_dir.startswith(get_directory(library)):
             logger.warning('Alternate directory must not be the same as or inside Destination')
             return False
 
@@ -373,6 +373,17 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 process_alternate(subdir, library=library, automerge=automerge)
 
         metadata = {}
+        if "LL.(" in source_dir:
+            bookid = source_dir.split("LL.(")[1].split(")")[0]
+            db = database.DBConnection()
+            res = db.match("SELECT BookName,AuthorName from books,authors WHERE books.AuthorID = authors.AuthorID AND BookID=?", (bookid,))
+            if res:
+                metadata = {"title": res['BookName'], "creator": res['AuthorName']}
+                logger.debug("Importing %s bookid %s for %s %s" % (library, bookid, res['AuthorName'], res['BookName']))
+            else:
+                logger.warning("Failed to find LL bookid %s in database" % bookid)
+            db.close()
+
         if library == 'eBook':
             # only import one book from each alternate (sub)directory, this is because
             # the importer may delete the directory after importing a book,
@@ -399,18 +410,20 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 logger.warning("No book file found in %s" % source_dir)
                 return False
 
-            # see if there is a metadata file in this folder with the info we need
-            # try book_name.opf first, or fall back to any filename.opf
-            metafile = os.path.splitext(new_book)[0] + '.opf'
-            if not path_isfile(metafile):
-                metafile = opf_file(source_dir)
-            if metafile and path_isfile(metafile):
-                try:
-                    metadata = get_book_info(metafile)
-                except Exception as e:
-                    logger.warning('Failed to read metadata from %s, %s %s' % (metafile, type(e).__name__, str(e)))
-            else:
-                logger.debug('No metadata file found for %s' % new_book)
+            if not metadata:
+                # if we haven't already got metadata from an LL.num
+                # see if there is a metadata file in this folder with the info we need
+                # try book_name.opf first, or fall back to any filename.opf
+                metafile = os.path.splitext(new_book)[0] + '.opf'
+                if not path_isfile(metafile):
+                    metafile = opf_file(source_dir)
+                if metafile and path_isfile(metafile):
+                    try:
+                        metadata = get_book_info(metafile)
+                    except Exception as e:
+                        logger.warning('Failed to read metadata from %s, %s %s' % (metafile, type(e).__name__, str(e)))
+                else:
+                    logger.debug('No metadata file found for %s' % new_book)
 
             if 'title' not in metadata or 'creator' not in metadata:
                 # if not got both, try to get metadata from the book file
@@ -425,14 +438,15 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             if not new_book:
                 logger.warning("No audiobook file found in %s" % source_dir)
                 return False
-            id3r = id3read(new_book)
-            author = id3r['author']
-            book = id3r['title']
+            if not metadata:
+                id3r = id3read(new_book)
+                author = id3r['author']
+                book = id3r['title']
 
-            if author and book:
-                metadata['creator'] = author
-                metadata['title'] = book
-                metadata['narrator'] = id3r['narrator']
+                if author and book:
+                    metadata['creator'] = author
+                    metadata['title'] = book
+                    metadata['narrator'] = id3r['narrator']
 
         if 'title' not in metadata or 'creator' not in metadata:
             author, book = get_book_meta(source_dir, "postprocess")
@@ -447,6 +461,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             try:
                 authorid = ''
                 bookid = ''
+                results = []
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
                 if not authmatch:
@@ -474,90 +489,94 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                         authorname = grauthorname
                         authmatch = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
 
-                if authmatch:
-                    logger.debug("Author %s found in database" % authorname)
-                    authorid = authmatch['authorid']
-                else:
-                    logger.debug("Author %s not found, adding to database" % authorname)
+                    if authmatch:
+                        logger.debug("Author %s found in database" % authorname)
+                        authorid = authmatch['authorid']
+                    else:
+                        logger.debug("Author %s not found, adding to database" % authorname)
+                        if authorid:
+                            add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
+                                             reason="process_alternate: %s" % bookname)
+                        else:
+                            aname, authorid, _ = add_author_name_to_db(author=authorname,
+                                                                       reason="process_alternate: %s" % bookname,
+                                                                       title=bookname)
+                            if aname and aname != authorname:
+                                authorname = aname
+                            if not aname:
+                                authorid = ''
+
                     if authorid:
-                        add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
-                                         reason="process_alternate: %s" % bookname)
-                    else:
-                        aname, authorid, _ = add_author_name_to_db(author=authorname,
-                                                                   reason="process_alternate: %s" % bookname,
-                                                                   title=bookname)
-                        if aname and aname != authorname:
-                            authorname = aname
-                        if not aname:
-                            authorid = ''
+                        bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
+                                                    reason="process_alternate: %s" % bookname)
 
-                if authorid:
-                    bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
-                                                reason="process_alternate: %s" % bookname)
-                results = []
-                if authorid and not bookid:
-                    # new book, or new author where we didn't want to load their back catalog
-                    searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
-                                                 unaccented(authorname, only_ascii=False))
-                    match = {}
-                    results = search_for(searchterm)
-                    for result in results:
-                        if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
-                                and result['authorid'] == authorid:
-                            match = result
-                            break
-                    if not match:  # no match on full searchterm, try splitting out subtitle and series
-                        newtitle, _, _ = split_title(authorname, bookname)
-                        if newtitle != bookname:
-                            bookname = newtitle
-                            searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
-                                                         unaccented(authorname, only_ascii=False))
-                            results = search_for(searchterm)
-                            for result in results:
-                                if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
-                                        and result['authorid'] == authorid:
-                                    match = result
-                                    break
-                    if match:
-                        logger.info("Found (%s%%) %s: %s for %s: %s" %
-                                    (match['book_fuzz'], match['authorname'], match['bookname'],
-                                     authorname, bookname))
-                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
-                                    reason="Added from alternate dir")
-                        imported = db.match('select * from books where BookID=?', (match['bookid'],))
-                        if imported:
-                            bookid = match['bookid']
-                            update_totals(authorid)
-
-                if bookid:
-                    if library == 'eBook':
-                        res = db.match("SELECT Status from books WHERE BookID=?", (bookid,))
-                        if res and res['Status'] == 'Ignored':
-                            logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
-                                           (library, bookname, authorname))
-                    else:
-                        res = db.match("SELECT AudioStatus,Narrator from books WHERE BookID=?", (bookid,))
-                        if metadata.get('narrator', '') and res and not res['Narrator']:
-                            db.action("update books set narrator=? where bookid=?", (metadata['narrator'], bookid))
-                        if res and res['AudioStatus'] == 'Ignored':
-                            logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
-                                           (library, bookname, authorname))
-                    return process_book(source_dir, bookid, library, automerge=automerge)
-                else:
-                    msg = "%s %s by %s not found in database" % (library, bookname, authorname)
-                    if not results:
-                        msg += ', No results returned'
-                        logger.warning(msg)
-                    else:
-                        msg += ', No match found'
-                        logger.warning(msg)
-                        msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'], results[0]['book_fuzz'],
-                                                                    results[0]['authorname'], results[0]['bookname'])
-                        if results[0]['authorid'] != authorid:
-                            msg += ' wrong authorid'
-                        logger.warning(msg)
+                    if authorid and not bookid:
+                        # new book, or new author where we didn't want to load their back catalog
+                        searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                                     unaccented(authorname, only_ascii=False))
+                        match = {}
+                        results = search_for(searchterm)
+                        for result in results:
+                            if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
+                                    and result['authorid'] == authorid:
+                                match = result
+                                break
+                        if not match:  # no match on full searchterm, try splitting out subtitle and series
+                            newtitle, _, _ = split_title(authorname, bookname)
+                            if newtitle != bookname:
+                                bookname = newtitle
+                                searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                                             unaccented(authorname, only_ascii=False))
+                                results = search_for(searchterm)
+                                for result in results:
+                                    if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
+                                            and result['authorid'] == authorid:
+                                        match = result
+                                        break
+                        if match:
+                            logger.info("Found (%s%%) %s: %s for %s: %s" %
+                                        (match['book_fuzz'], match['authorname'], match['bookname'],
+                                         authorname, bookname))
+                            import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
+                                        reason="Added from alternate dir")
+                            imported = db.match('select * from books where BookID=?', (match['bookid'],))
+                            if imported:
+                                bookid = match['bookid']
+                                update_totals(authorid)
             finally:
                 db.close()
+
+            if not bookid:
+                msg = "%s %s by %s not found in database" % (library, bookname, authorname)
+                if not results:
+                    msg += ', No results returned'
+                    logger.warning(msg)
+                else:
+                    msg += ', No match found'
+                    logger.warning(msg)
+                    msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'], results[0]['book_fuzz'],
+                                                                results[0]['authorname'], results[0]['bookname'])
+                    if results[0]['authorid'] != authorid:
+                        msg += ' wrong authorid'
+                    logger.warning(msg)
+                return False
+
+            db = database.DBConnection()
+            if library == 'eBook':
+                res = db.match("SELECT Status from books WHERE BookID=?", (bookid,))
+                if res and res['Status'] == 'Ignored':
+                    logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
+                                   (library, bookname, authorname))
+            else:
+                res = db.match("SELECT AudioStatus,Narrator from books WHERE BookID=?", (bookid,))
+                if metadata.get('narrator', '') and res and not res['Narrator']:
+                    db.action("update books set narrator=? where bookid=?", (metadata['narrator'], bookid))
+                if res and res['AudioStatus'] == 'Ignored':
+                    logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
+                                   (library, bookname, authorname))
+            db.close()
+            return process_book(source_dir, bookid, library, automerge=automerge)
+
         else:
             logger.warning('%s %s has no metadata' % (library, new_book))
             res = check_residual(source_dir)
@@ -1033,7 +1052,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 if path_isdir(pp_path):
                                     logger.debug('Found folder (%s%%) [%s] for %s %s' %
                                                  (match, pp_path, booktype, matchtitle))
-                                    # some magazines are packed as multi-part zip files, each zip contains a rar file
+                                    # some magazines are packed as multipart zip files, each zip contains a rar file
                                     # and the rar files need assembling into the final magazine
                                     zipfiles = 0
                                     for f in listdir(pp_path):
@@ -2917,7 +2936,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
             if not target_dir or not path_isdir(target_dir):
                 # calibre does not like accents or quotes in names
-                if authorname.endswith('.'):  # calibre replaces trailing dot with underscore eg Jr. becomes Jr_
+                if authorname.endswith('.'):  # calibre replaces trailing dot with underscore e.g. Jr. becomes Jr_
                     authorname = authorname[:-1] + '_'
                 author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_'), only_ascii=False), '')
                 if path_isdir(author_dir):  # assumed author directory
@@ -3069,7 +3088,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                             break
 
         elif booktype in ['magazine', 'comic']:
-            ignorefile = os.path.join(dest_path, b'.ll_ignore')
+            ignorefile = os.path.join(dest_path, '.ll_ignore')
             try:
                 with open(syspath(ignorefile), 'w') as f:
                     f.write(make_unicode(booktype))
