@@ -216,6 +216,8 @@ class LLConfigHandler(ConfigDict):
                     setting = f'{pname.lower()}_{inx}_{key.lower()}'
                     value = kwargs.get(setting)
                     if value is not None:
+                        if key.lower() == 'apilimit' and isinstance(value, list):
+                            value = value[0]
                         item.set_from_ui(value)
                     elif isinstance(item, ConfigBool):  # Bools that are not listed are False
                         item.set_from_ui(False)

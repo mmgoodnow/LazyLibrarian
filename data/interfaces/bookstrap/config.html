@@ -1373,6 +1373,12 @@
                         <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="newznab_${loop.index}"> Test</button>
                       </span>
                     </div>
+                    <div class="input-group">
+                      <span class="input-group-addon">API Limit</span>
+                      <input type="number" id="newznab_${loop.index}_apilimit" name="newznab_${loop.index}_apilimit" value="${provider['APILIMIT']}" class="form-control" placeholder="0">
+                      <span class="input-group-addon">Used</span>
+                      <input type="text" id="newznab_${loop.index}_apicount" name="newznab_${loop.index}_apicount" value="${provider['APICOUNT']}" class="form-control" placeholder="" readonly="true">
+                    </div>
                   </div>
                   %endfor
                 </fieldset>
@@ -1421,6 +1427,12 @@
                     <div class="input-group">
                       <span class="input-group-addon">Types</span>
                       <input type="text" id="torznab_${loop.index}_dltypes" name="torznab_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
+                    </div>
+                    <div class="input-group">
+                      <span class="input-group-addon">API Limit</span>
+                      <input type="number" id="torznab_${loop.index}_apilimit" name="torznab_${loop.index}_apilimit" value="${provider['APILIMIT']}" class="form-control" placeholder="0">
+                      <span class="input-group-addon">Used</span>
+                      <input type="text" id="torznab_${loop.index}_apicount" name="torznab_${loop.index}_apicount" value="${provider['APICOUNT']}" class="form-control" placeholder="" readonly="true">
                     </div>
                   </div>
                   %endfor
