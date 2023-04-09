@@ -3088,8 +3088,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                             break
 
         elif booktype in ['magazine', 'comic']:
-            ignorefile = os.path.join(dest_path, '.ll_ignore')
             try:
+                ignorefile = os.path.join(dest_path, b'.ll_ignore')
                 with open(syspath(ignorefile), 'w') as f:
                     f.write(make_unicode(booktype))
             except (IOError, TypeError) as e:
