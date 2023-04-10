@@ -2962,8 +2962,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if newbookfile:
                 setperm(target_dir)
                 if booktype in ['magazine', 'comic']:
-                    ignorefile = os.path.join(target_dir, '.ll_ignore')
                     try:
+                        ignorefile = os.path.join(target_dir, '.ll_ignore')
                         with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                             f.write(make_unicode(booktype))
                     except IOError as e:
@@ -3089,7 +3089,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
         elif booktype in ['magazine', 'comic']:
             try:
-                ignorefile = os.path.join(dest_path, b'.ll_ignore')
+                ignorefile = os.path.join(udest_path, '.ll_ignore')
                 with open(syspath(ignorefile), 'w') as f:
                     f.write(make_unicode(booktype))
             except (IOError, TypeError) as e:
