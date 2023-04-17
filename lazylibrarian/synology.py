@@ -18,6 +18,7 @@ import re
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import check_int, make_unicode
+from lazylibrarian.telemetry import TELEMETRY
 from urllib.parse import urlencode
 
 
@@ -113,15 +114,21 @@ def _login(hosturl):
     }
 
     result, success = _get_json(url, params)
+
+    if not success or not result['success']:
+        params['version'] = '3'
+        result, success = _get_json(url, params)
+
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology Login Error: %s" % _error_msg(errnum, "login"))
+            logger.debug("Synology v%s Login Error: %s" % (params['version'], _error_msg(errnum, "login")))
             return "", "", ""
         else:
+            TELEMETRY.record_usage_data('Synology/Login/v%s' % params['version'])
             return hosturl + auth_cgi, hosturl + task_cgi, result['data']['sid']
     else:
-        logger.debug("Synology Failed to login: %s" % result)
+        logger.debug("Synology v%s Failed to login: %s" % (params['version'], repr(result)))
         return "", "", ""
 
 
