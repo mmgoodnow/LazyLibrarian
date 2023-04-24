@@ -373,6 +373,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 process_alternate(subdir, library=library, automerge=automerge)
 
         metadata = {}
+        bookid = ''
         if "LL.(" in source_dir:
             bookid = source_dir.split("LL.(")[1].split(")")[0]
             db = database.DBConnection()
@@ -460,7 +461,6 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             db = database.DBConnection()
             try:
                 authorid = ''
-                bookid = ''
                 results = []
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
