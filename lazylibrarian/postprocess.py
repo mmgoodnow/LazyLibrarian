@@ -253,6 +253,7 @@ def process_issues(source_dir=None, title=''):
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
     loggermatching = logging.getLogger('special.matching')
+    # noinspection PyBroadException
     try:
         if not source_dir:
             logger.warning("Alternate Directory not configured")
@@ -352,6 +353,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
     # import a book/audiobook from an alternate directory
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
+    # noinspection PyBroadException
     try:
         if not source_dir:
             logger.warning("Alternate Directory not configured")
@@ -1984,6 +1986,7 @@ def get_download_folder(source, downloadid):
     dlfolder = None
     # noinspection PyBroadException
     TELEMETRY.record_usage_data('Get/DownloadFolder')
+    # noinspection PyBroadException
     try:
         if source == 'TRANSMISSION':
             dlfolder = transmission.get_torrent_folder(downloadid)
@@ -2447,7 +2450,11 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                     db.upsert("wanted", new_value_dict, control_value_dict)
                 else:
                     control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"AuxInfo": booktype, "NZBDate": now(), "DLResult": dest_file}
+                    new_value_dict = {"Status": "Processed", "NZBProv": "Manual", "AuxInfo": booktype, "NZBDate": now(), "DLResult": dest_file}
+                    if path_isfile(dest_file):
+                        new_value_dict["NZBSize"] = os.path.getsize(syspath(dest_file))
+                    else:
+                        new_value_dict["NZBSize"] = 0
                     db.upsert("wanted", new_value_dict, control_value_dict)
                     snatched_from = "manually added"
                     loggerpostprocess.debug("%s %s was %s" % (booktype, global_name, snatched_from))
