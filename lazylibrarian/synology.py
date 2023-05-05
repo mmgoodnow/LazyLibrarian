@@ -90,22 +90,21 @@ def _login(hosturl):
     }
 
     result, success = _get_json(url, params)
-    if success:
-        if not result['success']:
-            errnum = result['error']['code']
-            logger.debug("Synology API Error: %s" % _error_msg(errnum, "query"))
-            return "", "", ""
-        else:
-            auth_cgi = result['data']['SYNO.API.Auth']['path']
-            task_cgi = result['data']['SYNO.DownloadStation.Task']['path']
-    else:
+    if not success:
         logger.debug("Synology Failed to get API info: %s" % result)
         return "", "", ""
+    if not result['success']:
+        errnum = result['error']['code']
+        logger.debug("Synology API Error: %s" % _error_msg(errnum, "query"))
+        return "", "", ""
+    auth_cgi = result['data']['SYNO.API.Auth']['path']
+    auth_version = result['data']['SYNO.API.Auth']['maxVersion']
+    task_cgi = result['data']['SYNO.DownloadStation.Task']['path']
 
     url = hosturl + auth_cgi
     params = {
         "api": "SYNO.API.Auth",
-        "version": "2",
+        "version": auth_version,
         "method": "login",
         "account": CONFIG['SYNOLOGY_USER'],
         "passwd": CONFIG['SYNOLOGY_PASS'],
@@ -114,11 +113,6 @@ def _login(hosturl):
     }
 
     result, success = _get_json(url, params)
-
-    if not success or not result['success']:
-        params['version'] = '3'
-        result, success = _get_json(url, params)
-
     if success:
         if not result['success']:
             errnum = result['error']['code']
