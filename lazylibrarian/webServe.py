@@ -2624,13 +2624,14 @@ class WebInterface(object):
                             elif kwargs['source'] == "Books":
                                 genres = genres + ' <a href=\'books?book_filter=' + a.strip() + '\'">' + \
                                          a.strip() + '</a>'
-                            elif kwargs['source'] == "Author":
+                            elif kwargs['source'] in ["Author", "Manage"]:
                                 genres = genres + ' <a href=\'author_page?authorid=' + row[11] + '&book_filter=' + \
                                          a.strip() + '\'">' + a.strip() + '</a>'
                             else:
                                 genres + genres + ' ' + a.strip()
                         genres = genres.strip()
-                        title += ' [' + genres + ']'
+                        if genres:
+                            title += ' [' + genres + ']'
 
                     if row[6] in to_read:
                         flag = '&nbsp;<i class="far fa-bookmark"></i>'
@@ -5647,6 +5648,7 @@ class WebInterface(object):
         logger = logging.getLogger(__name__)
         self.label_thread('UPDATING')
         logger.debug('(webServe-Update) - Performing update')
+        remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
         lazylibrarian.SIGNAL = 'update'
         message = 'Updating...'
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Updating",
@@ -5852,6 +5854,7 @@ class WebInterface(object):
     def shutdown(self):
         self.label_thread('SHUTDOWN')
         # lazylibrarian.config_write()
+        remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
         lazylibrarian.SIGNAL = 'shutdown'
         message = 'closed'
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Close library",
@@ -5860,6 +5863,7 @@ class WebInterface(object):
     @cherrypy.expose
     def restart(self):
         self.label_thread('RESTART')
+        remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
         lazylibrarian.SIGNAL = 'restart'
         message = 'reopening ...'
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Reopen library",

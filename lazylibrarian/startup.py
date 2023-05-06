@@ -243,7 +243,7 @@ class StartupLazyLibrarian:
         self.logger.debug("Clearing mako cache")
         rmtree(makocache)
         os.makedirs(makocache)
-
+        remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either
         # keep track of how long we slept

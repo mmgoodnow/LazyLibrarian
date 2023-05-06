@@ -249,6 +249,7 @@ def initialize(options=None):
         if cp_ver and int(cp_ver.split('.')[0]) < 12:
             cherrypy.engine.timeout_monitor.unsubscribe()
         cherrypy.server.start()
+        copyfile(os.path.join(DIRS.PROG_DIR, 'data', 'images', 'lazylibrarian.png'), os.path.join(DIRS.CACHEDIR, 'alive.png'))
     except Exception as e:
         msg = 'CherryPy failed to start on port %i' % (options['http_port'])
         if psutil:
