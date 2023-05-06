@@ -140,10 +140,10 @@
       <label for="mark_books" class="control-label">Mark selected ${library}s as</label>
       <select id="mark_books" class="mark_books form-control input-sm" name="action">
         %if whichStatus != 'Wanted':
-          %if CONFIG.get_int('EBOOK_TAB') > 0 and library == 'AudioBook':
+          %if CONFIG.get_int('EBOOK_TAB') > 0:
             <option value="WantEbook">eBook Wanted</option>
           %endif
-          %if CONFIG.get_int('AUDIO_TAB') > 0 and library != 'AudioBook':
+          %if CONFIG.get_int('AUDIO_TAB') > 0:
             <option value="WantAudio">Audio Wanted</option>
           %endif
         %endif
