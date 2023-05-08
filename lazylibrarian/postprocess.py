@@ -445,6 +445,9 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 id3r = id3read(new_book)
                 author = id3r['author']
                 book = id3r['title']
+                # use album instead of title if it is set
+                if 'album' in id3r and id3r['album']:
+                    book = id3r['album']
 
                 if author and book:
                     metadata['creator'] = author
@@ -466,7 +469,10 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 results = []
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
-                if not authmatch:
+                if authmatch:
+                    logger.debug("Author %s found in database" % authorname)
+                    authorid = authmatch['authorid']
+                else:
                     # try goodreads/openlibrary preferred authorname
                     if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
                         logger.debug("Checking OpenLibrary for [%s]" % authorname)
