@@ -3577,12 +3577,11 @@ class WebInterface(object):
                     elif cover == 'googleisbn':
                         covertype = '_gi'
                     elif cover == 'googleimage':
-                        covertype = '_gb'
+                        covertype = '_go'
                     elif cover == 'bing':
                         covertype = '_bi'
                     elif cover == 'cover':
                         covertype = '_cover'
-
                     if covertype:
                         cachedir = DIRS.CACHEDIR
                         coverid = uuid.uuid4().hex
