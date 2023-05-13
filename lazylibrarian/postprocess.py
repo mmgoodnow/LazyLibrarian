@@ -466,13 +466,9 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             db = database.DBConnection()
             try:
                 authorid = ''
-                results = []
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
-                if authmatch:
-                    logger.debug("Author %s found in database" % authorname)
-                    authorid = authmatch['authorid']
-                else:
+                if not authmatch:
                     # try goodreads/openlibrary preferred authorname
                     if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
                         logger.debug("Checking OpenLibrary for [%s]" % authorname)
@@ -497,60 +493,60 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                         authorname = grauthorname
                         authmatch = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
 
-                    if authmatch:
-                        logger.debug("Author %s found in database" % authorname)
-                        authorid = authmatch['authorid']
-                    else:
-                        logger.debug("Author %s not found, adding to database" % authorname)
-                        if authorid:
-                            add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
-                                             reason="process_alternate: %s" % bookname)
-                        else:
-                            aname, authorid, _ = add_author_name_to_db(author=authorname,
-                                                                       reason="process_alternate: %s" % bookname,
-                                                                       title=bookname)
-                            if aname and aname != authorname:
-                                authorname = aname
-                            if not aname:
-                                authorid = ''
-
+                if authmatch:
+                    logger.debug("Author %s found in database" % authorname)
+                    authorid = authmatch['authorid']
+                else:
+                    logger.debug("Author %s not found, adding to database" % authorname)
                     if authorid:
-                        bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
-                                                    reason="process_alternate: %s" % bookname)
+                        add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
+                                         reason="process_alternate: %s" % bookname)
+                    else:
+                        aname, authorid, _ = add_author_name_to_db(author=authorname,
+                                                                   reason="process_alternate: %s" % bookname,
+                                                                   title=bookname)
+                        if aname and aname != authorname:
+                            authorname = aname
+                        if not aname:
+                            authorid = ''
 
-                    if authorid and not bookid:
-                        # new book, or new author where we didn't want to load their back catalog
-                        searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
-                                                     unaccented(authorname, only_ascii=False))
-                        match = {}
-                        results = search_for(searchterm)
-                        for result in results:
-                            if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
-                                    and result['authorid'] == authorid:
-                                match = result
-                                break
-                        if not match:  # no match on full searchterm, try splitting out subtitle and series
-                            newtitle, _, _ = split_title(authorname, bookname)
-                            if newtitle != bookname:
-                                bookname = newtitle
-                                searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
-                                                             unaccented(authorname, only_ascii=False))
-                                results = search_for(searchterm)
-                                for result in results:
-                                    if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
-                                            and result['authorid'] == authorid:
-                                        match = result
-                                        break
-                        if match:
-                            logger.info("Found (%s%%) %s: %s for %s: %s" %
-                                        (match['book_fuzz'], match['authorname'], match['bookname'],
-                                         authorname, bookname))
-                            import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
-                                        reason="Added from alternate dir")
-                            imported = db.match('select * from books where BookID=?', (match['bookid'],))
-                            if imported:
-                                bookid = match['bookid']
-                                update_totals(authorid)
+                if authorid:
+                    bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
+                                                reason="process_alternate: %s" % bookname)
+
+                if authorid and not bookid:
+                    # new book, or new author where we didn't want to load their back catalog
+                    searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                                 unaccented(authorname, only_ascii=False))
+                    match = {}
+                    results = search_for(searchterm)
+                    for result in results:
+                        if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
+                                and result['authorid'] == authorid:
+                            match = result
+                            break
+                    if not match:  # no match on full searchterm, try splitting out subtitle and series
+                        newtitle, _, _ = split_title(authorname, bookname)
+                        if newtitle != bookname:
+                            bookname = newtitle
+                            searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                                         unaccented(authorname, only_ascii=False))
+                            results = search_for(searchterm)
+                            for result in results:
+                                if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
+                                        and result['authorid'] == authorid:
+                                    match = result
+                                    break
+                    if match:
+                        logger.info("Found (%s%%) %s: %s for %s: %s" %
+                                    (match['book_fuzz'], match['authorname'], match['bookname'],
+                                     authorname, bookname))
+                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
+                                    reason="Added from alternate dir")
+                        imported = db.match('select * from books where BookID=?', (match['bookid'],))
+                        if imported:
+                            bookid = match['bookid']
+                            update_totals(authorid)
             finally:
                 db.close()
 
