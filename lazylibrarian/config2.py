@@ -55,7 +55,7 @@ class LLConfigHandler(ConfigDict):
             self._copydefaults(self.defaults)
         if configfile:
             self.configfilename = configfile
-            parser = ConfigParser(dict_type=CaseInsensitiveDict)
+            parser = ConfigParser(dict_type=CaseInsensitiveDict, interpolation=None)
             parser.optionxform = lambda optionstr: optionstr.upper()
             parser.read(syspath(configfile))
             for section in parser.sections():
@@ -260,7 +260,7 @@ class LLConfigHandler(ConfigDict):
             else:
                 return 0
 
-        parser = ConfigParser()
+        parser = ConfigParser(interpolation=None)
         parser.optionxform = lambda optionstr: optionstr.lower()
 
         count = 0
