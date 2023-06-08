@@ -76,7 +76,8 @@ def session_get(sess, url, headers):
     if headers.get('Referer', '').startswith('https') and url.startswith('http:'):
         url = 'https:' + url[5:]
     if url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
-        response = sess.get(url, headers=headers, timeout=90, verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
+        response = sess.get(url, headers=headers, timeout=90,
+                            verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
     else:
         response = sess.get(url, headers=headers, timeout=90, verify=False)
     logger.debug("b-ok response: %s" % response.status_code)
@@ -198,8 +199,15 @@ def direct_bok(book=None, prov=None, test=False):
                         next_page = False
                         break
                     url = None
+                    prov_page = ''
                     newsoup = BeautifulSoup(str(row), 'html5lib')
-                    title = newsoup.find('h3', itemprop='name').text
+                    name_item = newsoup.find('h3', itemprop='name')
+                    title = name_item.text
+                    for a in name_item.find_all('a'):
+                        prov_page = a['href']
+                        if prov_page:
+                            prov_page = host + prov_page
+                            break
                     for tr in newsoup.find_all('tr'):
                         for a in tr.find_all('a'):
                             link = a['href']
@@ -276,7 +284,8 @@ def direct_bok(book=None, prov=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': 'direct',
-                            'priority': CONFIG[prov + '_DLPRIORITY']
+                            'priority': CONFIG[prov + '_DLPRIORITY'],
+                            'prov_page': prov_page
                         })
                         logger.debug('Found %s, Size %s' % (title, size))
                     next_page = True
@@ -555,15 +564,20 @@ def direct_gen(book=None, prov=None, test=False):
                     extn = ''
                     td = row.find_all('td')
                     links = []
-
+                    prov_page = ''
                     if td and 'comic' in search:
                         try:
                             if 'FILE' in str(td[-1]):
+                                newsoup = BeautifulSoup(str(td[3]), 'html5lib')
+                                data = newsoup.find_all('a')
+                                for d in data:
+                                    prov_page = d.get('href')
+                                    break
+                                title = td[3].text.strip()
                                 newsoup = BeautifulSoup(str(td[1]), 'html5lib')
                                 data = newsoup.find_all('a')
                                 for d in data:
                                     links.append(d.get('href'))
-                                title = td[3].text.strip()
                                 issue = ''
                                 year = ''
                                 publisher = ''
@@ -591,6 +605,11 @@ def direct_gen(book=None, prov=None, test=False):
                         try:
                             author = format_author_name(td[0].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
                             title = td[2].text
+                            newsoup = BeautifulSoup(str(td[2]), 'html5lib')
+                            data = newsoup.find_all('a')
+                            for d in data:
+                                prov_page = d.get('href')
+                                break
                             newsoup = None
                             if '/' in td[4].text:
                                 extn = td[4].text.split('/')[0].strip()
@@ -614,6 +633,11 @@ def direct_gen(book=None, prov=None, test=False):
                         try:
                             author = format_author_name(td[1].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
                             title = td[2].text
+                            newsoup = BeautifulSoup(str(td[2]), 'html5lib')
+                            data = newsoup.find_all('a')
+                            for d in data:
+                                prov_page = d.get('href')
+                                break
                             size = td[7].text.upper()
                             extn = td[8].text
                             td = td[9:-1]
@@ -699,6 +723,8 @@ def direct_gen(book=None, prov=None, test=False):
                                 url = None
 
                         if url:
+                            if prov_page:
+                                prov_page = url_fix(host + prov_page)
                             results.append({
                                 'bookid': book['bookid'],
                                 'tor_prov': provider + '/' + search,
@@ -706,7 +732,8 @@ def direct_gen(book=None, prov=None, test=False):
                                 'tor_url': url,
                                 'tor_size': str(size),
                                 'tor_type': 'direct',
-                                'priority': priority
+                                'priority': priority,
+                                'prov_page': prov_page
                             })
                             logger.debug('Found %s, Size %s' % (title, size))
                         next_page = True

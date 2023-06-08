@@ -11,181 +11,16 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import re
 import traceback
+from urllib.parse import quote, urlencode
 
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.cache import fetch_url
-from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
-    replace_all, get_list, month2num, check_year, make_utf8bytes
-from urllib.parse import quote, urlencode, quote_plus
-from thefuzz import fuzz
-from bs4 import BeautifulSoup
 import lib.feedparser as feedparser
-
-
-def torrent_trf(book=None, test=False):
-    logger = logging.getLogger(__name__)
-    errmsg = ''
-    provider = "Torrof"
-    host = CONFIG['TRF_HOST']
-    if not host.startswith('http'):
-        host = 'http://' + host
-
-    # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
-    dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
-                ',': ' ', '*': '', '(': '', ')': '', '[': '', ']': '', '#': '', '\'': '',
-                ':': '', '!': '', '-': ' ', r'\s\s': ' '}
-
-    cat = 'Book'
-    if 'library' in book:
-        if book['library'] == 'AudioBook':
-            cat = 'Audio'
-        elif book['library'] == 'eBook':
-            cat = 'Book'
-        elif book['library'] == 'magazine':
-            cat = 'Magazine'
-        elif book['library'] == 'comic':
-            cat = 'Comic'
-
-    sterm = make_unicode("%s %s" % (book['searchterm'], cat))
-
-    results = []
-    minimumseeders = CONFIG.get_int('TRF_SEEDERS') - 1
-
-    search_url = "%s/%s" % (host, quote_plus(make_utf8bytes(sterm)[0]))
-
-    result, success = fetch_url(search_url)
-
-    if not success:
-        # may return 404 if no results, not really an error
-        if '404' in result:
-            logger.debug("No results found from %s for %s" % (provider, sterm))
-            if test:
-                return False
-        else:
-            logger.debug(search_url)
-            logger.debug('Error fetching data from %s: %s' % (provider, result))
-            errmsg = result
-        result = False
-
-    if result:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
-        soup = BeautifulSoup(result, 'html5lib')
-
-        try:
-            table = soup.find_all('table')[1]  # un-named table
-        except IndexError:
-            logger.debug("No table found in results")
-            table = None
-
-        if table:
-            rows = table.find_all('tr')
-        else:
-            rows = []
-
-        if len(rows) > 3:
-            rows = rows[1:]  # first row is headers
-        for row in rows:
-            td = row.find_all('td')
-            if len(td) > 2:
-                rejected = False
-                dl_type = td[0].text
-                if not dl_type:
-                    rejected = 'no type'
-                elif 'Direct' in dl_type:
-                    rejected = 'direct'
-                elif cat not in dl_type:
-                    rejected = 'wrong cat'
-                elif cat != 'Audio' and 'Audio' in dl_type:
-                    rejected = 'audio'
-
-                if not rejected:
-                    result_title = unaccented(replace_all(td[1].text, dictrepl),
-                                              only_ascii=False, umlauts=False).strip()
-                    match = fuzz.token_set_ratio(book['searchterm'], result_title)
-
-                    if match > 90:
-                        try:
-                            magnet = None
-                            title = ''
-                            seeders = 0
-                            size = 0
-                            age = ''
-                            new_url = "%s%s" % (host, str(td[1]).split('href="')[1].split('"')[0])
-                            result, success = fetch_url(new_url)
-                            if not success:
-                                logger.debug('Error fetching url %s, %s' % (new_url, result))
-                            else:
-                                new_soup = BeautifulSoup(result, 'html5lib')
-                                for link in new_soup.find_all('a'):
-                                    output = link.get('href')
-                                    if output and output.startswith('magnet'):
-                                        magnet = output
-                                        break
-                                if magnet:
-                                    for link in new_soup.find_all('li'):
-                                        data = link.get('title')
-                                        if data:
-                                            if 'Seeder' in data:
-                                                seeders = int(link.text.strip().split(' ')[0])
-                                            elif 'Size' in data:
-                                                size = size_in_bytes(link.text.strip())
-                                            elif ' age' in data:
-                                                age = link.text.strip()
-                                    title = new_soup.find("h1")
-                                    if title:
-                                        title = title.text
-                                        title = title.replace('\n', '').strip()
-                                        title = ' '.join(title.split())
-
-                            # no point in asking for magnet link if not enough seeders
-                            if minimumseeders < seeders:
-                                if not magnet or not title:
-                                    logger.debug('Missing magnet or title')
-                                else:
-                                    size = td[1].text.split(', Size ')[1].split('iB')[0]
-                                    size = size.replace('&nbsp;', '')
-                                    size = size_in_bytes(size)
-                                    res = {
-                                        'bookid': book.get('bookid', 'test'),
-                                        'tor_prov': provider,
-                                        'tor_title': title,
-                                        'tor_url': magnet,
-                                        'tor_size': str(size),
-                                        'tor_type': 'magnet',
-                                        'priority': CONFIG['TRF_DLPRIORITY']
-                                    }
-                                    # date style: Dec 2015
-                                    if age:
-                                        m = 0
-                                        y = 0
-                                        words = get_list(age)
-                                        for word in words:
-                                            val = month2num(word)
-                                            if val:
-                                                m = val
-                                            else:
-                                                val = check_year(word)
-                                                if val:
-                                                    y = val
-                                        if y and m:
-                                            res['tor_date'] = "%d-%02d-01" % (y, m)
-
-                                    results.append(res)
-
-                                    logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
-
-                            else:
-                                logger.debug('Found %s, %s:%s, but %s %s' % (title, size, age, seeders,
-                                                                             plural(seeders, "seeder")))
-                        except Exception as e:
-                            logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                            logger.debug('%s: %s' % (provider, traceback.format_exc()))
-
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
-    if test:
-        return len(results)
-    return results, errmsg
+from bs4 import BeautifulSoup
+from lazylibrarian.cache import fetch_url
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
+    make_utf8bytes
 
 
 def torrent_tpb(book=None, test=False):
@@ -251,10 +86,13 @@ def torrent_tpb(book=None, test=False):
                 td = row.find_all('td')
                 if len(td) > 2:
                     try:
+                        prov_page = ''
                         new_soup = BeautifulSoup(str(td[1]), 'html5lib')
                         link = new_soup.find("a")
                         magnet = link.get("href")
                         title = link.text
+                        if 'detLink' in str(td[1]):
+                            prov_page = str(td[1]).split('detLink')[1].split('href="', 1)[1].split('"')[0]
                         try:
                             seeders = int(td[2].text.replace(',', ''))
                         except ValueError:
@@ -291,7 +129,8 @@ def torrent_tpb(book=None, test=False):
                                     'tor_url': magnet,
                                     'tor_size': str(size),
                                     'tor_type': 'magnet',
-                                    'priority': CONFIG['TPB_DLPRIORITY']
+                                    'priority': CONFIG['TPB_DLPRIORITY'],
+                                    'prov_page': prov_page
                                 }
                                 # dates are either mm dd yyyy or mm dd hh:mm if yyyy is this year
                                 try:
@@ -308,7 +147,6 @@ def torrent_tpb(book=None, test=False):
                                     pass
 
                                 results.append(res)
-
                                 logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
                                 next_page = True
                         else:
@@ -384,14 +222,20 @@ def torrent_kat(book=None, test=False):
 
         for row in rows:
             td = row.find_all('td')
-            if len(td) > 3:
+            if len(td) > 4:
                 try:
                     # some mirrors of kat return multiple text items, some just the title
                     try:
-                        title = str(td[0]).split('class="cellMainLink"')[1].split('>')[1].split('<')[0]
+                        title = str(td[0]).split('class="cellMainLink"')[1].split('>', 1)[1].split('</a>')[0]
                     except IndexError:
                         title = td[0].text
+                    title = re.sub('<[^<]+?>', '', title).strip()  # remove embedded html tags
                     title = unaccented(title, only_ascii=False, umlauts=False)
+                    try:
+                        prov_page = host + \
+                                    str(td[0]).split('class="torrentname"')[1].split('href="', 1)[1].split('"')[0]
+                    except IndexError:
+                        prov_page = ''
                     # kat can return magnet or torrent or both.
                     magnet = ''
                     url = ''
@@ -411,6 +255,14 @@ def torrent_kat(book=None, test=False):
                         url = magnet
                         mode = 'magnet'
 
+                    if prov_page and not url:
+                        prov_result, success = fetch_url(prov_page)
+                        if success:
+                            try:
+                                url = 'magnet' + prov_result.split('href="magnet', 1)[1].split('"')[0]
+                                mode = 'magnet'
+                            except IndexError:
+                                pass
                     try:
                         size = str(td[1].text).replace('&nbsp;', '').upper()
                         size = size_in_bytes(size)
@@ -418,7 +270,7 @@ def torrent_kat(book=None, test=False):
                         size = 0
 
                     try:
-                        seeders = int(td[3].text.replace(',', ''))
+                        seeders = int(td[4].text.replace(',', ''))
                     except ValueError:
                         seeders = 0
 
@@ -432,7 +284,8 @@ def torrent_kat(book=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': mode,
-                            'priority': CONFIG['KAT_DLPRIORITY']
+                            'priority': CONFIG['KAT_DLPRIORITY'],
+                            'prov_page': prov_page
                         })
                         logger.debug('Found %s. Size: %s' % (title, size))
                     else:
@@ -440,233 +293,6 @@ def torrent_kat(book=None, test=False):
                 except Exception as e:
                     logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                     logger.debug('%s: %s' % (provider, traceback.format_exc()))
-
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
-    if test:
-        return len(results)
-    return results, errmsg
-
-
-def torrent_wwt(book=None, test=False):
-    logger = logging.getLogger(__name__)
-    errmsg = ''
-    provider = "WorldWideTorrents"
-    host = CONFIG['WWT_HOST']
-    if not host.startswith('http'):
-        host = 'http://' + host
-
-    providerurl = url_fix(host + "/torrents-search.php")
-
-    sterm = make_unicode(book['searchterm'])
-
-    cat = 0  # 0=all, 36=ebooks, 50=comics, 52=mags, 56=audiobooks
-    if 'library' in book:
-        if book['library'] == 'AudioBook':
-            cat = 56
-        elif book['library'] == 'eBook':
-            cat = 36
-        elif book['library'] == 'comic':
-            cat = 50
-        elif book['library'] == 'magazine':
-            cat = 52
-
-    page = 0
-    results = []
-    minimumseeders = CONFIG.get_int('WWT_SEEDERS') - 1
-    next_page = True
-
-    while next_page:
-        params = {
-            "search": make_utf8bytes(book['searchterm'])[0],
-            "page": page,
-            "cat": cat
-        }
-        search_url = providerurl + "/?%s" % urlencode(params)
-
-        next_page = False
-        result, success = fetch_url(search_url)
-        if not success:
-            # might return 404 if no results, not really an error
-            if '404' in result:
-                logger.debug("No results found from %s for %s" % (provider, sterm))
-                if test:
-                    return False
-            elif '503' in result:
-                logger.warning("Cloudflare bot detection? %s: %s" % (provider, result))
-                logger.warning("Try unblocking %s from a browser" % providerurl)
-                if test:
-                    return False
-            else:
-                logger.debug(search_url)
-                logger.debug('Error fetching data from %s: %s' % (provider, result))
-                errmsg = result
-            result = False
-
-        if result:
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
-            soup = BeautifulSoup(result, 'html5lib')
-            rows = []
-            try:
-                tables = soup.find_all('table')  # un-named table
-                table = tables[2]
-                if table:
-                    rows = table.find_all('tr')
-            except IndexError:  # no results table in result page
-                logger.debug("No table found in results")
-                rows = []
-
-            if len(rows) > 1:
-                rows = rows[1:]  # first row is headers
-
-            for row in rows:
-                td = row.find_all('td')
-                if len(td) > 3:
-                    try:
-                        title = unaccented(td[0].text, only_ascii=False, umlauts=False)
-                        # can return magnet or torrent or both.
-                        magnet = ''
-                        url = ''
-                        mode = 'torrent'
-                        try:
-                            magnet = 'magnet' + str(td[0]).split('href="magnet')[1].split('"')[0]
-                            mode = 'magnet'
-                        except IndexError:
-                            pass
-                        try:
-                            url = url_fix(host + '/download.php') + \
-                                          str(td[0]).split('href="download.php')[1].split('.torrent"')[0] + '.torrent'
-                            mode = 'torrent'
-                        except IndexError:
-                            pass
-
-                        if not url or (magnet and url and CONFIG.get_bool('PREFER_MAGNET')):
-                            url = magnet
-                            mode = 'magnet'
-
-                        try:
-                            size = str(td[1].text).replace('&nbsp;', '').upper()
-                            size = size_in_bytes(size)
-                        except ValueError:
-                            size = 0
-                        try:
-                            seeders = int(td[2].text.replace(',', ''))
-                        except ValueError:
-                            seeders = 0
-
-                        if not url or not title:
-                            logger.debug('Missing url or title')
-                        elif minimumseeders < seeders:
-                            results.append({
-                                'bookid': book.get('bookid', 'test'),
-                                'tor_prov': provider,
-                                'tor_title': title,
-                                'tor_url': url,
-                                'tor_size': str(size),
-                                'tor_type': mode,
-                                'priority': CONFIG['WWT_DLPRIORITY']
-                            })
-                            logger.debug('Found %s. Size: %s' % (title, size))
-                            next_page = True
-                        else:
-                            logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
-                    except Exception as e:
-                        logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                        logger.debug('%s: %s' % (provider, traceback.format_exc()))
-
-        if test:
-            logger.debug("Test found %i %s from %s for %s" % (len(results), plural(len(results),
-                                                              "result"), provider, sterm))
-            return len(results)
-
-        page += 1
-        if 0 < CONFIG.get_int('MAX_PAGES') < page:
-            logger.warning('Maximum results page search reached, still more results available')
-            next_page = False
-
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
-    return results, errmsg
-
-
-def torrent_zoo(book=None, test=False):
-    logger = logging.getLogger(__name__)
-    errmsg = ''
-    provider = "zooqle"
-    host = CONFIG['ZOO_HOST']
-    if not host.startswith('http'):
-        host = 'http://' + host
-
-    providerurl = url_fix(host + "/search")
-
-    params = {
-        "q": make_utf8bytes(book['searchterm'])[0],
-        "category": "books",
-        "fmt": "rss"
-    }
-    search_url = providerurl + "?%s" % urlencode(params)
-
-    sterm = make_unicode(book['searchterm'])
-
-    data, success = fetch_url(search_url)
-    if not success:
-        # may return 404 if no results, not really an error
-        if '404' in data:
-            logger.debug("No results found from %s for %s" % (provider, sterm))
-            if test:
-                return False
-        else:
-            logger.debug(search_url)
-            logger.debug('Error fetching data from %s: %s' % (provider, data))
-            errmsg = data
-        data = False
-
-    results = []
-
-    minimumseeders = CONFIG.get_int('ZOO_SEEDERS') - 1
-    if data:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
-        d = feedparser.parse(data)
-        if len(d.entries):
-            for item in d.entries:
-                try:
-                    title = unaccented(item['title'], only_ascii=False, umlauts=False)
-                    seeders = int(item['torrent_seeds'].replace(',', ''))
-                    link = item['links'][1]['href']
-                    size = int(item['links'][1]['length'])
-                    magnet = item['torrent_magneturi']
-
-                    url = None
-                    mode = 'torrent'
-                    if link:
-                        url = link
-                        mode = 'torrent'
-                    if magnet:
-                        if not url or (url and CONFIG.get_bool('PREFER_MAGNET')):
-                            url = magnet
-                            mode = 'magnet'
-
-                    if not url or not title:
-                        logger.debug('No url or title found')
-                    elif minimumseeders < seeders:
-                        results.append({
-                            'bookid': book.get('bookid', 'test'),
-                            'tor_prov': provider,
-                            'tor_title': title,
-                            'tor_url': url,
-                            'tor_size': str(size),
-                            'tor_type': mode,
-                            'priority': CONFIG['ZOO_DLPRIORITY']
-                        })
-                        logger.debug('Found %s. Size: %s' % (title, size))
-                    else:
-                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
-
-                except Exception as e:
-                    if 'forbidden' in str(e).lower():
-                        # looks like zooqle has ip based access limits
-                        logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
-                    else:
-                        logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                        logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     if test:

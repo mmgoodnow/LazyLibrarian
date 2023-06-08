@@ -28,7 +28,11 @@
         <tr>
           <td class="bookid">${item['score']} %</td>
           <td class="filename">${item['title']}</td>
-          <td class="provider"><a data-toggle="tooltip" title="${item['mode']}">${item['provider']}</a></td>
+          %if item.get('prov_page'):
+          <td class="provider"><a href="${item.get('prov_page')}">${item['provider']}</a></td>
+          %else:
+            <td class="provider"><a>${item['provider']}</a></td>
+          %endif
           <td class="size text-right">${item['size']}</td>
           <td class="date">${item['date']}</td>
           <td class="status text-center"> <a class="btn btn-xs btn-info button"

@@ -146,7 +146,7 @@
             let prov = $(this).val();
             let host = ""
             let api = ""
-            if ( 'KAT TPB WWT ZOO TDL TRF LIME'.indexOf(prov) >= 0 ) {
+            if ( 'KAT TPB TDL LIME'.indexOf(prov) >= 0 ) {
                 host = $("#" + prov.toLowerCase() + "_host").val();
                 api = $("#" + prov.toLowerCase() + "_seeders").val();
             }

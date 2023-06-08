@@ -1370,7 +1370,7 @@
                       <span class="input-group-addon">Types</span>
                       <input type="text" id="newznab_${loop.index}_dltypes" name="newznab_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
                       <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="newznab_${loop.index}"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="newznab_${loop.index}"> Test</button>
                       </span>
                     </div>
                     <div class="input-group">
@@ -1421,7 +1421,7 @@
                       <span class="input-group-addon">Seeders</span>
                       <input type="number" id="torznab_${loop.index}_seeders" name="torznab_${loop.index}_seeders" value="${provider['SEEDERS']}" class="form-control" placeholder="0">
                       <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="torznab_${loop.index}"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="torznab_${loop.index}"> Test</button>
                       </span>
                     </div>
                     <div class="input-group">
@@ -1485,7 +1485,7 @@
                       <span class="input-group-addon">Types</span>
                       <input type="text" id="rss_${loop.index}_dltypes" name="rss_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
                       <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="rss_${loop.index}"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="rss_${loop.index}"> Test</button>
                       </span>
                     </div>
                   </div>
@@ -1520,7 +1520,7 @@
                       <span class="input-group-addon">Types</span>
                       <input type="text" id="kat_dltypes" name="kat_dltypes" value="${CONFIG['KAT_DLTYPES']}" class="form-control" placeholder="">
                       <span class="input-group-addon">
-                      <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="KAT"> Test</button>
+                      <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="KAT"> Test</button>
                       </span>
                     </div>
                   </div>
@@ -1543,56 +1543,10 @@
                       <span class="input-group-addon">Types</span>
                       <input type="text" id="tpb_dltypes" name="tpb_dltypes" value="${CONFIG['TPB_DLTYPES']}" class="form-control" placeholder="">
                       <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="TPB"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="TPB"> Test</button>
                       </span>
                     </div>
                   </div>
-                   <% checked = 'checked="checked"' if CONFIG['WWT'] else '' %>
-                    <div class="col-md-4 form-group">
-                      <label for="wwt_host" class="sr-only">WWT Host</label>
-                      <div class="input-group">
-                        <input type="text" placeholder="WWT Host" id="wwt_host" name="wwt_host" value="${CONFIG['WWT_HOST']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
-                          <input type="checkbox" id="wwt" name="wwt" value="1" ${checked} />
-                        </span>
-                      </div>
-                      <div class="input-group">
-                      <span class="input-group-addon">Priority</span>
-                        <input type="number" id="wwt_dlpriority" name="wwt_dlpriority" value="${CONFIG['WWT_DLPRIORITY']}" class="form-control" placeholder="0">
-                        <span class="input-group-addon">Seeders</span>
-                        <input type="number" id="wwt_seeders" name="wwt_seeders" value="${CONFIG['WWT_SEEDERS']}" class="form-control" placeholder="0">
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Types</span>
-                        <input type="text" id="wwt_dltypes" name="wwt_dltypes" value="${CONFIG['WWT_DLTYPES']}" class="form-control" placeholder="">
-                        <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="WWT"> Test</button>
-                        </span>
-                      </div>
-                    </div>
-                    <% checked = 'checked="checked"' if CONFIG['ZOO'] else '' %>
-                    <div class="col-md-4 form-group">
-                      <label for="zoo_host" class="sr-only">zooqle host</label>
-                      <div class="input-group">
-                        <input type="text" placeholder="zooqle host" id="zoo_host" name="zoo_host" value="${CONFIG['ZOO_HOST']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
-                        <input type="checkbox" id="zoo" name="zoo" value="1" ${checked} />
-                        </span>
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Priority</span>
-                        <input type="number" id="zoo_dlpriority" name="zoo_dlpriority" value="${CONFIG['ZOO_DLPRIORITY']}" class="form-control" placeholder="0">
-                        <span class="input-group-addon">Seeders</span>
-                        <input type="number" id="zoo_seeders" name="zoo_seeders" value="${CONFIG['ZOO_SEEDERS']}" class="form-control" placeholder="0">
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Types</span>
-                        <input type="text" id="zoo_dltypes" name="zoo_dltypes" value="${CONFIG['ZOO_DLTYPES']}" class="form-control" placeholder="">
-                        <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="ZOO"> Test</button>
-                        </span>
-                      </div>
-                    </div>
                     <% checked = 'checked="checked"' if CONFIG['TDL'] else '' %>
                     <div class="col-md-4 form-group">
                       <label for="tdl_host" class="sr-only">torrentdownload host</label>
@@ -1612,30 +1566,7 @@
                         <span class="input-group-addon">Types</span>
                         <input type="text" id="tdl_dltypes" name="tdl_dltypes" value="${CONFIG['TDL_DLTYPES']}" class="form-control" placeholder="">
                         <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="TDL"> Test</button>
-                        </span>
-                      </div>
-                    </div>
-                     <% checked = 'checked="checked"' if CONFIG['TRF'] else '' %>
-                    <div class="col-md-4 form-group">
-                      <label for="trf_host" class="sr-only">torrof host</label>
-                      <div class="input-group">
-                        <input type="text" placeholder="torrof host" id="trf_host" name="trf_host" value="${CONFIG['TRF_HOST']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
-                        <input type="checkbox" id="trf" name="trf" value="1" ${checked} />
-                        </span>
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Priority</span>
-                        <input type="number" id="trf_dlpriority" name="trf_dlpriority" value="${CONFIG['TRF_DLPRIORITY']}" class="form-control" placeholder="0">
-                        <span class="input-group-addon">Seeders</span>
-                        <input type="number" id="trf_seeders" name="trf_seeders" value="${CONFIG['TRF_SEEDERS']}" class="form-control" placeholder="0">
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Types</span>
-                        <input type="text" id="trf_dltypes" name="trf_dltypes" value="${CONFIG['TRF_DLTYPES']}" class="form-control" placeholder="">
-                        <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="TRF"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button active" value="TDL"> Test</button>
                         </span>
                       </div>
                     </div>
@@ -1658,7 +1589,7 @@
                         <span class="input-group-addon">Types</span>
                         <input type="text" id="lime_dltypes" name="lime_dltypes" value="${CONFIG['LIME_DLTYPES']}" class="form-control" placeholder="">
                         <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="LIME"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="LIME"> Test</button>
                         </span>
                       </div>
                     </div>
@@ -1720,7 +1651,7 @@
                       <span class="input-group-addon">Types</span>
                       <input type="text" id="irc_${loop.index}_dltypes" name="irc_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
                       <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="irc_${loop.index}"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="irc_${loop.index}"> Test</button>
                       </span>
                     </div>
                   </div>
@@ -1764,7 +1695,7 @@
                         <span class="input-group-addon">Types</span>
                         <input type="text" id="bok_dltypes" name="bok_dltypes" value="${CONFIG['BOK_DLTYPES']}" class="form-control" placeholder="">
                         <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="BOK"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="BOK"> Test</button>
                         </span>
                       </div>
                       <div class="input-group">
@@ -1788,7 +1719,7 @@
                         <span class="input-group-addon">Types</span>
                         <input type="text" id="bfi_dltypes" name="bfi_dltypes" value="${CONFIG['BFI_DLTYPES']}" class="form-control" placeholder="">
                         <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="BFI"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="BFI"> Test</button>
                         </span>
                       </div>
                     </div>
@@ -1821,7 +1752,7 @@
                       <span class="input-group-addon">Types</span>
                       <input type="text" id="gen_${loop.index}_dltypes" name="gen_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
                       <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="gen_${loop.index}"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="gen_${loop.index}"> Test</button>
                       </span>
                     </div>
                   </div>
@@ -1830,7 +1761,7 @@
                   </fieldset>
               </div>
             </div>
-            <button class="button btn btn-sm btn-warning btn-primary" type="button" value="showblocked" id="showblocked"> Blocked Providers</button>
+            <button class="button btn btn-sm btn-warning" type="button" value="showblocked" id="showblocked"> Blocked Providers</button>
             <br>
             <br>
           </div>
@@ -3119,7 +3050,7 @@
                       <label for="apprise_${loop.index}_url" class="sr-only">URL</label>
                       <input type="text" placeholder="URL #${loop.index} see docs for format" id="apprise_${loop.index}_url" name="apprise_${loop.index}_url" value="${provider['URL']}" class="form-control" />
                       <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="apprise_${loop.index}"> Test</button>
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="apprise_${loop.index}"> Test</button>
                       </span>
                     </div>
                   </div>

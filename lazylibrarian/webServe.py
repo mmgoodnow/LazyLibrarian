@@ -164,7 +164,8 @@ def serve_template(templatename, **kwargs):
                 else:
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
-                        res = db.match('SELECT UserName,Perms,UserID from users where UserID=?', (cookie['ll_uid'].value,))
+                        res = db.match('SELECT UserName,Perms,UserID from users where UserID=?',
+                                       (cookie['ll_uid'].value,))
                     if not res:
                         columns = db.select('PRAGMA table_info(users)')
                         if not columns:  # no such table
@@ -354,7 +355,8 @@ class WebInterface(object):
     def get_index(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
-        loggerserverside.debug(f"Start {iDisplayStart} Length {iDisplayLength} Col {iSortCol_0} Dir {sSortDir_0} Search [{sSearch}]")
+        loggerserverside.debug(f"Start {iDisplayStart} Length {iDisplayLength} Col {iSortCol_0} "
+                               f"Dir {sSortDir_0} Search [{sSearch}]")
         rows = []
         filtered = []
         rowlist = []
@@ -1642,7 +1644,8 @@ class WebInterface(object):
             if len(lazylibrarian.GRGENRES.get('genreReplace', {})) != len(genredict):
                 genre_changes += 'dict-length '
             else:
-                shared_items = {k: lazylibrarian.GRGENRES['genreReplace'][k] for k in lazylibrarian.GRGENRES['genreReplace']
+                shared_items = {k: lazylibrarian.GRGENRES['genreReplace'][k]
+                                for k in lazylibrarian.GRGENRES['genreReplace']
                                 if k in genredict and lazylibrarian.GRGENRES['genreReplace'][k] == genredict[k]}
                 if len(shared_items) != len(genredict):
                     genre_changes += 'shared-values '
@@ -2099,8 +2102,8 @@ class WebInterface(object):
                     matchname = unaccented(matchname).lower()
                     bestmatch = [0, '']
                     for item in listdir(libdir):
-                        match = fuzz.ratio(format_author_name(unaccented(item), CONFIG.get_list('NAME_POSTFIX')).lower(),
-                                           matchname)
+                        match = fuzz.ratio(format_author_name(unaccented(item),
+                                                              CONFIG.get_list('NAME_POSTFIX')).lower(), matchname)
                         if match >= CONFIG.get_int('NAME_RATIO'):
                             authordir = os.path.join(libdir, item)
                             loggerfuzz.debug("Fuzzy match folder %s%% %s for %s" % (match, item, author_name))
@@ -2402,7 +2405,8 @@ class WebInterface(object):
             cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
             cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
             cmd += ' WHERE books.AuthorID = authors.AuthorID'
-            loggerserverside.debug("ToRead %s Read %s Reading %s Abandoned %s" % (len(to_read), len(have_read), len(reading), len(abandoned)))
+            loggerserverside.debug("ToRead %s Read %s Reading %s Abandoned %s" % (len(to_read), len(have_read),
+                                                                                  len(reading), len(abandoned)))
             types = []
             if CONFIG.get_bool('EBOOK_TAB'):
                 types.append('eBook')
@@ -2604,7 +2608,7 @@ class WebInterface(object):
                     elif 'books.google.com' in row[9] or 'market.android.com' in row[9]:
                         sitelink = '<a href="%s"><small><i>GoogleBooks</i></small></a>' % row[9]
                     title = row[2]
-                    if row[8] and ' #' not in row[8]:  # is there a subtitle that's not series info
+                    if row[8] and ' #' not in row[8] and row[8] != "None":  # is there a subtitle that's not series info
                         title = '%s<br><small><i>%s</i></small>' % (title, row[8])
                     # elif row[20]:  # series info
                     #     title = '%s<br><small><i>(%s)</i></small>' % (title, row[20])
@@ -3704,8 +3708,8 @@ class WebInterface(object):
                     else:
                         logger.debug('Book [%s] has not been moved' % bookname)
                     if edited or moved:
-                        data = db.match("SELECT * from books,authors WHERE books.authorid=authors.authorid and BookID=?",
-                                        (bookid,))
+                        data = db.match("SELECT * from books,authors WHERE "
+                                        "books.authorid=authors.authorid and BookID=?", (bookid,))
                         if data['BookFile'] and path_isfile(data['BookFile']):
                             dest_path = os.path.dirname(data['BookFile'])
                             global_name = os.path.splitext(os.path.basename(data['BookFile']))[0]
@@ -4111,7 +4115,8 @@ class WebInterface(object):
         db = database.DBConnection()
         try:
             results = db.select(
-                'SELECT AudioFile,BookImg,BookID,BookName from books where AudioStatus="Open" order by AudioLibrary DESC')
+                'SELECT AudioFile,BookImg,BookID,BookName from books '
+                'where AudioStatus="Open" order by AudioLibrary DESC')
         finally:
             db.close()
         if not len(results):
@@ -5945,7 +5950,8 @@ class WebInterface(object):
         logger = logging.getLogger(__name__)
         msg, zipfile = create_support_zip()
         logger.info(msg)
-        return cherrypy.lib.static.serve_file(zipfile, 'application/x-download', 'attachment', os.path.basename(zipfile))
+        return cherrypy.lib.static.serve_file(zipfile, 'application/x-download', 'attachment',
+                                              os.path.basename(zipfile))
         # raise cherrypy.HTTPRedirect("logs")
 
     @cherrypy.expose
@@ -6188,7 +6194,8 @@ class WebInterface(object):
                 match = db.match('select ScanResult from books WHERE bookid=?', (rowid,))
                 message = 'Reason: %s<br>' % match['ScanResult']
             else:
-                cmd = 'select NZBurl,NZBtitle,NZBdate,NZBprov,Status,NZBsize,AuxInfo,NZBmode,DLResult,Source,DownloadID '
+                cmd = 'select NZBurl,NZBtitle,NZBdate,NZBprov,Status,NZBsize,' \
+                      'AuxInfo,NZBmode,DLResult,Source,DownloadID '
                 cmd += 'from wanted where rowid=?'
                 match = db.match(cmd, (rowid,))
                 dltype = match['AuxInfo']

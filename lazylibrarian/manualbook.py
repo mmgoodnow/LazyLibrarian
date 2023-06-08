@@ -93,6 +93,7 @@ def search_item(item=None, bookid=None, cat=None):
         size = ''
         date = ''
         mode = ''
+        prov_page = ''
         if 'dispname' in item:
             provider = item['dispname']
         elif 'nzbprov' in item:
@@ -121,6 +122,8 @@ def search_item(item=None, bookid=None, cat=None):
             date = item['tor_date']
         if 'tor_type' in item:
             mode = item['tor_type']
+        if 'prov_page' in item:
+            prov_page = item['prov_page']
 
         if title and provider and mode and url:
             # Not all results have a date or a size
@@ -136,13 +139,13 @@ def search_item(item=None, bookid=None, cat=None):
 
             # calculate match percentage - torrents might have words_with_underscore_separator
             score = fuzz.token_set_ratio(searchterm, title.replace('_', ' '))
-            # lose a point for each extra word in the title so we get the closest match
+            # lose a point for each extra word in the title to get the closest match
             words = len(get_list(searchterm))
             words -= len(get_list(title))
             score -= abs(words)
             if score >= 40:  # ignore wildly wrong results?
                 result = {'score': score, 'title': title, 'provider': provider, 'size': size, 'date': date,
-                          'url': quote_plus(url), 'mode': mode, 'url_title': quote(title)}
+                          'url': quote_plus(url), 'mode': mode, 'url_title': quote(title), 'prov_page': prov_page}
 
                 searchresults.append(result)
 

@@ -30,8 +30,7 @@ from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num
 from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
-from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
-    torrent_trf, torrent_lime
+from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, torrent_lime
 from lazylibrarian.directparser import bok_dlcount
 
 import lib.feedparser as feedparser
@@ -65,21 +64,11 @@ def test_provider(name: str, host=None, api=None):
         if host:
             CONFIG.set_str('TPB_HOST', host)
         return torrent_tpb(book, test=True), "Pirate Bay"
-    if name == 'WWT':
-        logger.debug("Testing provider %s" % name)
-        if host:
-            CONFIG.set_str('WWT_HOST', host)
-        return torrent_wwt(book, test=True), "WorldWideTorrents"
     if name == 'KAT':
         logger.debug("Testing provider %s" % name)
         if host:
             CONFIG.set_str('KAT_HOST', host)
         return torrent_kat(book, test=True), "KickAss Torrents"
-    if name == 'ZOO':
-        logger.debug("Testing provider %s" % name)
-        if host:
-            CONFIG.set_str('ZOO_HOST', host)
-        return torrent_zoo(book, test=True), "Zooqle"
     if name == 'LIME':
         logger.debug("Testing provider %s" % name)
         if host:
@@ -90,12 +79,7 @@ def test_provider(name: str, host=None, api=None):
         if host:
             CONFIG.set_str('TDL_HOST', host)
         return torrent_tdl(book, test=True), "TorrentDownloads"
-    if name == 'TRF':
-        logger.debug("Testing provider %s" % name)
-        if host:
-            CONFIG.set_str('TRF_HOST', host)
-        return torrent_trf(book, test=True), "Torrof"
-
+    
     if name.startswith('gen_'):
         for provider in CONFIG.providers('GEN'):
             if provider['NAME'].lower() == name:
@@ -617,7 +601,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
             book['searchterm'] = authorname + ' ' + bookname
         book['searchterm'] = no_umlauts(book['searchterm'])
 
-    for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
+    for prov in ['KAT', 'TPB', 'TDL', 'LIME']:
         iterateproviderslogger.debug("DLTYPES: %s: %s %s" % (prov, CONFIG[prov], CONFIG[prov + '_DLTYPES']))
         if CONFIG[prov]:
             ignored = False
@@ -643,12 +627,6 @@ def iterate_over_torrent_sites(book=None, search_type=None):
                     results, error = torrent_kat(book)
                 elif prov == 'TPB':
                     results, error = torrent_tpb(book)
-                elif prov == 'WWT':
-                    results, error = torrent_wwt(book)
-                elif prov == 'ZOO':
-                    results, error = torrent_zoo(book)
-                elif prov == 'TRF':
-                    results, error = torrent_trf(book)
                 elif prov == 'TDL':
                     results, error = torrent_tdl(book)
                 elif prov == 'LIME':
@@ -1970,7 +1948,7 @@ def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode
                                 logger.warning("%s does not support seeders" % provider['DISPNAME'])
                             else:
                                 # its torznab, check if minimum seeders relevant
-                                if check_int(thisnzb['seeders'], 0) >= provider.get_int('SEEDERS'):
+                                if check_int(thisnzb['seeders'], 0) >= check_int(provider['SEEDERS'], 0):
                                     nzbcount += 1
                                     results.append(thisnzb)
                                 else:
@@ -2219,6 +2197,7 @@ def return_results_by_search_type(book: Dict, nzbdetails, host=None, search_mode
     nzburl = ''
     nzbsize = 0
     seeders = None
+    comments = ''
 
     n = 0
     while n < len(nzbdetails):
@@ -2228,6 +2207,8 @@ def return_results_by_search_type(book: Dict, nzbdetails, host=None, search_mode
             nzbtitle = nzbdetails[n].text
         elif tag == 'size':
             nzbsize = nzbdetails[n].text
+        elif tag == 'comments':
+            comments = nzbdetails[n].text
         elif tag == 'pubdate':
             nzbdate = nzbdetails[n].text
         elif tag == 'link':
@@ -2253,6 +2234,9 @@ def return_results_by_search_type(book: Dict, nzbdetails, host=None, search_mode
     }
     if seeders is not None:  # only if torznab
         result_fields['seeders'] = check_int(seeders, 0)
+    if comments:  # torznab may have a provider page link here
+        if comments.startswith('http'):
+            result_fields['prov_page'] = comments
 
     logger.debug('Result fields from NZB are ' + str(result_fields))
     return result_fields

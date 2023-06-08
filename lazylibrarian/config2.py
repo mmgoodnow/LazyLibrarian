@@ -55,6 +55,7 @@ class LLConfigHandler(ConfigDict):
             self._copydefaults(self.defaults)
         if configfile:
             self.configfilename = configfile
+            # interpolation=None is used to allow passwords containing %
             parser = ConfigParser(dict_type=CaseInsensitiveDict, interpolation=None)
             parser.optionxform = lambda optionstr: optionstr.upper()
             parser.read(syspath(configfile))
@@ -185,7 +186,7 @@ class LLConfigHandler(ConfigDict):
         return result
 
     def all_configs(self) -> ConfigDictListIterator:
-        """ Used to iterate over all of the config items, whether base or array """
+        """ Used to iterate over all the config items, whether base or array """
         alldicts = [self]
         for array in self.arrays.values():
             for _, item in enumerate(array):
@@ -444,7 +445,7 @@ class LLConfigHandler(ConfigDict):
             self.clear_access_counters()
 
     def add_access_errors_to_log(self):
-        """ For use at end of program. Add any access errors to the log file so they
+        """ For use at end of program. Add any access errors to the log file, so they
         are easy to find. """
         for key, value in self.all_configs():
             accesses = value.get_accesses()
@@ -580,7 +581,7 @@ class LLConfigHandler(ConfigDict):
     def use_tor(self) -> int:
         """ Returns number of TOR providers that are not blocked """
         count = 0
-        for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
+        for provider in ['KAT', 'TPB', 'LIME', 'TDL']:
             if self.get_bool(provider) and not BLOCKHANDLER.is_blocked(provider):
                 count += 1
         return count
@@ -699,10 +700,10 @@ def wishlist_type(host: str) -> str:
     # NYTimes best-sellers html pages
     if 'nytimes' in host and 'best-sellers' in host:
         return 'ny_times'
-    # Publisherweekly best-seller in category
+    # Publisherweekly bestseller in category
     if 'publishersweekly' in host and '/pw/' in host:
         return 'publishersweekly'
-    # Publisherweekly best-seller in category
+    # Publisherweekly bestseller in category
     if 'apps.npr.org' in host and '/best-books/' in host:
         return 'apps.npr.org'
     if 'penguinrandomhouse' in host:

@@ -477,7 +477,7 @@ class Api(object):
     def _listtorrentproviders(self):
         TELEMETRY.record_usage_data()
         providers = []
-        for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
+        for provider in ['KAT', 'TPB', 'LIME', 'TDL']:
             mydict = {'NAME': provider, 'ENABLED': CONFIG.get_bool(provider)}
             for item in ['HOST', 'DLTYPES']:
                 name = "%s_%s" % (provider, item)
@@ -584,7 +584,7 @@ class Api(object):
             providers = CONFIG.providers('IRC')
         elif name.startswith('GEN_'):
             providers = CONFIG.providers('GEN')
-        elif name in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
+        elif name in ['BOK', 'BFI', 'KAT', 'TPB', 'LIME', 'TDL']:
             for arg in kwargs:
                 if arg in ['HOST', 'DLTYPES', 'DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
                     itemname = "%s_%s" % (name, arg)

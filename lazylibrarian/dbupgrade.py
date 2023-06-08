@@ -962,8 +962,7 @@ def db_v59(db, upgradelog):
         upgradelog.write("%s v58: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         for entry in CONFIG.providers('TORZNAB'):
             entry['SEEDERS'].set_int(seeders)
-        for item in ['KAT_SEEDERS', 'WWT_SEEDERS', 'TPB_SEEDERS', 'ZOO_SEEDERS', 'TRF_SEEDERS',
-                     'TDL_SEEDERS', 'LIME_SEEDERS']:
+        for item in ['KAT_SEEDERS', 'TPB_SEEDERS', 'TDL_SEEDERS', 'LIME_SEEDERS']:
             CONFIG.set_int(item, seeders)
     CONFIG.set_int('NUMBEROFSEEDERS', 0)
     CONFIG.save_config_and_backup_old()
