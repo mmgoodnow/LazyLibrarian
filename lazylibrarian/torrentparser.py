@@ -21,6 +21,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def torrent_tpb(book=None, test=False):
@@ -67,6 +68,7 @@ def torrent_tpb(book=None, test=False):
                 logger.debug(search_url)
                 logger.debug('Error fetching data from %s: %s' % (provider, result))
                 errmsg = result
+                TELEMETRY.record_usage_data("tpbError")
             result = False
 
         if result:
@@ -154,6 +156,7 @@ def torrent_tpb(book=None, test=False):
                     except Exception as e:
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                        TELEMETRY.record_usage_data("tpbParserError")
 
         if test:
             logger.debug("Test found %i %s from %s for %s" % (len(results), plural(len(results),
@@ -200,6 +203,7 @@ def torrent_kat(book=None, test=False):
             logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, result))
             errmsg = result
+            TELEMETRY.record_usage_data("katError")
         result = False
 
     results = []
@@ -293,6 +297,7 @@ def torrent_kat(book=None, test=False):
                 except Exception as e:
                     logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                     logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                    TELEMETRY.record_usage_data("katParserError")
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     if test:
@@ -327,6 +332,7 @@ def torrent_lime(book=None, test=False):
             logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
+            TELEMETRY.record_usage_data("limeError")
         data = False
 
     results = []
@@ -387,6 +393,7 @@ def torrent_lime(book=None, test=False):
                     else:
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                        TELEMETRY.record_usage_data("limeParserError")
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     if test:
@@ -424,6 +431,7 @@ def torrent_tdl(book=None, test=False):
             logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
+            TELEMETRY.record_usage_data("tdlError")
         data = False
 
     results = []
@@ -480,6 +488,7 @@ def torrent_tdl(book=None, test=False):
                 except Exception as e:
                     logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                     logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                    TELEMETRY.record_usage_data("tdlParserError")
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     if test:

@@ -11,6 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import base64
 import datetime
 import hashlib
 import json
@@ -163,9 +164,18 @@ def serve_template(templatename, **kwargs):
 
                 else:
                     cookie = cherrypy.request.cookie
+                    authorization = cherrypy.request.header.get('Authorization')
                     if cookie and 'll_uid' in list(cookie.keys()):
                         res = db.match('SELECT UserName,Perms,UserID from users where UserID=?',
                                        (cookie['ll_uid'].value,))
+                    elif authorization and authorization.startswith('Basic '):
+                        auth_bytes = authorization.split('Basic ')[1].encode('ascii')
+                        value_bytes = base64.b64decode(auth_bytes)
+                        values = value_bytes.decode('ascii')
+                        res = ''
+                        if ':' in values:
+                            user, pwd = values.split(':', 1)
+                            res = db.match('SELECT UserName,Perms,UserID from users where UserName=? and Password=?', (user, pwd))
                     if not res:
                         columns = db.select('PRAGMA table_info(users)')
                         if not columns:  # no such table

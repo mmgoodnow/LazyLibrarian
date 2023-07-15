@@ -23,6 +23,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import get_user_agent
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes, seconds_to_midnight
+from lazylibrarian.telemetry import TELEMETRY
 
 from bs4 import BeautifulSoup
 import requests
@@ -167,6 +168,7 @@ def direct_bok(book=None, prov=None, test=False):
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
+                TELEMETRY.record_usage_data("bokError")
             if test:
                 return False
             return results, errmsg
@@ -269,6 +271,7 @@ def direct_bok(book=None, prov=None, test=False):
                                 logger.error("An error occurred parsing %s in the %s parser: %s" %
                                              (url, provider, str(e)))
                                 logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                                TELEMETRY.record_usage_data("bokParserError")
                                 url = None
 
                     if url:
@@ -358,6 +361,7 @@ def direct_bfi(book=None, prov=None, test=False):
             logger.debug(search_url)
             logger.debug('Error fetching page data from %s: %s' % (provider, result))
             errmsg = result
+            TELEMETRY.record_usage_data("bfiError")
         if test:
             return False
         return results, errmsg
@@ -413,6 +417,7 @@ def direct_bfi(book=None, prov=None, test=False):
         except Exception as e:
             logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
             logger.debug('%s: %s' % (provider, traceback.format_exc()))
+            TELEMETRY.record_usage_data("bfiParserError")
 
     if test:
         logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
@@ -529,6 +534,7 @@ def direct_gen(book=None, prov=None, test=False):
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
+                TELEMETRY.record_usage_data("libgenError")
             if test:
                 return False
             return results, errmsg
@@ -599,6 +605,7 @@ def direct_gen(book=None, prov=None, test=False):
                                                  (title, issue, year, publisher, language, size))
                         except Exception as e:
                             logger.debug('Error parsing libgen comic results: %s' % str(e))
+                            TELEMETRY.record_usage_data("libgenComicError")
                             pass
 
                     elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
@@ -626,6 +633,7 @@ def direct_gen(book=None, prov=None, test=False):
                                     links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen fiction results: %s' % str(e))
+                            TELEMETRY.record_usage_data("libgenFictionError")
                             pass
 
                     elif 'search.php' in search and len(td) > 8:
@@ -648,6 +656,7 @@ def direct_gen(book=None, prov=None, test=False):
                                     links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen search.php results; %s' % str(e))
+                            TELEMETRY.record_usage_data("libgenSearchError")
                             pass
 
                     size = size_in_bytes(size)
@@ -741,6 +750,7 @@ def direct_gen(book=None, prov=None, test=False):
             except Exception as e:
                 logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                 logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                TELEMETRY.record_usage_data("libgenParserError")
 
             if test:
                 logger.debug("Test found %s %s" % (len(results), plural(len(results), "result")))
