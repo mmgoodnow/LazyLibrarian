@@ -466,6 +466,8 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             db = database.DBConnection()
             try:
                 authorid = ''
+                # noinspection PyUnusedLocal
+                results = None  # pycharm incorrectly thinks this isn't needed
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
                 if not authmatch:

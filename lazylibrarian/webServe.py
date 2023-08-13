@@ -175,7 +175,8 @@ def serve_template(templatename, **kwargs):
                         res = ''
                         if ':' in values:
                             user, pwd = values.split(':', 1)
-                            res = db.match('SELECT UserName,Perms,UserID from users where UserName=? and Password=?', (user, pwd))
+                            res = db.match('SELECT UserName,Perms,UserID from users where UserName=? and Password=?',
+                                           (user, pwd))
                     if not res:
                         columns = db.select('PRAGMA table_info(users)')
                         if not columns:  # no such table
