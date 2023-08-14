@@ -164,7 +164,7 @@ def serve_template(templatename, **kwargs):
 
                 else:
                     cookie = cherrypy.request.cookie
-                    authorization = cherrypy.request.header.get('Authorization')
+                    authorization = cherrypy.request.headers.get('Authorization')
                     if cookie and 'll_uid' in list(cookie.keys()):
                         res = db.match('SELECT UserName,Perms,UserID from users where UserID=?',
                                        (cookie['ll_uid'].value,))
