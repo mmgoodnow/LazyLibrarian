@@ -262,7 +262,11 @@
               };
             });
 
-        oTable.search(decodeURI(document.getElementById("bookfilter").value)).draw()
+        var filt = decodeURI(document.getElementById("bookfilter").value)
+        if (! (filt === null || filt.trim() === "")){
+          oTable.search(filt).draw()
+        }
+
         $('.dataTables_filter input').attr("placeholder", "Results filter");
         //$(window).resize(function() {table.draw('page')});
 

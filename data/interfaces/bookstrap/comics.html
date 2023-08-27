@@ -237,7 +237,10 @@
               };
             });
 
-            oTable.search(decodeURI(document.getElementById("comicfilter").value)).draw()
+            var filt = decodeURI(document.getElementById("comicfilter").value)
+            if (! (filt === null || filt.trim() === "")){
+              oTable.search(filt).draw()
+            }
 
             $('.dataTables_filter input').attr("placeholder", "Results filter");
             $('a.toggle-vis').click(function (e) {
