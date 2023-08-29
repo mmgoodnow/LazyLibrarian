@@ -346,13 +346,23 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                         db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
                                   (authorid, dbauthor['authorid']), suppress='UNIQUE')
                         if authorid.startswith('OL'):
-                            logger.debug("Changing authorid from GR to OL")
-                            db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
-                                      (authorid, dbauthor['authorid'], dbauthor['authorid']), suppress='UNIQUE')
+                            if dbauthor['authorid'].startswith('OL'):
+                                logger.debug("Changing to new OL authorid")
+                                db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                                          (authorid, dbauthor['authorid'], dbauthor['authorid']), suppress='UNIQUE')
+                            else:
+                                logger.debug("Changing authorid from GR to OL")
+                                db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                                          (authorid, authorid, dbauthor['authorid']), suppress='UNIQUE')
                         else:
-                            logger.debug("Changing authorid from OL to GR")
-                            db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
-                                      (authorid, dbauthor['authorid'], dbauthor['authorid']), suppress='UNIQUE')
+                            if dbauthor['authorid'].startswith('OL'):
+                                logger.debug("Changing authorid from OL to GR")
+                                db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                                          (authorid, authorid, dbauthor['authorid']), suppress='UNIQUE')
+                            else:
+                                logger.debug("Changing to new GR authorid")
+                                db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                                          (authorid, dbauthor['authorid'], dbauthor['authorid']), suppress='UNIQUE')
                         db.action("PRAGMA foreign_keys = ON")
                         entry_status = dbauthor['Status']
                         dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
