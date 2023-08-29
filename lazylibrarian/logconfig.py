@@ -313,6 +313,11 @@ class LogConfig:
                 level = logging.getLevelName(value.upper())
             logger.setLevel(level)
 
+        if value.isdigit() and int(value) > 10 or value.isupper() and value != 'DEBUG':
+            # when you go out of debug mode, disable all special logs
+            # TODO: Ideally we would re-enable the ones in LOGSPECIALDEBUG when debug logging resumes
+            LogConfig.enable_only_these_special_debuglogs("")
+
     @staticmethod
     def enable_logger(logname: str, enabled: bool = True) -> logging.Logger:
         """ Enable/disable the logger named logname, return the logger """
@@ -399,7 +404,7 @@ class LogConfig:
             enableit = shortname in specialsenabled
             logger = LogConfig.enable_special_logger(shortname=shortname, enabled=enableit)
             if enableit:
-                logger.debug(f'Beginning logging with special logger {logger.name}')
+                logger.debug(f'Enabling logging with special logger {logger.name}')
             if shortname == 'cherrypy':
                 # Cherrypy logger gets special treatment as it has its own logger we need to control
                 cherrypylogger = logging.getLogger('cherrypy')
