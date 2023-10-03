@@ -143,7 +143,7 @@ def serve_template(templatename, **kwargs):
             username = ''  # anyone logged in yet?
             userid = 0
             perm = 0
-            res = None
+            res = {}
             cookie = None
             db = database.DBConnection()
             try:
@@ -172,7 +172,7 @@ def serve_template(templatename, **kwargs):
                         auth_bytes = authorization.split('Basic ')[1].encode('ascii')
                         value_bytes = base64.b64decode(auth_bytes)
                         values = value_bytes.decode('ascii')
-                        res = ''
+                        res = {}
                         if ':' in values:
                             user, pwd = values.split(':', 1)
                             res = db.match('SELECT UserName,Perms,UserID from users where UserName=? and Password=?',
@@ -478,6 +478,7 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       'loading': lazylibrarian.AUTHORS_UPDATE,
+                      'searching': lazylibrarian.SEARCHING,
                       }
             loggerserverside.debug(str(mydict))
             return mydict
@@ -1780,15 +1781,19 @@ class WebInterface(object):
     # SEARCH ############################################################
 
     @cherrypy.expose
-    def search(self, name):
+    def search(self, searchfor, btnsearch=None):
+        logger = logging.getLogger('special.searching')
+        logger.debug(f"Search {btnsearch}: {searchfor}")
+        
         self.label_thread('SEARCH')
-        if not name:
+        if not searchfor:
             raise cherrypy.HTTPRedirect("home")
 
-        if name.lower().startswith('authorid:'):
-            self.add_author_id(name[9:])
-        elif name.lower().startswith('bookid:'):
-            self.add_book(name[7:])
+        lazylibrarian.SEARCHING = 1
+        if searchfor.lower().startswith('authorid:'):
+            self.add_author_id(searchfor[9:])
+        elif searchfor.lower().startswith('bookid:'):
+            self.add_book(searchfor[7:])
         else:
             db = database.DBConnection()
             try:
@@ -1807,8 +1812,9 @@ class WebInterface(object):
             for item in booksearch:
                 booklist.append(item['BookID'])
 
-            searchresults = search_for(name)
-            return serve_template(templatename="searchresults.html", title='Search Results: "' + name + '"',
+            searchresults = search_for(searchfor)
+            lazylibrarian.SEARCHING = 0
+            return serve_template(templatename="searchresults.html", title='Search Results: "' + searchfor + '"',
                                   searchresults=searchresults, authorlist=authorlist, loadlist=loadlist,
                                   booklist=booklist, booksearch=booksearch)
 

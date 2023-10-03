@@ -379,7 +379,8 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
         if "LL.(" in source_dir:
             bookid = source_dir.split("LL.(")[1].split(")")[0]
             db = database.DBConnection()
-            res = db.match("SELECT BookName,AuthorName from books,authors WHERE books.AuthorID = authors.AuthorID AND BookID=?", (bookid,))
+            res = db.match("SELECT BookName,AuthorName from books,authors WHERE books.AuthorID = authors.AuthorID "
+                           "AND BookID=?", (bookid,))
             if res:
                 metadata = {"title": res['BookName'], "creator": res['AuthorName']}
                 logger.debug("Importing %s bookid %s for %s %s" % (library, bookid, res['AuthorName'], res['BookName']))
@@ -642,7 +643,7 @@ def unpack_multipart(source_dir, download_dir, title):
             return ''
         for f in listdir(source_dir):
             archivename = os.path.join(source_dir, f)
-            if zipfile.is_zipfile(archivename):
+            if not (archivename.endswith('epub') or archivename.endswith('cbz')) and zipfile.is_zipfile(archivename):
                 try:
                     z = zipfile.ZipFile(archivename)
                     for item in z.namelist():
@@ -683,7 +684,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
 
     # noinspection PyBroadException
     try:
-        if zipfile.is_zipfile(archivename):
+        if not (archivename.endswith('epub') or archivename.endswith('cbz')) and zipfile.is_zipfile(archivename):
             TELEMETRY.record_usage_data('Process/Archive')
             loggerpostprocess.debug('%s is a zip file' % archivename)
             try:
@@ -1063,15 +1064,20 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     zipfiles = 0
                                     for f in listdir(pp_path):
                                         archivename = os.path.join(pp_path, f)
-                                        if zipfile.is_zipfile(archivename):
+                                        if not (archivename.endswith('epub') or archivename.endswith('cbz')) \
+                                                and zipfile.is_zipfile(archivename):
                                             zipfiles += 1
                                     if zipfiles > 1:
-                                        pp_path = unpack_multipart(pp_path, download_dir, matchtitle)
+                                        new_pp_path = unpack_multipart(pp_path, download_dir, matchtitle)
+                                        # if unpack failed, use current path as maybe not multipart-mag
+                                        if new_pp_path:
+                                            pp_path = new_pp_path
 
                                     # folder name matches, look in subdirectories for a filename of a valid type
                                     for r, _, f in walk(pp_path):
                                         for item in f:
-                                            if is_valid_type(item, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
+                                            if is_valid_type(item, extensions=CONFIG.get_all_types_list(),
+                                                             extras='cbr, cbz'):
                                                 pp_path = os.path.dirname(os.path.join(r, item))
                                                 break
 
@@ -2454,7 +2460,8 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                     db.upsert("wanted", new_value_dict, control_value_dict)
                 else:
                     control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"Status": "Processed", "NZBProv": "Manual", "AuxInfo": booktype, "NZBDate": now(), "DLResult": dest_file}
+                    new_value_dict = {"Status": "Processed", "NZBProv": "Manual", "AuxInfo": booktype,
+                                      "NZBDate": now(), "DLResult": dest_file}
                     if path_isfile(dest_file):
                         new_value_dict["NZBSize"] = os.path.getsize(syspath(dest_file))
                     else:

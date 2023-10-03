@@ -18,7 +18,6 @@ import json
 import locale
 import logging
 import os
-import signal
 import sqlite3
 import subprocess
 import sys
@@ -29,10 +28,9 @@ from shutil import rmtree
 from typing import Any
 
 import cherrypy
+import lazylibrarian
 import requests
 import urllib3
-
-import lazylibrarian
 from lazylibrarian import database, versioncheck
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import init_hex_caches, fetch_url
@@ -560,13 +558,14 @@ class StartupLazyLibrarian:
                 CONFIG['INSTALL_TYPE']))
 
             if CONFIG.get_int('GIT_UPDATED') == 0:
-                if CONFIG['CURRENT_VERSION'] == CONFIG['LATEST_VERSION']:
+                # allow comparison of long and short hashes
+                if CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']):
                     if CONFIG['INSTALL_TYPE'] == 'git' and CONFIG.get_int('COMMITS_BEHIND') == 0:
                         CONFIG.set_int('GIT_UPDATED', int(time.time()))
                         self.logger.debug('Setting update timestamp to now')
 
         # if gitlab doesn't recognise a hash it returns 0 commits
-        if CONFIG['CURRENT_VERSION'] != CONFIG['LATEST_VERSION'] \
+        if not CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION'])\
                 and CONFIG.get_int('COMMITS_BEHIND') == 0:
             if CONFIG['INSTALL_TYPE'] == 'git':
                 res, _ = versioncheck.run_git('remote -v')

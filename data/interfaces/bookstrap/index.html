@@ -34,9 +34,9 @@
         <div class="form-group">
           <label class="sr-only">Search</label>
           <div class="input-group">
-            <input type="search" id="name" name="name" placeholder="Title / Author / ISBN" class="form-control input-sm col-xs-12">
+            <input type="search" id="searchfor" name="searchfor" placeholder="Title / Author / ISBN" class="form-control input-sm col-xs-12">
             <span class="input-group-btn">
-              <button type="submit" value="Book" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search for author/book"><i class="fa fa-search"></i></button>
+              <button type="submit" id="btnsearch" name="btnsearch" onclick="reveal();" value="index" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search for author/book"><i class="fa fa-search"></i></button>
             </span>
           </div>
         </div>
@@ -52,6 +52,16 @@
     <p>
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Author Refresh in progress ...</button>
     </p>
+  %else:
+    %if lazylibrarian.SEARCHING == 1:
+      <p>
+      <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Search in progress ...</button>
+      </p>
+    %else:
+      <p>
+      <button onclick="" class="hidden" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Search in progress ...</button>
+      </p>
+    %endif
   %endif
 
 <form name="mark_authors" id="mark_authors" action="mark_authors" method="get" class="form-inline" onsubmit="return false;">
@@ -116,14 +126,26 @@
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
 
+    function reveal() {
+        var searchval = document.getElementById("searchfor").value;
+            if (Boolean(searchval) == true) {
+                $('#myAlert').removeClass('hidden');
+            }
+    };
+
     function reason(target) {
         window.alert(target);
     };
 
     $(document).ready(function()
     {
-      var selected = [];
-      var intjob = 0;
+        var selected = [];
+        var intjob = 0;
+
+        var input = document.getElementById("searchfor");
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") { reveal(); }
+        });
 
         $('input.deletable').wrap('<span class="deleteicon" />').after($('<span/>').click(function() {
             $(this).prev('input').val('').trigger('change').focus();
@@ -233,7 +255,7 @@
 
             table.on( 'xhr', function () {
               var json = table.ajax.json();
-              if (json.loading) {
+              if (json.loading || json.searching) {
                 if (intjob === 0) {
                   intjob = setInterval( function () {
                     table.ajax.reload( null, false );
@@ -253,6 +275,7 @@
             column.visible( ! column.visible() );
         } );
     });
+
 
     function validateForm() {
         var x = document.forms["mark_authors"]["action"].value;

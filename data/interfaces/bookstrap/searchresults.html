@@ -14,9 +14,9 @@
         <div class="form-group">
           <label class="sr-only">Search</label>
           <div class="input-group">
-            <input type="text" class="form-control deletable input-sm col-xs-12" value="" onfocus="if(this.value==this.defaultValue) this.value='';" placeholder="Title / Author / ISBN" id="name" name="name">
+            <input type="text" class="form-control deletable input-sm col-xs-12" value="" onfocus="if(this.value==this.defaultValue) this.value='';" placeholder="Title / Author / ISBN" id="searchfor" name="searchfor">
             <span class="input-group-btn">
-              <button type="submit" value="Book" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search for book"><i class="fa fa-search"></i></button>
+              <button type="submit" id="btnsearch" name="btnsearch" onclick="reveal();" value="Results" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search for book"><i class="fa fa-search"></i></button>
             </span>
           </div>
         </div>
@@ -28,9 +28,15 @@
 <%def name="body()">
 
 <h1>${title}</h1>
-<!--p>
-<button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Author Loading ...</button>
-</p-->
+    %if lazylibrarian.SEARCHING == 1:
+      <p>
+      <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Search in progress ...</button>
+      </p>
+    %else:
+      <p>
+      <button onclick="" class="hidden" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Search in progress ...</button>
+      </p>
+    %endif
 
 <div class="table-responsive">
     <table class="display table table-striped table-hover table-bordered" id="book_table">
@@ -189,8 +195,21 @@
 </%def>
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
+
+    function reveal() {
+        var searchval = document.getElementById("searchfor").value;
+            if (Boolean(searchval) == true) {
+                $('#myAlert').removeClass('hidden');
+            }
+    };
+
     $(document).ready(function()
     {
+        var input = document.getElementById("searchfor");
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") { reveal(); }
+        });
+
         var table = $('#book_table').dataTable(
             {
                 "responsive": true,
