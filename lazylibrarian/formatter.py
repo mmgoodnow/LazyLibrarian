@@ -12,6 +12,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import chardet
 import datetime
 from hashlib import md5
 import os
@@ -510,45 +511,25 @@ def size_in_bytes(size):
 def md5_utf8(txt):
     if isinstance(txt, str):
         txt = txt.encode('utf-8')
-    # noinspection PyDeprecation
     return md5(txt).hexdigest()
 
 
-# Special character hex range:
-# CP850: 0x80-0xA5 (fortunately not used in ISO-8859-15) aka latin-1
-# UTF-8: 1st hex code 0xC2-0xC3 followed by a 2nd hex code 0xA1-0xFF
-# ISO-8859-15: 0xA6-0xFF
-# The function will detect if string contains a special character
-# If there is special character, detects if it is a UTF-8, CP850 or ISO-8859-15 encoding
 def make_utf8bytes(txt):
     name = make_bytestr(txt)
-    # parse to detect if CP850/ISO-8859-15 is used
-    # and return tuple of bytestring encoded in utf-8, detected encoding
-    for idx in range(len(name)):
-        # /!\ detection is done 2char by 2char for UTF-8 special character
-        ch = chr(name[idx])
-        if idx < (len(name) - 1):
-            chx = chr(name[idx + 1])
-            # Detect UTF-8
-            if ((ch == '\xC2') | (ch == '\xC3')) & ((chx >= '\xA0') & (chx <= '\xFF')):
-                return name, 'UTF-8'
-        # Detect CP850 or Windows CP1252 (latin-1)
-        if (ch >= '\x80') & (ch <= '\xA5'):
-            name = name.decode('cp850')
-            return name.encode('utf-8'), 'CP850'
-        # Detect ISO-8859-15 (latin-9)
-        if (ch >= '\xA6') & (ch <= '\xFF'):
-            name = name.decode('iso-8859-15')
-            return name.encode('utf-8'), 'ISO-8859-15'
-    return name, ''
+    result = chardet.detect(name)
+    detected_encoding = result['encoding']
+    if detected_encoding.lower() != 'utf-8':
+        name = name.decode(detected_encoding).encode('utf-8')
+    return name, detected_encoding
 
 
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-def make_unicode(txt: Optional[Union[str, bytes]]) -> Optional[str]:
+def make_unicode(txt: Optional[Union[str, bytes]]) -> Optional[Union[str, bytes]]:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
+    # return is unicode if possible, else bytestring
     if txt is None:
         return txt
     if isinstance(txt, str):  # nothing to do if already unicode
@@ -565,7 +546,7 @@ def make_unicode(txt: Optional[Union[str, bytes]]) -> Optional[str]:
         except (UnicodeError, LookupError):
             pass
     logger = logging.getLogger(__name__)
-    logger.debug("Unable to decode name [%s]" % repr(txt))
+    logger.debug(f"Unable to decode name [{repr(txt)}]")
     return txt
 
 
