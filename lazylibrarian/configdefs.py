@@ -44,7 +44,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'DLOAD_RATIO', 90),
     ConfigInt('General', 'NAME_RATIO', 90),
     ConfigInt('General', 'NAME_PARTIAL', 95),
-    ConfigInt('General', 'NAME_PARTNAME', 95),
+    ConfigInt('General', 'NAME_PARTNAME', 98),
     ConfigInt('General', 'DISPLAYLENGTH', 10),
     ConfigInt('General', 'HIST_REFRESH', 1000),
     ConfigBool('General', 'NO_IPV6', 0),

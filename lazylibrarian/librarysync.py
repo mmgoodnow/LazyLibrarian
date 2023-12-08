@@ -363,7 +363,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         for a_book in books:
             a_bookname = a_book['BookName']
-            if a_book['BookSub']:
+            if a_book['BookSub'] and book_sub:
                 a_bookname += ' ' + a_book['BookSub']
             loggerfuzz.debug("Checking [%s]" % a_bookname)
             # tidy up everything to raise fuzziness scores
@@ -406,7 +406,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             else:
                 ratio -= abs(words)
                 partial -= abs(words)
-                partname -= abs(words)
+                # don't subtract extra words from partname so we can compare books with/without subtitle
+                # partname -= abs(words)
 
             def isitbest(aratio, abest_ratio, aratio_name, abest_type, astatus):
                 use_it = False
