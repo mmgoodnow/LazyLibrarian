@@ -274,7 +274,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     s = requests.Session()
     if provider == 'zlibrary':
         # do we need to log in?
-        if CONFIG['BOK_USER'] and CONFIG['BOK_PASS']:
+        if CONFIG['BOK_PASS']:
             bok_login(s, headers)
         # zlibrary needs a referer header from a zlibrary host
         headers['Referer'] = dl_url

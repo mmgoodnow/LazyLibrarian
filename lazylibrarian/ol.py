@@ -465,7 +465,7 @@ class OpenLibrary:
                 name = name.decode('utf-8')
                 seriesid = seriesid.decode('utf-8').split('/')[2]
                 serieslist.append([name, count, seriesid])
-        except IndexError:
+        except (IndexError, ValueError):
             pass
 
         return rating, genrelist, serieslist

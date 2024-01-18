@@ -87,8 +87,27 @@ def session_get(sess, url, headers):
 
 def bok_login(sess, headers):
     logger = logging.getLogger(__name__)
-    logger.debug("Logging in to %s" % CONFIG['BOK_HOST'])
-    bok_login_url = f"{CONFIG['BOK_HOST']}/login"
+    host = CONFIG['BOK_HOST']
+    remix_userid = ''
+    remix_userkey = ''
+    logger.debug("Logging in to %s" % host)
+    if 'singlelogin' in host:
+        try:
+            remix_userid = host.split('remix_userid=')[1].split('&')[0]
+            remix_userkey = host.split('remix_userkey=')[1].split('&')[0]
+        except IndexError:
+            pass
+        host = host.replace('singlelogin', 'z-library').split('/?')[0]
+        if remix_userid and remix_userkey:
+            my_cookies = {'remix_userid': remix_userid,
+                          'remix_userkey': remix_userkey,
+                          'siteLanguage': 'en'}
+            requests.utils.add_dict_to_cookiejar(sess.cookies, my_cookies)
+
+    if not CONFIG['BOK_PASS']:
+        return
+
+    bok_login_url = f"{host}/login"
     data = {
             "password": CONFIG['BOK_PASS'],
             "auth": "1"
@@ -100,10 +119,11 @@ def bok_login(sess, headers):
     else:
         response = sess.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
     logger.debug("b-ok login response: %s" % response.status_code)
+    if not str(response.status_code).startswith('2'):
+        logger.error("Login Response:%s" % response)
     # use these login cookies for all 1-lib, z-library, b-ok domains
     for c in sess.cookies:
         c.domain = ''
-    logger.debug("Login Response:%s" % response)
 
 
 def direct_bok(book=None, prov=None, test=False):
@@ -126,7 +146,6 @@ def direct_bok(book=None, prov=None, test=False):
     host = CONFIG[prov + '_HOST'].rstrip('/')
     if not host.startswith('http'):
         host = 'http://' + host
-
     sterm = make_unicode(book['searchterm'])
     results = []
     page = 1
@@ -137,11 +156,14 @@ def direct_bok(book=None, prov=None, test=False):
     
     headers = {'User-Agent': get_user_agent()}
     s = requests.Session()
-    # do we need to log in?
-    if CONFIG['BOK_USER'] and CONFIG['BOK_PASS']:
-        bok_login(s, headers)
+    bok_login(s, headers)
 
-    providerurl = url_fix(host + "/s/")
+    if 'singlelogin' in host:
+        host = host.replace('singlelogin', 'z-library').split('/?')[0]
+        # not sure if this number is important, maybe any referer will do?
+        headers['Referer'] = '%s/?ts=1505' % host
+
+    providerurl = url_fix(host + "/s/?q=")
     while next_page:
         params = {}
         if page > 1:
@@ -159,6 +181,10 @@ def direct_bok(book=None, prov=None, test=False):
                                                                                   search_url))
                 if test:
                     return 0
+            elif 'Denied' in result:
+                logger.debug("%s, check your USER-AGENT string" % result)
+                if test:
+                    return False
             elif '111' in result:
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -234,13 +260,14 @@ def direct_bok(book=None, prov=None, test=False):
 
                         response = session_get(s, url, headers)
                         result = response.text
-                        
                         if not str(response.status_code).startswith('2'):
                             logger.debug(str(result)[:20])
                         else:
                             try:
                                 newsoup = BeautifulSoup(result, "html5lib")
                                 a = newsoup.find('a', {"class": "dlButton"})
+                                if not a:
+                                    a = newsoup.find('a', {"class": "addDownloadedBook"})
                                 if not a:
                                     link = ''
                                     if 'WARNING' in result and '24 hours' in result:
