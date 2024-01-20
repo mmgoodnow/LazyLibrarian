@@ -33,6 +33,7 @@ dependencies = [
     'python_magic',
     'thefuzz[speedup]',
     'deluge_client',
+    'pyparsing',
 ]
 
 [project.urls]
