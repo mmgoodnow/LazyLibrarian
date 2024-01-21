@@ -371,10 +371,11 @@ def get_commit_difference_from_git() -> (int, str):
     commit_list = ''
     commits = -1
     if CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
-        commits = 0  # don't report a commit diff as we don't know anything
+        commits = -1
+        CONFIG['LATEST_VERSION'] = 'HEAD'
         commit_list = 'Unable to get latest version from %s' % CONFIG['GIT_HOST']
         logger.info(commit_list)
-    elif CONFIG['CURRENT_VERSION'] and commits != 0:
+    if CONFIG['CURRENT_VERSION'] and commits != 0:
         url = 'https://%s/api/v4/projects/%s%%2F%s/repository/compare?from=%s&to=%s' % (
             lazylibrarian.GITLAB_TOKEN, CONFIG['GIT_USER'],
             CONFIG['GIT_REPO'], CONFIG['CURRENT_VERSION'],
@@ -429,6 +430,9 @@ def get_commit_difference_from_git() -> (int, str):
         logger.info('New version is available. You are one commit behind')
     elif commits == 0:
         logger.info('Lazylibrarian is up to date')
+        if CONFIG['LATEST_VERSION'] == 'HEAD':
+            commit_list = ''
+            CONFIG.set_str('LATEST_VERSION', CONFIG['CURRENT_VERSION'])
     else:
         logger.info('Unknown version of lazylibrarian. Run the updater to identify your version')
 
