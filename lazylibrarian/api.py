@@ -566,7 +566,6 @@ class Api(object):
                                                                   'Message': 'Missing parameter: name'}}
             return
 
-        kwargs = {'name': 'NZBgeek (Prowlarr)', 'providertype': 'newznab', 'host': 'http://localhost:9696/6/api', 'prov_apikey': 'REDACTED', 'enabled': 'true', 'categories': '7010', 'altername': 'NZBgeek (Prowlarr)', 'dlpriority': '26'}
         hit = []
         miss = []
         name = kwargs.get('NAME', '')
