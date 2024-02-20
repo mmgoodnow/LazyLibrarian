@@ -566,7 +566,6 @@ class Api(object):
                                                                   'Message': 'Missing parameter: name'}}
             return
 
-        kwargs = {'name': 'NZBgeek (Prowlarr)', 'providertype': 'newznab', 'host': 'http://localhost:9696/6/api', 'prov_apikey': 'REDACTED', 'enabled': 'true', 'categories': '7010', 'altername': 'NZBgeek (Prowlarr)', 'dlpriority': '26'}
         hit = []
         miss = []
         name = kwargs.get('NAME', '')
@@ -707,7 +706,7 @@ class Api(object):
             return
 
         num = len(providers)
-        empty_slot = providers[len(providers) -1]
+        empty_slot = providers[len(providers) - 1]
 
         hit = []
         miss = []
@@ -2008,7 +2007,8 @@ class Api(object):
                         self.data = "No destination author [%s] in the database" % kwargs['toname']
                     else:
                         db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
-                        self.data = "Moved %s books from %s to %s" % (len(fromhere), kwargs['fromname'], kwargs['toname'])
+                        self.data = "Moved %s books from %s to %s" % (len(fromhere), kwargs['fromname'],
+                                                                      kwargs['toname'])
                         update_totals(fromhere[0][1])  # we moved from here
                         update_totals(tohere[0])  # to here
             finally:
