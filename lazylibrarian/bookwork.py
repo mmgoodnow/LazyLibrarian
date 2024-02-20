@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import time
+import threading
 import traceback
 
 from urllib.parse import quote_plus, quote, urlencode
@@ -744,6 +745,8 @@ def add_series_members(seriesid, refresh=False):
         logger.error('%s' % traceback.format_exc())
     finally:
         db.close()
+        if 'SERIESMEMBERS' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         lazylibrarian.SERIES_UPDATE = False
         return count
 

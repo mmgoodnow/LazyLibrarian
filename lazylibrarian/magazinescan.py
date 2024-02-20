@@ -16,6 +16,7 @@ import re
 import traceback
 import uuid
 import logging
+import threading
 from hashlib import sha1
 from shutil import copyfile
 
@@ -368,4 +369,6 @@ def magazine_scan(title=None):
         lazylibrarian.MAG_UPDATE = 0
         logger.error('Unhandled exception in magazine_scan: %s' % traceback.format_exc())
     finally:
+        if 'MAGAZINE_SCAN' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         db.close()

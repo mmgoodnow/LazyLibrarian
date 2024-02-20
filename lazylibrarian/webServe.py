@@ -4413,16 +4413,19 @@ class WebInterface(object):
         else:
             comicid = None
 
-        if 'COMIC_SCAN' not in [n.name for n in [t for t in threading.enumerate()]]:
+        name = 'COMICSCAN'
+        if comicid:
+            name = '%s_%s' % (name, comicid)
+        if name not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 if comicid:
-                    threading.Thread(target=comicscan.comic_scan, name='COMIC_SCAN', args=[comicid]).start()
+                    threading.Thread(target=comicscan.comic_scan, name=name, args=[comicid]).start()
                 else:
-                    threading.Thread(target=comicscan.comic_scan, name='COMIC_SCAN', args=[]).start()
+                    threading.Thread(target=comicscan.comic_scan, name=name, args=[]).start()
             except Exception as e:
                 logger.error('Unable to complete the scan: %s %s' % (type(e).__name__, str(e)))
         else:
-            logger.debug('COMIC_SCAN already running')
+            logger.debug('%s already running' % name)
         if comicid:
             raise cherrypy.HTTPRedirect("comicissue_page?comicid=%s" % comicid)
         else:
@@ -5713,16 +5716,19 @@ class WebInterface(object):
         else:
             title = ''
 
-        if 'MAGAZINE_SCAN' not in [n.name for n in [t for t in threading.enumerate()]]:
+        threadname = "MAGAZINE_SCAN" 
+        if title:
+            threadname = '%s_%s' % (threadname, title)
+        if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 if title:
-                    threading.Thread(target=magazinescan.magazine_scan, name='MAGAZINE_SCAN', args=[title]).start()
+                    threading.Thread(target=magazinescan.magazine_scan, name=threadname, args=[title]).start()
                 else:
-                    threading.Thread(target=magazinescan.magazine_scan, name='MAGAZINE_SCAN', args=[]).start()
+                    threading.Thread(target=magazinescan.magazine_scan, name=threadname, args=[]).start()
             except Exception as e:
                 logger.error('Unable to complete the scan: %s %s' % (type(e).__name__, str(e)))
         else:
-            logger.debug('MAGAZINE_SCAN already running')
+            logger.debug('%s already running' % threadname)
         if title:
             raise cherrypy.HTTPRedirect("issue_page?title=%s" % quote_plus(make_utf8bytes(title)[0]))
         else:
@@ -5747,22 +5753,23 @@ class WebInterface(object):
         if not title:
             logger.error("No title to import")
             raise cherrypy.HTTPRedirect("magazines")
-        if 'IMPORTISSUES' not in [n.name for n in [t for t in threading.enumerate()]]:
+        threadname = "IMPORTISSUES_%s" % title 
+        if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
-                threading.Thread(target=process_issues, name='IMPORTISSUES',
+                threading.Thread(target=process_issues, name=threadname,
                                  args=[CONFIG['ALTERNATE_DIR'], title]).start()
             except Exception as e:
                 logger.error('Unable to complete the import: %s %s' % (type(e).__name__, str(e)))
         else:
-            logger.debug('IMPORTISSUES already running')
+            logger.debug('%s already running' % threadname)
         raise cherrypy.HTTPRedirect("issue_page?title=%s" % title)
 
     @cherrypy.expose
     def import_alternate(self, library='eBook'):
         logger = logging.getLogger(__name__)
-        if 'IMPORTALT' not in [n.name for n in [t for t in threading.enumerate()]]:
+        if 'IMPORTALT_%s' % library not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
-                threading.Thread(target=process_alternate, name='IMPORTALT',
+                threading.Thread(target=process_alternate, name='IMPORTALT_%s' % library,
                                  args=[CONFIG['ALTERNATE_DIR'], library, True]).start()
             except Exception as e:
                 logger.error('Unable to complete the import: %s %s' % (type(e).__name__, str(e)))
@@ -5844,13 +5851,13 @@ class WebInterface(object):
     @cherrypy.expose
     def import_csv(self, library=''):
         logger = logging.getLogger(__name__)
-        if 'IMPORTCSV' not in [n.name for n in [t for t in threading.enumerate()]]:
+        if 'IMPORTCSV_%s' % library not in [n.name for n in [t for t in threading.enumerate()]]:
             self.label_thread('IMPORTCSV')
             try:
                 csvfile = csv_file(CONFIG['ALTERNATE_DIR'], library=library)
                 if path_exists(csvfile):
-                    message = "Importing books (background task) from %s" % csvfile
-                    threading.Thread(target=import_csv, name='IMPORTCSV',
+                    message = "Importing csv (background task) from %s" % csvfile
+                    threading.Thread(target=import_csv, name='IMPORTCSV_%s' % library,
                                      args=[CONFIG['ALTERNATE_DIR'], library]).start()
                 else:
                     message = "No %s CSV file in [%s]" % (library, CONFIG['ALTERNATE_DIR'])

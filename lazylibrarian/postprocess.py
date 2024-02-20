@@ -257,9 +257,13 @@ def process_issues(source_dir=None, title=''):
     try:
         if not source_dir:
             logger.warning("Alternate Directory not configured")
+            if 'IMPORTISSUES' in threading.current_thread().name:
+                threading.current_thread().name = 'WEBSERVER'
             return False
         if not path_isdir(source_dir):
             logger.warning("%s is not a directory" % source_dir)
+            if 'IMPORTISSUES' in threading.current_thread().name:
+                threading.current_thread().name = 'WEBSERVER'
             return False
 
         TELEMETRY.record_usage_data('Process/Issues')
@@ -342,10 +346,14 @@ def process_issues(source_dir=None, title=''):
                         logger.warning('Failed to process %s' % f)
                 else:
                     loggermatching.debug('regex failed for %s' % f)
+        if 'IMPORTISSUES' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         return True
 
     except Exception:
         logger.error('Unhandled exception in process_issues: %s' % traceback.format_exc())
+        if 'IMPORTISSUES' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         return False
 
 
@@ -357,12 +365,18 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
     try:
         if not source_dir:
             logger.warning("Alternate Directory not configured")
+            if 'IMPORTALT' in threading.current_thread().name:
+                threading.current_thread().name = 'WEBSERVER'
             return False
         if not path_isdir(source_dir):
             logger.warning("%s is not a directory" % source_dir)
+            if 'IMPORTALT' in threading.current_thread().name:
+                threading.current_thread().name = 'WEBSERVER'
             return False
         if source_dir.startswith(get_directory(library)):
             logger.warning('Alternate directory must not be the same as or inside Destination')
+            if 'IMPORTALT' in threading.current_thread().name:
+                threading.current_thread().name = 'WEBSERVER'
             return False
 
         TELEMETRY.record_usage_data('Process/Alternate')
@@ -397,6 +411,8 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             reject = multibook(source_dir)
             if reject:
                 logger.debug("Not processing %s, found multiple %s" % (source_dir, reject))
+                if 'IMPORTALT' in threading.current_thread().name:
+                    threading.current_thread().name = 'WEBSERVER'
                 return False
 
             new_book = book_file(source_dir, booktype='ebook', config=CONFIG)
@@ -412,6 +428,8 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 new_book = book_file(source_dir, booktype='ebook', config=CONFIG)
             if not new_book:
                 logger.warning("No book file found in %s" % source_dir)
+                if 'IMPORTALT' in threading.current_thread().name:
+                    threading.current_thread().name = 'WEBSERVER'
                 return False
 
             if not metadata:
@@ -441,6 +459,8 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             new_book = book_file(source_dir, booktype='audiobook', config=CONFIG)
             if not new_book:
                 logger.warning("No audiobook file found in %s" % source_dir)
+                if 'IMPORTALT' in threading.current_thread().name:
+                    threading.current_thread().name = 'WEBSERVER'
                 return False
             if not metadata:
                 id3r = id3read(new_book)
@@ -566,6 +586,8 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                     if results[0]['authorid'] != authorid:
                         msg += ' wrong authorid'
                     logger.warning(msg)
+                if 'IMPORTALT' in threading.current_thread().name:
+                    threading.current_thread().name = 'WEBSERVER'
                 return False
 
             db = database.DBConnection()
@@ -589,10 +611,14 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             res = check_residual(source_dir)
             if not res:
                 logger.warning('%s has no book with LL.number' % source_dir)
+                if 'IMPORTALT' in threading.current_thread().name:
+                    threading.current_thread().name = 'WEBSERVER'
                 return False
 
     except Exception:
         logger.error('Unhandled exception in process_alternate: %s' % traceback.format_exc())
+        if 'IMPORTALT' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         return False
 
 
@@ -1638,6 +1664,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         dlresult = '%s was  sent to %s %s hours ago. Progress: %s' % (book['NZBtitle'],
                                                                                       book['Source'],
                                                                                       hours, progress)
+                        if progress == 100:
+                            dlresult += ' Please check download directory is correct'
                     else:
                         dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'])
 

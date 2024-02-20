@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import shutil
+import threading
 import traceback
 import zipfile
 from urllib.parse import quote_plus, urlencode
@@ -1418,4 +1419,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     new_value_dict = {"Status": "Active"}
                     db.upsert("authors", new_value_dict, control_value_dict)
     finally:
+        if '_SCAN' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         db.close()

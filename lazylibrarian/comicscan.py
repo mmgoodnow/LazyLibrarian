@@ -16,6 +16,7 @@ import os
 import traceback
 import uuid
 import logging
+import threading
 from shutil import copyfile
 
 import lazylibrarian
@@ -311,4 +312,6 @@ def comic_scan(comicid=None):
         lazylibrarian.COMIC_UPDATE = 0
         logger.error('Unhandled exception in comic_scan: %s' % traceback.format_exc())
     finally:
+        if 'COMICSCAN' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'       
         db.close()

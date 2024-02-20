@@ -17,6 +17,7 @@
 
 import datetime
 import time
+import threading
 import traceback
 import logging
 from enum import Enum
@@ -365,6 +366,8 @@ def all_author_update(refresh=False):
         logger.error(msg)
     finally:
         db.close()
+        if 'AAUPDATE' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         lazylibrarian.AUTHORS_UPDATE = 0
     return msg
 

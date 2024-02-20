@@ -12,6 +12,7 @@
 
 import os
 import shutil
+import threading
 import traceback
 import logging
 
@@ -457,4 +458,6 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
         logger.error(msg)
     finally:
         db.close()
+        if 'IMPORTCSV' in threading.current_thread().name:
+            threading.current_thread().name = 'WEBSERVER'
         return msg
