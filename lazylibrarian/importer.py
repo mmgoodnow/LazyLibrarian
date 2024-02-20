@@ -554,53 +554,55 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
             if entry_status not in ['Active', 'Wanted', 'Ignored', 'Paused']:
                 entry_status = 'Active'  # default for invalid/unknown or "loading"
-            # process books
-            if CONFIG['BOOK_API'] == "GoogleBooks" and CONFIG['GB_API']:
-                book_api = GoogleBooks()
-                book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
-                                          audiostatus=audiostatus, entrystatus=entry_status,
-                                          refresh=refresh, reason=reason)
-                if CONFIG.get_bool('MULTI_SOURCE'):
-                    book_api = OpenLibrary()
+            if entry_status not in ['Ignored', 'Paused']:
+                # process books
+                if CONFIG['BOOK_API'] == "GoogleBooks" and CONFIG['GB_API']:
+                    book_api = GoogleBooks()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
-                    if CONFIG['GR_API']:
-                        book_api = GoodReads(authorname)
+                    if CONFIG.get_bool('MULTI_SOURCE'):
+                        book_api = OpenLibrary()
                         book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                                   audiostatus=audiostatus, entrystatus=entry_status,
                                                   refresh=refresh, reason=reason)
-            elif CONFIG['BOOK_API'] == "GoodReads" and CONFIG['GR_API']:
-                book_api = GoodReads(authorname)
-                book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
-                                          audiostatus=audiostatus, entrystatus=entry_status,
-                                          refresh=refresh, reason=reason)
-                if CONFIG.get_bool('MULTI_SOURCE'):
-                    book_api = OpenLibrary()
+                        if CONFIG['GR_API']:
+                            book_api = GoodReads(authorname)
+                            book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                      audiostatus=audiostatus, entrystatus=entry_status,
+                                                      refresh=refresh, reason=reason)
+                elif CONFIG['BOOK_API'] == "GoodReads" and CONFIG['GR_API']:
+                    book_api = GoodReads(authorname)
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
-                    if CONFIG['GB_API']:
-                        book_api = GoogleBooks()
+                    if CONFIG.get_bool('MULTI_SOURCE'):
+                        book_api = OpenLibrary()
                         book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                                   audiostatus=audiostatus, entrystatus=entry_status,
                                                   refresh=refresh, reason=reason)
-            elif CONFIG['BOOK_API'] == "OpenLibrary":
-                book_api = OpenLibrary(authorname)
-                book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
-                                          audiostatus=audiostatus, entrystatus=entry_status,
-                                          refresh=refresh, reason=reason)
-                if CONFIG.get_bool('MULTI_SOURCE'):
-                    if CONFIG['GR_API']:
-                        book_api = GoodReads()
-                        book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
-                                                  audiostatus=audiostatus, entrystatus=entry_status,
-                                                  refresh=refresh, reason=reason)
-                    if CONFIG['GB_API']:
-                        book_api = GoogleBooks()
-                        book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
-                                                  audiostatus=audiostatus, entrystatus=entry_status,
-                                                  refresh=refresh, reason=reason)
+                        if CONFIG['GB_API']:
+                            book_api = GoogleBooks()
+                            book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                      audiostatus=audiostatus, entrystatus=entry_status,
+                                                      refresh=refresh, reason=reason)
+                elif CONFIG['BOOK_API'] == "OpenLibrary":
+                    book_api = OpenLibrary(authorname)
+                    book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                              audiostatus=audiostatus, entrystatus=entry_status,
+                                              refresh=refresh, reason=reason)
+                    if CONFIG.get_bool('MULTI_SOURCE'):
+                        if CONFIG['GR_API']:
+                            book_api = GoodReads()
+                            book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                      audiostatus=audiostatus, entrystatus=entry_status,
+                                                      refresh=refresh, reason=reason)
+                        if CONFIG['GB_API']:
+                            book_api = GoogleBooks()
+                            book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                      audiostatus=audiostatus, entrystatus=entry_status,
+                                                      refresh=refresh, reason=reason)
+
             if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                 msg = "[%s] Author update aborted, status %s" % (authorname, entry_status)
                 logger.debug(msg)
