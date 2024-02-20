@@ -5858,7 +5858,7 @@ class WebInterface(object):
                 if path_exists(csvfile):
                     message = "Importing csv (background task) from %s" % csvfile
                     threading.Thread(target=import_csv, name='IMPORTCSV_%s' % library,
-                                     args=[CONFIG['ALTERNATE_DIR'], library]).start()
+                                     args=[CONFIG['ALTERNATE_DIR'], 'Wanted', library]).start()
                 else:
                     message = "No %s CSV file in [%s]" % (library, CONFIG['ALTERNATE_DIR'])
             except Exception as e:
