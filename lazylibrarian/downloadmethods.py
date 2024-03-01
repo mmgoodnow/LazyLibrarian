@@ -14,6 +14,7 @@
 import os
 import re
 import time
+import threading
 import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
@@ -35,7 +36,7 @@ from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, set
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
-from lazylibrarian.ircbot import irc_connect, irc_search
+from lazylibrarian.ircbot import irc_query
 from lazylibrarian.directparser import bok_dlcount, bok_login, session_get
 
 from deluge_client import DelugeRPCClient
@@ -97,15 +98,12 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
         if not myprov:
             msg = "%s server not found" % provider
         else:
-            myprov.set_connection(None)  # new download, start a new connection
-            irc = irc_connect(myprov)
-            if not irc:
-                msg = "Failed to connect"
-                myprov.set_connection(None)
-            else:
-                fname, data = irc_search(myprov, dl_title, cmd=dl_url, cache=False)
-                if not fname:
-                    myprov.set_connection(None)
+            t = threading.Thread(target=irc_query, name='irc_query', args=(myprov, dl_title, dl_title, dl_url, False,))
+            t.start()
+            t.join()
+
+            resultfile = cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache", dl_title)
+            fname = dl_title
 
         # noinspection PyTypeChecker
         download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()

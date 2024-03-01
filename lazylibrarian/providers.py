@@ -11,8 +11,10 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
+import os
 import re
 import time
+import threading
 import logging
 from xml.etree import ElementTree
 from typing import Dict
@@ -28,10 +30,11 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.filesystem import syspath
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
-    make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num
-from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
+    make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num, md5_utf8
+from lazylibrarian.ircbot import irc_query, irc_results
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, torrent_lime
 from lazylibrarian.directparser import bok_dlcount
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 
 import lib.feedparser as feedparser
 from bs4 import BeautifulSoup
@@ -245,9 +248,20 @@ def test_provider(name: str, host=None, api=None):
                             provider['BOTPASS'] = spass
                             provider['SEARCH'] = ssearch
                     logger.debug("Testing provider %s" % name)
-                    provider.set_connection(None)  # start a new connection
-                    success, _ = ircsearch(book, provider, "book", True)
-                    return success, name
+                    filename = book['searchterm'] + '.zip'
+                    t = threading.Thread(target=irc_query, name='irc_query', args=(provider, filename, book['searchterm'], None, False,))
+                    t.start()
+                    t.join()
+
+                    resultfile = cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache", filename)
+                    if path_isfile(resultfile):
+                        results = irc_results(provider, resultfile)
+                        print("Found %s results" % len(results))
+                        logger.debug("Removing File: " + resultfile)
+                        remove_file(resultfile)  # remove the search .zip
+                        return True, name
+                    else:
+                        return False, name
         except IndexError:
             pass
         except Exception as e:
@@ -912,63 +926,31 @@ def iterate_over_irc_sites(book=None, search_type=None):
                 if not ignored:
                     providers += 1
                     logger.debug('[iterate_over_irc_sites] - %s' % provider['SERVER'])
-                    success, results = ircsearch(book, provider, search_type)
-                    if success:
+                    # For irc search we use just the author name and cache the results
+                    # so we can search long and short from the same resultset
+                    # but allow a separate "title only" search
+                    authorname, bookname = get_searchterm(book, search_type)
+                    if 'title' in search_type:
+                        book['searchterm'] = bookname
+                    else:
+                        book['searchterm'] = authorname
+                    logger.debug("Searching %s:%s for %s" % (provider['DISPNAME'],
+                                                             provider['CHANNEL'],
+                                                             book['searchterm']))
+
+                    myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + book['searchterm'])
+                    t = threading.Thread(target=irc_query, name='irc_query', args=(provider, myhash + '.irc', book['searchterm'], None, True,))
+                    t.start()
+                    t.join()
+
+                    hashfilename = os.path.join(DIRS.CACHEDIR, "IRCCache", myhash + ".irc")
+                    if path_isfile(hashfilename):
+                        results = irc_results(provider, hashfilename)
                         resultslist += results
     except Exception as e:
         logger.error(str(e))
     finally:
         return resultslist, providers
-
-
-def ircsearch(book, provider: ConfigDict, search_type, test=False):
-    logger = logging.getLogger(__name__)
-    results = []
-    if not provider['SERVER']:
-        logger.error("No server for %s" % provider['NAME'])
-        return False, results
-    if not provider['CHANNEL']:
-        logger.error("No channel for %s" % provider['NAME'])
-        return False, results
-
-    irc = irc_connect(provider)
-    if not irc:
-        logger.error("Failed to connect to %s" % provider['SERVER'])
-        provider.set_connection(None)
-        return False, results
-
-    # if test:
-    #     return True, results
-
-    if search_type not in ['mag', 'comic']:
-        # For irc search we use just the author name and cache the results
-        # so we can search long and short from the same resultset
-        # but allow a separate "title only" search
-        authorname, bookname = get_searchterm(book, search_type)
-        if 'title' in search_type:
-            book['searchterm'] = bookname
-        else:
-            book['searchterm'] = authorname
-        logger.debug("Searching %s:%s for %s" % (provider['DISPNAME'],
-                                                 provider['CHANNEL'], book['searchterm']))
-        fname, data = irc_search(provider, book['searchterm'], cache=True)
-        if not fname and 'timed out' in make_unicode(data):  # need to reconnect
-            provider.set_connection(None)
-            logger.error(data)
-            return False, results
-        if fname:
-            results = irc_results(provider, fname)
-        elif test and 'No results' in make_unicode(data):
-            return 0, provider['SERVER']
-
-    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), provider['SERVER']))
-    try:
-        irc_leave(provider)
-    except Exception as e:
-        logger.error(str(e))
-    if test:
-        return len(results), provider['SERVER']
-    return True, results
 
 
 def ny_times(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):

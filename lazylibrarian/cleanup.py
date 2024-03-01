@@ -39,6 +39,7 @@ ll_dependencies = (
     ('thefuzz', '', ''),
     ('Levenshtein', '', ''),
     ('deluge_client', '', ''),
+    ('irc', '', ''),
 )
 
 
