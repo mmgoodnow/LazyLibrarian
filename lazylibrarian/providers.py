@@ -11,33 +11,29 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
+import logging
 import os
 import re
-import time
 import threading
-import logging
-from xml.etree import ElementTree
+import time
 from typing import Dict
-
 from urllib.parse import urlencode, urlparse
+from xml.etree import ElementTree
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG, wishlist_type
-from lazylibrarian.blockhandler import BLOCKHANDLER
+import lib.feedparser as feedparser
+from bs4 import BeautifulSoup
 from lazylibrarian import database
-from lazylibrarian.configtypes import ConfigDict
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.filesystem import syspath
-from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
+from lazylibrarian.config2 import CONFIG, wishlist_type
+from lazylibrarian.configtypes import ConfigDict
+from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi, bok_dlcount
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num, md5_utf8
 from lazylibrarian.ircbot import irc_query, irc_results
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, torrent_lime
-from lazylibrarian.directparser import bok_dlcount
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
-
-import lib.feedparser as feedparser
-from bs4 import BeautifulSoup
 
 
 def test_provider(name: str, host=None, api=None):
@@ -243,22 +239,22 @@ def test_provider(name: str, host=None, api=None):
                             provider['SERVER'] = server
                             provider['CHANNEL'] = channel
                         if api:
-                            snick, spass, ssearch = api.split(' : ', 2)
+                            snick, ssearch = api.split(' : ', 1)
                             provider['BOTNICK'] = snick
-                            provider['BOTPASS'] = spass
                             provider['SEARCH'] = ssearch
                     logger.debug("Testing provider %s" % name)
                     filename = book['searchterm'] + '.zip'
-                    t = threading.Thread(target=irc_query, name='irc_query', args=(provider, filename, book['searchterm'], None, False,))
+                    t = threading.Thread(target=irc_query, name='irc_query', args=(provider, filename,
+                                                                                   book['searchterm'], None, False,))
                     t.start()
                     t.join()
 
-                    resultfile = cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache", filename)
+                    resultfile = os.path.join(DIRS.CACHEDIR, "IRCCache", filename)
                     if path_isfile(resultfile):
                         results = irc_results(provider, resultfile)
                         print("Found %s results" % len(results))
                         logger.debug("Removing File: " + resultfile)
-                        remove_file(resultfile)  # remove the search .zip
+                        remove_file(resultfile)  # remove the test search .zip
                         return True, name
                     else:
                         return False, name
@@ -939,7 +935,8 @@ def iterate_over_irc_sites(book=None, search_type=None):
                                                              book['searchterm']))
 
                     myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + book['searchterm'])
-                    t = threading.Thread(target=irc_query, name='irc_query', args=(provider, myhash + '.irc', book['searchterm'], None, True,))
+                    t = threading.Thread(target=irc_query, name='irc_query', args=(provider, myhash + '.irc',
+                                                                                   book['searchterm'], None, True,))
                     t.start()
                     t.join()
 

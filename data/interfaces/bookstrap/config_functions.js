@@ -175,9 +175,8 @@
                 let channel = $("#" + prov.toLowerCase() + "_channel").val();
                 host = server + ' : ' + channel
                 let nick = $("#" + prov.toLowerCase() + "_botnick").val();
-                let pass = $("#" + prov.toLowerCase() + "_botpass").val();
                 let search = $("#" + prov.toLowerCase() + "_search").val();
-                api = nick + ' : ' + pass + ' : ' + search
+                api = nick + ' : ' + search
             }
             if ( prov.indexOf('apprise_') === 0 ) {
                 host = $("#" + prov.toLowerCase() + "_url").val();

@@ -32,7 +32,8 @@ from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import get_user_agent, proxy_list
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, setperm, make_dirs, get_directory
+from lazylibrarian.filesystem import DIRS, path_isdir, path_isfile, syspath, remove_file, setperm, \
+    make_dirs, get_directory
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
@@ -82,12 +83,12 @@ def use_label(source, library):
 def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider: str = ''):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    resultfile = ''
     try:
         source = provider
         msg = ''
         logger.debug("Starting IRC Download for [%s]" % dl_title)
         fname = ""
-        data = None
         myprov = None
 
         for item in CONFIG.providers('IRC'):
@@ -102,13 +103,13 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
             t.start()
             t.join()
 
-            resultfile = cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache", dl_title)
+            resultfile = os.path.join(DIRS.CACHEDIR, "IRCCache", dl_title)
             fname = dl_title
 
         # noinspection PyTypeChecker
         download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 
-        if fname and data:
+        if path_isfile(resultfile):
             fname = sanitize(fname)
             destdir = os.path.join(get_directory('Download'), fname)
             if not path_isdir(destdir):
@@ -117,9 +118,11 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
             destfile = os.path.join(destdir, fname)
 
             try:
-                with open(syspath(destfile), 'wb') as bookfile:
-                    bookfile.write(data)
+                with open(destfile, 'wb') as bookfile:
+                    with open(resultfile, 'rb') as sourcefile:
+                        bookfile.write(sourcefile.read())
                 setperm(destfile)
+                remove_file(resultfile)
             except Exception as e:
                 msg = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
                 logger.error(msg)
@@ -135,17 +138,11 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
             record_usage_data('Download/IRC/Success')
             return True, ''
 
-        elif not fname:
+        else:
+            data = msg
             msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
             msg += 'WHERE NZBurl=? and NZBtitle=?'
-            if not data:
-                data = 'Failed'
             db.action(msg, (source, download_id, data, dl_url, dl_title))
-            msg = data
-            if 'timed out' in data:  # need to reconnect
-                if myprov:
-                    myprov.set_connection(None)
-                logger.error(msg)
     finally:
         db.close()
     return False, msg

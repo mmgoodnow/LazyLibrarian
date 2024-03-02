@@ -27,24 +27,24 @@ This code is of debatable quality, but as far as I can tell, it works.
 Use at your own risk
 """
 
-import time
-import struct
-import os
-import zipfile
 import logging
-import irc.bot
-import irc.strings
-from irc.client import ip_numstr_to_quad
+import os
 import shlex
-from jaraco.stream import buffer
-import irc.client
+import struct
 import threading
+import time
+import zipfile
+
+import irc.bot
+import irc.client
+import irc.strings
+from jaraco.stream import buffer
 
 import lazylibrarian
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configtypes import ConfigDict
+from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
 from lazylibrarian.formatter import today, size_in_bytes, md5_utf8, check_int
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 
 # Prevents a common UnicodeDecodeError when downloading from many sources that don't use utf-8
 irc.client.ServerConnection.buffer_class = buffer.LenientDecodingLineBuffer
@@ -66,13 +66,13 @@ class IrcBot(irc.bot.SingleServerIRCBot):
         self.logger = logging.getLogger(__name__)
         self.dlcommslogger = logging.getLogger('special.dlcomms')
         self.searchtype = searchtype
-        self.download = self.searchtype.startswith('!')
         self.timer = None
         self.filename = filename
         self.file = None
         self.my_dcc = None
 
-    def on_nicknameinuse(c, e):  # handle username conflicts
+    def on_nicknameinuse(self, c, e):
+        # handle username conflicts
         c.nick(c.get_nickname() + "_")
 
     def on_welcome(self, c, e):
@@ -82,10 +82,10 @@ class IrcBot(irc.bot.SingleServerIRCBot):
         self.timer.start()
         self.connection.privmsg(self.channel, self.searchtype + " " + self.searchterm)
 
-        if not self.download:
-            self.logger.debug("Searching ...\n")
+        if self.searchtype.startswith('!'):
+            self.logger.debug("Downloading " + self.filename + " ...\n")
         else:
-            self.logger.debug("Downloading ...\n")
+            self.logger.debug("Searching for " + self.searchterm + " ...\n")
 
     def handle_timeout(self):
         self.logger.debug("No search results found")
@@ -109,7 +109,6 @@ class IrcBot(irc.bot.SingleServerIRCBot):
         if command != "SEND":
             return
         self.logger.debug("peer sending file on port " + str(peer_port))
-        # self.filename = os.path.basename(filename)
         self.filename = self.localfolder + "/" + self.filename
         self.logger.debug("writing file " + self.filename)
         self.file = open(self.filename, "wb")
@@ -128,7 +127,7 @@ class IrcBot(irc.bot.SingleServerIRCBot):
         self.file.close()
         self.logger.debug("Received file %s (%d bytes).\n" % (self.filename, self.received_bytes))
         self.timer.cancel()
-        self.die()  # end program when the book disconnect finishes
+        self.die()  # exit when the download finishes
 
     def search(self, searchterm):
         self.connection.privmsg(self.channel, searchterm)
@@ -175,10 +174,9 @@ def irc_query(provider: ConfigDict, filename, searchterm, searchtype, cache=True
             return
 
         lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
-    else:
-        hashfilename = ''
 
-    bot = IrcBot(searchterm, cache_location, provider['CHANNEL'], provider['BOTNICK'], filename, provider['SERVER'], None, searchtype)
+    bot = IrcBot(searchterm, cache_location, provider['CHANNEL'], provider['BOTNICK'], filename,
+                 provider['SERVER'], 6667, searchtype)
     bot.start()
 
 

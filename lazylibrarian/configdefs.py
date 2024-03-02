@@ -572,7 +572,6 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigStr('', "SERVER", ''),
         ConfigStr('', "CHANNEL", ''),
         ConfigStr('', "BOTNICK", ''),
-        ConfigStr('', "BOTPASS", ''),
         ConfigStr('', "SEARCH", '@search'),
         ConfigInt('', "DLPRIORITY", 0),
         ConfigDownloadTypes('', "DLTYPES", 'E'),
