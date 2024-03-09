@@ -76,8 +76,25 @@
 
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
+    nmsg = ''
+    %if response:
+      nmsg = '<div class="input-group"><br>${response}<br><br></div>'
+    %endif
+
     $(document).ready(function()
     {
+        if (nmsg != '') {
+          $.notify({
+              icon: "images/ll48.png",
+              title: '<strong>Issue Update</strong>',
+              message: nmsg
+          },{
+              icon_type: 'image',
+              type: 'info',
+              delay: 5000
+            });
+        }
+
         var selected = [];
         var intjob = 0;
 

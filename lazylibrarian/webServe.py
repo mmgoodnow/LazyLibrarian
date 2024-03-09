@@ -68,7 +68,7 @@ from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
-    create_opf, process_book_from_dir, process_issues
+    create_opf, process_book_from_dir, process_issues, process_mag_from_file
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
@@ -228,7 +228,8 @@ def serve_template(templatename, **kwargs):
                     (templatename == 'audio.html' and not perm & lazylibrarian.perm_audio) or \
                     (templatename == 'choosetype.html' and not perm & lazylibrarian.perm_download) or \
                     (templatename in ['series.html', 'members.html'] and not perm & lazylibrarian.perm_series) or \
-                    (templatename in ['editauthor.html', 'editbook.html'] and not perm & lazylibrarian.perm_edit) or \
+                    (templatename in ['editauthor.html', 'editbook.html', 'editissue.html'] and not
+                        perm & lazylibrarian.perm_edit) or \
                     (templatename in ['manualsearch.html', 'searchresults.html']
                      and not perm & lazylibrarian.perm_search):
                 logger.warning('User %s attempted to access %s' % (username, templatename))
@@ -4993,12 +4994,22 @@ class WebInterface(object):
             displaylength = int(iDisplayLength)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
+            if not CONFIG.get_bool('USER_ACCOUNTS'):
+                perm = lazylibrarian.perm_admin
+            else:
+                perm = 0
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    db = database.DBConnection()
+                    res = db.match('SELECT Perms from users where UserID=?', (cookie['ll_uid'].value,))
+                    if res:
+                        perm = check_int(res['Perms'], 0)
+                    db.close()
+
             title = kwargs['title'].replace('&amp;', '&')
             db = database.DBConnection()
-            try:
-                rowlist = db.select('SELECT * from issues WHERE Title=? order by IssueDate DESC', (title,))
-            finally:
-                db.close()
+            rowlist = db.select('SELECT * from issues WHERE Title=? order by IssueDate DESC', (title,))
+            db.close()
             if len(rowlist):
                 newrowlist = []
                 for mag in rowlist:
@@ -5053,6 +5064,8 @@ class WebInterface(object):
                         row[2] = 'Vol %d #%d %s' % (int(row[2][4:8]), int(row[2][8:]), row[2][:4])
                 else:
                     row[2] = date_format(row[2], CONFIG['ISS_FORMAT'])
+                if perm & lazylibrarian.perm_edit:
+                    row[2] = row[2] + '<br><a href="edit_issue?issueid=' + row[4] + '"><small><i>Manual</i></a>'
 
             loggerserverside.debug("get_issues returning %s to %s" % (displaystart, displaystart + displaylength))
             loggerserverside.debug("get_issues filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
@@ -5071,7 +5084,60 @@ class WebInterface(object):
             return mydict
 
     @cherrypy.expose
-    def issue_page(self, title):
+    def edit_issue(self, issueid=None):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.label_thread('EDIT_ISSUE')
+        TELEMETRY.record_usage_data()
+        logger = logging.getLogger(__name__)
+        db = database.DBConnection()
+        try:
+            issuedata = db.match("SELECT Title,IssueDate,IssueID from issues WHERE IssueID=?", (issueid,))
+        finally:
+            db.close()
+
+        if issuedata:
+            return serve_template(templatename="editissue.html", title="Edit Issue", config=issuedata)
+        else:
+            logger.info('Missing issue %s' % issueid)
+
+    @cherrypy.expose
+    def issue_update(self, **kwargs):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        logger = logging.getLogger(__name__)
+        issueid = kwargs.get('issueid')
+        if not issueid:
+            logger.debug('Invalid or missing IssueID')
+            raise cherrypy.HTTPRedirect("magazines")
+
+        magtitle = kwargs.get('magtitle')
+        issuenum = kwargs.get('issuenum')
+        if not magtitle and issuenum:
+            logger.debug('Insufficient information, need Title and IssueID')
+            raise cherrypy.HTTPRedirect("magazines")
+
+        db = database.DBConnection()
+        try:
+            issue = db.match("SELECT Title,IssueDate,IssueFile from issues WHERE IssueID=?", (issueid,))
+            edited = (issue["Title"] != magtitle) or (issue["IssueDate"] != issuenum)
+            if edited:
+                success = process_mag_from_file(source_file=issue['IssueFile'], title=magtitle, issuenum=issuenum)
+                if success:
+                    db.action("DELETE from issues WHERE IssueID=?", (issueid,))
+                    response = 'Moved %s issue %s<br>to %s issue %s' % (issue['Title'],
+                                                                        issue["IssueDate"], magtitle, issuenum)
+                    logger.debug(response)
+                else:
+                    response = 'Failed to change issue %s of %s' % (issue["IssueDate"], issue['Title'])
+                    logger.error(response)
+            else:
+                response = 'Issue %s of %s is unchanged' % (issue["IssueDate"], issue['Title'],)
+                logger.debug(response)
+        finally:
+            db.close()
+        raise cherrypy.HTTPRedirect("issue_page?title=%s&response=%s" % (quote_plus(magtitle), response))
+
+    @cherrypy.expose
+    def issue_page(self, title, response=''):
         global lastmagazine
         if title and '&' in title and '&amp;' not in title:  # could use htmlparser but seems overkill for just '&'
             safetitle = title.replace('&', '&amp;')
@@ -5104,7 +5170,7 @@ class WebInterface(object):
             if res and res['SendTo']:
                 email = res['SendTo']
         return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
-                              user=user, email=email, firstpage=firstpage)
+                              user=user, email=email, firstpage=firstpage, response=response)
 
     @cherrypy.expose
     def past_issues(self, mag=None, **kwargs):
