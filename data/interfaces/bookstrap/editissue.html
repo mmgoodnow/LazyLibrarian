@@ -1,0 +1,46 @@
+<%inherit file="base.html"/>
+<%!
+    import lazylibrarian
+%>
+<%def name="headerIncludes()">
+    <div id="subhead_container">
+        <div id="subhead_menu">
+        </div>
+    </div>
+</%def>
+<%def name="body()">
+<form accept-charset="UTF-8" action="issue_update" method="post">
+    <div class="configtable">
+        <input name="utf8" type="hidden" value="&#x2713;" />
+        <input name="issueid" type="hidden" value="${config['IssueID']}" />
+        <fieldset>
+            <legend>${title}</legend>
+            <div class="form-group col-md6">
+                <label for="authorname" class="control-label">Magazine Title:</label>
+                <input type="text" id="magtitle" name="magtitle" value="${config['Title']}" class="form-control" placeholder="Title">
+            </div>
+            <div class="form-group col-md6">
+                <label for="authorborn" class="control-label">Issue Date/Num:</label>
+                <input type="text" id="issuenum" name="issuenum" value="${config['IssueDate']}" class="form-control" placeholder="Date/Num">
+            </div>
+        </fieldset>
+        <div class="table_wrapper_button">
+            <input type="submit" value="Save changes" id="add" class="btn btn-primary">
+        </div>
+        <p>&nbsp;</p>
+    </div>
+</form>
+</%def>
+<%def name="javascriptIncludes()">
+  <script type="text/javascript">
+    function initThisPage()
+
+    {
+        "use strict";
+    }
+    $(document).ready(function() {
+        initThisPage();
+    });
+  </script>
+</%def>
+<html><head></head><body></body></html>
