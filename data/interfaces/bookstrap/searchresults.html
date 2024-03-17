@@ -103,63 +103,62 @@
                         value3 = value
                         destination3 = "#"
                         but_class3 = "btn-info hidden"
-                    elif booklist:
-                        if result['bookid'] in booklist:
-                            for item in booksearch:
-                                if item['BookID'] == result['bookid']:
-                                    value2 = '<i class="fa fa-book"></i> ' + item['Status']
-                                    value3 = '<i class="fa fa-headphones"></i> ' + item['AudioStatus']
-                                    valid_id = item['BookID']
+                    elif booklist and result['bookid'] in booklist:
+                        for item in booksearch:
+                            if item['BookID'] == result['bookid']:
+                                value2 = '<i class="fa fa-book"></i> ' + item['Status']
+                                value3 = '<i class="fa fa-headphones"></i> ' + item['AudioStatus']
+                                valid_id = item['BookID']
 
-                            if 'Open' in value2:
-                                destination2 = "open_book?library=eBook&bookid="+valid_id
-                                but_class2 = "btn-warning"
-                            elif 'Wanted' in value2:
-                                destination2 = "search_for_book?library=eBook&bookid="+valid_id
-                                but_class2 = "btn-success"
-                            elif 'Have' in value2 or 'Snatched' in value2:
-                                destination2 = "#"
-                                but_class2 = "btn-info"
-                            elif 'Skipped' in value2:
-                                destination2 = "add_book?library=eBook&bookid="+result['bookid']
-                                if result['authorid']:
-                                    destination2 = destination2 + "&authorid="+result['authorid']
-                                value2 = "Add Book"
-                                but_class2 = "btn-success"
-                            else:
-                                destination2 = "#"
-                                but_class2 = "btn-default"
-
-                            if 'Open' in value3:
-                                destination3 = "open_book?library=AudioBook&bookid="+valid_id
-                                but_class3 = "btn-warning"
-                            elif 'Wanted' in value3:
-                                destination3 = "search_for_book?library=AudioBook&bookid="+valid_id
-                                but_class3 = "btn-success"
-                            elif 'Have' in value3 or 'Snatched' in value3:
-                                destination3 = "#"
-                                but_class3 = "btn-info"
-                            elif 'Skipped' in value3:
-                                destination3 = "add_book?library=AudioBook&bookid="+result['bookid']
-                                if result['authorid']:
-                                    destination3 = destination3 + "&authorid="+result['authorid']
-                                value3 = "Add Audio"
-                                but_class3 = "btn-success"
-                            else:
-                                destination3 = "#"
-                                but_class3 = "btn-default"
-                        else:
+                        if 'Open' in value2:
+                            destination2 = "open_book?library=eBook&bookid="+valid_id
+                            but_class2 = "btn-warning"
+                        elif 'Wanted' in value2:
+                            destination2 = "search_for_book?library=eBook&bookid="+valid_id
+                            but_class2 = "btn-success"
+                        elif 'Have' in value2 or 'Snatched' in value2:
+                            destination2 = "#"
+                            but_class2 = "btn-info"
+                        elif 'Skipped' in value2:
                             destination2 = "add_book?library=eBook&bookid="+result['bookid']
                             if result['authorid']:
                                 destination2 = destination2 + "&authorid="+result['authorid']
                             value2 = "Add Book"
                             but_class2 = "btn-success"
+                        else:
+                            destination2 = "#"
+                            but_class2 = "btn-default"
 
+                        if 'Open' in value3:
+                            destination3 = "open_book?library=AudioBook&bookid="+valid_id
+                            but_class3 = "btn-warning"
+                        elif 'Wanted' in value3:
+                            destination3 = "search_for_book?library=AudioBook&bookid="+valid_id
+                            but_class3 = "btn-success"
+                        elif 'Have' in value3 or 'Snatched' in value3:
+                            destination3 = "#"
+                            but_class3 = "btn-info"
+                        elif 'Skipped' in value3:
                             destination3 = "add_book?library=AudioBook&bookid="+result['bookid']
                             if result['authorid']:
                                 destination3 = destination3 + "&authorid="+result['authorid']
                             value3 = "Add Audio"
                             but_class3 = "btn-success"
+                        else:
+                            destination3 = "#"
+                            but_class3 = "btn-default"
+                    else:
+                        destination2 = "add_book?library=eBook&bookid="+result['bookid']
+                        if result['authorid']:
+                            destination2 = destination2 + "&authorid="+result['authorid']
+                        value2 = "Add Book"
+                        but_class2 = "btn-success"
+
+                        destination3 = "add_book?library=AudioBook&bookid="+result['bookid']
+                        if result['authorid']:
+                            destination3 = destination3 + "&authorid="+result['authorid']
+                        value3 = "Add Audio"
+                        but_class3 = "btn-success"
 
                     if not CONFIG.get_int('EBOOK_TAB'):
                         value2 = value

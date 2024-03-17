@@ -5065,7 +5065,7 @@ class WebInterface(object):
                 else:
                     row[2] = date_format(row[2], CONFIG['ISS_FORMAT'])
                 if perm & lazylibrarian.perm_edit:
-                    row[2] = row[2] + '<br><a href="edit_issue?issueid=' + row[4] + '"><small><i>Manual</i></a>'
+                    row[2] = row[2] + '<br><a href="edit_issue?issueid=' + row[4] + '"><small><i>Edit</i></a>'
 
             loggerserverside.debug("get_issues returning %s to %s" % (displaystart, displaystart + displaylength))
             loggerserverside.debug("get_issues filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))

@@ -727,6 +727,8 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
 def search_for(searchterm):
     """ search goodreads or googlebooks for a searchterm, return a list of results
     """
+    loggersearching = logging.getLogger('special.searching')
+    loggersearching.debug("%s %s" % (CONFIG['BOOK_API'], searchterm))
     if CONFIG['BOOK_API'] == "GoogleBooks":
         gb = GoogleBooks(searchterm)
         myqueue = Queue()
@@ -750,5 +752,6 @@ def search_for(searchterm):
         search_api.join()
         searchresults = myqueue.get()
         sortedlist = sorted(searchresults, key=itemgetter('highest_fuzz', 'bookrate_count'), reverse=True)
+        loggersearching.debug(str(sortedlist))
         return sortedlist
     return []
