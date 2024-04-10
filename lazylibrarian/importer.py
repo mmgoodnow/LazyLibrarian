@@ -21,7 +21,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, \
-    unaccented_bytes, get_list, check_int, thread_name
+    unaccented_bytes, get_list, check_int, thread_name, plural
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow
@@ -31,6 +31,7 @@ from lazylibrarian.processcontrol import get_info_on_caller
 
 from thefuzz import fuzz
 from queue import Queue
+import string
 
 
 def is_valid_authorid(authorid: str, api=None) -> bool:
@@ -50,7 +51,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
     # Look up an authorname in the database, if not found try fuzzy match
     # Return possibly changed authorname and whether found in library
     logger = logging.getLogger(__name__)
-    author = format_author_name(author, postfix=CONFIG.get_list('NAME_POSTFIX'))
+    author = format_author_name(author, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
     match = False
     db = database.DBConnection()
     try:
@@ -382,6 +383,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     new_value_dict['Reason'] = reason
                     new_value_dict["DateAdded"] = today()
                     new_value_dict["AuthorImg"] = authorimg
+                    new_value_dict["AuthorName"] = authorname
                 if new_author or (dbauthor and not dbauthor['manual']):
                     new_value_dict["AuthorBorn"] = author['authorborn']
                     new_value_dict["AuthorDeath"] = author['authordeath']
@@ -602,6 +604,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                             book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                                       audiostatus=audiostatus, entrystatus=entry_status,
                                                       refresh=refresh, reason=reason)
+                de_duplicate(authorid)
 
             if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                 msg = "[%s] Author update aborted, status %s" % (authorname, entry_status)
@@ -641,6 +644,81 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         return msg
     finally:
         db.close()
+
+
+def collate_nopunctuation(string1, string2):
+    # strip all punctuation so things like "it's" matches "its"
+    str1 = string1.lower().translate(str.maketrans('', '', string.punctuation))
+    str2 = string2.lower().translate(str.maketrans('', '', string.punctuation))
+    if str1 < str2:
+        return -1
+    elif str1 > str2:
+        return 1
+    return 0
+
+
+def de_duplicate(authorid):
+    logger = logging.getLogger(__name__)
+    db = database.DBConnection()
+    db.connection.create_collation('nopunctuation', collate_nopunctuation)
+    total = 0
+    try:
+        # check/delete any duplicate titles - exact match only
+        cmd = ("select count('bookname'),bookname from books where authorid=? and "
+               "( Status != 'Ignored' or AudioStatus != 'Ignored' ) group by bookname COLLATE NOPUNCTUATION "
+               "having ( count(bookname) > 1 )")
+        res = db.select(cmd, (authorid,))
+        dupes = len(res)
+        author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
+        if not dupes:
+            logger.debug("No duplicates to merge")
+        else:
+            logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
+                                                                author['AuthorName']))
+            for item in res:
+                favourite = ''
+                copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE NOPUNCTUATION",
+                                   (authorid, item[1]))
+                for copy in copies:
+                    if (copy['Status'] in ['Open', 'Have', 'Wanted'] or
+                            copy['AudioStatus'] in ['Open', 'Have', 'Wanted']):
+                        favourite = copy
+                        break
+                if not favourite:
+                    for copy in copies:
+                        if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
+                            favourite = copy
+                            break
+                if not favourite:
+                    favourite = copies[0]
+                logger.debug("Favourite %s %s %s %s" % (favourite['BookID'], favourite['BookName'], favourite['Status'],
+                                                        favourite['AudioStatus']))
+                for copy in copies:
+                    if copy['BookID'] != favourite['BookID']:
+                        for key in ['BookSub', 'BookDesc', 'BookGenre', 'BookIsbn', 'BookPub', 'BookRate',
+                                    'BookImg', 'BookPages', 'BookLink', 'BookFile', 'BookDate', 'BookLang',
+                                    'BookAdded', 'WorkPage', 'Manual', 'SeriesDisplay', 'BookLibrary',
+                                    'AudioFile', 'AudioLibrary', 'WorkID', 'ScanResult',
+                                    'OriginalPubDate', 'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']:
+                            if not favourite[key] and copy[key]:
+                                cmd = 'UPDATE books SET %s=? WHERE BookID=?' % key
+                                logger.debug("Copy %s from %s" % (key, copy['BookID']))
+                                db.action(cmd, (copy[key], favourite['BookID']))
+                                if key == 'BookFile' and favourite['Status'] not in ['Open', 'Have']:
+                                    logger.debug("Copy Status from %s" % copy['BookID'])
+                                    db.action('UPDATE books SET Status=? WHERE BookID=?',
+                                              (copy['Status'], favourite['BookID']))
+                                if key == 'AudioFile' and favourite['AudioStatus'] not in ['Open', 'Have']:
+                                    logger.debug("Copy AudioStatus from %s" % copy['BookID'])
+                                    db.action('UPDATE books SET AudioStatus=? WHERE BookID=?',
+                                              (copy['AudioStatus'], favourite['BookID']))
+
+                        logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
+                        db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
+                        total += 1
+    finally:
+        db.close()
+    logger.info("Deleted %s duplicate %s for %s" % (total, plural(dupes, 'title'), author['AuthorName']))
 
 
 def update_totals(authorid):
@@ -724,22 +802,25 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
             gr.find_book(bookid, ebook, audio, reason)
 
 
-def search_for(searchterm):
-    """ search goodreads or googlebooks for a searchterm, return a list of results
+def search_for(searchterm, source=None):
+    """
+        search openlibrary/goodreads/googlebooks for a searchterm, return a list of results
     """
     loggersearching = logging.getLogger('special.searching')
-    loggersearching.debug("%s %s" % (CONFIG['BOOK_API'], searchterm))
-    if CONFIG['BOOK_API'] == "GoogleBooks":
+    if not source:
+        source = CONFIG['BOOK_API']
+    loggersearching.debug("%s %s" % (source, searchterm))
+    if source == "GoogleBooks" and CONFIG['GB_API']:
         gb = GoogleBooks(searchterm)
         myqueue = Queue()
         search_api = threading.Thread(target=gb.find_results, name='GB-RESULTS', args=[searchterm, myqueue])
         search_api.start()
-    elif CONFIG['BOOK_API'] == "GoodReads":
+    elif source == "GoodReads" and CONFIG['GR_API']:
         myqueue = Queue()
         gr = GoodReads(searchterm)
         search_api = threading.Thread(target=gr.find_results, name='GR-RESULTS', args=[searchterm, myqueue])
         search_api.start()
-    elif CONFIG['BOOK_API'] == "OpenLibrary":
+    elif source == "OpenLibrary":
         myqueue = Queue()
         ol = OpenLibrary(searchterm)
         search_api = threading.Thread(target=ol.find_results, name='OL-RESULTS', args=[searchterm, myqueue])
