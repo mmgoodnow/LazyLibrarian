@@ -216,7 +216,8 @@ class GoogleBooks:
                                 'author_fuzz': author_fuzz,
                                 'book_fuzz': book_fuzz,
                                 'isbn_fuzz': isbn_fuzz,
-                                'highest_fuzz': highest_fuzz
+                                'highest_fuzz': highest_fuzz,
+                                'source': 'GoogleBooks'
                             })
 
                             resultcount += 1
@@ -650,6 +651,7 @@ class GoogleBooks:
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gb.find_book'):
         if not CONFIG['GB_API']:
             self.logger.warning('No GoogleBooks API key, check config')
+            return
         url = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes/' +
                         str(bookid) + "?key=" + CONFIG['GB_API']])
         jsonresults, _ = json_request(url)

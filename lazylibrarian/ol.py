@@ -165,7 +165,8 @@ class OpenLibrary:
                             'author_fuzz': author_fuzz,
                             'book_fuzz': book_fuzz,
                             'isbn_fuzz': isbn_fuzz,
-                            'highest_fuzz': highest_fuzz
+                            'highest_fuzz': highest_fuzz,
+                            'source': "OpenLibrary"
                         })
                         resultcount += 1
 
@@ -193,7 +194,7 @@ class OpenLibrary:
         title = ''
         if '<ll>' in authorname:
             authorname, title = authorname.split('<ll>')
-        authorname = format_author_name(authorname, postfix=CONFIG.get_list('NAME_POSTFIX'))
+        authorname = format_author_name(authorname, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         if title:
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname) +
                                                  "&title=" + quote_plus(title), use_cache=not refresh)
@@ -203,7 +204,8 @@ class OpenLibrary:
 
         if authorbooks and authorbooks["docs"]:
             for book in authorbooks['docs']:
-                author_name = format_author_name(book.get('author_name')[0], postfix=CONFIG.get_list('NAME_POSTFIX'))
+                author_name = format_author_name(book.get('author_name')[0],
+                                                 postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                 if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
                     key = book.get('author_key')[0]
                     if key:
@@ -220,7 +222,8 @@ class OpenLibrary:
                 self.logger.debug("No books found for %s" % authorname)
                 return {}
             for book in authorbooks['docs']:
-                author_name = format_author_name(book.get('author_name')[0], postfix=CONFIG.get_list('NAME_POSTFIX'))
+                author_name = format_author_name(book.get('author_name')[0],
+                                                 postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                 if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
                     key = book.get('author_key')[0]
                     if key:
@@ -268,7 +271,7 @@ class OpenLibrary:
         author_died = authorinfo.get('death_date', '')
 
         if "," in author_name:
-            postfix = get_list(CONFIG['NAME_POSTFIX'])
+            postfix = get_list(CONFIG.get_csv('NAME_POSTFIX'))
             words = author_name.split(',')
             if len(words) == 2:
                 if words[0].strip().strip('.').lower in postfix:
@@ -288,7 +291,7 @@ class OpenLibrary:
             'authordeath': author_died,
             'about': about,
             'totalbooks': '0',
-            'authorname': format_author_name(author_name, postfix=CONFIG.get_list('NAME_POSTFIX'))
+            'authorname': format_author_name(author_name, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         }
         return author_dict
 
@@ -930,14 +933,15 @@ class OpenLibrary:
                                                 seriesmembers = self.get_series_members(seriesid, series[0])
                                                 series_updates.append(seriesid)
                                                 if not seriesmembers:
-                                                    self.logger.warning("Series %s (%s) has no members at librarything" % (
-                                                                series[0], seriesid))
+                                                    self.logger.warning("Series %s (%s) has no members at librarything"
+                                                                        % (series[0], seriesid))
                                         if seriesmembers:
                                             if len(seriesmembers) == 1:
-                                                self.logger.debug("Found member %s for series %s" % (series[1], series[0]))
+                                                self.logger.debug("Found member %s for series %s" %
+                                                                  (series[1], series[0]))
                                             else:
-                                                self.logger.debug("Found %s members for series %s" % (len(seriesmembers),
-                                                                                                      series[0]))
+                                                self.logger.debug("Found %s members for series %s" %
+                                                                  (len(seriesmembers), series[0]))
                                             for member in seriesmembers:
                                                 # member[order, bookname, authorname, authorlink, workid]
                                                 # remove any old entries for this series member
@@ -1046,7 +1050,8 @@ class OpenLibrary:
                                                                 else:
                                                                     cover = 'images/nocover.png'
                                                                 publish_date = date_format(workinfo.get('publish_date',
-                                                                                                        ''), context=title)
+                                                                                                        ''),
+                                                                                           context=title)
                                                                 rating, genrelist, _ = self.lt_workinfo(member[4])
                                                                 genrenames = []
                                                                 for item in genrelist:
@@ -1059,17 +1064,20 @@ class OpenLibrary:
                                                                 if match:
                                                                     bauth_key = match['AuthorID']
                                                                 else:
-                                                                    reason = "Series author %s:%s" % (series[0], member[1])
+                                                                    reason = "Series author %s:%s" % (series[0],
+                                                                                                      member[1])
                                                                     lazylibrarian.importer.add_author_name_to_db(
                                                                         author=auth_name, refresh=False,
                                                                         addbooks=False, reason=reason)
                                                                     match = db.match('SELECT * from authors ' +
-                                                                                     'WHERE AuthorName=? COLLATE NOCASE',
+                                                                                     'WHERE AuthorName=? ' +
+                                                                                     'COLLATE NOCASE',
                                                                                      (auth_name,))
                                                                     if match:
                                                                         bauth_key = match['AuthorID']
                                                                     else:
-                                                                        msg = "Unable to add %s for %s" % (auth_name, title)
+                                                                        msg = "Unable to add %s for %s" % (auth_name,
+                                                                                                           title)
                                                                         msg += ", author not in database"
                                                                         self.logger.debug(msg)
                                                                         continue
@@ -1077,7 +1085,7 @@ class OpenLibrary:
                                                                 match = db.match('SELECT * from books ' +
                                                                                  'WHERE BookID=?', (workid,))
                                                                 if not match:
-                                                                    self.logger.debug("Inserting new member [%s] for %s" %
+                                                                    self.logger.debug("Insert new member [%s] for %s" %
                                                                                       (member[0], series[0]))
 
                                                                     reason = "Member %s of series %s" % (member[0],
@@ -1092,11 +1100,11 @@ class OpenLibrary:
                                                                               'BookImg, BookLink, BookID, ' +
                                                                               'BookDate, BookLang, BookAdded, ' +
                                                                               'Status, WorkPage, AudioStatus, ' +
-                                                                              'LT_WorkID, ScanResult, OriginalPubDate)' +
-                                                                              ' VALUES ' +
+                                                                              'LT_WorkID, ScanResult, ' +
+                                                                              'OriginalPubDate) VALUES ' +
                                                                               '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                                                              (bauth_key, title, '', genres, '', '',
-                                                                               rating, cover, worklink, workid,
+                                                                              (bauth_key, title, '', genres, '',
+                                                                               '', rating, cover, worklink, workid,
                                                                                publish_date, lang, '', bookstatus,
                                                                                '', audiostatus, member[4],
                                                                                reason, publish_date))
@@ -1113,10 +1121,10 @@ class OpenLibrary:
                                                                                  "SeriesID=? AND AuthorID=?",
                                                                                  (seriesid, bauth_key))
                                                                 if not match:
-                                                                    self.logger.debug("Adding %s as series author for %s" %
+                                                                    self.logger.debug('Add %s as series author for %s' %
                                                                                       (auth_name, series[0]))
-                                                                    db.action('INSERT INTO seriesauthors ("SeriesID", ' +
-                                                                              '"AuthorID") VALUES (?, ?)',
+                                                                    db.action('INSERT INTO seriesauthors ("SeriesID"' +
+                                                                              ', "AuthorID") VALUES (?, ?)',
                                                                               (seriesid, bauth_key), suppress='UNIQUE')
 
                                                                 match = db.match("SELECT * from member WHERE " +
@@ -1124,9 +1132,10 @@ class OpenLibrary:
                                                                                  (seriesid, workid))
                                                                 if not match:
                                                                     db.action('INSERT INTO member ' +
-                                                                              '(SeriesID, BookID, WorkID, SeriesNum)  ' +
-                                                                              'VALUES (?,?,?,?)',
-                                                                              (seriesid, workid, member[4], member[0]))
+                                                                              '(SeriesID, BookID, WorkID, SeriesNum)' +
+                                                                              ' VALUES (?,?,?,?)',
+                                                                              (seriesid, workid, member[4],
+                                                                               member[0]))
                                                                     ser = db.match('select count(*) as counter ' +
                                                                                    'from member where seriesid=?',
                                                                                    (seriesid,))
@@ -1203,7 +1212,8 @@ class OpenLibrary:
                                                         loop_count, plural(loop_count, "page")))
             self.logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
             self.logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
-            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
+            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results,
+                                                                                              "result")))
             self.logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
             self.logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
             self.logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %

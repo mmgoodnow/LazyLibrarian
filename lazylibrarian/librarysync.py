@@ -20,27 +20,26 @@ import shutil
 import threading
 import traceback
 import zipfile
-from urllib.parse import quote_plus, urlencode
 from xml.etree import ElementTree
-
-from lib.mobi import Mobi
-from thefuzz import fuzz
+from operator import itemgetter
 
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.bookwork import set_work_pages
-from lazylibrarian.cache import cache_img, gr_xml_request, ImageType
+from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file, opf_file, \
     get_directory
 from lazylibrarian.formatter import plural, is_valid_isbn, get_list, unaccented, \
-    clean_name, replace_all, replace_quotes_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
+    replace_all, replace_quotes_with, split_title, now, make_unicode
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, add_author_name_to_db, search_for
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.preprocessor import preprocess_audio
+from lib.mobi import Mobi
+from thefuzz import fuzz
 
 
 # noinspection PyBroadException
@@ -240,6 +239,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     # or prefer not ignored over ignored
     logger = logging.getLogger(__name__)
     loggerfuzz = logging.getLogger('special.fuzz')
+    book = book.replace('\n', ' ')
     logger.debug('Searching database for [%s] by [%s]' % (book, author))
     db = database.DBConnection()
     try:
@@ -914,13 +914,13 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                        (bookid,))
                                         if CONFIG['BOOK_API'] == "GoodReads" and gr_id:
                                             finder = GoodReads(gr_id)
-                                            finder.find_book(gr_id, None, None, "Added by librarysync")
+                                            finder.find_book(gr_id, None, None, "Added by gr librarysync")
                                         elif CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
                                             finder = GoogleBooks(gb_id)
-                                            finder.find_book(gb_id, None, None, "Added by librarysync")
+                                            finder.find_book(gb_id, None, None, "Added by gb librarysync")
                                         elif CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
                                             finder = OpenLibrary(ol_id)
-                                            finder.find_book(ol_id, None, None, "Added by librarysync")
+                                            finder.find_book(ol_id, None, None, "Added by ol librarysync")
 
                                     if bookid:
                                         # see if it's there now...
@@ -972,172 +972,73 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # at this point if we still have no bookid, it looks like we
                                 # have author and book title but no database entry for it
                                 if not bookid:
-                                    if CONFIG['BOOK_API'] == "GoodReads":
-                                        # Either goodreads doesn't have the book or it didn't match language prefs
+                                    sources = [CONFIG['BOOK_API']]
+
+                                    if CONFIG.get_bool('MULTI_SOURCE'):
+                                        # Either original source doesn't have the book or it didn't match language prefs
                                         # or it's under a different author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
-                                        rescan_count += 1
-                                        base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
-                                        params = {"key": CONFIG['GR_API']}
-                                        author = format_author_name(author, postfix=CONFIG.get_list('NAME_POSTFIX'))
-                                        searchname = "%s %s" % (clean_name(author), clean_name(book))
-                                        searchterm = quote_plus(make_utf8bytes(searchname)[0])
-                                        set_url = base_url + searchterm + '&' + urlencode(params)
-                                        logger.debug("Rescan url: %s" % set_url)
-                                        # noinspection PyBroadException
-                                        try:
-                                            rootxml, _ = gr_xml_request(set_url)
-                                            if rootxml is None:
-                                                logger.warning("Error requesting GoodReads for %s" % searchname)
-                                            else:
-                                                book, _, _ = split_title(author, book)
-                                                book = replace_quotes_with(book, '')
-                                                resultxml = rootxml.iter('work')
-                                                for item in resultxml:
-                                                    try:
-                                                        booktitle = item.find('./best_book/title').text
-                                                        booktitle, _, _ = split_title(author, booktitle)
-                                                        booktitle = replace_quotes_with(booktitle, '')
-                                                    except (KeyError, AttributeError):
-                                                        booktitle = ""
-                                                    try:
-                                                        bookauthor = item.find('./best_book/author/name').text
-                                                    except (KeyError, AttributeError):
-                                                        bookauthor = ""
+                                        if "OpenLibrary" not in sources:
+                                            sources.append("OpenLibrary")
+                                        if "GoodReads" not in sources and CONFIG['GR_API']:
+                                            sources.append("GoodReads")
+                                        if "GoogleBooks" not in sources and CONFIG['GB_API']:
+                                            sources.append("GoogleBooks")
 
-                                                    book_fuzz = fuzz.ratio(booktitle, book)
-                                                    author_fuzz = fuzz.ratio(bookauthor, author)
-                                                    if book_fuzz >= CONFIG.get_int('NAME_RATIO') and \
-                                                            author_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                                                        rescan_hits += 1
-                                                        try:
-                                                            bookid = item.find('./best_book/id').text
-                                                        except (KeyError, AttributeError):
-                                                            bookid = ""
-                                                        if bookid:
-                                                            logger.debug("Rescan found [%s] %s : %s: %s" %
-                                                                         (bookauthor, booktitle, language, bookid))
-                                                            cmd = 'SELECT * from books WHERE BookID=?'
-                                                            check_status = db.match(cmd, (bookid,))
-                                                            if check_status:
-                                                                logger.debug("%s matched on rescan for %s %s" %
-                                                                             (bookid, author, book))
-                                                            else:
-                                                                logger.debug("Adding %s on rescan for %s %s" %
-                                                                             (bookid, author, book))
-                                                                gr_id = GoodReads(bookid)
-                                                                gr_id.find_book(bookid,
-                                                                                reason="Librarysync rescan %s" % book)
-                                                                if language and language != "Unknown":
-                                                                    # set language from book metadata
-                                                                    logger.debug(
-                                                                        "Setting language from metadata %s : %s" % (
-                                                                            book, language))
-                                                                    db.action(
-                                                                        'UPDATE books SET BookLang=? WHERE BookID=?',
-                                                                        (language, bookid))
-                                                            rehit.append(booktitle)
-                                                            break
-                                                if not bookid:
-                                                    # see if title was found under a different author
-                                                    resultxml = rootxml.iter('work')
-                                                    for item in resultxml:
-                                                        try:
-                                                            booktitle = item.find('./best_book/title').text
-                                                            booktitle, _, _ = split_title(author, booktitle)
-                                                            booktitle = replace_quotes_with(booktitle, '')
-                                                        except (KeyError, AttributeError):
-                                                            booktitle = ""
-                                                        try:
-                                                            bookauthor = item.find('./best_book/author/name').text
-                                                        except (KeyError, AttributeError):
-                                                            bookauthor = ""
+                                    res = []
+                                    for source in sources:
+                                        res += search_for(book + ' <ll> ' + author, source)
 
-                                                        book_fuzz = fuzz.ratio(booktitle, book)
-                                                        if book_fuzz >= 98:
-                                                            rescan_hits += 1
-                                                            try:
-                                                                bookid = item.find('./best_book/id').text
-                                                            except (KeyError, AttributeError):
-                                                                bookid = ""
-                                                            logger.debug("Rescan found [%s] %s : %s: %s" %
-                                                                         (bookauthor, booktitle, language, bookid))
-                                                            rehit.append(booktitle)
-                                                            if bookid:
-                                                                cmd = 'SELECT * from books WHERE BookID=?'
-                                                                check_status = db.match(cmd, (bookid,))
-                                                                if check_status:
-                                                                    logger.debug("%s [%s] matched on rescan for %s" %
-                                                                                 (bookid, bookauthor, booktitle))
-                                                                else:
-                                                                    logger.debug("Adding %s [%s] on rescan for %s" %
-                                                                                 (bookid, bookauthor, booktitle))
-                                                                    gr_id = GoodReads(bookid)
-                                                                    gr_id.find_book(bookid,
-                                                                                    reason="Librarysync rescan %s" %
-                                                                                           bookauthor)
-                                                                    if language and language != "Unknown":
-                                                                        # set language from book metadata
-                                                                        msg = "Setting language from metadata %s : %s"
-                                                                        logger.debug(msg % (booktitle, language))
-                                                                        cmd = 'UPDATE books SET BookLang=?'
-                                                                        cmd += ' WHERE BookID=?'
-                                                                        db.action(cmd, (language, bookid))
-                                                                break
-                                                if not bookid:
-                                                    logger.warning("Rescan no match for %s" % book)
-                                                    remiss.append(book)
-                                        except Exception:
-                                            logger.error('Error finding rescan results: %s' % traceback.format_exc())
-                                    elif CONFIG['BOOK_API'] == "GoogleBooks":
-                                        # if we get here using googlebooks it's because googlebooks
-                                        # doesn't have the book. No point in looking for it again.
-                                        logger.warning("GoogleBooks doesn't know about %s" % book)
-                                    elif CONFIG['BOOK_API'] == "OpenLibrary":
-                                        # Either openlibrary doesn't have the book or it didn't match language prefs
-                                        # or it's under a different author (pseudonym, series continuation author)
-                                        # Since we have the book anyway, try and reload it
-                                        rescan_count += 1
-                                        res = search_for(book + ' <ll> ' + author)
-                                        bookid = ''
-                                        bookauthor = ''
-                                        booktitle = ''
-                                        for item in res:
-                                            if item['book_fuzz'] >= 98:
-                                                rescan_hits += 1
-                                                logger.debug("Rescan found [%s] %s : %s: %s" %
-                                                             (item['authorname'], item['bookname'],
-                                                              item['booklang'], item['bookid']))
-                                                bookid = item['bookid']
-                                                bookauthor = item['authorname']
-                                                booktitle = item['bookname']
-                                                language = item['booklang']
-                                                rehit.append(booktitle)
-                                                break
+                                    sortedlist = sorted(res, key=itemgetter('book_fuzz', 'bookrate_count'),
+                                                        reverse=True)
+                                    rescan_count += 1
+                                    bookid = ''
+                                    bookauthor = ''
+                                    booktitle = ''
+                                    language = ''
+                                    source = ''
+                                    item = sortedlist[0]
+                                    if item['book_fuzz'] >= CONFIG.get_int('NAME_PARTNAME'):
+                                        rescan_hits += 1
+                                        logger.debug("Rescan %s found [%s] %s : %s: %s" %
+                                                     (item['source'], item['authorname'], item['bookname'],
+                                                      item['booklang'], item['bookid']))
+                                        bookid = item['bookid']
+                                        bookauthor = item['authorname']
+                                        booktitle = item['bookname']
+                                        language = item['booklang']
+                                        source = item['source']
+                                        rehit.append(booktitle)
 
-                                        if bookid:
-                                            cmd = 'SELECT * from books WHERE BookID=?'
-                                            check_status = db.match(cmd, (bookid,))
-                                            if check_status:
-                                                logger.debug("%s [%s] matched on rescan for %s" %
-                                                             (bookid, bookauthor, booktitle))
-                                            else:
-                                                logger.debug("Adding %s [%s] on rescan for %s" %
-                                                             (bookid, bookauthor, booktitle))
-                                                ol_id = OpenLibrary(bookid)
-                                                ol_id.find_book(bookid,
-                                                                reason="Librarysync rescan %s" %
-                                                                       bookauthor)
-                                                if language and language != "Unknown":
-                                                    # set language from book metadata
-                                                    msg = "Setting language from metadata %s : %s"
-                                                    logger.debug(msg % (booktitle, language))
-                                                    cmd = 'UPDATE books SET BookLang=?'
-                                                    cmd += ' WHERE BookID=?'
-                                                    db.action(cmd, (language, bookid))
+                                    if bookid:
+                                        cmd = 'SELECT * from books WHERE BookID=?'
+                                        check_status = db.match(cmd, (bookid,))
+                                        if check_status:
+                                            logger.debug("%s [%s] matched on rescan for %s" %
+                                                         (bookid, bookauthor, booktitle))
                                         else:
-                                            logger.warning("Rescan no match for %s" % book)
-                                            remiss.append(book)
+                                            logger.debug("Adding %s [%s] on rescan for %s" %
+                                                         (bookid, bookauthor, booktitle))
+                                            if source == 'OpenLibrary':
+                                                src_id = OpenLibrary(bookid)
+                                            elif source == 'GoodReads':
+                                                src_id = GoodReads(bookid)
+                                            else:
+                                                src_id = GoogleBooks(bookid)
+                                            src_id.find_book(bookid, reason="Librarysync %s rescan %s" %
+                                                             (source, bookauthor))
+
+                                            if language and language != "Unknown":
+                                                # set language from book metadata
+                                                msg = "Setting language from metadata %s : %s"
+                                                logger.debug(msg % (booktitle, language))
+                                                cmd = 'UPDATE books SET BookLang=?'
+                                                cmd += ' WHERE BookID=?'
+                                                db.action(cmd, (language, bookid))
+                                    else:
+                                        logger.warning("Rescan no match for %s" % book)
+                                        remiss.append(book)
+
                                 # see if it's there now...
                                 if bookid:
                                     cmd = 'SELECT books.Status, books.AuthorID, AudioStatus, BookFile, AudioFile, '

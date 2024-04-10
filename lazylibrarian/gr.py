@@ -208,7 +208,8 @@ class GoodReads:
                             'author_fuzz': author_fuzz,
                             'book_fuzz': book_fuzz,
                             'isbn_fuzz': isbn_fuzz,
-                            'highest_fuzz': highest_fuzz
+                            'highest_fuzz': highest_fuzz,
+                            'source': 'GoodReads'
                         })
 
                         resultcount += 1
@@ -267,7 +268,8 @@ class GoodReads:
 
     def find_author_id(self, refresh=False):
         author = self.name
-        author = format_author_name(unaccented(author, only_ascii='_'), postfix=CONFIG.get_list('NAME_POSTFIX'))
+        author = format_author_name(unaccented(author, only_ascii='_'),
+                                    postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         # googlebooks gives us author names with long form unicode characters
         author = make_unicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
@@ -299,7 +301,7 @@ class GoodReads:
             authorid = res.attrib.get("id")
             authorname = res.find('name').text
             authorname = format_author_name(unaccented(authorname, only_ascii=False),
-                                            postfix=CONFIG.get_list('NAME_POSTFIX'))
+                                            postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
             match = fuzz.ratio(author, authorname)
             if match >= CONFIG.get_int('NAME_RATIO'):
                 return self.get_author_info(authorid)
@@ -329,7 +331,7 @@ class GoodReads:
 
         # added authorname to author_dict - this holds the intact name preferred by GR
         # except GR messes up names like "L. E. Modesitt, Jr." where it returns <name>Jr., L. E. Modesitt</name>
-        authorname = format_author_name(resultxml[1].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
+        authorname = format_author_name(resultxml[1].text, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         self.logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
         author_dict = {
             'authorid': resultxml[0].text,
@@ -1225,47 +1227,6 @@ class GoodReads:
                         self.logger.warning("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
             if cnt:
                 self.logger.warning("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
-
-            # Check for any duplicate titles for this author in the library
-            cmd = "select count('bookname'),bookname from books where authorid=? "
-            cmd += "group by bookname having ( count(bookname) > 1 )"
-            res = db.select(cmd, (authorid,))
-            dupes = len(res)
-            if dupes:
-                for item in res:
-                    cmd = "select BookID,BookSub,Status,AudioStatus from books where bookname=? and authorid=?"
-                    dupe_books = db.select(cmd, (item['bookname'], authorid))
-                    cnt = len(dupe_books)
-                    booksubs = []
-                    for dupe in dupe_books:
-                        cnt -= 1
-                        if dupe['Status'] not in ['Ignored', 'Skipped'] \
-                                or dupe['AudioStatus'] not in ['Ignored', 'Skipped']:
-                            # this one is important (owned/wanted/snatched)
-                            self.logger.debug("Keeping bookid %s (%s/%s)" %
-                                              (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
-                        elif dupe['BookSub'] not in booksubs:
-                            booksubs.append(dupe['BookSub'])
-                            self.logger.debug("Keeping bookid %s [%s][%s]" %
-                                              (dupe['BookID'], item['bookname'], dupe['BookSub']))
-                        elif cnt:
-                            self.logger.debug("Removing bookid %s (%s/%s) %s" %
-                                              (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
-                        else:
-                            self.logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
-                                              (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
-
-            # Warn about any remaining unignored dupes
-            cmd = "select count('bookname'),bookname from books where authorid=? and "
-            cmd += "( Status != 'Ignored' or AudioStatus != 'Ignored' ) group by bookname having ( count(bookname) > 1 )"
-            res = db.select(cmd, (authorid,))
-            dupes = len(res)
-            if dupes:
-                author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
-                self.logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
-                                    author['AuthorName']))
-                for item in res:
-                    self.logger.debug("%02d: %s" % (item[0], item[1]))
         finally:
             db.close()
 
