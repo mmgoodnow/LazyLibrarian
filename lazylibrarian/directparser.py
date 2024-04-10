@@ -22,7 +22,7 @@ from lazylibrarian import database
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import get_user_agent
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
-    make_utf8bytes, seconds_to_midnight
+    make_utf8bytes, seconds_to_midnight, get_list
 from lazylibrarian.telemetry import TELEMETRY
 
 from bs4 import BeautifulSoup
@@ -81,7 +81,8 @@ def session_get(sess, url, headers):
                             verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
     else:
         response = sess.get(url, headers=headers, timeout=90, verify=False)
-    logger.debug("b-ok response: %s" % response.status_code)
+    if response.status_code != 200:
+        logger.debug("b-ok response: %s" % response.status_code)
     return response
 
 
@@ -291,7 +292,7 @@ def direct_bok(book=None, prov=None, test=False):
                                 if link and len(link) > 2:
                                     url = host + link
                                 else:
-                                    logger.debug("Link unavailable for %s" % title)
+                                    logger.debug("Link unavailable for %s" % title.strip())
                                     url = None
                                     removed += 1
                             except Exception as e:
@@ -637,7 +638,7 @@ def direct_gen(book=None, prov=None, test=False):
 
                     elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
                         try:
-                            author = format_author_name(td[0].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
+                            author = format_author_name(td[0].text, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                             title = td[2].text
                             newsoup = BeautifulSoup(str(td[2]), 'html5lib')
                             data = newsoup.find_all('a')
@@ -666,7 +667,7 @@ def direct_gen(book=None, prov=None, test=False):
                     elif 'search.php' in search and len(td) > 8:
                         # Non-fiction
                         try:
-                            author = format_author_name(td[1].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
+                            author = format_author_name(td[1].text, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                             title = td[2].text
                             newsoup = BeautifulSoup(str(td[2]), 'html5lib')
                             data = newsoup.find_all('a')

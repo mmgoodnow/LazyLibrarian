@@ -244,18 +244,18 @@ def test_provider(name: str, host=None, api=None):
                             provider['SEARCH'] = ssearch
                     logger.debug("Testing provider %s" % name)
                     filename = book['searchterm'] + '.zip'
-                    t = threading.Thread(target=irc_query, name='irc_query', args=(provider, filename,
-                                                                                   book['searchterm'], None, False,))
+                    t = threading.Thread(target=irc_query, name='irc_query',
+                                         args=(provider, filename, book['searchterm'], None, False,))
                     t.start()
                     t.join()
 
                     resultfile = os.path.join(DIRS.CACHEDIR, "IRCCache", filename)
                     if path_isfile(resultfile):
                         results = irc_results(provider, resultfile)
-                        print("Found %s results" % len(results))
+                        logger.debug("Found %s results" % len(results))
                         logger.debug("Removing File: " + resultfile)
                         remove_file(resultfile)  # remove the test search .zip
-                        return True, name
+                        return len(results), name
                     else:
                         return False, name
         except IndexError:
@@ -925,6 +925,8 @@ def iterate_over_irc_sites(book=None, search_type=None):
                     # For irc search we use just the author name and cache the results
                     # so we can search long and short from the same resultset
                     # but allow a separate "title only" search
+                    # irchighway says search results without both author and title will be
+                    # silently rejected but that doesn't seem to be actioned...
                     authorname, bookname = get_searchterm(book, search_type)
                     if 'title' in search_type:
                         book['searchterm'] = bookname

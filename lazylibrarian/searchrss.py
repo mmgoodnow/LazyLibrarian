@@ -20,7 +20,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name
+from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name, get_list
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_wishlists
 from lazylibrarian.resultlist import process_result_list
@@ -187,7 +187,8 @@ def search_wishlist():
                         new_audio.append({"bookid": bookmatch['BookID']})
                 else:  # not in database yet
                     results = []
-                    authorname = format_author_name(book['rss_author'], postfix=CONFIG.get_list('NAME_POSTFIX'))
+                    authorname = format_author_name(book['rss_author'],
+                                                    postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
                     if authmatch:
                         logger.debug("Author %s found in database, %s" % (authorname, authmatch['Status']))

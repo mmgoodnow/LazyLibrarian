@@ -21,7 +21,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move, csv_file
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
-    make_unicode, split_title
+    make_unicode, split_title, get_list
 from lazylibrarian.importer import search_for, import_book, add_author_name_to_db, update_totals
 from lazylibrarian.librarysync import find_book_in_db
 
@@ -315,7 +315,7 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
             elif row:
                 total += 1
                 item = dict(list(zip(headers, row)))
-                authorname = format_author_name(item['Author'], postfix=config.get_list('NAME_POSTFIX'))
+                authorname = format_author_name(item['Author'], postfix=get_list(config.get_csv('NAME_POSTFIX')))
                 title = make_unicode(item['Title'])
 
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))

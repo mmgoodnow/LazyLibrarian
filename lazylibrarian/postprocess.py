@@ -180,6 +180,9 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         if not CONFIG.get_bool('IMP_MAGOPF'):
             logger.debug('create_mag_opf is disabled')
         else:
+            basename, extn = os.path.splitext(source_file)
+            opffile = basename + '.opf'
+            remove_file(opffile)
             if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                 authors = title
             else:
@@ -3457,7 +3460,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
                 entries.append([name.strip(), role.strip()])
                 if names:
                     names += ' &amp; '
-                names += surname_first(name, postfixes=CONFIG.get_list('NAME_POSTFIX'))
+                names += surname_first(name, postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         for entry in entries:
             opfinfo += '        <dc:creator opf:file-as="%s" opf:role="%s">%s</dc:creator>\n' % \
                        (names, entry[1], entry[0])
@@ -3466,7 +3469,8 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
                    (data['FileAs'], data['FileAs'])
     else:
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
-                   (surname_first(data['AuthorName'], postfixes=CONFIG.get_list('NAME_POSTFIX')), data['AuthorName'])
+                   (surname_first(data['AuthorName'],
+                                  postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX'))), data['AuthorName'])
     if data.get('BookIsbn', ''):
         opfinfo += '        <dc:identifier opf:scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
 
