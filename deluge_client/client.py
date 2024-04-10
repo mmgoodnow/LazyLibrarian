@@ -15,7 +15,7 @@ MESSAGE_HEADER_SIZE = 5
 READ_SIZE = 10
 
 logger = logging.getLogger(__name__)
-
+loggerdlcomms = logging.getLogger('special.dlcomms')
 
 class DelugeClientException(Exception):
     """Base exception for all deluge client exceptions"""
@@ -79,11 +79,9 @@ class DelugeRPCClient(object):
         Connects to the Deluge instance
         """
         self._connect()
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug('Connected to Deluge, detecting daemon version')
+        loggerdlcomms.debug('Connected to Deluge, detecting daemon version')
         self._detect_deluge_version()
-        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-            logger.debug('Daemon version {} detected, logging in'.format(self.deluge_version))
+        loggerdlcomms.debug('Daemon version {} detected, logging in'.format(self.deluge_version))
         if self.deluge_version == 2:
             result = self.call('daemon.login', self.username, self.password, client_version='deluge-client')
         else:
@@ -146,12 +144,10 @@ class DelugeRPCClient(object):
             debug_args = list(args)
             if len(debug_args) >= 2:
                 debug_args[1] = '<password hidden>'
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
+                loggerdlcomms.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
                                  (self.request_id, method, debug_args, kwargs))
         else:
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
+            loggerdlcomms.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
                              (self.request_id, method, args, kwargs))
 
         req = ((self.request_id, method, args, kwargs), )
@@ -232,13 +228,11 @@ class DelugeRPCClient(object):
                 exception = type(str(exception_type.decode('utf-8', 'ignore')), (RemoteException, ), {})
                 exception_msg = '%s\n%s' % (exception_msg.decode('utf-8', 'ignore'),
                                             traceback.decode('utf-8', 'ignore'))
-                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                    logger.debug("RPC Error: %s" % exception_msg)
+                loggerdlcomms.debug("RPC Error: %s" % exception_msg)
             raise exception(exception_msg)
         elif msg_type == RPC_RESPONSE:
             retval = data[0]
-            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
-                logger.debug(str(retval))
+            loggerdlcomms.debug(str(retval))
             return retval
 
     def reconnect(self):
