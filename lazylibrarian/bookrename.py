@@ -340,7 +340,8 @@ def audio_rename(bookid, rename=False, playlist=False):
 
     db = database.DBConnection()
     try:
-        cmd = 'select AuthorName,BookName,AudioFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
+        cmd = ('select AuthorName,BookName,AudioFile from books,authors where '
+               'books.AuthorID = authors.AuthorID and bookid=?')
         exists = db.match(cmd, (bookid,))
     finally:
         db.close()
@@ -471,7 +472,8 @@ def book_rename(bookid):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        cmd = 'select AuthorName,BookName,BookFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
+        cmd = ('select AuthorName,BookName,BookFile from books,authors where '
+               'books.AuthorID = authors.AuthorID and bookid=?')
         exists = db.match(cmd, (bookid,))
     finally:
         db.close()
@@ -599,8 +601,8 @@ def name_vars(bookid, abridged=''):
             seriesname = 'The Lord of the Rings'
             mydict['Author'] = 'J.R.R. Tolkien'
             mydict['Title'] = 'The Fellowship of the Ring'
-            mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
-            mydict['SortTitle'] = sort_definite(mydict['Title'], articles=CONFIG.get_list('NAME_DEFINITE'))
+            mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
+            mydict['SortTitle'] = sort_definite(mydict['Title'], articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
             mydict['Part'] = '1'
             mydict['Total'] = '3'
             res = {}
@@ -611,7 +613,8 @@ def name_vars(bookid, abridged=''):
                 seriesid = res['SeriesID']
                 serieslist = get_list(res['SeriesNum'])
 
-                cmd = 'SELECT BookDate from member,books WHERE books.bookid = member.bookid and SeriesNum=1 and SeriesID=?'
+                cmd = ('SELECT BookDate from member,books WHERE books.bookid = member.bookid and '
+                       'SeriesNum=1 and SeriesID=?')
                 res_date = db.match(cmd, (seriesid,))
                 if res_date:
                     seryear = res_date['BookDate']
@@ -726,8 +729,10 @@ def name_vars(bookid, abridged=''):
             if exists:
                 mydict['Author'] = exists['AuthorName']
                 mydict['Title'] = exists['BookName']
-                mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
-                mydict['SortTitle'] = sort_definite(mydict['Title'], articles=CONFIG.get_list('NAME_DEFINITE'))
+                mydict['SortAuthor'] = surname_first(mydict['Author'],
+                                                     postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
+                mydict['SortTitle'] = sort_definite(mydict['Title'],
+                                                    articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
             else:
                 mydict['Author'] = ''
                 mydict['Title'] = ''

@@ -75,7 +75,7 @@ def set_book_authors(book):
                         role = author['role']
                 else:
                     # it's a librarything data source
-                    authorname = format_author_name(author['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
+                    authorname = format_author_name(author['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     exists = db.match('select authorid from authors where authorname=?', (authorname,))
                     if 'type' in author:
                         authtype = author['type']
