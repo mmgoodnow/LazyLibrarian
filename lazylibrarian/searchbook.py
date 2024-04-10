@@ -492,7 +492,11 @@ def search_book(books=None, library=None):
                             matches.append(match)
 
             if matches:
-                highest = max(matches, key=lambda s: (s[0], s[3]))  # sort on percentage and priority
+                try:
+                    highest = max(matches, key=lambda s: (s[0], s[3]))  # sort on percentage and priority
+                except TypeError:
+                    highest = max(matches, key=lambda s: (str(s[0]), str(s[3])))
+
                 logger.info("Requesting %s download: %s%% %s: %s" %
                             (book['library'], highest[0], highest[1]['NZBprov'], highest[1]['NZBtitle']))
                 if download_result(highest, book) > 1:
