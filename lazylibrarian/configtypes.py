@@ -252,6 +252,7 @@ class ConfigInt(ConfigItem):
         if tmpsection != self.section:
             logger = logging.getLogger('special.configread')
             logger.debug(f'Loading int {name} from section {tmpsection} into section {self.section}')
+        # noinspection PyBroadException
         try:
             value = parser.getint(tmpsection, name, fallback=0)
         except Exception:
@@ -292,6 +293,7 @@ class ConfigScheduler(ConfigRangedInt):
     def get_method(self):
         """ Return the method to call for this scheduler """
         module, function = self.method_name.rsplit('.', 1)
+        # noinspection PyBroadException
         try:
             return getattr(sys.modules[module], function)
         except Exception:
@@ -347,7 +349,7 @@ class ConfigPerm(ConfigStr):
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         try:
-            if type(value) == str:
+            if type(value) is str:
                 octvalue = oct(int(str(value), 8))  # Must now be a valid Oct string
                 if octvalue != value:
                     return False
@@ -418,7 +420,8 @@ class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address or comma separated list of valid addresses"""
 
     def __init__(self, section: str, key: str, default: str, is_new: bool = False, persist: bool = True):
-        super().__init__(section, key, default, force_lower=False, is_new=is_new, persist=persist)  # kindle email addresses are case sensitive
+        super().__init__(section, key, default, force_lower=False, is_new=is_new, persist=persist)
+        # kindle email addresses are case sensitive
 
     def get_email(self) -> str:
         return self.get_str()
@@ -465,7 +468,7 @@ class ConfigCSV(ConfigStr):
                 return True
             else:
                 # Check if the string only contains alphanumeric characters, and select symbols
-                if all(c.isalnum() or c in ', !-+#' for c in value):
+                if all(c.isalnum() or c in ', !-+#.' for c in value):
                     # Split the string by the comma and check if the resulting parts are not empty
                     parts = value.split(',')
                     return all(part.strip() for part in parts)

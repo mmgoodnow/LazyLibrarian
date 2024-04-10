@@ -384,10 +384,46 @@
                   </fieldset>
                   <fieldset>
                     <fieldset id="admin_options">
-                    <div class="form-group">
-                      <label for="admin_email" class="control-label">Contact Email:</label>
-                      <input type="text" id="admin_email" name="admin_email" value="${CONFIG['ADMIN_EMAIL']}" class="form-control" placeholder="Contact email for requests/registration">
-                    </div>
+                      <div class="form-group">
+                        <label for="whitelist" class="control-label">Whitelist Admin IPs:</label>
+                        <input type="text" id="whitelist" name="whitelist" value="${CONFIG['WHITELIST']}" class="form-control" placeholder="Whitelisted admin ip addresses">
+                      </div>
+                      <div class="form-group">
+                        <label for="admin_email" class="control-label">Contact Email:</label>
+                        <input type="text" id="admin_email" name="admin_email" value="${CONFIG['ADMIN_EMAIL']}" class="form-control" placeholder="Contact email for requests/registration">
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <% checked = 'checked="checked"' if CONFIG['PROXY_AUTH'] else '' %>
+                          <label for="proxy_auth" title="Allow login by proxy headers">
+                          <input type="checkbox" id="proxy_auth" name="proxy_auth" value="1" ${checked} />
+                          Use Proxy Login Headers</label>
+                        </div>
+                      </div>
+                      <fieldset id=proxy_auth_options>
+                        <div class="form-group">
+                          <label for="proxy_auth_user" class="control-label">Proxy Auth User Header:</label>
+                          <input type="text" id="proxy_auth_user" name="proxy_auth_user" value="${CONFIG['PROXY_AUTH_USER']}" class="form-control" placeholder="User Name Header">
+                        </div>
+                        <div class="row checkbox">
+                          <div class="col-md-6">
+                            <% checked = 'checked="checked"' if CONFIG['PROXY_REGISTER'] else '' %>
+                            <label for="proxy_register" title="Allow new registrations by proxy headers">
+                            <input type="checkbox" id="proxy_register" name="proxy_register" value="1" ${checked} />
+                            Use Proxy Registration Headers</label>
+                          </div>
+                        </div>
+                        <fieldset id=proxy_register_options>
+                          <div class="form-group">
+                            <label for="proxy_auth_name" class="control-label">Proxy Auth Name Header:</label>
+                            <input type="text" id="proxy_auth_name" name="proxy_auth_name" value="${CONFIG['PROXY_AUTH_NAME']}" class="form-control" placeholder="Full Name Header">
+                          </div>
+                          <div class="form-group">
+                            <label for="proxy_auth_email" class="control-label">Proxy Auth Email Header:</label>
+                            <input type="text" id="proxy_auth_email" name="proxy_auth_email" value="${CONFIG['PROXY_AUTH_EMAIL']}" class="form-control" placeholder="Email Header">
+                          </div>
+                        </fieldset>
+                      </fieldset>
                     </fieldset>
                     <fieldset id="webserver_options">
                     WebServer Options:

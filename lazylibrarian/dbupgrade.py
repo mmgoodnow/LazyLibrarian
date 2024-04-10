@@ -113,8 +113,9 @@ from lazylibrarian.common import path_exists
 # 75 Add ol_id to author table
 # 76 Add Label to wanted table
 # 77 Add Genres to magazines and comics
+# 78 Add last_login and login_count to users, sent_file table
 
-db_current_version = 77
+db_current_version = 78
 
 
 def upgrade_needed():
@@ -215,7 +216,8 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
                     db.action('CREATE TABLE downloads (Count INTEGER DEFAULT 0, Provider TEXT)')
                     db.action('CREATE TABLE users (UserID TEXT UNIQUE, UserName TEXT UNIQUE, Password TEXT, ' +
                               'Email TEXT, Name TEXT, Perms INTEGER DEFAULT 0, HaveRead TEXT, ToRead TEXT, ' +
-                              'CalibreRead TEXT, CalibreToRead TEXT, BookType TEXT, SendTo TEXT)')
+                              'CalibreRead TEXT, CalibreToRead TEXT, BookType TEXT, SendTo TEXT, ' +
+                              'Last_Login TEXT, Login_Count INTEGER DEFAULT 0)')
                     db.action('CREATE TABLE isbn (Words TEXT, ISBN TEXT)')
                     db.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, ' +
                               'GenreName TEXT UNIQUE)')
@@ -255,6 +257,8 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
                               'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
                               'Cover TEXT, Description TEXT, Link TEXT, Contributors TEXT, ' +
                               'UNIQUE (ComicID, IssueID))')
+                    db.action('CREATE TABLE sent_file (WhenSent TEXT, UserID TEXT REFERENCES users (UserID) ' +
+                              'ON DELETE CASCADE, Addr TEXT, FileName TEXT)')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = db.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
@@ -394,7 +398,8 @@ def check_db(upgradelog=None):
                 db.action('UPDATE series SET Status="Paused" WHERE Status="Skipped"')
 
             # Extract any librarything workids from workpage url
-            cmd = 'SELECT WorkPage,BookID from books WHERE WorkPage like "%librarything.com/work/%" and LT_WorkID is NULL'
+            cmd = ('SELECT WorkPage,BookID from books WHERE WorkPage like '
+                   '"%librarything.com/work/%" and LT_WorkID is NULL')
             res = db.select(cmd)
             tot = len(res)
             if tot:
@@ -599,7 +604,8 @@ def check_db(upgradelog=None):
                             db.action('INSERT into genres (GenreName) VALUES (?)', (newitem,))
                         res = db.select('SELECT bookid from genrebooks where genreid=?', (match['GenreID'],))
                         for bk in res:
-                            cmd = 'select genrename from genres,genrebooks,books where genres.genreid=genrebooks.genreid '
+                            cmd = ('select genrename from genres,genrebooks,books where '
+                                   'genres.genreid=genrebooks.genreid ')
                             cmd += ' and books.bookid=genrebooks.bookid and books.bookid=?'
                             bkgenres = db.select(cmd, (bk['bookid'],))
                             lst = []
@@ -612,7 +618,8 @@ def check_db(upgradelog=None):
                             set_genres(lst, bk['bookid'])
             # remove genres with no books
             lazylibrarian.UPDATE_MSG = 'Removing genres with no books'
-            cmd = 'select GenreID, (select count(*) as counter from genrebooks where genres.genreid = genrebooks.genreid)'
+            cmd = ('select GenreID, (select count(*) as counter from genrebooks where '
+                   'genres.genreid = genrebooks.genreid)')
             cmd += ' as cnt from genres where cnt = 0'
             genres = db.select(cmd)
             if genres:
@@ -1142,6 +1149,17 @@ def update_schema(db, upgradelog):
         upgradelog.write("%s v77: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE magazines ADD COLUMN Genre TEXT')
         db.action('ALTER TABLE comics ADD COLUMN Genre TEXT')
+
+    if not has_column(db, "users", "Login_Count"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding Last_Login and Login_Count to users table'
+        upgradelog.write("%s v78: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE users ADD COLUMN Last_Login TEXT')
+        db.action('ALTER TABLE users ADD COLUMN Login_Count INTEGER DEFAULT 0')
+        lazylibrarian.UPDATE_MSG = 'Creating sent_file table'
+        upgradelog.write("%s v78: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('CREATE TABLE sent_file (WhenSent TEXT, UserID TEXT REFERENCES '
+                  'users (UserID) ON DELETE CASCADE, Addr TEXT, FileName TEXT)')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))

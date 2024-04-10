@@ -25,7 +25,11 @@
 </%def>
 
 <%def name="body()">
-  <h1>${title}</h1>
+  <h1>${title}
+    %if perm&lazylibrarian.perm_edit:
+        <a href="edit_mag?mag=${title | u}" class="button btn btn-sm btn-primary"></i>Rename</a>
+    %endif
+  </h1>
     %if lazylibrarian.MAG_UPDATE == True:
     <p>
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Libraryscan in progress ...</button>

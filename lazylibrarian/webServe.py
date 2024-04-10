@@ -36,7 +36,7 @@ from lazylibrarian import database, notifiers, versioncheck, magazinescan, comic
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
 from lazylibrarian.configtypes import ConfigBool
 from lazylibrarian.auth import AuthController
-from lazylibrarian.bookrename import name_vars
+from lazylibrarian.bookrename import name_vars, stripspaces
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb, get_calibre_id
@@ -45,16 +45,16 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import create_support_zip, log_header, pwd_generator, pwd_check, \
     is_valid_email, mime_type, zip_audio, run_script
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
-    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
+    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, make_dirs
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
     ensure_running, all_author_update, show_stats, SchedulerCommand
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
     irc_dl_method
-from lazylibrarian.formatter import unaccented, plural, now, today, check_int, \
+from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
-    md5_utf8, date_format, check_year, replace_quotes_with, format_author_name, check_float, thread_name
+    md5_utf8, date_format, check_year, replace_quotes_with, format_author_name, check_float, thread_name, sanitize
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb
@@ -68,11 +68,11 @@ from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
-    create_opf, process_book_from_dir, process_issues, process_mag_from_file
+    create_opf, process_book_from_dir, process_issues
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
-from lazylibrarian.searchmag import search_magazines, download_maglist
+from lazylibrarian.searchmag import search_magazines, download_maglist, get_issue_date
 from lazylibrarian.searchrss import search_wishlist
 from lazylibrarian.telemetry import TELEMETRY
 from lazylibrarian.blockhandler import BLOCKHANDLER
@@ -132,6 +132,7 @@ def serve_template(templatename, **kwargs):
             return template.render(perm=0, message="Database upgrade in progress, please wait...",
                                    title="Database Upgrade", timer=5, style=style)
 
+        loggeradmin.debug(str(cherrypy.request.headers))
         if not CONFIG.get_bool('USER_ACCOUNTS'):
             perm = lazylibrarian.perm_admin
             try:
@@ -148,12 +149,14 @@ def serve_template(templatename, **kwargs):
             db = database.DBConnection()
             try:
                 if lazylibrarian.LOGINUSER:
-                    res = db.match('SELECT UserName,Perms from users where UserID=?', (lazylibrarian.LOGINUSER,))
+                    res = db.match('SELECT * from users where UserID=?', (lazylibrarian.LOGINUSER,))
                     if res:
                         cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
                         userid = lazylibrarian.LOGINUSER
                         logger.debug("Auto-login for %s" % res['UserName'])
                         lazylibrarian.SHOWLOGOUT = 0
+                        db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                                  (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                     else:
                         logger.debug("Auto-login failed for userid %s" % lazylibrarian.LOGINUSER)
                         cherrypy.response.cookie['ll_uid'] = ''
@@ -166,8 +169,7 @@ def serve_template(templatename, **kwargs):
                     cookie = cherrypy.request.cookie
                     authorization = cherrypy.request.headers.get('Authorization')
                     if cookie and 'll_uid' in list(cookie.keys()):
-                        res = db.match('SELECT UserName,Perms,UserID from users where UserID=?',
-                                       (cookie['ll_uid'].value,))
+                        res = db.match('SELECT * from users where UserID=?', (cookie['ll_uid'].value,))
                     elif authorization and authorization.startswith('Basic '):
                         auth_bytes = authorization.split('Basic ')[1].encode('ascii')
                         value_bytes = base64.b64decode(auth_bytes)
@@ -175,8 +177,50 @@ def serve_template(templatename, **kwargs):
                         res = {}
                         if ':' in values:
                             user, pwd = values.split(':', 1)
-                            res = db.match('SELECT UserName,Perms,UserID from users where UserName=? and Password=?',
-                                           (user, pwd))
+                            res = db.match('SELECT * from users where UserName=? and Password=?', (user, pwd))
+
+                    if not res and CONFIG.get_bool('PROXY_AUTH'):
+                        logger.debug('Proxy Auth enabled')
+                        user = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_USER'))
+                        if user:
+                            logger.debug("%s: %s" % (CONFIG.get_str('PROXY_AUTH_USER'), user))
+                            res = db.match('SELECT * from users where UserName=?', user)
+                            if res:
+                                logger.debug("%s is a registered user" % user)
+                                db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                                          (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+                            if not res and CONFIG.get_bool('PROXY_REGISTER'):
+                                logger.debug("User %s not registered, trying to add..." % user)
+                                fullname = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_NAME'))
+                                logger.debug("%s: %s" % (CONFIG.get_str('PROXY_AUTH_NAME'), fullname))
+                                email = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_EMAIL'))
+                                logger.debug("%s: %s" % (CONFIG.get_str('PROXY_AUTH_NAME'), email))
+                                if fullname and email:
+                                    new_pwd = pwd_generator()
+                                    msg = lazylibrarian.NEWUSER_MSG.replace('{username}', user).replace(
+                                        '{password}', new_pwd).replace('{permission}', 'Friend')
+
+                                    result = notifiers.email_notifier.notify_message('LazyLibrarian New Account',
+                                                                                     msg, email)
+                                    if result:
+                                        cmd = ('INSERT into users (UserID, UserName, Name, Password, Email, '
+                                               'SendTo, Perms)')
+                                        cmd += ' VALUES (?, ?, ?, ?, ?, ?, ?)'
+                                        db.action(cmd, (pwd_generator(), user, fullname, md5_utf8(new_pwd),
+                                                        email, '', lazylibrarian.perm_friend))
+                                        msg = "New user added from proxy auth: %s: %s" % (user, 'Friend')
+                                        msg += "<br>Email sent to %s" % email
+                                        cnt = db.match("select count(*) as counter from users")
+                                        if cnt['counter'] > 1:
+                                            lazylibrarian.SHOWLOGOUT = 1
+                                        res = db.match('SELECT * from users where UserName=?', user)
+                                        db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                                                  (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+                                    else:
+                                        msg = "New user NOT added"
+                                        msg += "<br>Failed to send email to %s" % email
+                                    logger.debug(msg)
+
                     if not res:
                         columns = db.select('PRAGMA table_info(users)')
                         if not columns:  # no such table
@@ -185,13 +229,41 @@ def serve_template(templatename, **kwargs):
                             cnt = db.match("select count(*) as counter from users")
                         if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
                                 templatename not in ["register.html", "response.html", "opds.html"]:
-                            res = db.match('SELECT UserName,Perms,Prefs,UserID from users')
+                            res = db.match('SELECT * from users')
                             cherrypy.response.cookie['ll_uid'] = res['UserID']
                             cherrypy.response.cookie['ll_prefs'] = res['Prefs']
                             logger.debug("Auto-login for %s" % res['UserName'])
+                            db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                                      (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                             lazylibrarian.SHOWLOGOUT = 0
                         else:
                             lazylibrarian.SHOWLOGOUT = 1
+
+                    if not res:
+                        remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
+                        if not remote_ip:
+                            remote_ip = cherrypy.request.headers.get('X-Host')  # lighthttpd
+                        if not remote_ip:
+                            remote_ip = cherrypy.request.headers.get('Remote-Addr')
+                        if not remote_ip:
+                            remote_ip = cherrypy.request.remote.ip
+                        whitelist = get_list(CONFIG.get_csv('WHITELIST'))
+                        if remote_ip in whitelist:
+                            columns = db.select('PRAGMA table_info(users)')
+                            if not columns:  # no such table
+                                cnt = 0
+                            else:
+                                cnt = db.match('SELECT count(*) as counter from users where Perms=65535')
+                            if cnt and templatename not in ["register.html", "response.html", "opds.html"]:
+                                res = db.match('SELECT * from users where Perms=65535')
+                                cherrypy.response.cookie['ll_uid'] = res['UserID']
+                                cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+                                logger.debug("Auto-login for %s at %s" % (res['UserName'], remote_ip))
+                                db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                                          (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+                                lazylibrarian.SHOWLOGOUT = 0
+                            else:
+                                lazylibrarian.SHOWLOGOUT = 1
                 if res:
                     perm = check_int(res['Perms'], 0)
                     username = res['UserName']
@@ -417,9 +489,9 @@ class WebInterface(object):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
                     arow = list(row)
                     if CONFIG.get_bool('SORT_SURNAME'):
-                        arow[1] = surname_first(arow[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
+                        arow[1] = surname_first(arow[1], postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     if CONFIG.get_bool('SORT_DEFINITE'):
-                        arow[2] = sort_definite(arow[2], articles=CONFIG.get_list('NAME_DEFINITE'))
+                        arow[2] = sort_definite(arow[2], articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
                     arow[3] = date_format(arow[3], '', f'{arow[1]}/{arow[2]}')
                     nrow = arow[:4]
                     havebooks = check_int(arow[7], 0)
@@ -671,7 +743,7 @@ class WebInterface(object):
             pwd = md5_utf8(password)
             db = database.DBConnection()
             try:
-                res = db.match('SELECT UserID,Prefs,Password from users where username=?', (username,))  # type: dict
+                res = db.match('SELECT * from users where username=?', (username,))  # type: dict
             finally:
                 db.close()
         if res and pwd == res['Password']:
@@ -683,6 +755,12 @@ class WebInterface(object):
             # successfully logged in, clear any failed attempts
             lazylibrarian.USER_BLOCKLIST[:] = [x for x in lazylibrarian.USER_BLOCKLIST if not x[0] == username]
             logger.debug("User %s logged in" % username)
+            db = database.DBConnection()
+            try:
+                db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                          (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+            finally:
+                db.close()
             lazylibrarian.SHOWLOGOUT = 1
             return ''
         elif res:
@@ -839,6 +917,8 @@ class WebInterface(object):
             match = db.match('SELECT * from users where UserName=?', (kwargs['user'],))
             if match:
                 subs = db.select('SELECT Type,WantID from subscribers WHERE UserID=?', (match['userid'],))
+                cnt = db.match('select count(*) as counter from sent_file where UserID=?', (match['userid'],))
+                last_login = check_int(match['Last_Login'], 0)
                 subscriptions = ''
                 for item in subs:
                     if subscriptions:
@@ -846,11 +926,15 @@ class WebInterface(object):
                     subscriptions += '%s %s' % (item['Type'], item['WantID'])
                 res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
                                   'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
-                                  'sendto': match['SendTo'], 'booktype': match['BookType'],
-                                  'userid': match['UserID'], 'subs': subscriptions, 'theme': match['Theme']})
+                                  'sendto': match['SendTo'], 'booktype': match['BookType'], 'userid': match['UserID'],
+                                  'lastlogin': datetime.datetime.fromtimestamp(last_login).ctime()
+                                  if last_login else '',
+                                  'logins': match['Login_Count'], 'downloads': cnt['counter'], 'subs': subscriptions,
+                                  'theme': match['Theme']})
             else:
-                res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '',
-                                  'sendto': '', 'booktype': '', 'userid': '', 'subs': '', 'theme': ''})
+                res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '', 'sendto': '',
+                                  'booktype': '', 'userid': '', 'lastlogin': '', 'logins': '0', 'subs': '',
+                                  'theme': ''})
         finally:
             db.close()
         return res
@@ -1240,7 +1324,7 @@ class WebInterface(object):
 
                 for row in filtered:
                     if CONFIG.get_bool('SORT_SURNAME'):
-                        row[1] = surname_first(row[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
+                        row[1] = surname_first(row[1], postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     have = check_int(row[6], 0)
                     total = check_int(row[7], 0)
                     if total:
@@ -2121,7 +2205,7 @@ class WebInterface(object):
                     bestmatch = [0, '']
                     for item in listdir(libdir):
                         match = fuzz.ratio(format_author_name(unaccented(item),
-                                                              CONFIG.get_list('NAME_POSTFIX')).lower(), matchname)
+                                                              get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
                         if match >= CONFIG.get_int('NAME_RATIO'):
                             authordir = os.path.join(libdir, item)
                             loggerfuzz.debug("Fuzzy match folder %s%% %s for %s" % (match, item, author_name))
@@ -2524,9 +2608,9 @@ class WebInterface(object):
                     if entry[16] is None:
                         entry[16] = ""
                     if CONFIG.get_bool('SORT_SURNAME'):
-                        entry[1] = surname_first(entry[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
+                        entry[1] = surname_first(entry[1], postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     if CONFIG.get_bool('SORT_DEFINITE'):
-                        entry[2] = sort_definite(entry[2], articles=CONFIG.get_list('NAME_DEFINITE'))
+                        entry[2] = sort_definite(entry[2], articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
                     rows.append(entry)  # add each rowlist to the masterlist
                 loggerserverside.debug("get_books surname/definite completed")
 
@@ -4981,6 +5065,92 @@ class WebInterface(object):
                               covercount=covers, user=user, email=email, mag_filter=mag_filter)
 
     @cherrypy.expose
+    def edit_mag(self, mag=None):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.label_thread('EDIT_MAG')
+        TELEMETRY.record_usage_data()
+        logger = logging.getLogger(__name__)
+        db = database.DBConnection()
+        try:
+            magdata = db.match("SELECT Title from magazines WHERE Title=?", (mag,))
+        finally:
+            db.close()
+
+        if magdata:
+            return serve_template(templatename="editmag.html", title="Edit Magazine", config=magdata)
+        else:
+            logger.error('Missing magazine %s' % mag)
+
+    # noinspection PyBroadException
+    @cherrypy.expose
+    def magazine_update(self, **kwargs):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        logger = logging.getLogger(__name__)
+        new_title = kwargs.get('new_title')
+        old_title = kwargs.get('old_title')
+        if not old_title and new_title:
+            logger.debug('Insufficient information, need Old and New Title')
+            raise cherrypy.HTTPRedirect("magazines")
+        if old_title == new_title:
+            logger.debug('Title for %s unchanged' % new_title)
+            raise cherrypy.HTTPRedirect("magazines")
+        logger.debug("Changing title [%s] to [%s]" % (old_title, new_title))
+
+        db = database.DBConnection()
+        try:
+            db.action('PRAGMA foreign_keys = OFF')
+            db.action("UPDATE magazines SET Title=? WHERE Title=?", (new_title, old_title))
+            db.action("UPDATE issues SET Title=? WHERE Title=?", (new_title, old_title))
+            db.action('PRAGMA foreign_keys = ON')
+
+            # rename files/folders to match, and issuefile to match new location
+            issues = db.select("SELECT IssueDate,IssueFile from issues WHERE Title=?", (new_title,))
+
+            for issue in issues:
+                dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
+                    '$IssueDate', issue['IssueDate']).replace(
+                    '$Title', new_title)
+
+                if CONFIG.get_bool('MAG_RELATIVE'):
+                    dest_dir = get_directory('eBook')
+                    dest_path = stripspaces(os.path.join(dest_dir, dest_path))
+
+                if not make_dirs(dest_path):
+                    logger.error('Unable to create destination directory %s' % dest_path)
+                    break
+
+                ext = os.path.splitext(issue['IssueFile'])[1]
+                if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
+                    global_name = CONFIG['MAG_DEST_FILE'].replace(
+                        '$IssueDate', issue['IssueDate']).replace(
+                        '$Title', new_title)
+                else:
+                    global_name = "%s %s" % (new_title, issue['IssueDate'])
+
+                global_name = unaccented(global_name, only_ascii=False)
+                global_name = sanitize(global_name)
+
+                new_file = os.path.join(dest_path, global_name + ext)
+                logger.debug("Moving %s to %s" % (issue['IssueFile'], new_file))
+                _ = safe_move(issue['IssueFile'], new_file)
+                db.action("UPDATE issues SET IssueFile=? WHERE IssueFile=?", (new_file, issue['IssueFile']))
+                old_path = os.path.dirname(issue['IssueFile'])
+                old_file = os.path.splitext(issue['IssueFile'])[0]
+                for extn in ['.opf', '.jpg']:
+                    if path_isfile(old_file + extn):
+                        new_file = os.path.join(dest_path, global_name)
+                        logger.debug("Moving %s to %s" % (old_file + extn, new_file + extn))
+                        _ = safe_move(old_file + extn, new_file + extn)
+                if len(os.listdir(old_path)) == 0:
+                    logger.debug("Removing empty directory %s" % old_path)
+                    os.rmdir(old_path)
+        except Exception:
+            logger.error('Unhandled exception in magazine_update: %s' % traceback.format_exc())
+        finally:
+            db.close()
+        raise cherrypy.HTTPRedirect("magazines")
+
+    @cherrypy.expose
     @cherrypy.tools.json_out()
     def get_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
@@ -5098,7 +5268,7 @@ class WebInterface(object):
         if issuedata:
             return serve_template(templatename="editissue.html", title="Edit Issue", config=issuedata)
         else:
-            logger.info('Missing issue %s' % issueid)
+            logger.error('Missing issue %s' % issueid)
 
     @cherrypy.expose
     def issue_update(self, **kwargs):
@@ -5111,24 +5281,137 @@ class WebInterface(object):
 
         magtitle = kwargs.get('magtitle')
         issuenum = kwargs.get('issuenum')
+        db = database.DBConnection()
+        magazine = db.match("SELECT * from magazines WHERE Title=?", (magtitle,))
+        issue = db.match("SELECT Title,IssueDate,ISsueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
+        db.close()
+
+        datetype = magazine['DateType']
+        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
+        issuenum_exploded = replace_all(issuenum, dic).split()
+        regex_pass, issuedate, year = get_issue_date(issuenum_exploded, datetype=datetype)
+
+        if regex_pass:
+            logger.debug('Issue %s (regex %s) for %s, %s' %
+                         (issuedate, regex_pass, issuenum, datetype))
+            datetype_ok = True
+
+            if datetype:
+                # check all wanted parts are in the regex result
+                # Day Month Year Vol Iss (MM needs two months)
+
+                if 'M' in datetype and regex_pass not in [1, 2, 3, 4, 5, 6, 7, 12]:
+                    datetype_ok = False
+                elif 'D' in datetype and regex_pass not in [3, 5, 6]:
+                    datetype_ok = False
+                elif 'MM' in datetype and regex_pass not in [1]:  # bi monthly
+                    datetype_ok = False
+                elif 'V' in datetype and 'I' in datetype and regex_pass not in [8, 9, 17, 18]:
+                    datetype_ok = False
+                elif 'V' in datetype and regex_pass not in [2, 10, 11, 12, 13, 14, 17, 18]:
+                    datetype_ok = False
+                elif 'I' in datetype and regex_pass not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
+                    datetype_ok = False
+                elif 'Y' in datetype and regex_pass not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
+                                                            12, 13, 15, 16, 18]:
+                    datetype_ok = False
+                else:
+                    datetype_ok = False
+
+            if not datetype_ok:
+                response = 'Date %s not in a recognised date format [%s]' % (issuenum, datetype)
+                logger.debug(response)
+                raise cherrypy.HTTPRedirect("issue_page?title=%s&response=%s" % (quote_plus(issue['Title']), response))
+
+            if issuedate.isdigit() and 'I' in datetype:
+                issuedate = issuedate.zfill(4)
+                if 'Y' in datetype:
+                    issuedate = year + issuedate
+
+            issuenum = date_format(issuedate, "$Y-$m-$d")
+
         if not magtitle and issuenum:
-            logger.debug('Insufficient information, need Title and IssueID')
-            raise cherrypy.HTTPRedirect("magazines")
+            response = ('Issue %s of %s is unchanged. Insufficient information, '
+                        'need Title and valid IssueNum/Date') % (issue['IssueDate'], issue['Title'],)
+            logger.debug(response)
+            raise cherrypy.HTTPRedirect("issue_page?title=%s&response=%s" % (quote_plus(issue['Title']), response))
 
         db = database.DBConnection()
         try:
-            issue = db.match("SELECT Title,IssueDate,IssueFile from issues WHERE IssueID=?", (issueid,))
-            edited = (issue["Title"] != magtitle) or (issue["IssueDate"] != issuenum)
+            edited = ''
+            if issue["Title"] != magtitle:
+                edited = 'Title '
+            if issue["IssueDate"] != issuenum:
+                edited += 'Date/Num'
             if edited:
-                success = process_mag_from_file(source_file=issue['IssueFile'], title=magtitle, issuenum=issuenum)
-                if success:
-                    db.action("DELETE from issues WHERE IssueID=?", (issueid,))
-                    response = 'Moved %s issue %s<br>to %s issue %s' % (issue['Title'],
-                                                                        issue["IssueDate"], magtitle, issuenum)
-                    logger.debug(response)
+                response = 'Issue %s of %s, changed %s' % (issue["IssueDate"], issue['Title'], edited,)
+                if issue["Title"] != magtitle:
+                    if not magazine:
+                        logger.debug("Magazine title [%s] not found, adding it" % magtitle)
+                        control_value_dict = {"Title": magtitle}
+                        new_value_dict = {"LastAcquired": today(),
+                                          "IssueStatus": CONFIG['FOUND_STATUS'],
+                                          "IssueDate": "", "LatestCover": ""}
+                        db.upsert("magazines", new_value_dict, control_value_dict)
+
+                db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
+
+                dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
+                    '$IssueDate', issuenum).replace(
+                    '$Title', magtitle)
+
+                if CONFIG.get_bool('MAG_RELATIVE'):
+                    dest_dir = get_directory('eBook')
+                    dest_path = stripspaces(os.path.join(dest_dir, dest_path))
+
+                if not make_dirs(dest_path):
+                    logger.error('Unable to create destination directory %s' % dest_path)
                 else:
-                    response = 'Failed to change issue %s of %s' % (issue["IssueDate"], issue['Title'])
-                    logger.error(response)
+                    ext = os.path.splitext(issue['IssueFile'])[1]
+                    if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
+                        global_name = CONFIG['MAG_DEST_FILE'].replace(
+                            '$IssueDate', issuenum).replace(
+                            '$Title', magtitle)
+                    else:
+                        global_name = "%s %s" % (magtitle, issuenum)
+
+                    global_name = unaccented(global_name, only_ascii=False)
+                    global_name = sanitize(global_name)
+
+                    new_file = os.path.join(dest_path, global_name + ext)
+                    logger.debug("Moving %s to %s" % (issue['IssueFile'], new_file))
+                    _ = safe_move(issue['IssueFile'], new_file)
+                    db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_file, issue['IssueID']))
+                    old_path = os.path.dirname(issue['IssueFile'])
+                    old_file = os.path.splitext(issue['IssueFile'])[0]
+                    for extn in ['.opf', '.jpg']:
+                        if path_isfile(old_file + extn):
+                            new_file = os.path.join(dest_path, global_name)
+                            logger.debug("Moving %s to %s" % (old_file + extn, new_file + extn))
+                            _ = safe_move(old_file + extn, new_file + extn)
+                    if len(os.listdir(old_path)) == 0:
+                        logger.debug("Removing empty directory %s" % old_path)
+                        os.rmdir(old_path)
+
+                    mostrecentissue = magazine['IssueDate']
+                    if mostrecentissue:
+                        if mostrecentissue.isdigit() and str(issuenum).isdigit():
+                            older = (int(mostrecentissue) > int(issuenum))  # issuenumber
+                        else:
+                            older = (mostrecentissue > issuenum)  # YYYY-MM-DD
+                    else:
+                        older = False
+
+                    control_value_dict = {"Title": magtitle}
+                    if older:
+                        new_value_dict = {"LastAcquired": today(),
+                                          "IssueStatus": CONFIG['FOUND_STATUS']}
+                    else:
+                        new_value_dict = {"LastAcquired": today(),
+                                          "IssueStatus": CONFIG['FOUND_STATUS'],
+                                          "IssueDate": issuenum,
+                                          "LatestCover": issue['Cover']}
+                    db.upsert("magazines", new_value_dict, control_value_dict)
             else:
                 response = 'Issue %s of %s is unchanged' % (issue["IssueDate"], issue['Title'],)
                 logger.debug(response)
@@ -6408,6 +6691,7 @@ class WebInterface(object):
                 host = kwargs['host']
             if 'api' in kwargs and kwargs['api']:
                 api = kwargs['api']
+
             result, name = test_provider(kwargs['name'], host=host, api=api)
             if result is False:
                 msg = "%s test FAILED, check debug log" % name
@@ -7154,16 +7438,20 @@ class WebInterface(object):
     @staticmethod
     def send_file(myfile, name=None, email=False):
         logger = logging.getLogger(__name__)
+        userid = ''
         if CONFIG.get_bool('USER_ACCOUNTS'):
             cookie = cherrypy.request.cookie
+            if 'll_uid' in list(cookie.keys()):
+                userid = cookie['ll_uid'].value
             msg = ''
-            if email and cookie and 'll_uid' in list(cookie.keys()):
+            if email and userid:
                 db = database.DBConnection()
                 try:
-                    res = db.match('SELECT SendTo from users where UserID=?', (cookie['ll_uid'].value,))
+                    res = db.match('SELECT UserName,SendTo from users where UserID=?', (userid,))
                 finally:
                     db.close()
                 if res and res['SendTo']:
+                    db = database.DBConnection()
                     sent = []
                     not_sent = []
                     # sending files to kindles only seems to work if separate emails
@@ -7179,9 +7467,12 @@ class WebInterface(object):
                         result = notifiers.email_notifier.email_file(subject="Message from LazyLibrarian",
                                                                      message=msg, to_addr=addr, files=[myfile])
                         if result:
+                            db.action('INSERT into sent_file (WhenSent, UserID, Addr, FileName) VALUES (?, ?, ?, ?)',
+                                      (str(int(time.time())), userid, addr, os.path.basename(myfile)))
                             sent.append(addr)
                         else:
                             not_sent.append(addr)
+                    db.close()
                     msg = ''
                     if sent:
                         msg = "Emailed file %s to %s " % (os.path.basename(myfile), ','.join(sent))
@@ -7195,6 +7486,10 @@ class WebInterface(object):
         if not name:
             name = os.path.basename(myfile)
         if path_isfile(myfile):
+            db = database.DBConnection()
+            db.action('INSERT into sent_file (WhenSent, UserID, Addr, FileName) VALUES (?, ?, ?, ?)',
+                      (str(int(time.time())), userid, 'Open', name))
+            db.close()
             return serve_file(myfile, mime_type(myfile), "attachment", name=name)
         else:
             logger.error("No file [%s]" % myfile)

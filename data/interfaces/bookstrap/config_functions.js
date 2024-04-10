@@ -41,6 +41,8 @@
             toggleElement("#user_accounts", "#rss_options");
             toggleElement("#user_accounts", "#webserver_options", true);
             toggleElement("#api_enabled", "#api_options");
+            toggleElement("#proxy_auth", "#proxy_auth_options");
+            toggleElement("#proxy_register", "#proxy_register_options");
             toggleElement("#opds_enabled", "#opdsoptions");
             toggleElement("#audio_tab", "#graudio_options"); // A sub-setting on the Importing page
             toggleSelectElement("#log_type", "#debug_options", "Debug");

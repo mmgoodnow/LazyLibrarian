@@ -73,15 +73,27 @@
                 <input id="booktype" name="booktype" class="form-control" value="">
               </div>
               <div class="form-group col-md-6">
-                <label for="userid">UserID (for information only)</label>
-                <input id="userid" name="userid" class="form-control" value="" readonly>
-              </div>
-              <div class="form-group col-md-12">
                 <label for="lltheme">Theme</label>
                 <input id="lltheme" name="lltheme" class="form-control" value="" placeholder="Default">
               </div>
+              <div class="form-group col-md-6">
+                <label for="userid">UserID</label>
+                <input id="userid" name="userid" class="form-control" value="" readonly>
+              </div>
+              <div class="form-group col-md-6">
+                <label for="lastlogin">Last Login</label>
+                <input id="lastlogin" name="lastlogin" class="form-control" value="" readonly>
+              </div>
+              <div class="form-group col-md-6">
+                <label for="logins">Logins</label>
+                <input id="logins" name="logins" class="form-control" value="" readonly>
+              </div>
+              <div class="form-group col-md-6">
+                <label for="downloads">Downloads</label>
+                <input id="downloads" name="downloads" class="form-control" value="" readonly>
+              </div>
               <div class="form-group col-md-12">
-                <label for="summernote">Subscriptions (for information only)</label>
+                <label for="summernote">Subscriptions</label>
                 <textarea id="summernote" name="summernote" class="form-control" rows="10" placeholder="Nothing to see here..." readonly></textarea>
               </div>
               <fieldset class="form-group col-md-12">
@@ -133,6 +145,9 @@
             $("#caltoread").val(obj['caltoread']);
             $("#booktype").val(obj['booktype']);
             $("#userid").val(obj['userid']);
+            $("#lastlogin").val(obj['lastlogin']);
+            $("#downloads").val(obj['downloads']);
+            $("#logins").val(obj['logins']);
             $("#lltheme").val(obj['theme']);
             $("#summernote").val(obj['subs']);
             $("#password").val("");
