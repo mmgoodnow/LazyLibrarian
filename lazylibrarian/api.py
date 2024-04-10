@@ -49,7 +49,7 @@ from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.grsync import grfollow, grsync
 from lazylibrarian.images import get_author_image, get_author_images, get_book_cover, get_book_covers, \
     create_mag_covers, create_mag_cover, shrink_mag
-from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals
+from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan
@@ -69,6 +69,7 @@ cmd_dict = {'help': 'list available commands. ' +
                     'otherwise they return OK straight away and run in the background',
             'showMonths': 'List installed monthnames',
             'dumpMonths': 'Save installed monthnames to file',
+            'deduplicate': '&id= [&wait] De-duplicate authors books',
             'saveTable': '&table= Save a database table to a file',
             'getIndex': 'list all authors',
             'getAuthor': '&id= get author by AuthorID and list their books',
@@ -294,7 +295,7 @@ class Api(object):
                 remote_ip = cherrypy.request.headers.get('X-Host')  # lighthttpd
             if not remote_ip:
                 remote_ip = cherrypy.request.headers.get('Remote-Addr')
-            else:
+            if not remote_ip:
                 remote_ip = cherrypy.request.remote.ip
             self.logger.debug('Received API command from %s: %s %s' % (remote_ip, self.cmd, self.kwargs))
             method_to_call = getattr(self, "_" + self.cmd.lower())
@@ -840,7 +841,7 @@ class Api(object):
         # url might end in .xml
         if not str(limit).isdigit():
             try:
-                limit = int(limit.split('.')[0])
+                limit = int(str(limit).split('.')[0])
             except (IndexError, ValueError):
                 limit = 10
 
@@ -1883,7 +1884,7 @@ class Api(object):
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
-        authorname = format_author_name(kwargs['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
+        authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         gr = GoodReads(authorname)
         self.data = gr.find_author_id()
 
@@ -1893,7 +1894,7 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
 
-        authorname = format_author_name(kwargs['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
+        authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         if CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(authorname)
             myqueue = Queue()
@@ -2369,6 +2370,17 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         self._lock("book", kwargs['id'], "1")
+
+    def _deduplicate(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        if 'wait' in kwargs:
+            self.data = de_duplicate(kwargs['id'])
+        else:
+            threading.Thread(target=de_duplicate, name='API-DEDUPLICATE_%s' % kwargs['id'],
+                             args=[kwargs['id']]).start()
 
     def _setbookunlock(self, **kwargs):
         TELEMETRY.record_usage_data()
