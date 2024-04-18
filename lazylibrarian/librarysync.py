@@ -997,18 +997,19 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     booktitle = ''
                                     language = ''
                                     source = ''
-                                    item = sortedlist[0]
-                                    if item['book_fuzz'] >= CONFIG.get_int('NAME_PARTNAME'):
-                                        rescan_hits += 1
-                                        logger.debug("Rescan %s found [%s] %s : %s: %s" %
-                                                     (item['source'], item['authorname'], item['bookname'],
-                                                      item['booklang'], item['bookid']))
-                                        bookid = item['bookid']
-                                        bookauthor = item['authorname']
-                                        booktitle = item['bookname']
-                                        language = item['booklang']
-                                        source = item['source']
-                                        rehit.append(booktitle)
+                                    if sortedlist:
+                                        item = sortedlist[0]
+                                        if item['book_fuzz'] >= CONFIG.get_int('NAME_PARTNAME'):
+                                            rescan_hits += 1
+                                            logger.debug("Rescan %s found [%s] %s : %s: %s" %
+                                                         (item['source'], item['authorname'], item['bookname'],
+                                                          item['booklang'], item['bookid']))
+                                            bookid = item['bookid']
+                                            bookauthor = item['authorname']
+                                            booktitle = item['bookname']
+                                            language = item['booklang']
+                                            source = item['source']
+                                            rehit.append(booktitle)
 
                                     if bookid:
                                         cmd = 'SELECT * from books WHERE BookID=?'
