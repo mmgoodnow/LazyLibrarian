@@ -2081,6 +2081,12 @@
                       Use magazine issue as title</label>
                   </div>
                    <div class="checkbox">
+                    <% checked = 'checked="checked"' if CONFIG['IMP_CALIBREOVERWRITE'] else '' %>
+                    <label for="imp_calibreoverwrite">
+                      <input type="checkbox" id="imp_calibreoverwrite" name="imp_calibreoverwrite" value="1" ${checked} />
+                      Overwrite existing formats on import</label>
+                  </div>
+                   <div class="checkbox">
                     <% checked = 'checked="checked"' if CONFIG['IMP_AUTOADD_COPY'] else '' %>
                     <label for="imp_autoadd_copy">
                       <input type="checkbox" id="imp_autoadd_copy" name="imp_autoadd_copy" value="1" ${checked} />

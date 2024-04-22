@@ -125,6 +125,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('Calibre', 'CALIBRE_PASS', ''),
     ConfigBool('Calibre', 'CALIBRE_RENAME', 0),
     ConfigStr('Calibre', 'IMP_CALIBREDB', ''),
+    ConfigBool('Calibre', 'IMP_CALIBREOVERWRITE', 0),
     ConfigBool('Calibre', 'IMP_CALIBRE_EBOOK', 0),
     ConfigBool('Calibre', 'IMP_CALIBRE_COMIC', 0),
     ConfigBool('Calibre', 'IMP_CALIBRE_MAGAZINE', 0),

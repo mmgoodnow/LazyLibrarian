@@ -200,7 +200,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         db.close()
 
 
-def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automerge=False):
+def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
     # import a book by id from a directory
     # Assumes the book is the correct file for the id and renames it to match
     # Adds the id to the database if not already there
@@ -240,7 +240,7 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
             if not book:
                 logger.debug("Unable to add bookid %s to database" % bookid)
                 return False
-            return process_book(source_dir, bookid, library, automerge=automerge)
+            return process_book(source_dir, bookid, library)
         else:
             logger.error("import_book not implemented for %s" % library)
             return False
@@ -360,7 +360,7 @@ def process_issues(source_dir=None, title=''):
         return False
 
 
-def process_alternate(source_dir=None, library='eBook', automerge=False):
+def process_alternate(source_dir=None, library='eBook'):
     # import a book/audiobook from an alternate directory
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
@@ -389,7 +389,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
         for fname in flist:
             subdir = os.path.join(source_dir, fname)
             if path_isdir(subdir):
-                process_alternate(subdir, library=library, automerge=automerge)
+                process_alternate(subdir, library=library)
 
         metadata = {}
         bookid = ''
@@ -607,7 +607,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                     logger.warning("%s %s by %s is marked Ignored in database, importing anyway" %
                                    (library, bookname, authorname))
             db.close()
-            return process_book(source_dir, bookid, library, automerge=automerge)
+            return process_book(source_dir, bookid, library)
 
         else:
             logger.warning('%s %s has no metadata' % (library, new_book))
@@ -1157,12 +1157,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             if skipped:
                                                 logger.debug("Skipping %s, found multiple %s with no good match" %
                                                              (pp_path, mult))
+                                                book['skipped'] = "Multiple %s found" % mult
                                         else:
                                             result = book_file(pp_path, 'ebook', recurse=True, config=CONFIG)
                                             if result:
                                                 pp_path = os.path.dirname(result)
                                             else:
                                                 logger.debug("Skipping %s, no ebook found" % pp_path)
+                                                book['skipped'] = "No ebook found"
                                                 skipped = True
                                     elif booktype == 'AudioBook':
                                         result = book_file(pp_path, 'audiobook', recurse=True, config=CONFIG)
@@ -1170,6 +1172,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             pp_path = os.path.dirname(result)
                                         else:
                                             logger.debug("Skipping %s, no audiobook found" % pp_path)
+                                            book['skipped'] = "No audiobook found"
                                             skipped = True
                                     elif booktype == 'Magazine':
                                         result = book_file(pp_path, 'mag', recurse=True, config=CONFIG)
@@ -1177,12 +1180,15 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             pp_path = os.path.dirname(result)
                                         else:
                                             logger.debug("Skipping %s, no magazine found" % pp_path)
+                                            book['skipped'] = "No magazine found"
                                             skipped = True
                                     if not listdir(pp_path):
                                         logger.debug("Skipping %s, folder is empty" % pp_path)
+                                        book['skipped'] = "Folder is empty"
                                         skipped = True
                                     elif bts_file(pp_path):
                                         logger.debug("Skipping %s, found a .bts file" % pp_path)
+                                        book['skipped'] = "Folder contains .bts file"
                                         skipped = True
                                     if not skipped:
                                         matches.append([match, pp_path, book])
@@ -1699,11 +1705,13 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         logger.warning('%s, deleting failed task' % dlresult)
                         delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
-                if book['Source']:
-                    logger.debug('%s was sent to %s %s %s ago. Progress %s' %
-                                 (book['NZBtitle'], book['Source'], mins, plural(mins, 'minute'), progress))
+                if book.get('Source'):
+                    logger.debug('%s was sent to %s %s %s ago. Progress %s %s' %
+                                 (book['NZBtitle'], book['Source'], mins, plural(mins, 'minute'),
+                                  progress, book.get('skipped')))
                 else:
-                    logger.debug('%s was sent somewhere?? %s minutes ago ' % (book['NZBtitle'], mins))
+                    logger.debug('%s was sent somewhere?? %s minutes ago %s' % (book['NZBtitle'],
+                                                                                mins, book.get('skipped')))
 
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         # Check if postprocessor needs to run again
@@ -2395,7 +2403,7 @@ def delete_task(source, download_id, remove_data):
         return False
 
 
-def process_book(pp_path=None, bookid=None, library=None, automerge=False):
+def process_book(pp_path=None, bookid=None, library=None):
     TELEMETRY.record_usage_data('Process/Book')
     logger = logging.getLogger(__name__)
     loggerpostprocess = logging.getLogger('special.postprocess')
@@ -2478,8 +2486,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
             dest_path = make_utf8bytes(dest_path)[0]
 
             data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': bookid}
-            success, dest_file, pp_path = process_destination(pp_path, dest_path, global_name, data,
-                                                              booktype, automerge=automerge)
+            success, dest_file, pp_path = process_destination(pp_path, dest_path, global_name, data, booktype)
             if success:
                 # update nzbs
                 dest_file = make_unicode(dest_file)
@@ -2637,8 +2644,7 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
 
 
 # noinspection PyBroadException
-def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype='', automerge=False,
-                        preprocess=True):
+def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype='', preprocess=True):
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book, pp_path (which may have changed)  or False, error_message"""
 
@@ -2795,7 +2801,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     params.extend(image)
                 res, err, rc = calibredb('add', params)
             else:
-                if automerge:
+                if CONFIG.get_bool('IMP_CALIBREOVERWRITE'):
                     res, err, rc = calibredb('add', ['-1', '--automerge', 'overwrite'], [pp_path])
                 else:
                     res, err, rc = calibredb('add', ['-1'], [pp_path])
