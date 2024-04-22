@@ -557,7 +557,9 @@ class StartupLazyLibrarian:
                 CONFIG['CURRENT_VERSION'], CONFIG['LATEST_VERSION'],
                 CONFIG['INSTALL_TYPE']))
 
-            if CONFIG.get_int('GIT_UPDATED') == 0:
+            if docker() or CONFIG.get_int('GIT_UPDATED') == 0:
+                # we don't know when the last update was
+                # (docker doesn't set timestamp or it's a first time install)
                 # allow comparison of long and short hashes
                 if CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']):
                     if CONFIG['INSTALL_TYPE'] == 'git' and CONFIG.get_int('COMMITS_BEHIND') == 0:
