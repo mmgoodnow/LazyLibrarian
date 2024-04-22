@@ -289,7 +289,9 @@ def direct_bok(book=None, prov=None, test=False):
                                         url = None
                                 else:
                                     link = a.get('href')
-                                if link and len(link) > 2:
+                                if 'download_location=' in link:
+                                    url = link.split('download_location=')[1].split('&')[0]
+                                elif link and len(link) > 2:
                                     url = host + link
                                 else:
                                     logger.debug("Link unavailable for %s" % title.strip())
