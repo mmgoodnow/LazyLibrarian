@@ -7446,10 +7446,8 @@ class WebInterface(object):
             msg = ''
             if email and userid:
                 db = database.DBConnection()
-                try:
-                    res = db.match('SELECT UserName,SendTo from users where UserID=?', (userid,))
-                finally:
-                    db.close()
+                res = db.match('SELECT UserName,SendTo from users where UserID=?', (userid,))
+                db.close()
                 if res and res['SendTo']:
                     db = database.DBConnection()
                     sent = []
@@ -7486,10 +7484,11 @@ class WebInterface(object):
         if not name:
             name = os.path.basename(myfile)
         if path_isfile(myfile):
-            db = database.DBConnection()
-            db.action('INSERT into sent_file (WhenSent, UserID, Addr, FileName) VALUES (?, ?, ?, ?)',
-                      (str(int(time.time())), userid, 'Open', name))
-            db.close()
+            if userid:
+                db = database.DBConnection()
+                db.action('INSERT into sent_file (WhenSent, UserID, Addr, FileName) VALUES (?, ?, ?, ?)',
+                          (str(int(time.time())), userid, 'Open', name))
+                db.close()
             return serve_file(myfile, mime_type(myfile), "attachment", name=name)
         else:
             logger.error("No file [%s]" % myfile)
