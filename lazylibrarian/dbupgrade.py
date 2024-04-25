@@ -350,21 +350,22 @@ def check_db(upgradelog=None):
 
         try:
             # check information provider matches database
-            info = CONFIG.get_str('BOOK_API')
-            if info in ['OpenLibrary', 'GoogleBooks']:
-                tot = db.select('SELECT * from authors')
-                res = db.select("SELECT * from authors WHERE AuthorID LIKE 'OL%A'")
-                if len(tot) - len(res):
-                    logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - len(res)))
+            if not CONFIG.get_bool('MULTI_SOURCE'):
+                info = CONFIG.get_str('BOOK_API')
+                if info in ['OpenLibrary', 'GoogleBooks']:
+                    tot = db.select('SELECT * from authors')
+                    res = db.select("SELECT * from authors WHERE AuthorID LIKE 'OL%A'")
+                    if len(tot) - len(res):
+                        logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - len(res)))
 
-            elif info == 'GoodReads':
-                tot = db.select('SELECT authorid from authors')
-                cnt = 0
-                for item in tot:
-                    if item[0].isdigit():
-                        cnt += 1
-                if len(tot) - cnt:
-                    logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - cnt))
+                elif info == 'GoodReads':
+                    tot = db.select('SELECT authorid from authors')
+                    cnt = 0
+                    for item in tot:
+                        if item[0].isdigit():
+                            cnt += 1
+                    if len(tot) - cnt:
+                        logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - cnt))
 
             # correct any invalid/unpadded dates
             lazylibrarian.UPDATE_MSG = 'Checking dates'
