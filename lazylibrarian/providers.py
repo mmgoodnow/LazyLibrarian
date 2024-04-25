@@ -507,9 +507,9 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                                                              provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
-            dispname = provider.get('DISPNAME')
+            dispname = provider['DISPNAME']
             if not dispname:
-                dispname = provider.get('HOST')
+                dispname = provider['HOST']
             if BLOCKHANDLER.is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % dispname)
                 ignored = True
@@ -523,7 +523,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                 logger.debug("Ignoring %s for Magazine" % dispname)
                 ignored = True
             elif "comic" in search_type and 'C' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Comic" % dispname)
+                logger.debug("Ignoring %s for Comic" % dispn)
                 ignored = True
             if not ignored:
                 if provider.get_int('APILIMIT'):
@@ -556,9 +556,9 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                                                              provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
-            dispname = provider.get('DISPNAME')
+            dispname = provider['DISPNAME']
             if not dispname:
-                dispname = provider.get('HOST')
+                dispname = provider['HOST']
             if BLOCKHANDLER.is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % dispname)
                 ignored = True
