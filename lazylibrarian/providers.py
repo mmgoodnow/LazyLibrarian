@@ -507,20 +507,23 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                                                              provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
+            dispname = provider.get('DISPNAME')
+            if not dispname:
+                dispname = provider.get('HOST')
             if BLOCKHANDLER.is_blocked(provider['HOST']):
-                logger.debug('%s is BLOCKED' % provider['HOST'])
+                logger.debug('%s is BLOCKED' % dispname)
                 ignored = True
             elif "book" in search_type and 'E' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for eBook" % provider['HOST'])
+                logger.debug("Ignoring %s for eBook" % dispname)
                 ignored = True
             elif "audio" in search_type and 'A' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for AudioBook" % provider['HOST'])
+                logger.debug("Ignoring %s for AudioBook" % dispname)
                 ignored = True
             elif "mag" in search_type and 'M' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Magazine" % provider['HOST'])
+                logger.debug("Ignoring %s for Magazine" % dispname)
                 ignored = True
             elif "comic" in search_type and 'C' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Comic" % provider['HOST'])
+                logger.debug("Ignoring %s for Comic" % dispname)
                 ignored = True
             if not ignored:
                 if provider.get_int('APILIMIT'):
@@ -545,7 +548,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
 
                     provider = get_capabilities(provider)
                     providers += 1
-                    logger.debug('Querying provider %s' % provider['HOST'])
+                    logger.debug('Querying provider %s' % dispname)
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
 
     for provider in CONFIG.providers('TORZNAB'):
@@ -553,20 +556,23 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                                                              provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
+            dispname = provider.get('DISPNAME')
+            if not dispname:
+                dispname = provider.get('HOST')
             if BLOCKHANDLER.is_blocked(provider['HOST']):
-                logger.debug('%s is BLOCKED' % provider['HOST'])
+                logger.debug('%s is BLOCKED' % dispname)
                 ignored = True
             elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for eBook" % provider['HOST'])
+                logger.debug("Ignoring %s for eBook" % dispname)
                 ignored = True
             elif "audio" in search_type and 'A' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for AudioBook" % provider['HOST'])
+                logger.debug("Ignoring %s for AudioBook" % dispname)
                 ignored = True
             elif "mag" in search_type and 'M' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Magazine" % provider['HOST'])
+                logger.debug("Ignoring %s for Magazine" % dispname)
                 ignored = True
             elif "comic" in search_type and 'C' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Comic" % provider['HOST'])
+                logger.debug("Ignoring %s for Comic" % dispname)
                 ignored = True
             if not ignored:
                 if provider.get_int('APILIMIT'):
@@ -591,7 +597,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
 
                     provider = get_capabilities(provider)
                     providers += 1
-                    logger.debug('[IterateOverTorzNabSites] - %s' % provider['HOST'])
+                    logger.debug('Querying provider %s' % dispname)
                     resultslist += newznab_plus(book, provider, search_type, "torznab")[1]
 
     return resultslist, providers

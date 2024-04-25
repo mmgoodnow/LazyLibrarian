@@ -637,9 +637,9 @@ class OpenLibrary:
                     if not rejected and not title:
                         rejected = 'name', 'No title'
 
-                    cmd = 'SELECT BookID,LT_WorkID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
-                    cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
-                    cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
+                    cmd = ("SELECT BookID,LT_WorkID FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                           "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
+                           "and AudioStatus != 'Ignored'")
                     exists = db.match(cmd, (title, auth_name))
                     if not exists:
                         if auth_id != authorid:
@@ -650,7 +650,7 @@ class OpenLibrary:
                                                                               reason='ol_get_author_books %s,%s' %
                                                                               (authorid, title))
                             if in_db and in_db[0]:
-                                cmd = 'SELECT BookID,LT_WorkID FROM books WHERE BookID=?'
+                                cmd = "SELECT BookID,LT_WorkID FROM books WHERE BookID=?"
                                 exists = db.match(cmd, (in_db[0],))
 
                     if exists and id_librarything and not exists['LT_WorkID']:
@@ -983,7 +983,7 @@ class OpenLibrary:
                                                         if not match:
                                                             self.logger.debug("Adding %s as series author for %s" %
                                                                               (auth_name, series[0]))
-                                                            db.action('INSERT INTO seriesauthors ("SeriesID", ' +
+                                                            db.action("INSERT INTO seriesauthors ('SeriesID', " +
                                                                       '"AuthorID") VALUES (?, ?)',
                                                                       (seriesid, auth_key), suppress='UNIQUE')
 
@@ -1123,7 +1123,7 @@ class OpenLibrary:
                                                                 if not match:
                                                                     self.logger.debug('Add %s as series author for %s' %
                                                                                       (auth_name, series[0]))
-                                                                    db.action('INSERT INTO seriesauthors ("SeriesID"' +
+                                                                    db.action("INSERT INTO seriesauthors ('SeriesID'" +
                                                                               ', "AuthorID") VALUES (?, ?)',
                                                                               (seriesid, bauth_key), suppress='UNIQUE')
 
@@ -1180,8 +1180,8 @@ class OpenLibrary:
                 else:
                     next_page = False
 
-            cmd = 'SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=?'
-            cmd += ' AND Status != "Ignored" order by BookDate DESC'
+            cmd = ("SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=? and "
+                   "Status != 'Ignored' order by BookDate DESC")
             lastbook = db.match(cmd, (authorid,))
             if lastbook:
                 lastbookname = lastbook['BookName']

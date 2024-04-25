@@ -104,9 +104,9 @@ def search_book(books=None, library=None):
 
         if not books:
             # We are performing a backlog search
-            cmd = 'SELECT BookID, AuthorName, Bookname, BookSub, BookAdded, books.Status, AudioStatus '
-            cmd += 'from books,authors WHERE (books.Status="Wanted" OR AudioStatus="Wanted") '
-            cmd += 'and books.AuthorID = authors.AuthorID order by BookAdded desc'
+            cmd = ("SELECT BookID, AuthorName, Bookname, BookSub, BookAdded, books.Status, AudioStatus "
+                   "from books,authors WHERE (books.Status='Wanted' OR AudioStatus='Wanted') and "
+                   "books.AuthorID = authors.AuthorID order by BookAdded desc")
             results = db.select(cmd)
             for terms in results:
                 searchbooks.append(terms)
@@ -116,8 +116,8 @@ def search_book(books=None, library=None):
                 logger.debug("Searching for %s %s" % (len(books), plural(len(books), library)))
             for book in books:
                 if not book['bookid'] in ['booklang', 'library', 'ignored']:
-                    cmd = 'SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus '
-                    cmd += 'from books,authors WHERE BookID=? AND books.AuthorID = authors.AuthorID'
+                    cmd = ("SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus "
+                           "from books,authors WHERE BookID=? AND books.AuthorID = authors.AuthorID")
                     results = db.select(cmd, (book['bookid'],))
                     if results:
                         for terms in results:
@@ -185,7 +185,7 @@ def search_book(books=None, library=None):
                 searchterm += searchbook['BookSub']
 
             if searchbook['Status'] == "Wanted":
-                cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
+                cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='eBook' and Status='Snatched'"
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
                     logger.warning('eBook %s %s already marked snatched in wanted table' %
@@ -200,7 +200,7 @@ def search_book(books=None, library=None):
                          "searchterm": searchterm})
 
             if searchbook['AudioStatus'] == "Wanted":
-                cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
+                cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='AudioBook' and Status='Snatched'"
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
                     logger.warning('AudioBook %s %s already marked snatched in wanted table' %

@@ -154,8 +154,8 @@ def magazine_scan(title=None):
                         datetype = ''
 
                         # is this magazine already in the database?
-                        cmd = 'SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage,DateType from magazines '
-                        cmd += 'WHERE Title=? COLLATE NOCASE'
+                        cmd = ("SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage,DateType from magazines "
+                               "WHERE Title=? COLLATE NOCASE")
                         mag_entry = db.match(cmd, (title,))
                         if mag_entry:
                             datetype = mag_entry['DateType']

@@ -17,7 +17,7 @@
 #
 # Form based authentication for CherryPy. Requires the
 # Session tool to be loaded.
-# from cherrypy/tools on github
+# from cherrypy/tools on gitHub
 
 import logging
 import cherrypy
@@ -43,7 +43,7 @@ def check_credentials(username, password):
 
 # noinspection PyUnusedLocal
 def check_auth(*args, **kwargs):
-    """A tool that looks in config for 'auth.require'. If found and it
+    """A tool that looks in config for 'auth.require'. If found, and it
     is not None, a login is required and the entry is evaluated as a list of
     conditions that the user must fulfill"""
     conditions = cherrypy.request.config.get('auth.require', None)
@@ -108,10 +108,10 @@ def any_of(*conditions):
     return check
 
 
-# By default all conditions are required, but this might still be
+# By default, all conditions are required, but this might still be
 # needed if you want to use it inside of an any_of(...) condition
 def all_of(*conditions):
-    """Returns True if all of the conditions match"""
+    """Returns True if all the conditions match"""
     def check():
         for c in conditions:
             if not c():

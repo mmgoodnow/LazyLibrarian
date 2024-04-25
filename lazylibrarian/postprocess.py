@@ -911,9 +911,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         if not dirlist:
             logger.error("No download directories are configured")
         if downloadid:
-            snatched = db.select('SELECT * from wanted WHERE DownloadID=? AND Status="Snatched"', (downloadid,))
+            snatched = db.select("SELECT * from wanted WHERE DownloadID=? AND Status='Snatched'", (downloadid,))
         else:
-            snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
+            snatched = db.select("SELECT * from wanted WHERE Status='Snatched'")
         logger.debug('Found %s %s marked "Snatched"' % (len(snatched), plural(len(snatched), "file")))
         if len(snatched):
             TELEMETRY.record_usage_data('Process/Snatched')
@@ -941,14 +941,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # change status to "Failed", and ask downloader to delete task and files
                     # Only reset book status to wanted if still snatched in case another download task succeeded
                     if book['BookID'] != 'unknown':
-                        cmd = ''
+                        cmd = ""
                         if booktype == 'eBook':
-                            cmd = 'UPDATE books SET status="Wanted" WHERE status="Snatched" and BookID=?'
+                            cmd = "UPDATE books SET status='Wanted' WHERE status='Snatched' and BookID=?"
                         elif booktype == 'AudioBook':
-                            cmd = 'UPDATE books SET audiostatus="Wanted" WHERE audiostatus="Snatched" and BookID=?'
+                            cmd = "UPDATE books SET audiostatus='Wanted' WHERE audiostatus='Snatched' and BookID=?"
                         if cmd:
                             db.action(cmd, (book['BookID'],))
-                        db.action('UPDATE wanted SET Status="Failed",DLResult=? WHERE BookID=?',
+                        db.action("UPDATE wanted SET Status='Failed',DLResult=? WHERE BookID=?",
                                   (rejected, book['BookID']))
                         if CONFIG.get_bool('DEL_FAILED'):
                             delete_task(book['Source'], book['DownloadID'], True)
@@ -977,9 +977,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             # any books left to look for...
 
             if downloadid:
-                snatched = db.select('SELECT * from wanted WHERE DownloadID=? AND Status="Snatched"', (downloadid,))
+                snatched = db.select("SELECT * from wanted WHERE DownloadID=? AND Status='Snatched'", (downloadid,))
             else:
-                snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
+                snatched = db.select("SELECT * from wanted WHERE Status='Snatched'")
             if len(snatched):
                 for book in snatched:
                     # check if we need to wait awhile before processing, might be copying/unpacking/moving
@@ -1215,8 +1215,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     if match and match >= CONFIG.get_int('DLOAD_RATIO'):
                         logger.debug('Found match (%s%%): %s for %s %s' % (
                             match, repr(pp_path), booktype, repr(book['NZBtitle'])))
-                        cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=?'
-                        cmd += ' and books.AuthorID = authors.AuthorID'
+                        cmd = ("SELECT AuthorName,BookName from books,authors WHERE BookID=?"
+                               " and books.AuthorID = authors.AuthorID")
                         data = db.match(cmd, (book['BookID'],))
                         if data:  # it's ebook/audiobook
                             logger.debug('Processing %s %s' % (booktype, book['BookID']))
@@ -1481,7 +1481,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 if progress == 100 and finished:
                                     if book['NZBmode'] in ['torrent', 'magnet', 'torznab'] and \
                                             CONFIG.get_bool('KEEP_SEEDING'):
-                                        cmd = 'UPDATE wanted SET Status="Seeding" WHERE NZBurl=? and Status="Processed"'
+                                        cmd = "UPDATE wanted SET Status='Seeding' WHERE NZBurl=? and Status='Processed'"
                                         db.action(cmd, (book['NZBurl'],))
                                         logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
                                     elif CONFIG.get_bool('DEL_COMPLETED'):
@@ -1552,9 +1552,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         # if it's a book, reset status, so we try for a different version
                         # if it's a magazine, user can select a different one from pastissues table
                         if booktype == 'eBook':
-                            db.action('UPDATE books SET status="Wanted" WHERE BookID=?', (book['BookID'],))
+                            db.action("UPDATE books SET status='Wanted' WHERE BookID=?", (book["BookID"],))
                         elif booktype == 'AudioBook':
-                            db.action('UPDATE books SET audiostatus="Wanted" WHERE BookID=?', (book['BookID'],))
+                            db.action("UPDATE books SET audiostatus='Wanted' WHERE BookID=?", (book["BookID"],))
 
                         # at this point, as it failed we should move it, or it will get postprocessed
                         # again (and fail again)
@@ -1589,7 +1589,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         logger.info('%s %s processed.' % (ppcount, plural(ppcount, "download")))
 
         # Now check for any that are still marked snatched, seeding, or any aborted...
-        cmd = 'SELECT * from wanted WHERE Status IN ("Snatched", "Aborted", "Seeding")'
+        cmd = "SELECT * from wanted WHERE Status IN ('Snatched', 'Aborted', 'Seeding')"
         snatched = db.select(cmd)
         logger.info("Found %s unprocessed" % len(snatched))
         for book in snatched:
@@ -1622,7 +1622,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             delfiles = True
                         delete_task(book['Source'], book['DownloadID'], delfiles)
                     if book['BookID'] != 'unknown':
-                        cmd = 'UPDATE wanted SET status="Processed",NZBDate=? WHERE status="Seeding" and BookID=?'
+                        cmd = "UPDATE wanted SET status='Processed',NZBDate=? WHERE status='Seeding' and BookID=?"
                         db.action(cmd, (now(), book['BookID']))
                         abort = False
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
@@ -1685,11 +1685,11 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 # change status to "Failed", and ask downloader to delete task and files
                 # Only reset book status to wanted if still snatched in case another download task succeeded
                 if book['BookID'] != 'unknown':
-                    cmd = ''
+                    cmd = ""
                     if booktype == 'eBook':
-                        cmd = 'UPDATE books SET status="Wanted" WHERE status="Snatched" and BookID=?'
+                        cmd = "UPDATE books SET status='Wanted' WHERE status='Snatched' and BookID=?"
                     elif booktype == 'AudioBook':
-                        cmd = 'UPDATE books SET audiostatus="Wanted" WHERE audiostatus="Snatched" and BookID=?'
+                        cmd = "UPDATE books SET audiostatus='Wanted' WHERE audiostatus='Snatched' and BookID=?"
                     if cmd:
                         db.action(cmd, (book['BookID'],))
 
@@ -1715,8 +1715,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         # Check if postprocessor needs to run again
-        snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
-        seeding = db.select('SELECT * from wanted WHERE Status="Seeding"')
+        snatched = db.select("SELECT * from wanted WHERE Status='Snatched'")
+        seeding = db.select("SELECT * from wanted WHERE Status='Seeding'")
         from lazylibrarian.scheduling import schedule_job
         if not len(snatched) and not len(seeding):
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
@@ -1949,7 +1949,7 @@ def get_download_name(title, source, downloadid):
             else:
                 db = database.DBConnection()
                 try:
-                    cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+                    cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
                     data = db.match(cmd, (downloadid, source))
                 finally:
                     db.close()
@@ -2073,7 +2073,7 @@ def get_download_folder(source, downloadid):
             else:
                 db = database.DBConnection()
                 try:
-                    cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+                    cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
                     data = db.match(cmd, (downloadid, source))
                 finally:
                     db.close()
@@ -2138,12 +2138,12 @@ def get_download_progress(source, downloadid):
         if source == 'TRANSMISSION':
             progress, errorstring, finished = transmission.get_torrent_progress(downloadid)
             if errorstring:
-                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, (errorstring, downloadid, source))
                 progress = -1
 
         elif source == 'DIRECT':
-            cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+            cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
             data = db.match(cmd, (downloadid, source))
             if data:
                 progress = 100
@@ -2152,7 +2152,7 @@ def get_download_progress(source, downloadid):
                 progress = 0
 
         elif str(source).startswith('IRC'):
-            cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+            cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
             data = db.match(cmd, (downloadid, source))
             if data:
                 progress = 100
@@ -2167,7 +2167,7 @@ def get_download_progress(source, downloadid):
             if lazylibrarian.SAB_VER > (3, 2, 0):
                 res, _ = sabnzbd.sab_nzbd(nzburl='queue', nzo_ids=downloadid)
             else:
-                cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+                cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
                 data = db.match(cmd, (downloadid, source))
                 if data and data['NZBtitle']:
                     res, _ = sabnzbd.sab_nzbd(nzburl='queue', search=data['NZBtitle'])
@@ -2208,7 +2208,7 @@ def get_download_progress(source, downloadid):
                             elif item['status'] in ['Extracting', 'Fetching']:
                                 progress = 99
                             elif item['status'] == 'Failed' or item['fail_message']:
-                                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                                 db.action(cmd, (item['fail_message'], downloadid, source))
                                 progress = -1
                             break
@@ -2247,8 +2247,8 @@ def get_download_progress(source, downloadid):
                                 progress = 100
                                 finished = True
                             elif 'WARNING' in item['Status'] or 'FAILURE' in item['Status']:
-                                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? '
-                                cmd += 'WHERE DownloadID=? and Source=?'
+                                cmd = ("UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? "
+                                       "and Source=?")
                                 db.action(cmd, (item['Status'], downloadid, source))
                                 progress = -1
                             break
@@ -2262,7 +2262,7 @@ def get_download_progress(source, downloadid):
                 logger.debug('%s not found at %s' % (downloadid, source))
                 progress = 0
             if status == 'error':
-                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, ("QBITTORRENT returned error", downloadid, source))
                 progress = -1
 
@@ -2272,7 +2272,7 @@ def get_download_progress(source, downloadid):
                 logger.debug('%s not found at %s' % (downloadid, source))
                 progress = 0
             if status & 16:  # Error
-                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, ("UTORRENT returned error status %d" % status, downloadid, source))
                 progress = -1
 
@@ -2285,7 +2285,7 @@ def get_download_progress(source, downloadid):
                 progress = 100
                 finished = True
             elif status == 'error':
-                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, ("rTorrent returned error", downloadid, source))
                 progress = -1
 
@@ -2294,14 +2294,14 @@ def get_download_progress(source, downloadid):
             if status == 'finished':
                 progress = 100
             elif status == 'error':
-                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, ("Synology returned error", downloadid, source))
                 progress = -1
 
         elif source == 'DELUGEWEBUI':
             progress, message, finished = deluge.get_torrent_progress(downloadid)
             if message and message != 'OK':
-                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, (message, downloadid, source))
                 progress = -1
 
@@ -2326,7 +2326,7 @@ def get_download_progress(source, downloadid):
                     progress = -1
                     finished = False
                 if 'message' in result and result['message'] != 'OK':
-                    cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
+                    cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                     db.action(cmd, (result['message'], downloadid, source))
                     progress = -1
             except Exception as e:
@@ -2416,13 +2416,13 @@ def process_book(pp_path=None, bookid=None, library=None):
         is_audio = (book_file(pp_path, "audiobook", config=CONFIG) != '')
         is_ebook = (book_file(pp_path, "ebook", config=CONFIG) != '')
 
-        cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus from books,authors '
-        cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+        cmd = ("SELECT AuthorName,BookName,BookID,books.Status,AudioStatus from books,authors WHERE BookID=? "
+               "and books.AuthorID = authors.AuthorID")
         data = db.match(cmd, (bookid,))
         if data:
             authorname = data['AuthorName']
             bookname = data['BookName']
-            cmd = 'SELECT BookID, NZBprov, NZBmode,AuxInfo FROM wanted WHERE BookID=? and Status="Snatched"'
+            cmd = "SELECT BookID, NZBprov, NZBmode,AuxInfo FROM wanted WHERE BookID=? and Status='Snatched'"
             # we may have wanted to snatch an ebook and audiobook of the same title/id
             was_snatched = db.select(cmd, (bookid,))
             want_audio = False
@@ -2561,16 +2561,16 @@ def process_book(pp_path=None, bookid=None, library=None):
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
                     logger.warning('Residual files remain in %s' % pp_path)
 
-                was_snatched = db.match('SELECT NZBurl FROM wanted WHERE BookID=? and Status="Snatched"', (bookid,))
+                was_snatched = db.match("SELECT NZBurl FROM wanted WHERE BookID=? and Status='Snatched'", (bookid,))
                 if was_snatched:
                     control_value_dict = {"NZBurl": was_snatched['NZBurl']}
                     new_value_dict = {"Status": "Failed", "NZBDate": now(), "DLResult": dest_file}
                     db.upsert("wanted", new_value_dict, control_value_dict)
                 # reset status so we try for a different version
                 if booktype == 'AudioBook':
-                    db.action('UPDATE books SET audiostatus="Wanted" WHERE BookID=?', (bookid,))
+                    db.action("UPDATE books SET audiostatus='Wanted' WHERE BookID=?", (bookid,))
                 else:
-                    db.action('UPDATE books SET status="Wanted" WHERE BookID=?', (bookid,))
+                    db.action("UPDATE books SET status='Wanted' WHERE BookID=?", (bookid,))
         return False
     except Exception:
         logger.error('Unhandled exception in process_book: %s' % traceback.format_exc())
@@ -2614,8 +2614,8 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
         elif booktype != 'eBook':  # only do autoadd/img/opf for ebooks
             return
 
-        cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,'
-        cmd += 'Narrator from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+        cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,"
+               "Narrator from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID")
         data = db.match(cmd, (bookid,))
     finally:
         db.close()
@@ -2832,19 +2832,20 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
             our_opf = False
             rc = 0
-            if not CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'):
+            if ((booktype == "magazine" and not CONFIG.get_bool('IMP_AUTOADD_MAGONLY')) or
+                    (booktype != "magazine" and not CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'))):
                 # we can pass an opf with all the info, and a cover image
                 db = database.DBConnection()
                 try:
                     if booktype in ['ebook', 'audiobook']:
-                        cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
-                        cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors '
-                        cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+                        cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,"
+                               "BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors "
+                               "WHERE BookID=? and books.AuthorID = authors.AuthorID")
                         data = db.match(cmd, (bookid,))
                     elif booktype == 'comic':
-                        cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
-                        cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
-                        cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
+                        cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
+                               "Publisher,Contributors from comics,comicissues WHERE "
+                               "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
                         data = db.match(cmd, (issueid, comicid))
                         bookid = "%s_%s" % (comicid, issueid)
                 finally:
@@ -3097,9 +3098,9 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     logger.debug('Ignoring unwanted file: %s' % fname)
 
         if booktype in ['ebook', 'audiobook']:
-            cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
-            cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors '
-            cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+            cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,"
+                   "Requester,AudioRequester,BookGenre,Narrator from books,authors WHERE BookID=? "
+                   "and books.AuthorID = authors.AuthorID")
             db = database.DBConnection()
             try:
                 data = db.match(cmd, (bookid,))
@@ -3151,9 +3152,9 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 logger.warning("Unable to create/write to ignorefile: %s" % str(e))
 
             if booktype == 'comic':
-                cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
-                cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
-                cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
+                cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
+                       "Publisher,Contributors from comics,comicissues WHERE "
+                       "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
                 db = database.DBConnection()
                 try:
                     data = db.match(cmd, (issueid, comicid))
@@ -3401,13 +3402,13 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         try:
             res = {}
             if 'LT_WorkID' in data and data['LT_WorkID']:
-                cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
+                cmd = "SELECT SeriesID,SeriesNum from member WHERE workid=?"
                 res = db.match(cmd, (data['LT_WorkID'],))
             if not res and 'WorkID' in data and data['WorkID']:
-                cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
+                cmd = "SELECT SeriesID,SeriesNum from member WHERE workid=?"
                 res = db.match(cmd, (data['WorkID'],))
             if not res:
-                cmd = 'SELECT SeriesID,SeriesNum from member WHERE bookid=?'
+                cmd = "SELECT SeriesID,SeriesNum from member WHERE bookid=?"
                 res = db.match(cmd, (bookid,))
             if res:
                 seriesid = res['SeriesID']
@@ -3426,7 +3427,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
                     # couldn't figure out number, keep everything we got, could be something like "Book Two"
                     serieslist = res['SeriesNum']
 
-                cmd = 'SELECT SeriesName from series WHERE seriesid=?'
+                cmd = "SELECT SeriesName from series WHERE seriesid=?"
                 res = db.match(cmd, (seriesid,))
                 if res:
                     seriesname = res['SeriesName']

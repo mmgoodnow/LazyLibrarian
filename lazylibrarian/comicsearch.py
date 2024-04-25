@@ -50,7 +50,7 @@ def search_item(comicid=None):
 
     db = database.DBConnection()
     try:
-        cmd = 'SELECT Title,SearchTerm from comics WHERE Status="Active" and ComicID=?'
+        cmd = "SELECT Title,SearchTerm from comics WHERE Status='Active' and ComicID=?"
         match = db.match(cmd, (comicid,))
     finally:
         db.close()
@@ -215,7 +215,7 @@ def search_comics(comicid=None):
         cmd = "SELECT ComicID,Title, aka from comics WHERE Status='Active'"
         if comicid:
             # single comic search
-            cmd += ' AND ComicID=?'
+            cmd += " AND ComicID=?"
             comics = db.select(cmd, (comicid,))
         else:
             # search for all active comics
@@ -340,13 +340,13 @@ def download_comiclist(foundissues):
                 if snatch:
                     snatched += 1
                     logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
-                    db.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
+                    db.action("UPDATE wanted SET nzbdate=? WHERE NZBurl=?", (now(), item['url']))
                     custom_notify_snatch("%s %s" % (bookid, item['url']))
                     notify_snatch("Comic %s from %s at %s" %
                                   (unaccented(item['title'], only_ascii=False),
                                    CONFIG.disp_name(item["provider"]), now()))
                 else:
-                    db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                    db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?",
                               (res, item["url"]))
     finally:
         db.close()

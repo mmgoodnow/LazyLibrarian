@@ -894,7 +894,7 @@ class Api(object):
         try:
             db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
                       (kwargs['user'], 'feed', kwargs['feed']))
-        except Exception:
+        finally:
             db.close()
         self.data = 'OK'
         return
@@ -944,16 +944,16 @@ class Api(object):
         TELEMETRY.record_usage_data()
         cmd = "SELECT AuthorID,AuthorName from authors WHERE AuthorID "
         if CONFIG.get_str('BOOK_API') != 'OpenLibrary':
-            cmd += 'NOT '
-        cmd += 'LIKE "OL%A"'
+            cmd += "NOT "
+        cmd += "LIKE 'OL%A'"
         self.data = self._dic_from_query(cmd)
 
     def _listalienbooks(self):
         TELEMETRY.record_usage_data()
         cmd = "SELECT BookID,BookName from books WHERE BookID "
         if CONFIG.get_str('BOOK_API') != 'OpenLibrary':
-            cmd += 'NOT '
-        cmd += 'LIKE "OL%W"'
+            cmd += "NOT "
+        cmd += "LIKE 'OL%W'"
         self.data = self._dic_from_query(cmd)
 
     def _gethistory(self):
@@ -1101,8 +1101,8 @@ class Api(object):
 
         db = database.DBConnection()
         try:
-            cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,'
-            cmd += 'BookFile,BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+            cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookFile,"
+                   "BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID")
             res = db.match(cmd, (kwargs['id'],))
         finally:
             db.close()
@@ -1186,8 +1186,8 @@ class Api(object):
 
     def _getsnatched(self):
         TELEMETRY.record_usage_data()
-        cmd = "SELECT * from books,wanted WHERE books.bookid=wanted.bookid "
-        cmd += "and books.Status='Snatched' or AudioStatus='Snatched'"
+        cmd = ("SELECT * from books,wanted WHERE books.bookid=wanted.bookid and books.Status='Snatched' "
+               "or AudioStatus='Snatched'")
         self.data = self._dic_from_query(cmd)
 
     def _logmessage(self, **kwargs):
@@ -1548,9 +1548,9 @@ class Api(object):
                     self.data = "Invalid id: %s" % kwargs['id']
                 else:
                     if kwargs.get('type', '') == 'AudioBook':
-                        db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (kwargs['id'],))
+                        db.action("UPDATE books SET AudioStatus='Wanted' WHERE BookID=?", (kwargs["id"],))
                     else:
-                        db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (kwargs['id'],))
+                        db.action("UPDATE books SET Status='Wanted' WHERE BookID=?", (kwargs["id"],))
                     self.data = 'OK'
             finally:
                 db.close()
@@ -1567,9 +1567,9 @@ class Api(object):
                     self.data = "Invalid id: %s" % kwargs['id']
                 else:
                     if kwargs.get('type', '') == 'AudioBook':
-                        db.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (kwargs['id'],))
+                        db.action("UPDATE books SET AudioStatus='Skipped' WHERE BookID=?", (kwargs["id"],))
                     else:
-                        db.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (kwargs['id'],))
+                        db.action("UPDATE books SET Status='Skipped' WHERE BookID=?", (kwargs["id"],))
                     self.data = 'OK'
             finally:
                 db.close()
@@ -1618,7 +1618,7 @@ class Api(object):
                 if not res:
                     self.data = "Invalid id: %s" % kwargs['id']
                 else:
-                    db.action('UPDATE authors SET Status="Paused" WHERE AuthorID=?', (kwargs['id'],))
+                    db.action("UPDATE authors SET Status='Paused' WHERE AuthorID=?", (kwargs["id"],))
                     self.data = 'OK'
             finally:
                 db.close()
@@ -1634,7 +1634,7 @@ class Api(object):
                 if not res:
                     self.data = "Invalid id: %s" % kwargs['id']
                 else:
-                    db.action('UPDATE authors SET Status="Ignored" WHERE AuthorID=?', (kwargs['id'],))
+                    db.action("UPDATE authors SET Status='Ignored' WHERE AuthorID=?", (kwargs["id"],))
                     self.data = 'OK'
             finally:
                 db.close()
@@ -1650,7 +1650,7 @@ class Api(object):
                 if not res:
                     self.data = "Invalid id: %s" % kwargs['id']
                 else:
-                    db.action('UPDATE authors SET Status="Active" WHERE AuthorID=?', (kwargs['id'],))
+                    db.action("UPDATE authors SET Status='Active' WHERE AuthorID=?", (kwargs["id"],))
                     self.data = 'OK'
             finally:
                 db.close()
@@ -2074,8 +2074,8 @@ class Api(object):
         TELEMETRY.record_usage_data()
         db = database.DBConnection()
         try:
-            cmd = 'SELECT AuthorName,AuthorID,GRfollow FROM authors where '
-            cmd += 'Status="Active" or Status="Wanted" or Status="Loading"'
+            cmd = ("SELECT AuthorName,AuthorID,GRfollow FROM authors where Status='Active' "
+                   "or Status='Wanted' or Status='Loading'")
             authors = db.select(cmd)
             count = 0
             for author in authors:
@@ -2280,7 +2280,7 @@ class Api(object):
         try:
             dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
             if dbentry:
-                db.action('UPDATE %ss SET Manual="%s" WHERE %sID=%s' % (table, state, table, itemid))
+                db.action("UPDATE %ss SET Manual='%s' WHERE %sID=%s" % (table, state, table, itemid))
             else:
                 self.data = "%sID %s not found" % (table, itemid)
         finally:
@@ -2357,7 +2357,7 @@ class Api(object):
         try:
             dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
             if dbentry:
-                db.action('UPDATE %ss SET %sImg="%s" WHERE %sID=%s' %
+                db.action("UPDATE %ss SET %sImg='%s' WHERE %sID=%s" %
                           (table, table, 'cache' + os.path.sep + itemid + '.jpg', table, itemid))
             else:
                 self.data = "%sID %s not found" % (table, itemid)

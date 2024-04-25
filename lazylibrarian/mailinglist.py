@@ -45,18 +45,20 @@ def mailing_list(book_type, global_name, book_id):
                                 (book_id,))
                 feeds = get_list(data['AudioRequester'])
 
-            users = db.select('SELECT UserID from subscribers WHERE Type="author" and WantID=?', (data['AuthorID'],))
+            users = db.select("SELECT UserID from subscribers WHERE Type='author' and WantID=?", (data["AuthorID"],))
             cnt = 0
             for user in users:
                 db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
                           (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
-                logger.debug("%s wanted by %s %s to author %s" % (book_id, cnt, plural(cnt, 'subscriber'), data['Author']))
+                logger.debug("%s wanted by %s %s to author %s" % (book_id, cnt, plural(cnt, 'subscriber'),
+                                                                  data['Author']))
 
             series = db.select('SELECT SeriesID from member WHERE BookID=?', (book_id,))
             for item in series:
-                users = db.select('SELECT UserID  from subscribers WHERE Type="series" and WantID=?', (item['SeriesID'],))
+                users = db.select("SELECT UserID  from subscribers WHERE Type='series' and WantID=?",
+                                  (item["SeriesID"],))
                 cnt = 0
                 for user in users:
                     db.action('INSERT into subscribers (UserID , Type, WantID) VALUES (?, ?, ?)',
@@ -67,7 +69,7 @@ def mailing_list(book_type, global_name, book_id):
                                                                       item['SeriesID']))
 
             for item in feeds:
-                users = db.select('SELECT UserID from subscribers WHERE Type="feed" and WantID=?', (item,))
+                users = db.select("SELECT UserID from subscribers WHERE Type='feed' and WantID=?", (item,))
                 cnt = 0
                 for user in users:
                     db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
@@ -81,14 +83,15 @@ def mailing_list(book_type, global_name, book_id):
             if not data:
                 logger.error('Invalid issueid [%s]' % book_id)
                 return
-            users = db.select('SELECT UserID from subscribers WHERE Type="magazine" and WantID=?', (data['Title'],))
+            users = db.select("SELECT UserID from subscribers WHERE Type='magazine' and WantID=?", (data["Title"],))
             cnt = 0
             for user in users:
                 db.action('INSERT into subscribers (UserID, type, WantID) VALUES (?, ?, ?)',
                           (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
-                logger.debug("%s wanted by %s %s to magazine %s" % (book_id, cnt, plural(cnt, 'subscriber'), data['Title']))
+                logger.debug("%s wanted by %s %s to magazine %s" % (book_id, cnt, plural(cnt, 'subscriber'),
+                                                                    data['Title']))
         elif booktype == 'comic':
             try:
                 comicid, issueid = book_id.split('_')
@@ -97,7 +100,7 @@ def mailing_list(book_type, global_name, book_id):
                 return
             data = db.match("SELECT IssueFile as filename from comicissues where comicid=? and issueid=?",
                             (comicid, issueid))
-            users = db.select('SELECT UserID from subscribers WHERE Type="comic" and WantID=?', (comicid,))
+            users = db.select("SELECT UserID from subscribers WHERE Type='comic' and WantID=?", (comicid,))
             cnt = 0
             for user in users:
                 db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
@@ -121,7 +124,8 @@ def mailing_list(book_type, global_name, book_id):
             logger.debug("%s %s not wanted by any users" % (book_type, global_name))
             return
         else:
-            logger.debug("%s %s wanted by %s %s" % (book_type, global_name, len(userlist), plural(len(userlist), 'user')))
+            logger.debug("%s %s wanted by %s %s" % (book_type, global_name, len(userlist), plural(len(userlist),
+                                                                                                  'user')))
 
         if not data or not data['filename'] or not path_exists(data['filename']):
             logger.error("Unable to locate %s %s" % (booktype, book_id))
@@ -162,7 +166,7 @@ def mailing_list(book_type, global_name, book_id):
                         msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace('{link}', '').replace(
                             '{method}', ' is available for download, but not as ' + pref)
                         filename = ''
-
+                result = None
                 if not link:
                     link = ''
                 if filename:

@@ -173,9 +173,11 @@ class OPDS(object):
             if 'user' in kwargs:
                 userid = '&amp;user=%s' % kwargs['user']
 
-            links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+            links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; '
+                                                           'kind=navigation',
                                  rel='start', title='Home'))
-            links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+            links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; '
+                                                           'kind=navigation',
                                  rel='self'))
             links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
                                  ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
@@ -236,7 +238,8 @@ class OPDS(object):
                     }
                 )
 
-            res = db.match("select count(*) as counter from books where Status='Open' and CAST(BookRate AS INTEGER) > 0")
+            res = db.match("select count(*) as counter from books where Status='Open' "
+                           "and CAST(BookRate AS INTEGER) > 0")
             if res['counter'] > 0:
                 entries.append(
                     {
@@ -250,8 +253,8 @@ class OPDS(object):
                     }
                 )
 
-            cmd = "select count(*) as counter from books"
-            cmd += " where AudioStatus='Open' and CAST(BookRate AS INTEGER) > 0"
+            cmd = ("select count(*) as counter from books where AudioStatus='Open' "
+                   "and CAST(BookRate AS INTEGER) > 0")
             res = db.match(cmd)
             if res['counter'] > 0:
                 entries.append(
@@ -347,10 +350,11 @@ class OPDS(object):
                         'rel': 'subsection',
                     }
                 )
-            cmd = 'select genrename,(select count(*) as counter from genrebooks,books where '
-            cmd += 'genrebooks.genreid = genres.genreid and books.status="Open" '
-            cmd += 'and books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0'
-            # cmd = "select distinct BookGenre from books where Status='Open' and BookGenre != '' and BookGenre !='Unknown'"
+            cmd = ("select genrename,(select count(*) as counter from genrebooks,books where genrebooks."
+                   "genreid = genres.genreid and books.status='Open' and books.bookid=genrebooks.bookid) "
+                   "as cnt from genres where cnt > 0")
+            # cmd = "select distinct BookGenre from books where Status='Open' and BookGenre != ''
+            # and BookGenre !='Unknown'"
             res = db.select(cmd)
             if res and len(res) > 0:
                 entries.append(
@@ -422,12 +426,12 @@ class OPDS(object):
         links.append(getlink(href='%s/opensearchgenres.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Genre'))
 
-        cmd = 'select genrename,(select count(*) as counter from genrebooks,books where '
-        cmd += 'genrebooks.genreid = genres.genreid and books.status="Open" '
-        cmd += 'and books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0'
+        cmd = ("select genrename,(select count(*) as counter from genrebooks,books where "
+               "genrebooks.genreid = genres.genreid and books.status='Open' and "
+               "books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0")
         if 'query' in kwargs:
             cmd += " and genrename LIKE '%" + kwargs['query'] + "%'"
-        cmd += ' order by cnt DESC,genrename ASC'
+        cmd += " order by cnt DESC,genrename ASC"
         db = database.DBConnection()
         try:
             results = db.select(cmd)
@@ -490,10 +494,10 @@ class OPDS(object):
 
         db = database.DBConnection()
         try:
-            cmd = "SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID "
-            cmd += "from genrebooks,genres,books WHERE (books.Status='Open' or books.AudioStatus='Open') "
-            cmd += "AND books.Bookid=genrebooks.BookID AND genrebooks.genreid=genres.genreid AND genrename=?"
-            cmd += "order by BookName"
+            cmd = ("SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID "
+                   "from genrebooks,genres,books WHERE (books.Status='Open' or books.AudioStatus='Open') "
+                   "and books.Bookid=genrebooks.BookID AND genrebooks.genreid=genres.genreid and"
+                   " genrename=?order by BookName")
             results = db.select(cmd, (kwargs['genre'],))
             if not len(results):
                 self.data = self._error_with_message('No results for Genre "%s"' % kwargs['genre'])
@@ -517,8 +521,8 @@ class OPDS(object):
                 elif book['AudioFile']:
                     mimetype = mime_type(book['AudioFile'])
                 if mimetype:
-                    cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND '
-                    cmd += 'books.bookid=?'
+                    cmd = ("SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid "
+                           "and books.bookid=?")
                     res = db.match(cmd, (book['BookID'],))
                     author = res['AuthorName']
                     entry = {'title': escape('%s' % book['BookName']),
@@ -746,11 +750,11 @@ class OPDS(object):
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
         links.append(getlink(href='%s/opensearchcomics.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Comics'))
-        cmd = 'select comics.*,(select count(*) as counter from comicissues where '
-        cmd += 'comics.ComicID = comicissues.ComicID) as Iss_Cnt from comics '
+        cmd = ("select comics.*,(select count(*) as counter from comicissues where "
+               "comics.ComicID = comicissues.ComicID) as Iss_Cnt from comics ")
         if 'query' in kwargs:
             cmd += "WHERE comics.title LIKE '%" + kwargs['query'] + "%' "
-        cmd += 'order by comics.title'
+        cmd += "order by comics.title"
         db = database.DBConnection()
         try:
             results = db.select(cmd)
@@ -819,11 +823,11 @@ class OPDS(object):
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
         links.append(getlink(href='%s/opensearchmagazines.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Magazines'))
-        cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
-        cmd += ' as Iss_Cnt from magazines '
+        cmd = ("select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title) "
+               "as Iss_Cnt from magazines ")
         if 'query' in kwargs:
             cmd += "WHERE magazines.title LIKE '%" + kwargs['query'] + "%' "
-        cmd += 'order by magazines.title'
+        cmd += "order by magazines.title"
         db = database.DBConnection()
         try:
             results = db.select(cmd)
@@ -905,11 +909,12 @@ class OPDS(object):
                 page = results
                 limit = len(page)
             for series in page:
-                cmd = "SELECT books.BookID,SeriesNum from books,member where SeriesID=? "
-                cmd += "and books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)"
+                cmd = ("SELECT books.BookID,SeriesNum from books,member where SeriesID=? and "
+                       "books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)")
                 firstbook = db.match(cmd, (series['SeriesID'],))
                 if firstbook:
-                    cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND books.bookid=?'
+                    cmd = ("SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid "
+                           "AND books.bookid=?")
                     res = db.match(cmd, (firstbook['BookID'],))
                     author = res['AuthorName']
                 else:
@@ -969,8 +974,8 @@ class OPDS(object):
             comic = db.match("SELECT Title from comics WHERE ComicID=?", (kwargs['magid'],))
             if comic:
                 title = make_unicode(comic['Title'])
-            cmd = "SELECT IssueID,IssueAcquired,IssueFile from comicissues "
-            cmd += "WHERE ComicID=? order by IssueID DESC"
+            cmd = ("SELECT IssueID,IssueAcquired,IssueFile from comicissues WHERE ComicID=? "
+                   "order by IssueID DESC")
             results = db.select(cmd, (kwargs['magid'],))
         finally:
             db.close()
@@ -1042,8 +1047,8 @@ class OPDS(object):
         links = []
         entries = []
         title = ''
-        cmd = "SELECT Title,IssueID,IssueDate,IssueAcquired,IssueFile from issues "
-        cmd += "WHERE Title='%s' order by IssueDate DESC"
+        cmd = ("SELECT Title,IssueID,IssueDate,IssueAcquired,IssueFile from issues WHERE Title='%s' "
+               "order by IssueDate DESC")
         db = database.DBConnection()
         try:
             results = db.select(cmd % kwargs['magid'])
@@ -1301,12 +1306,11 @@ class OPDS(object):
         db = database.DBConnection()
         try:
             series = db.match("SELECT SeriesName from Series WHERE SeriesID=?", (kwargs['seriesid'],))
-            cmd = "SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID,SeriesNum "
-            cmd += "from books,member where (Status='Open' or AudioStatus='Open') and SeriesID=? "
-            cmd += "and books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)"
+            cmd = ("SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID,SeriesNum "
+                   "from books,member where (Status='Open' or AudioStatus='Open') and SeriesID=? and "
+                   "books.bookid = member.bookid order by CAST(SeriesNum AS INTEGER)")
             results = db.select(cmd, (kwargs['seriesid'],))
-            cmd = 'SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid AND '
-            cmd += 'books.bookid=?'
+            cmd = "SELECT AuthorName from authors,books WHERE authors.authorid = books.authorid and books.bookid=?"
             res = db.match(cmd, (results[0]['BookID'],))
         finally:
             db.close()
@@ -1556,8 +1560,8 @@ class OPDS(object):
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
         links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
-        cmd = "select BookName,BookID,BookLibrary,BookDate,BookImg,BookDesc,BookRate,BookAdded,BookFile,AuthorID "
-        cmd += "from books where Status='Open' "
+        cmd = ("select BookName,BookID,BookLibrary,BookDate,BookImg,BookDesc,BookRate,BookAdded,BookFile,AuthorID "
+               "from books where Status='Open' ")
         if 'query' in kwargs:
             cmd += "AND BookName LIKE '%" + kwargs['query'] + "%' "
         if sorder == 'Recent':
@@ -1619,13 +1623,15 @@ class OPDS(object):
                     entry = {'title': dispname,
                              'id': escape('book:%s' % book['BookID']),
                              'updated': opdstime(book['BookLibrary']),
-                             'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, quote_plus(book['BookID']), userid),
+                             'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, quote_plus(book['BookID']),
+                                                                       userid),
                              'kind': 'acquisition',
                              'rel': rel,
                              'type': mimetype}
 
                     if CONFIG.get_bool('OPDS_METAINFO'):
-                        auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
+                        auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?",
+                                        (book['AuthorID'],))
                         if auth:
                             author = make_unicode(auth['AuthorName'])
                             entry['image'] = self.searchroot + '/' + book['BookImg']
@@ -1690,8 +1696,8 @@ class OPDS(object):
         links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
 
-        cmd = "select BookName,BookID,AudioLibrary,BookDate,BookImg,BookDesc,BookRate,BookAdded,AuthorID"
-        cmd += " from books WHERE "
+        cmd = ("select BookName,BookID,AudioLibrary,BookDate,BookImg,BookDesc,BookRate,BookAdded,AuthorID"
+               " from books WHERE ")
         if 'query' in kwargs:
             cmd += "BookName LIKE '%" + kwargs['query'] + "%' AND "
         cmd += "AudioStatus='Open'"

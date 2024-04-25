@@ -815,7 +815,7 @@ def bok_dlcount() -> (int, int):
     db = database.DBConnection()
     try:
         yesterday = time.time() - 24*60*60
-        grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
+        grabs = db.select("SELECT completed from wanted WHERE nzbprov='zlibrary' and completed > ? order by completed",
                           (yesterday,))
     finally:
         db.close()

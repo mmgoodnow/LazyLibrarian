@@ -53,9 +53,9 @@ def dump_table(table, savedir=None, status=None):
                 headers += ','
             headers += item[1]
         if status:
-            cmd = 'SELECT %s from %s WHERE status="%s"' % (headers, table, status)
+            cmd = "SELECT %s from %s WHERE status='%s'" % (headers, table, status)
         else:
-            cmd = 'SELECT %s from %s' % (headers, table)
+            cmd = "SELECT %s from %s" % (headers, table)
         data = db.select(cmd)
         count = 0
         if data is not None:
@@ -182,11 +182,11 @@ def export_csv(search_dir=None, status="Wanted", library=''):
 
         db = database.DBConnection()
         try:
-            cmd = 'SELECT BookID,AuthorName,BookName,BookIsbn,books.AuthorID FROM books,authors '
+            cmd = "SELECT BookID,AuthorName,BookName,BookIsbn,books.AuthorID FROM books,authors "
             if library == 'eBook':
-                cmd += 'WHERE books.Status=? and books.AuthorID = authors.AuthorID'
+                cmd += "WHERE books.Status=? and books.AuthorID = authors.AuthorID"
             else:
-                cmd += 'WHERE AudioStatus=? and books.AuthorID = authors.AuthorID'
+                cmd += "WHERE AudioStatus=? and books.AuthorID = authors.AuthorID"
             find_status = db.select(cmd, (status,))
         finally:
             db.close()
@@ -241,8 +241,8 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
             bookid = item['BookID']
 
         # try to find book in our database using bookid or isbn, or if that fails, name matching
-        cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus,Requester,'
-        cmd += 'AudioRequester FROM books,authors where books.AuthorID = authors.AuthorID '
+        cmd = ("SELECT AuthorName,BookName,BookID,books.Status,AudioStatus,Requester,AudioRequester FROM "
+               "books,authors where books.AuthorID = authors.AuthorID ")
         if bookid:
             fullcmd = cmd + 'and BookID=?'
             bookmatch = db.match(fullcmd, (bookid,))

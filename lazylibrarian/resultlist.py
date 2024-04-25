@@ -128,10 +128,10 @@ def find_best_result(resultlist, book, searchtype, source):
                 logger.debug("Rejecting %s, no URL found" % result_title)
 
             if not rejected and CONFIG.get_bool('BLACKLIST_FAILED'):
-                cmd = 'SELECT * from wanted WHERE NZBurl=? and Status="Failed"'
+                cmd = "SELECT * from wanted WHERE NZBurl=? and Status='Failed'"
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
-                    cmd += ' and NZBTitle=?'
+                    cmd += " and NZBTitle=?"
                     args += (res['tor_title'],)
                 blacklisted = db.match(cmd, args)
                 if blacklisted:
@@ -139,7 +139,7 @@ def find_best_result(resultlist, book, searchtype, source):
                                  (res[prefix + 'title'], blacklisted['NZBprov']))
                     rejected = True
                 if not rejected:
-                    blacklisted = db.match('SELECT * from wanted WHERE NZBprov=? and NZBtitle=? and Status="Failed"',
+                    blacklisted = db.match("SELECT * from wanted WHERE NZBprov=? and NZBtitle=? and Status='Failed'",
                                            (res[prefix + 'prov'], res[prefix + 'title']))
                     if blacklisted:
                         logger.debug("Rejecting %s, title blacklisted (Failed) at %s" %
@@ -147,10 +147,10 @@ def find_best_result(resultlist, book, searchtype, source):
                         rejected = True
 
             if not rejected and CONFIG.get_bool('BLACKLIST_PROCESSED'):
-                cmd = 'SELECT * from wanted WHERE NZBurl=?'
+                cmd = "SELECT * from wanted WHERE NZBurl=?"
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
-                    cmd += ' and NZBTitle=?'
+                    cmd += " and NZBTitle=?"
                     args += (res['tor_title'],)
                 blacklisted = db.match(cmd, args)
                 if blacklisted:
@@ -311,7 +311,7 @@ def download_result(match, book):
         # It's possible to get book and wanted tables "Snatched" status out of sync
         # for example if a user marks a book as "Wanted" after a search task snatches it and before postprocessor runs
         # so check status in both tables here
-        snatched = db.match('SELECT BookID from wanted WHERE BookID=? and AuxInfo=? and Status="Snatched"',
+        snatched = db.match("SELECT BookID from wanted WHERE BookID=? and AuxInfo=? and Status='Snatched'",
                             (new_value_dict["BookID"], new_value_dict["AuxInfo"]))
         if snatched:
             logger.debug('%s %s %s already marked snatched in wanted table' %
@@ -319,10 +319,10 @@ def download_result(match, book):
             return 1  # someone else already found it
 
         if new_value_dict["AuxInfo"] == 'eBook':
-            snatched = db.match('SELECT BookID from books WHERE BookID=? and Status="Snatched"',
+            snatched = db.match("SELECT BookID from books WHERE BookID=? and Status='Snatched'",
                                 (new_value_dict["BookID"],))
         else:
-            snatched = db.match('SELECT BookID from books WHERE BookID=? and AudioStatus="Snatched"',
+            snatched = db.match("SELECT BookID from books WHERE BookID=? and AudioStatus='Snatched'",
                                 (new_value_dict["BookID"],))
         if snatched:
             logger.debug('%s %s %s already marked snatched in book table' %
@@ -364,7 +364,7 @@ def download_result(match, book):
             schedule_job(SchedulerCommand.START, target='PostProcessor')
             return 2  # we found it
         else:
-            db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+            db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?",
                       (res, control_value_dict["NZBurl"]))
         return 0
     except Exception:

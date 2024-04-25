@@ -35,6 +35,7 @@ try:
 except ImportError:
     PIL = None
 if PIL:
+    # noinspection PyUnresolvedReferences
     from PIL import Image as PILImage
     from lib.icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
 else:
@@ -157,8 +158,8 @@ def get_author_images():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        cmd = 'select AuthorID, AuthorName from authors where (AuthorImg like "%nophoto%" or AuthorImg is null)'
-        cmd += ' and Manual is not "1"'
+        cmd = ("select AuthorID, AuthorName from authors where (AuthorImg like '%nophoto%' or "
+               "AuthorImg is null) and Manual is not '1'")
         authors = db.select(cmd)
         if authors:
             logger.info('Checking images for %s %s' % (len(authors), plural(len(authors), "author")))
@@ -195,8 +196,8 @@ def get_book_covers():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        cmd = 'select BookID,BookImg from books where BookImg like "%nocover%" '
-        cmd += 'or BookImg like "%nophoto%" and Manual is not "1"'
+        cmd = ("select BookID,BookImg from books where BookImg like '%nocover%' "
+               "or BookImg like '%nophoto%' and Manual is not '1'")
         books = db.select(cmd)
         if books:
             logger.info('Checking covers for %s %s' % (len(books), plural(len(books), "book")))
@@ -322,7 +323,7 @@ def get_book_cover(bookid=None, src=None):
         # see if librarything  has a cover
         if not src or src == 'librarything':
             if CONFIG['LT_DEVKEY']:
-                cmd = 'select BookISBN from books where bookID=?'
+                cmd = "select BookISBN from books where bookID=?"
                 item = db.match(cmd, (bookid,))
                 if item and item['BookISBN']:
                     img = '/'.join([CONFIG['LT_URL'], 'devkey/%s/large/isbn/%s' % (
@@ -365,8 +366,8 @@ def get_book_cover(bookid=None, src=None):
             if src:
                 return None, src
 
-        cmd = 'select BookName,AuthorName,BookLink,BookISBN from books,authors where bookID=?'
-        cmd += ' and books.AuthorID = authors.AuthorID'
+        cmd = ("select BookName,AuthorName,BookLink,BookISBN from books,authors where bookID=?"
+               " and books.AuthorID = authors.AuthorID")
         item = db.match(cmd, (bookid,))
         safeparams = ''
         booklink = ''
@@ -611,7 +612,8 @@ def create_mag_covers(refresh=False):
                 create_mag_cover(item['IssueFile'], refresh=refresh, pagenum=maginfo['CoverPage'])
                 cnt += 1
             except Exception as why:
-                logger.warning('Unable to create cover for %s, %s %s' % (item['IssueFile'], type(why).__name__, str(why)))
+                logger.warning('Unable to create cover for %s, %s %s' % (item['IssueFile'],
+                                                                         type(why).__name__, str(why)))
     finally:
         db.close()
     logger.info("Cover creation completed")

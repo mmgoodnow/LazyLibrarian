@@ -42,28 +42,29 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
         if ftype == 'eBook':
             cmd = "select AuthorName,BookName,BookDesc,BookLibrary,BookFile,BookID from books,authors where "
             if authorid:
-                cmd += 'books.AuthorID = ? and '
+                cmd += "books.AuthorID = ? and "
             cmd += "BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
             baselink = baseurl + '/book_wall&have=1'
         elif ftype == 'AudioBook':
             podcast = CONFIG.get_bool('RSS_PODCAST')
-            cmd = "select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
-            cmd += "from books,authors where "
+            cmd = ("select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
+                   "from books,authors where ")
             if authorid:
-                cmd += 'books.AuthorID = ? and '
-            cmd += "AudioLibrary != '' and books.AuthorID = authors.AuthorID "
-            cmd += "order by AudioLibrary desc limit ?"
+                cmd += "books.AuthorID = ? and "
+            cmd += ("AudioLibrary != '' and books.AuthorID = authors.AuthorID "
+                    "order by AudioLibrary desc limit ?")
             baselink = baseurl + '/audio_wall'
         elif ftype == 'Magazine':
             cmd = "select Title,IssueDate,IssueAcquired,IssueFile,IssueID from issues "
             if onetitle:
-                cmd += 'where Title = ? '
+                cmd += "where Title = ? "
             cmd += "order by IssueAcquired desc limit ?"
             baselink = baseurl + '/mag_wall'
         elif ftype == 'Comic':
-            cmd = "select Title,Publisher,comics.ComicID,IssueAcquired,IssueFile,IssueID from comics,comicissues where"
+            cmd = ("select Title,Publisher,comics.ComicID,IssueAcquired,IssueFile,IssueID from "
+                   "comics,comicissues where")
             if onetitle:
-                cmd += ' Title = ? and'
+                cmd += " Title = ? and"
             cmd += " comics.comicid=comicissues.comicid order by IssueAcquired desc limit ?"
             baselink = baseurl + '/comic_wall'
         else:

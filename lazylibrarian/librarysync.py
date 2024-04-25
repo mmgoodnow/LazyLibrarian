@@ -75,8 +75,8 @@ def get_book_meta(fdir, reason="get_book_meta"):
         if bookid:
             db = database.DBConnection()
             try:
-                cmd = 'SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID'
-                cmd += ' and books.BookID=?'
+                cmd = ("SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID and "
+                       "books.BookID=?")
                 existing_book = db.match(cmd, (bookid,))
                 if not existing_book:
                     if CONFIG['BOOK_API'] == "GoogleBooks":
@@ -262,8 +262,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             logger.warning("Author [%s] not recognised" % author)
             return 0, ''
 
-        cmd = 'SELECT BookID,books.Status,AudioStatus FROM books,authors where books.AuthorID = authors.AuthorID'
-        cmd += ' and authors.AuthorID=? and BookName=? COLLATE NOCASE'
+        cmd = ("SELECT BookID,books.Status,AudioStatus FROM books,authors where books.AuthorID = authors.AuthorID and "
+               "authors.AuthorID=? and BookName=? COLLATE NOCASE")
         res = db.select(cmd, (authorid, book))
 
         whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
@@ -297,23 +297,23 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             return match['BookID'], match
 
         # Try a more complex fuzzy match against each book in the db by this author
-        cmd = 'SELECT BookID,BookName,BookSub,BookISBN,books.Status,AudioStatus FROM books,authors'
-        cmd += ' where books.AuthorID = authors.AuthorID '
+        cmd = ("SELECT BookID,BookName,BookSub,BookISBN,books.Status,AudioStatus FROM books,authors where "
+               "books.AuthorID = authors.AuthorID ")
         ign = ''
         if library == 'eBook':
             if ignored is True:
-                cmd += 'and books.Status = "Ignored" '
+                cmd += "and books.Status = 'Ignored' "
                 ign = 'ignored '
             elif ignored is False:
-                cmd += 'and books.Status != "Ignored" '
+                cmd += "and books.Status != 'Ignored' "
         else:
             if ignored is True:
-                cmd += 'and AudioStatus = "Ignored" '
+                cmd += "and AudioStatus = 'Ignored' "
                 ign = 'ignored '
             elif ignored is False:
-                cmd += 'and AudioStatus != "Ignored" '
+                cmd += "and AudioStatus != 'Ignored' "
 
-        cmd += 'and authors.AuthorID=?'
+        cmd += "and authors.AuthorID=?"
         books = db.select(cmd, (authorid,))
 
         if not len(books):
@@ -515,7 +515,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 lazylibrarian.AUDIO_UPDATE = 1
             db.action('DELETE from stats')
             try:  # remove any extra whitespace in authornames
-                authors = db.select('SELECT AuthorID,AuthorName FROM authors WHERE AuthorName like "%  %"')
+                authors = db.select("SELECT AuthorID,AuthorName FROM authors WHERE AuthorName like '%  %'")
                 if authors:
                     logger.info('Removing extra spaces from %s %s' % (len(authors), plural(len(authors), "authorname")))
                     for author in authors:
@@ -553,10 +553,10 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         # allow full_scan override so we can scan in alternate directories without deleting others
         if remove:
             if library == 'eBook':
-                cmd = 'select AuthorName, BookName, BookFile, BookID from books,authors'
-                cmd += ' where BookLibrary is not null and books.AuthorID = authors.AuthorID'
+                cmd = ("select AuthorName, BookName, BookFile, BookID from books,authors where BookLibrary "
+                       "is not null and books.AuthorID = authors.AuthorID")
                 if not startdir == destdir:
-                    cmd += ' and BookFile like "' + startdir + '%"'
+                    cmd += " and BookFile like '" + startdir + "%'"
                 books = db.select(cmd)
                 status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing eBooks will be marked as %s' % status)
@@ -570,10 +570,10 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                        (book['AuthorName'], book['BookName']))
 
             else:  # library == 'AudioBook':
-                cmd = 'select AuthorName, BookName, AudioFile, BookID from books,authors'
-                cmd += ' where AudioLibrary is not null and books.AuthorID = authors.AuthorID'
+                cmd = ("select AuthorName, BookName, AudioFile, BookID from books,authors where AudioLibrary "
+                       "is not null and books.AuthorID = authors.AuthorID")
                 if not startdir == destdir:
-                    cmd += ' and AudioFile like "' + startdir + '%"'
+                    cmd += " and AudioFile like '" + startdir + "%'"
                 books = db.select(cmd)
                 status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing AudioBooks will be marked as %s' % status)
@@ -880,7 +880,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             logger.warning("Metadata authorid [%s] does not match database [%s]" %
                                                            (authorid, match['AuthorID']))
                                     if not match:
-                                        cmd = 'SELECT Status,BookID FROM books where BookName=? and AuthorID=?'
+                                        cmd = "SELECT Status,BookID FROM books where BookName=? and AuthorID=?"
                                         match = db.match(cmd, (book, authorid))
                                         if match:
                                             logger.warning(
@@ -890,7 +890,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             # update stored bookid to match preferred (owned) book
                                             db.action('PRAGMA foreign_keys = OFF')
                                             for table in ['books', 'member', 'wanted', 'failedsearch', 'genrebooks']:
-                                                cmd = 'UPDATE %s SET BookID=? WHERE BookID=?' % table
+                                                cmd = "UPDATE %s SET BookID=? WHERE BookID=?" % table
                                                 db.action(cmd, (bookid, match['BookID']))
                                             db.action('PRAGMA foreign_keys = ON')
 
@@ -1012,7 +1012,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             rehit.append(booktitle)
 
                                     if bookid:
-                                        cmd = 'SELECT * from books WHERE BookID=?'
+                                        cmd = "SELECT * from books WHERE BookID=?"
                                         check_status = db.match(cmd, (bookid,))
                                         if check_status:
                                             logger.debug("%s [%s] matched on rescan for %s" %
@@ -1033,8 +1033,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 # set language from book metadata
                                                 msg = "Setting language from metadata %s : %s"
                                                 logger.debug(msg % (booktitle, language))
-                                                cmd = 'UPDATE books SET BookLang=?'
-                                                cmd += ' WHERE BookID=?'
+                                                cmd = "UPDATE books SET BookLang=? WHERE BookID=?"
                                                 db.action(cmd, (language, bookid))
                                     else:
                                         logger.warning("Rescan no match for %s" % book)
@@ -1042,9 +1041,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 # see if it's there now...
                                 if bookid:
-                                    cmd = 'SELECT books.Status, books.AuthorID, AudioStatus, BookFile, AudioFile, '
-                                    cmd += 'AuthorName, BookName, BookID, BookDesc, BookGenre,Narrator '
-                                    cmd += 'from books,authors where books.AuthorID = authors.AuthorID and BookID=?'
+                                    cmd = ("SELECT books.Status, books.AuthorID, AudioStatus, BookFile, AudioFile, "
+                                           "AuthorName, BookName, BookID, BookDesc, BookGenre,Narrator from "
+                                           "books,authors where books.AuthorID = authors.AuthorID and BookID=?")
                                     check_status = db.match(cmd, (bookid,))
 
                                     if not check_status:
@@ -1206,8 +1205,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
             if nolang:
                 logger.warning("Found %s %s in your library with unknown language" % (nolang, plural(nolang, "book")))
                 # show stats if new books were added
-            cmd = "SELECT sum(GR_book_hits), sum(GR_lang_hits), sum(LT_lang_hits), sum(GB_lang_change), "
-            cmd += "sum(cache_hits), sum(bad_lang), sum(bad_char), sum(uncached), sum(duplicates) FROM stats"
+            cmd = ("SELECT sum(GR_book_hits), sum(GR_lang_hits), sum(LT_lang_hits), sum(GB_lang_change), "
+                   "sum(cache_hits), sum(bad_lang), sum(bad_char), sum(uncached), sum(duplicates) FROM stats")
             stats = db.match(cmd)
 
             st = {'GR_book_hits': stats['sum(GR_book_hits)'], 'GB_book_hits': stats['sum(GR_book_hits)'],

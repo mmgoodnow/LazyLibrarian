@@ -47,7 +47,7 @@ class RedactFilter(logging.Filter):
         self.redacted = 0
         self.redactset: Set[str] = set()
 
-    def update_reactlist(self, redactlist: List[str]):
+    def update_redactlist(self, redactlist: List[str]):
         # Store the list as a set to make it more efficient to use
         self.redactset = set(redactlist)
 
@@ -419,7 +419,7 @@ class LogConfig:
     # Other methods for log management
 
     def redact_list_updated(self, redactlist: List[str]):
-        self.redact_filter.update_reactlist(redactlist)
+        self.redact_filter.update_redactlist(redactlist)
 
     @staticmethod
     def get_full_filename(filename: str, redact: Optional[bool]) -> str:

@@ -417,7 +417,7 @@ class GrAuth:
             return "Error in client.request: see error log"
         if not response['status'].startswith('2'):
             logger.error('Failure status: %s for %s page %s' % (response['status'], shelf_name, page))
-            logger_grsync.debug(request_url)
+            loggergrsync.debug(request_url)
         return content
 
     #############################
@@ -688,14 +688,12 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 results = db.select(cmd)
             else:  # 'Audio/eBook'
                 if status == 'Open':
-                    cmd = "select gr_id from books where status in ('Open', 'Have')"
-                    cmd += " or audiostatus in ('Open', 'Have')"
+                    cmd = "select gr_id from books where status in ('Open', 'Have') or audiostatus in ('Open', 'Have')"
                 elif status == 'Wanted':
-                    cmd = "select gr_id from books where status in ('Wanted', 'Snatched', 'Matched')"
-                    cmd += " or audiostatus in ('Wanted', 'Snatched', 'Matched')"
+                    cmd = ("select gr_id from books where status in ('Wanted', 'Snatched', 'Matched') or "
+                           "audiostatus in ('Wanted', 'Snatched', 'Matched')")
                 else:
-                    cmd = "select gr_id from books where status=%s" % status
-                    cmd += " or audiostatus=%s" % status
+                    cmd = "select gr_id from books where status=%s or audiostatus=%s" % (status, status)
                 results = db.select(cmd)
 
             ll_list = []
@@ -804,7 +802,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             logger.debug(', '.join(removed_from_shelf))
         for book in removed_from_shelf:
             # deleted from goodreads
-            cmd = 'select Status,AudioStatus,BookName from books where gr_id=?'
+            cmd = "select Status,AudioStatus,BookName from books where gr_id=?"
             res = db.match(cmd, (book,))
             if not res:
                 logger.debug('Adding new %s %s to database' % (library, book))
@@ -823,7 +821,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             else:
                 if 'eBook' in library:
                     if res['Status'] in ['Have', 'Wanted']:
-                        db.action('UPDATE books SET Status="Skipped" WHERE gr_id=?', (book,))
+                        db.action("UPDATE books SET Status='Skipped' WHERE gr_id=?", (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Skipped" % book)
                     else:
@@ -841,7 +839,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
 
                 if 'Audio' in library:
                     if res['AudioStatus'] in ['Have', 'Wanted']:
-                        db.action('UPDATE books SET AudioStatus="Skipped" WHERE gr_id=?', (book,))
+                        db.action("UPDATE books SET AudioStatus='Skipped' WHERE gr_id=?", (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Skipped" % book)
                     else:
@@ -884,7 +882,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         if added_to_shelf:
             logger.debug(', '.join(added_to_shelf))
         for book in added_to_shelf:
-            cmd = 'select Status,AudioStatus,BookName from books where gr_id=?'
+            cmd = "select Status,AudioStatus,BookName from books where gr_id=?"
             res = db.match(cmd, (book,))
             if not res:
                 logger.debug('Adding new book %s to database' % book)
@@ -901,11 +899,11 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 perm = check_int(user['Perms'], 0)
                 if status == 'Wanted' and perm & lazylibrarian.perm_status:
                     if CONFIG.get_bool('EBOOK_TAB') and res['Status'] not in ['Open', 'Have']:
-                        db.action('UPDATE books SET Status="Wanted" WHERE gr_id=?', (book,))
+                        db.action("UPDATE books SET Status='Wanted' WHERE gr_id=?", (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)
                     if CONFIG.get_bool('AUDIO_TAB') and res['AudioStatus'] not in ['Open', 'Have']:
-                        db.action('UPDATE books SET AudioStatus="Wanted" WHERE gr_id=?', (book,))
+                        db.action("UPDATE books SET AudioStatus='Wanted' WHERE gr_id=?", (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)
             else:
@@ -935,7 +933,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             else:
                                 logger.warning("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
                         elif res['Status'] not in ['Open', 'Have']:
-                            db.action('UPDATE books SET Status="Wanted" WHERE gr_id=?', (book,))
+                            db.action("UPDATE books SET Status='Wanted' WHERE gr_id=?", (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
@@ -967,7 +965,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             else:
                                 logger.warning("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
                         elif res['AudioStatus'] not in ['Open', 'Have']:
-                            db.action('UPDATE books SET AudioStatus="Wanted" WHERE gr_id=?', (book,))
+                            db.action("UPDATE books SET AudioStatus='Wanted' WHERE gr_id=?", (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
@@ -1005,18 +1003,18 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         else:
             # get new definitive list from ll
             if 'eBook' in library:
-                cmd = 'select gr_id from books where status=?'
+                cmd = "select gr_id from books where status=?"
                 if status == 'Open':
                     cmd += " or status='Have'"
                 if 'Audio' in library:
-                    cmd += ' or audiostatus=?'
+                    cmd += " or audiostatus=?"
                     if status == 'Open':
                         cmd += " or audiostatus='Have'"
                     results = db.select(cmd, (status, status))
                 else:
                     results = db.select(cmd, (status,))
             else:
-                cmd = 'select gr_id from books where audiostatus=?'
+                cmd = "select gr_id from books where audiostatus=?"
                 if status == 'Open':
                     cmd += " or audiostatus='Have'"
                 results = db.select(cmd, (status,))

@@ -317,7 +317,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             current_author['manual'] = dbauthor['manual']
             current_author['status'] = dbauthor['status']
 
-        if not current_author:
+        if not current_author or not current_author.get('authorid'):
             msg = "No author info for %s:%s" % (authorid, authorname)
             # goodreads sometimes changes authorid
             # maybe change of provider or no reply from provider
@@ -561,7 +561,7 @@ def de_duplicate(authorid):
                                     'AudioFile', 'AudioLibrary', 'WorkID', 'ScanResult',
                                     'OriginalPubDate', 'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']:
                             if not favourite[key] and copy[key]:
-                                cmd = 'UPDATE books SET %s=? WHERE BookID=?' % key
+                                cmd = "UPDATE books SET %s=? WHERE BookID=?" % key
                                 logger.debug("Copy %s from %s" % (key, copy['BookID']))
                                 db.action(cmd, (copy[key], favourite['BookID']))
                                 if key == 'BookFile' and favourite['Status'] not in ['Open', 'Have']:
@@ -591,16 +591,15 @@ def update_totals(authorid):
             logger.debug('Update_totals - authorid [%s] not found' % authorid)
             return
 
-        cmd = 'SELECT BookName, BookLink, BookDate, BookID from books WHERE AuthorID=?'
-        cmd += ' AND Status != "Ignored" order by BookDate DESC'
+        cmd = ("SELECT BookName, BookLink, BookDate, BookID from books WHERE AuthorID=? and Status != 'Ignored' "
+               "order by BookDate DESC")
         lastbook = db.match(cmd, (authorid,))
 
-        cmd = "select sum(case status when 'Ignored' then 0 else 1 end) as unignored,"
-        cmd += "sum(case when status == 'Have' then 1 when status == 'Open' then 1 else 0 end) as EHave, "
-        cmd += "sum(case when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 "
-        cmd += "else 0 end) as AHave, sum(case when status == 'Have' then 1 when status == 'Open' then 1 "
-        cmd += "when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 else 0 end) as Have, "
-        cmd += "count(*) as total from books where authorid=?"
+        cmd = ("select sum(case status when 'Ignored' then 0 else 1 end) as unignored,sum(case when status == 'Have' "
+               "then 1 when status == 'Open' then 1 else 0 end) as EHave, sum(case when audiostatus == 'Have' "
+               "then 1 when audiostatus == 'Open' then 1 else 0 end) as AHave, sum(case when status == 'Have' "
+               "then 1 when status == 'Open' then 1 when audiostatus == 'Have' then 1 when audiostatus == 'Open' "
+               "then 1 else 0 end) as Have, count(*) as total from books where authorid=?")
         totals = db.match(cmd, (authorid,))
 
         control_value_dict = {"AuthorID": authorid}
@@ -617,12 +616,12 @@ def update_totals(authorid):
         }
         db.upsert("authors", new_value_dict, control_value_dict)
 
-        cmd = "select series.seriesid as Series,sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
-        cmd += "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
-        cmd += "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1 "
-        cmd += "else 0 end) as Have from books,member,series,seriesauthors where member.bookid=books.bookid "
-        cmd += "and member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid "
-        cmd += "and seriesauthors.authorid=? group by series.seriesid"
+        cmd = ("select series.seriesid as Series,sum(case books.status when 'Ignored' then 0 else 1 end) "
+               "as Total,sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
+               "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1 else 0 end) "
+               "as Have from books,member,series,seriesauthors where member.bookid=books.bookid and "
+               "member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid and "
+               "seriesauthors.authorid=? group by series.seriesid")
         res = db.select(cmd, (authorid,))
         if len(res):
             for series in res:

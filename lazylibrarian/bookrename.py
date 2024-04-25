@@ -607,7 +607,7 @@ def name_vars(bookid, abridged=''):
             mydict['Total'] = '3'
             res = {}
         else:
-            cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
+            cmd = "SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?"
             res = db.match(cmd, (bookid,))
             if res:
                 seriesid = res['SeriesID']
@@ -628,7 +628,7 @@ def name_vars(bookid, abridged=''):
                 serieslist = []
                 seryear = ''
 
-            cmd = 'SELECT BookDate from books WHERE bookid=?'
+            cmd = "SELECT BookDate from books WHERE bookid=?"
             res_date = db.match(cmd, (bookid,))
             if res_date:
                 pubyear = res_date['BookDate']
@@ -664,7 +664,7 @@ def name_vars(bookid, abridged=''):
                 padnum = ''
 
         if seriesid and bookid != 'test':
-            cmd = 'SELECT SeriesName from series WHERE seriesid=?'
+            cmd = "SELECT SeriesName from series WHERE seriesid=?"
             res = db.match(cmd, (seriesid,))
             if res:
                 seriesname = res['SeriesName']
@@ -724,7 +724,7 @@ def name_vars(bookid, abridged=''):
         mydict['Abridged'] = abridged
 
         if bookid != 'test':
-            cmd = 'select AuthorName,BookName from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
+            cmd = "select AuthorName,BookName from books,authors where books.AuthorID = authors.AuthorID and bookid=?"
             exists = db.match(cmd, (bookid,))
             if exists:
                 mydict['Author'] = exists['AuthorName']

@@ -265,7 +265,7 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
                     db.action(res['sql'].replace('wanted', 'pastissues'))
                     db.action('ALTER TABLE pastissues ADD COLUMN Added INTEGER DEFAULT 0')
 
-                    cmd = 'INSERT into users (UserID, UserName, Name, Password, Perms) VALUES (?, ?, ?, ?, ?)'
+                    cmd = "INSERT into users (UserID, UserName, Name, Password, Perms) VALUES (?, ?, ?, ?, ?)"
                     db.action(cmd, (pwd_generator(), 'admin', 'admin', md5_utf8('admin'), 65535))
                     logger.debug('Added admin user')
 
@@ -353,7 +353,7 @@ def check_db(upgradelog=None):
             info = CONFIG.get_str('BOOK_API')
             if info in ['OpenLibrary', 'GoogleBooks']:
                 tot = db.select('SELECT * from authors')
-                res = db.select('SELECT * from authors WHERE AuthorID LIKE "OL%A"')
+                res = db.select("SELECT * from authors WHERE AuthorID LIKE 'OL%A'")
                 if len(tot) - len(res):
                     logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - len(res)))
 
@@ -368,7 +368,7 @@ def check_db(upgradelog=None):
 
             # correct any invalid/unpadded dates
             lazylibrarian.UPDATE_MSG = 'Checking dates'
-            cmd = 'SELECT BookID,BookDate from books WHERE BookDate LIKE "%-_-%" or BookDate LIKE "%-_"'
+            cmd = "SELECT BookID,BookDate from books WHERE BookDate LIKE '%-_-%' or BookDate LIKE '%-_'"
             res = db.select(cmd)
             tot = len(res)
             if tot:
@@ -390,16 +390,16 @@ def check_db(upgradelog=None):
                         db.action("UPDATE books SET BookDate=? WHERE BookID=?", ("0000", item['BookID']))
 
             # update any series "Skipped" to series "Paused"
-            res = db.match('SELECT count(*) as counter from series WHERE Status="Skipped"')
+            res = db.match("SELECT count(*) as counter from series WHERE Status='Skipped'")
             tot = res['counter']
             if tot:
                 cnt += tot
                 logger.warning("Found %s series marked Skipped, updating to Paused" % tot)
-                db.action('UPDATE series SET Status="Paused" WHERE Status="Skipped"')
+                db.action("UPDATE series SET Status='Paused' WHERE Status='Skipped'")
 
             # Extract any librarything workids from workpage url
-            cmd = ('SELECT WorkPage,BookID from books WHERE WorkPage like '
-                   '"%librarything.com/work/%" and LT_WorkID is NULL')
+            cmd = ("SELECT WorkPage,BookID from books WHERE WorkPage like '%librarything.com/work/%' "
+                   "and LT_WorkID is NULL")
             res = db.select(cmd)
             tot = len(res)
             if tot:
@@ -412,17 +412,17 @@ def check_db(upgradelog=None):
 
             # replace faulty/html language results with Unknown
             lazylibrarian.UPDATE_MSG = 'Checking languages'
-            filt = 'BookLang is NULL or BookLang="" or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
-            cmd = 'SELECT count(*) as counter from books WHERE ' + filt
+            filt = "BookLang is NULL or BookLang='' or BookLang LIKE '%<%' or BookLang LIKE '%invalid%'"
+            cmd = "SELECT count(*) as counter from books WHERE " + filt
             res = db.match(cmd)
             tot = res['counter']
             if tot:
                 cnt += tot
                 msg = 'Updating %s %s with no language to "Unknown"' % (tot, plural(tot, "book"))
                 logger.warning(msg)
-                db.action('UPDATE books SET BookLang="Unknown" WHERE ' + filt)
+                db.action("UPDATE books SET BookLang='Unknown' WHERE " + filt)
 
-            cmd = 'SELECT BookID,BookLang from books WHERE BookLang LIKE "%,%"'
+            cmd = "SELECT BookID,BookLang from books WHERE BookLang LIKE '%,%'"
             res = db.match(cmd)
             tot = len(res)
             if tot:
@@ -441,85 +441,85 @@ def check_db(upgradelog=None):
 
             # delete html error pages
             filt = 'length(lang) > 30'
-            cmd = 'SELECT count(*) as counter from languages WHERE ' + filt
+            cmd = "SELECT count(*) as counter from languages WHERE " + filt
             res = db.match(cmd)
             tot = res['counter']
             if tot:
                 cnt += tot
                 msg = 'Updating %s %s with bad data' % (tot, plural(tot, "language"))
                 logger.warning(msg)
-                cmd = 'DELETE from languages WHERE ' + filt
+                cmd = "DELETE from languages WHERE " + filt
                 db.action(cmd)
 
             # suppress duplicate entries in language table
             lazylibrarian.UPDATE_MSG = 'Checking unique languages'
             filt = 'rowid not in (select max(rowid) from languages group by isbn)'
-            cmd = 'SELECT count(*) as counter from languages WHERE ' + filt
+            cmd = "SELECT count(*) as counter from languages WHERE " + filt
             res = db.match(cmd)
             tot = res['counter']
             if tot:
                 cnt += tot
                 msg = 'Deleting %s duplicate %s' % (tot, plural(tot, "language"))
                 logger.warning(msg)
-                cmd = 'DELETE from languages WHERE ' + filt
+                cmd = "DELETE from languages WHERE " + filt
                 db.action(cmd)
 
             #  remove books with no bookid
             lazylibrarian.UPDATE_MSG = 'Removing books with no bookid'
-            books = db.select('SELECT * FROM books WHERE BookID is NULL or BookID=""')
+            books = db.select("SELECT * FROM books WHERE BookID is NULL or BookID=''")
             if books:
                 cnt += len(books)
                 msg = 'Removing %s %s with no bookid' % (len(books), plural(len(books), "book"))
                 logger.warning(msg)
-                db.action('DELETE from books WHERE BookID is NULL or BookID=""')
+                db.action("DELETE from books WHERE BookID is NULL or BookID=''")
 
             #  remove books with no authorid
             lazylibrarian.UPDATE_MSG = 'Removing books with no authorid'
-            books = db.select('SELECT BookID FROM books WHERE AuthorID is NULL or AuthorID=""')
+            books = db.select("SELECT BookID FROM books WHERE AuthorID is NULL or AuthorID=''")
             if books:
                 cnt += len(books)
                 msg = 'Removing %s %s with no authorid' % (len(books), plural(len(books), "book"))
                 logger.warning(msg)
                 for book in books:
-                    db.action('DELETE from books WHERE BookID=?', (book["BookID"],))
+                    db.action("DELETE from books WHERE BookID=?", (book['BookID'],))
 
             # remove authors with no authorid
             lazylibrarian.UPDATE_MSG = 'Removing authors with no authorid'
-            authors = db.select('SELECT * FROM authors WHERE AuthorID IS NULL or AuthorID=""')
+            authors = db.select("SELECT * FROM authors WHERE AuthorID IS NULL or AuthorID=''")
             if authors:
                 cnt += len(authors)
                 msg = 'Removing %s %s with no authorid' % (len(authors), plural(len(authors), "author"))
                 logger.warning(msg)
-                db.action('DELETE from authors WHERE AuthorID is NULL or AuthorID=""')
+                db.action("DELETE from authors WHERE AuthorID is NULL or AuthorID=''")
 
             # remove authors with no name
             lazylibrarian.UPDATE_MSG = 'Removing authors with no name'
-            authors = db.select('SELECT AuthorID FROM authors WHERE AuthorName IS NULL or AuthorName = ""')
+            authors = db.select("SELECT AuthorID FROM authors WHERE AuthorName IS NULL or AuthorName = ''")
             if authors:
                 cnt += len(authors)
                 msg = 'Removing %s %s with no name' % (len(authors), plural(len(authors), "author"))
                 logger.warning(msg)
                 for author in authors:
-                    db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
+                    db.action("DELETE from authors WHERE AuthorID=?", (author['AuthorID'],))
 
             # remove authors that started initializing, but failed to get added fully
             lazylibrarian.UPDATE_MSG = 'Removing partially initialized authors'
-            authors = db.select('SELECT AuthorID FROM authors WHERE AuthorName LIKE "unknown author %"')
+            authors = db.select("SELECT AuthorID FROM authors WHERE AuthorName LIKE 'unknown author %'")
             if authors:
                 cnt += len(authors)
                 msg = 'Removing %s %s partially initialized authors' % (len(authors), plural(len(authors), "author"))
                 logger.warning(msg)
                 for author in authors:
-                    db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
+                    db.action("DELETE from authors WHERE AuthorID=?", (author['AuthorID'],))
 
             # remove magazines with no name
             lazylibrarian.UPDATE_MSG = 'Removing magazines with no name'
-            mags = db.select('SELECT Title FROM magazines WHERE Title IS NULL or Title = ""')
+            mags = db.select("SELECT Title FROM magazines WHERE Title IS NULL or Title = ''")
             if mags:
                 cnt += len(mags)
                 msg = 'Removing %s %s with no name' % (len(mags), plural(len(mags), "magazine"))
                 logger.warning(msg)
-                db.action('DELETE from magazines WHERE Title IS NULL or Title = ""')
+                db.action("DELETE from magazines WHERE Title IS NULL or Title = ''")
 
             # remove authors with no books
             lazylibrarian.UPDATE_MSG = 'Removing authors with no books'
@@ -533,7 +533,7 @@ def check_db(upgradelog=None):
                     msg = 'Removing %s %s with no books' % (len(authors), plural(len(authors), "author"))
                     logger.warning(msg)
                     for author in authors:
-                        db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
+                        db.action("DELETE from authors WHERE AuthorID=?", (author['AuthorID'],))
 
             # update author images if exist and nophoto in database
             authors = db.select("SELECT AuthorID FROM authors WHERE authorimg = 'images/nophoto.png'")
@@ -547,7 +547,7 @@ def check_db(upgradelog=None):
                     if os.path.isfile(filename):
                         cachefile = 'cache/author/%s.jpg' % author['AuthorID']
                         imgs += 1
-                        db.action('UPDATE authors SET AuthorImg=? WHERE AuthorID=?', (cachefile, author["AuthorID"],))
+                        db.action("UPDATE authors SET AuthorImg=? WHERE AuthorID=?", (cachefile, author['AuthorID'],))
                 if imgs:
                     cnt += imgs
                     logger.warning("Updated %s author images" % imgs)
@@ -569,7 +569,7 @@ def check_db(upgradelog=None):
                     logger.warning(msg)
                     for item in series:
                         logger.warning("Removing series %s:%s" % (item['SeriesID'], item['SeriesName']))
-                        db.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
+                        db.action("DELETE from series WHERE SeriesID=?", (item['SeriesID'],))
 
             # check if genre exclusions/translations have altered
             lazylibrarian.UPDATE_MSG = 'Checking for invalid genres'
@@ -583,7 +583,7 @@ def check_db(upgradelog=None):
                         db.action('DELETE from genrebooks WHERE GenreID=?', (match['GenreID'],))
                         db.action('DELETE from genres WHERE GenreID=?', (match['GenreID'],))
                 for item in lazylibrarian.GRGENRES.get('genreExcludeParts', []):
-                    cmd = 'SELECT GenreID,GenreName from genres where GenreName like "%' + item + '%" COLLATE NOCASE'
+                    cmd = "SELECT GenreID,GenreName from genres where GenreName like '%" + item + "%' COLLATE NOCASE"
                     matches = db.select(cmd)
                     if matches:
                         cnt += len(matches)
@@ -605,8 +605,8 @@ def check_db(upgradelog=None):
                         res = db.select('SELECT bookid from genrebooks where genreid=?', (match['GenreID'],))
                         for bk in res:
                             cmd = ('select genrename from genres,genrebooks,books where '
-                                   'genres.genreid=genrebooks.genreid ')
-                            cmd += ' and books.bookid=genrebooks.bookid and books.bookid=?'
+                                   'genres.genreid=genrebooks.genreid  and books.bookid=genrebooks.bookid '
+                                   'and books.bookid=?')
                             bkgenres = db.select(cmd, (bk['bookid'],))
                             lst = []
                             for gnr in bkgenres:
@@ -619,17 +619,16 @@ def check_db(upgradelog=None):
             # remove genres with no books
             lazylibrarian.UPDATE_MSG = 'Removing genres with no books'
             cmd = ('select GenreID, (select count(*) as counter from genrebooks where '
-                   'genres.genreid = genrebooks.genreid)')
-            cmd += ' as cnt from genres where cnt = 0'
+                   'genres.genreid = genrebooks.genreid) as cnt from genres where cnt = 0')
             genres = db.select(cmd)
             if genres:
                 cnt += len(genres)
                 msg = 'Removing %s empty %s' % (len(genres), plural(len(genres), "genre"))
                 logger.warning(msg)
                 for item in genres:
-                    db.action('DELETE from genres WHERE GenreID=?', (item["GenreID"],))
+                    db.action("DELETE from genres WHERE GenreID=?", (item['GenreID'],))
 
-            # remove any orphan entries (shouldnt happen with foreign key active)
+            # remove any orphan entries (shouldn't happen with foreign key active)
             lazylibrarian.UPDATE_MSG = 'Removing orphans'
             for entry in [
                             ['authorid', 'books', 'authors'],
@@ -649,33 +648,33 @@ def check_db(upgradelog=None):
                     msg = 'Found %s orphan %s in %s' % (len(orphans), entry[0], entry[1])
                     logger.warning(msg)
                     for orphan in orphans:
-                        db.action('DELETE from %s WHERE %s="%s"' % (entry[1], entry[0], orphan[0]))
+                        db.action("DELETE from %s WHERE %s='%s'" % (entry[1], entry[0], orphan[0]))
 
             # reset any snatched entries in books table that don't match history/wanted
             lazylibrarian.UPDATE_MSG = 'Syncing Snatched entries'
-            cmd = 'select bookid from books where status="Snatched" '
-            cmd += 'except select bookid from wanted where status="Snatched" and auxinfo="eBook"'
+            cmd = ("select bookid from books where status='Snatched' except select bookid from wanted "
+                   "where status='Snatched' and auxinfo='eBook'")
             snatches = db.select(cmd)
             if snatches:
                 cnt += len(snatches)
                 msg = 'Found %s snatched ebook not snatched in wanted' % len(snatches)
                 logger.warning(msg)
                 for orphan in snatches:
-                    db.action('UPDATE books SET status="Skipped" WHERE bookid=?', (orphan[0],))
+                    db.action("UPDATE books SET status='Skipped' WHERE bookid=?", (orphan[0],))
 
-            cmd = 'select bookid from books where audiostatus="Snatched" '
-            cmd += 'except select bookid from wanted where status="Snatched" and auxinfo="AudioBook"'
+            cmd = ("select bookid from books where audiostatus='Snatched' except select bookid from wanted "
+                   "where status='Snatched' and auxinfo='AudioBook'")
             snatches = db.select(cmd)
             if snatches:
                 cnt += len(snatches)
                 msg = 'Found %s snatched audiobook not snatched in wanted' % len(snatches)
                 logger.warning(msg)
                 for orphan in snatches:
-                    db.action('UPDATE books SET audiostatus="Skipped" WHERE bookid=?', (orphan[0],))
+                    db.action("UPDATE books SET audiostatus='Skipped' WHERE bookid=?", (orphan[0],))
 
             # all authors with no books in the library and no books marked wanted unless series contributor
-            cmd = 'select authorid from authors where havebooks=0 and Reason not like "%Series%" except '
-            cmd += 'select authorid from wanted,books where books.bookid=wanted.bookid and books.status=="Wanted";'
+            cmd = ("select authorid from authors where havebooks=0 and Reason not like '%Series%' except "
+                   "select authorid from wanted,books where books.bookid=wanted.bookid and books.status=='Wanted';")
             authors = db.select(cmd)
             if authors:
                 cnt += len(authors)
@@ -689,17 +688,17 @@ def check_db(upgradelog=None):
 
             # update empty bookdate to "0000"
             lazylibrarian.UPDATE_MSG = 'Updating books with no bookdate'
-            books = db.select('SELECT * FROM books WHERE BookDate is NULL or BookDate=""')
+            books = db.select("SELECT * FROM books WHERE BookDate is NULL or BookDate=''")
             if books:
                 cnt += len(books)
                 msg = 'Found %s %s with no bookdate' % (len(books), plural(len(books), "book"))
                 logger.warning(msg)
-                db.action('UPDATE books SET BookDate="0000" WHERE BookDate is NULL or BookDate=""')
+                db.action("UPDATE books SET BookDate='0000' WHERE BookDate is NULL or BookDate=''")
 
             # check magazine latest cover is correct:
-            cmd = 'select magazines.title,magazines.issuedate,latestcover,cover from magazines,issues '
-            cmd += 'where magazines.title=issues.title and magazines.issuedate=issues.issuedate '
-            cmd += 'and latestcover != cover and cover != "" and cover is not NULL'
+            cmd = ("select magazines.title,magazines.issuedate,latestcover,cover from magazines,issues where "
+                   "magazines.title=issues.title and magazines.issuedate=issues.issuedate and "
+                   "latestcover != cover and cover != '' and cover is not NULL")
             latest = db.select(cmd)
             if latest:
                 cnt += len(latest)
@@ -755,7 +754,7 @@ def db_v47(db, upgradelog):
         db.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ON DELETE CASCADE, ' +
                   'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                   'UNIQUE (GenreID,BookID))')
-    res = db.select('SELECT bookid,bookgenre FROM books WHERE (Status="Open" or AudioStatus="Open")')
+    res = db.select("SELECT bookid,bookgenre FROM books WHERE (Status='Open' or AudioStatus='Open')")
     tot = len(res)
     if tot:
         upgradelog.write("%s v47: Upgrading %s genres\n" % (time.ctime(), tot))
@@ -999,7 +998,7 @@ def update_schema(db, upgradelog):
         lazylibrarian.UPDATE_MSG = 'Adding Reason column to series table'
         upgradelog.write("%s v61: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE series ADD COLUMN Reason TEXT')
-        db.action('UPDATE series SET Reason="Historic"')
+        db.action("UPDATE series SET Reason='Historic'")
 
     if not has_column(db, "authors", "About"):
         changes += 1
@@ -1129,7 +1128,7 @@ def update_schema(db, upgradelog):
         lazylibrarian.UPDATE_MSG = 'Adding ol_id to series table'
         upgradelog.write("%s v75: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE authors ADD COLUMN ol_id TEXT')
-        res = db.select('SELECT authorid from authors WHERE authorid like "OL%A"')
+        res = db.select("SELECT authorid from authors WHERE authorid like 'OL%A'")
         lazylibrarian.UPDATE_MSG = "Copying authorid for %s authors" % len(res)
         logger.debug(lazylibrarian.UPDATE_MSG)
         for author in res:

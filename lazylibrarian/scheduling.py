@@ -347,8 +347,8 @@ def all_author_update(refresh=False):
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        cmd = 'SELECT AuthorID from authors WHERE Status="Active" or Status="Loading" or Status="Wanted"'
-        cmd += ' order by Updated ASC'
+        cmd = ("SELECT AuthorID from authors WHERE Status='Active' or Status='Loading' or Status='Wanted'"
+               " order by Updated ASC")
         activeauthors = db.select(cmd)
         lazylibrarian.AUTHORS_UPDATE = 1
         logger.info('Starting update for %i active %s' % (len(activeauthors), plural(len(activeauthors), "author")))
@@ -457,13 +457,13 @@ def is_overdue(which="author") -> (int, int, str, str, int):
         db = database.DBConnection()
         try:
             if which == 'author':
-                cmd = 'SELECT AuthorName,AuthorID,Updated from authors WHERE Status="Active" or Status="Loading"'
-                cmd += ' or Status="Wanted" '
+                cmd = "SELECT AuthorName,AuthorID,Updated from authors WHERE Status='Active' or Status='Loading'"
+                cmd += " or Status='Wanted' "
                 if CONFIG['BOOK_API'] == 'OpenLibrary':
-                    cmd += 'and AuthorID LIKE "OL%A" '
+                    cmd += "and AuthorID LIKE 'OL%A' "
                 else:
-                    cmd += 'and AuthorID NOT LIKE "OL%A" '
-                cmd += 'order by Updated ASC'
+                    cmd += "and AuthorID NOT LIKE 'OL%A' "
+                cmd += "order by Updated ASC"
                 res = db.select(cmd)
                 total = len(res)
                 if total:
@@ -471,8 +471,8 @@ def is_overdue(which="author") -> (int, int, str, str, int):
                     ident = res[0]['AuthorID']
                     days, overdue = get_overdue_from_dbrows()
             if which == 'series':
-                cmd = 'SELECT SeriesName,SeriesID,Updated from Series where Status="Active" or Status="Wanted"'
-                cmd += ' order by Updated ASC'
+                cmd = ("SELECT SeriesName,SeriesID,Updated from Series where Status='Active' or Status='Wanted' "
+                       "order by Updated ASC")
                 res = db.select(cmd)
                 total = len(res)
                 if total:
@@ -526,7 +526,7 @@ def show_jobs():
         if timeparts[0] == '1' and timeparts[1].endswith('s'):
             timeparts[1] = timeparts[1][:-1]
         jobinfo = "%s: Next run in %s %s" % (jobname, timeparts[0], timeparts[1])
-        res = db.match('SELECT Start,Finish from jobs WHERE Name="%s"' % threadname)
+        res = db.match("SELECT Start,Finish from jobs WHERE Name='%s'" % threadname)
 
         if res:
             if res['Start'] > res['Finish']:
@@ -585,7 +585,7 @@ def show_stats() -> List[str]:
         series_stats.append(['Empty', res['counter']])
         res = db.match("SELECT count(*) as counter FROM series WHERE Total>0 AND Have=Total")
         series_stats.append(['Full', res['counter']])
-        res = db.match('SELECT count(*) as counter FROM series WHERE Status="Ignored"')
+        res = db.match("SELECT count(*) as counter FROM series WHERE Status='Ignored'")
         series_stats.append(['Ignored', res['counter']])
         res = db.match("SELECT count(*) as counter FROM series WHERE Total=0")
         series_stats.append(['Blank', res['counter']])
@@ -600,8 +600,8 @@ def show_stats() -> List[str]:
             mag_stats.append(['Magazine', res['counter']])
             res = db.match("SELECT count(*) as counter FROM issues")
             mag_stats.append(['Issues', res['counter']])
-            cmd = 'select (select count(*) as counter from issues where magazines.title = issues.title) '
-            cmd += 'as counter from magazines where counter=0'
+            cmd = ("select (select count(*) as counter from issues where magazines.title = issues.title) "
+                   "as counter from magazines where counter=0")
             res = db.match(cmd)
             mag_stats.append(['Empty', len(res)])
 
@@ -610,8 +610,8 @@ def show_stats() -> List[str]:
             mag_stats.append(['Comics', res['counter']])
             res = db.match("SELECT count(*) as counter FROM comicissues")
             mag_stats.append(['Issues', res['counter']])
-            cmd = 'select (select count(*) as counter from comicissues where comics.comicid = comicissues.comicid) '
-            cmd += 'as counter from comics where counter=0'
+            cmd = ("select (select count(*) as counter from comicissues where comics.comicid = comicissues.comicid) "
+                   "as counter from comics where counter=0")
             res = db.match(cmd)
             mag_stats.append(['Empty', len(res)])
 
@@ -634,8 +634,8 @@ def show_stats() -> List[str]:
         for item in ['Have', 'Open', 'Wanted', 'Ignored']:
             audio_stats.append([item, statusdict.get(item, 0)])
         for column in ['BookGenre', 'BookDesc']:
-            cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and "
-            cmd += "(%s is null or %s = '')"
+            cmd = ("SELECT count(*) as counter FROM books WHERE Status != 'Ignored' "
+                   "and (%s is null or %s = '')")
             res = db.match(cmd % (column, column))
             missing_stats.append([column.replace('Book', 'No'), res['counter']])
         cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookGenre='Unknown'"
@@ -645,8 +645,7 @@ def show_stats() -> List[str]:
         res = db.match(cmd)
         missing_stats.append(['X_Desc', res['counter']])
         for column in ['BookISBN', 'BookLang']:
-            cmd = "SELECT count(*) as counter FROM books WHERE "
-            cmd += "(%s is null or %s = '' or %s = 'Unknown')"
+            cmd = "SELECT count(*) as counter FROM books WHERE (%s is null or %s = '' or %s = 'Unknown')"
             res = db.match(cmd % (column, column, column))
             missing_stats.append([column.replace('Book', 'No'), res['counter']])
         cmd = "SELECT count(*) as counter FROM genres"
@@ -660,7 +659,7 @@ def show_stats() -> List[str]:
         res = db.match("SELECT count(*) as counter FROM authors")
         author_stats.append(['Authors', res['counter']])
         for status in ['Active', 'Wanted', 'Ignored', 'Paused']:
-            res = db.match('SELECT count(*) as counter FROM authors WHERE Status="%s"' % status)
+            res = db.match("SELECT count(*) as counter FROM authors WHERE Status='%s'" % status)
             author_stats.append([status, res['counter']])
         res = db.match("SELECT count(*) as counter FROM authors WHERE HaveEBooks+HaveAudioBooks=0")
         author_stats.append(['Empty', res['counter']])

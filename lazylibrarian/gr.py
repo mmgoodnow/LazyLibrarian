@@ -768,8 +768,8 @@ class GoodReads:
                                 self.logger.debug('Rejecting %s for %s, %s' %
                                                   (bookname, author_name_result, rejected[1]))
 
-                        cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
-                        cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
+                        cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult FROM books,authors "
+                               "WHERE authors.AuthorID = books.AuthorID AND BookID=?")
                         match = db.match(cmd, (bookid,))
                         not_rejectable = None
                         if match:
@@ -797,10 +797,9 @@ class GoodReads:
                                 not_rejectable = "AudioStatus: %s" % match['AudioStatus']
 
                         if not match and not rejected:
-                            cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
-                            cmd += ' and BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE'
-                            cmd += ' and AuthorName=? COLLATE NOCASE'
-                            cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
+                            cmd = ("SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                                   "BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE and AuthorName=? "
+                                   "COLLATE NOCASE and books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                             match = db.match(cmd, (bookname, booksub, author_name_result))
 
                             if not match:
@@ -808,8 +807,8 @@ class GoodReads:
                                                                                   ignored=False, library='eBook',
                                                                                   reason='gr_get_author_books')
                                 if in_db and in_db[0]:
-                                    cmd = 'SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult '
-                                    cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
+                                    cmd = ("SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult "
+                                           "FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?")
                                     match = db.match(cmd, (in_db[0],))
                             if match:
                                 if match['BookID'] != bookid:
@@ -827,8 +826,8 @@ class GoodReads:
                             removed_results += 1
                         if not rejected or (rejected and rejected[0] in ignorable and
                                             CONFIG.get_bool('IMP_IGNORE')):
-                            cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,'
-                            cmd += 'OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?'
+                            cmd = ("SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,"
+                                   "OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?")
                             existing = db.match(cmd, (bookid,))
                             if existing:
                                 book_status = existing['Status']
@@ -1069,8 +1068,8 @@ class GoodReads:
 
             self.verify_ids(authorid)
             delete_empty_series()
-            cmd = 'SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=?'
-            cmd += ' AND Status != "Ignored" order by BookDate DESC'
+            cmd = ("SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=? AND "
+                   "Status != 'Ignored' order by BookDate DESC")
             lastbook = db.match(cmd, (authorid,))
             if lastbook:
                 lastbookname = lastbook['BookName']
@@ -1388,12 +1387,6 @@ class GoodReads:
                         "Reason": reason
                     }
                     self.logger.debug("Adding author %s %s, %s" % (author_id, author['authorname'], newauthor_status))
-                    # cmd = 'insert into authors (AuthorID, AuthorName, AuthorImg, AuthorLink, AuthorBorn,'
-                    # cmd += ' AuthorDeath, DateAdded, Updated, Status, Reason) values (?,?,?,?,?,?,?,?,?,?)'
-                    # db.action(cmd, (AuthorID, author['authorname'], author['authorimg'], author['authorlink'],
-                    #                   author['authorborn'], author['authordeath'], today(), int(time.time()),
-                    #                   newauthor_status, reason))
-
                     db.upsert("authors", new_value_dict, control_value_dict)
                     db.commit()  # shouldn't really be necessary as context manager commits?
                     authorname = author['authorname']

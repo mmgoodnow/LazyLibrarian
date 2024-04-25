@@ -223,7 +223,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
             calibre_read = []
             calibre_toread = []
 
-            cmd = 'select SyncList from sync where UserID=? and Label=?'
+            cmd = "select SyncList from sync where UserID=? and Label=?"
             res = db.match(cmd, (userid, col_read))
             if res:
                 last_read = get_list(res['SyncList'])

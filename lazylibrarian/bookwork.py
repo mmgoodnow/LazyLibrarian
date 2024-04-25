@@ -160,24 +160,32 @@ def set_series(serieslist=None, bookid=None, reason=""):
             db.action('DELETE from member WHERE BookID=?', (bookid,))
             for item in serieslist:
                 match = db.match('SELECT SeriesID from series where SeriesName=? COLLATE NOCASE', (item[2],))
+                debug_msg = "Series %s %s" % (item[2], "exists" if match else "is new")
+                logger.info(debug_msg)
                 if match:
                     seriesid = match['SeriesID']
                     members, _api_hits = get_series_members(seriesid, item[2])
+                    debug_msg = "Existing series %s has %s members" % (item[2], len(members))
+                    logger.info(debug_msg)
                     api_hits += _api_hits
                 else:
                     # new series, need to set status and get SeriesID
                     if item[0]:
                         seriesid = item[0]
                         members, _api_hits = get_series_members(seriesid, item[2])
+                        debug_msg = "New series %s:%s has %s members" % (item[2], seriesid, len(members))
+                        logger.info(debug_msg)
                         api_hits += _api_hits
                     else:
                         # no seriesid so generate it (row count + 1)
                         cnt = db.match("select count(*) as counter from series")
                         res = check_int(cnt['counter'], 0)
                         seriesid = str(res + 1)
+                        debug_msg = "Series %s set seriesid %s" % (item[2], seriesid)
+                        logger.info(debug_msg)
                         members = []
                     if len(members) < 2 and CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
-                        logger.debug("Ignoring unknown single-book-series %s" % item[2])
+                        logger.info("Ignoring single-book-series %s" % item[2])
                         continue
                     else:
                         newserieslist.append(item)
@@ -186,6 +194,8 @@ def set_series(serieslist=None, bookid=None, reason=""):
                             reason = "%s:%s:%s" % (program, method, lineno)
 
                         reason = "Bookid %s: %s" % (bookid, reason)
+                        debug_msg = "Adding new series %s:%s" % (item[2], seriesid)
+                        logger.info(debug_msg)
                         db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                                   (seriesid, item[2], CONFIG['NEWSERIES_STATUS'],
                                    0, 0, 0, reason, ''), suppress='UNIQUE')
@@ -214,7 +224,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                                 db.upsert("books", new_value_dict, control_value_dict)
                                 originalpubdate = bookdate
 
-                db.action('INSERT INTO seriesauthors ("SeriesID", "AuthorID") VALUES (?, ?)',
+                db.action("INSERT INTO seriesauthors ('SeriesID', 'AuthorID') VALUES (?, ?)",
                           (seriesid, authorid), suppress='UNIQUE')
     finally:
         db.close()
@@ -287,7 +297,7 @@ def delete_empty_series():
         for item in series:
             match = db.match('SELECT BookID from member where SeriesID=?', (item['SeriesID'],))
             if not match:
-                logger.debug('Deleting empty series %s' % item['SeriesName'])
+                logger.info('Deleting empty series %s:%s' % (item['SeriesName'], item['SeriesID']))
                 count += 1
                 db.action('DELETE from series where SeriesID=?', (item['SeriesID'],))
     finally:
@@ -386,7 +396,7 @@ LAST_NEW = 0
 
 def get_bookwork(bookid=None, reason='', seriesid=None):
     """ return the contents of the LibraryThing workpage for the given bookid, or seriespage if seriesID given
-        preferably from the cache. If not already cached cache the results
+        preferably from the cache. If not already cached, cache the results
         Return None if no workpage/seriespage available """
     global NEW_WHATWORK, LAST_NEW
     logger = logging.getLogger(__name__)
@@ -397,12 +407,12 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
     db = database.DBConnection()
     try:
         if bookid:
-            cmd = 'select BookName,AuthorName,BookISBN from books,authors where bookID=? or books.gr_id=?'
-            cmd += ' and books.AuthorID = authors.AuthorID'
+            cmd = ("select BookName,AuthorName,BookISBN from books,authors where bookID=? or books.gr_id=? and "
+                   "books.AuthorID = authors.AuthorID")
             cache_location = "WorkCache"
             item = db.match(cmd, (bookid, bookid))
         else:
-            cmd = 'select SeriesName from series where SeriesID=?'
+            cmd = "select SeriesName from series where SeriesID=?"
             cache_location = "SeriesCache"
             item = db.match(cmd, (seriesid,))
     finally:
@@ -529,8 +539,8 @@ def set_work_pages():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        cmd = 'select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4'
-        cmd += ' and books.AuthorID = authors.AuthorID'
+        cmd = ("select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4 "
+               "and books.AuthorID = authors.AuthorID")
         books = db.select(cmd)
         if books:
             logger.debug('Setting WorkPage for %s %s' % (len(books), plural(len(books), "book")))
@@ -681,7 +691,7 @@ def add_series_members(seriesid, refresh=False):
         logger.debug("Updating series members for %s:%s" % (seriesid, seriesname))
         entrystatus = series['Status']
         if refresh and entrystatus in ['Paused', 'Ignored']:
-            db.action('UPDATE series SET Status="Active" WHERE SeriesID=?', (seriesid,))
+            db.action("UPDATE series SET Status='Active' WHERE SeriesID=?", (seriesid,))
         members, _ = get_series_members(seriesid, seriesname)
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action('UPDATE series SET Status=? WHERE SeriesID=?', (entrystatus, seriesid))

@@ -562,9 +562,8 @@ class StartupLazyLibrarian:
                 # (docker doesn't set timestamp or it's a first time install)
                 # allow comparison of long and short hashes
                 if CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']):
-                    if CONFIG['INSTALL_TYPE'] == 'git' and CONFIG.get_int('COMMITS_BEHIND') == 0:
-                        CONFIG.set_int('GIT_UPDATED', int(time.time()))
-                        self.logger.debug('Setting update timestamp to now')
+                    CONFIG.set_int('GIT_UPDATED', int(time.time()))
+                    self.logger.debug('Setting update timestamp to now')
 
         # if gitlab doesn't recognise a hash it returns 0 commits
         if not CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION'])\

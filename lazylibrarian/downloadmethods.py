@@ -130,10 +130,10 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
 
             logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
             if library == 'eBook':
-                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+                db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
             elif library == 'AudioBook':
-                db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
+                db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
+            db.action("UPDATE wanted SET status='Snatched', Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?",
                       (source, download_id, dl_url, dl_title))
             record_usage_data('Download/IRC/Success')
             return True, ''
@@ -245,10 +245,10 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         try:
             logger.debug('Nzbfile has been downloaded from ' + str(nzburl))
             if library == 'eBook':
-                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+                db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
             elif library == 'AudioBook':
-                db.action('UPDATE books SET audiostatus = "Snatched" WHERE BookID=?', (bookid,))
-            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
+                db.action("UPDATE books SET audiostatus = 'Snatched' WHERE BookID=?", (bookid,))
+            db.action("UPDATE wanted SET status='Snatched', Source=?, DownloadID=? WHERE NZBurl=?",
                       (source, download_id, nzburl))
         finally:
             db.close()
@@ -372,11 +372,11 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 try:
                     logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
                     if library == 'eBook':
-                        db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+                        db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
                     elif library == 'AudioBook':
-                        db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-                    cmd = 'UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, '
-                    cmd += 'completed=? WHERE BookID=? and NZBProv=?'
+                        db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
+                    cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                           "WHERE BookID=? and NZBProv=?")
                     db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
                 finally:
                     db.close()
@@ -776,7 +776,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     if not rejected:
                         rejected = check_contents(source, download_id, library, tor_title)
                     if rejected:
-                        db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                        db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?",
                                   (rejected, full_url))
                         if CONFIG.get_bool('DEL_FAILED'):
                             delete_task(source, download_id, True)
@@ -786,10 +786,10 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                         db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
 
             if library == 'eBook':
-                db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+                db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
             elif library == 'AudioBook':
-                db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-            db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
+                db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
+            db.action("UPDATE wanted SET status='Snatched', Source=?, DownloadID=? WHERE NZBurl=?",
                       (source, download_id, full_url))
         finally:
             db.close()

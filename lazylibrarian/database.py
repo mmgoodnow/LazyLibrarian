@@ -24,6 +24,7 @@ import logging
 
 # DO NOT import from common in this module, circular import
 from lazylibrarian.filesystem import DIRS, syspath
+from lazylibrarian.processcontrol import get_info_on_caller
 
 db_lock = threading.Lock()
 
@@ -69,7 +70,8 @@ class DBConnection:
             try:
                 if self.threadid != threading.get_ident():
                     # Don't attempt to close; an error will be thrown
-                    self.logger.error(f'The wrong thread is closing the db connection: {self.threadname}, opened by {threading.current_thread().name}')
+                    self.logger.error(f'The wrong thread is closing the db connection: {self.threadname}, '
+                                      f'opened by {threading.current_thread().name}')
                 else:
                     self.connection.close()
             except sqlite3.ProgrammingError as e:
@@ -92,6 +94,12 @@ class DBConnection:
         sql_result = None
         attempt = 0
         start = time.time()
+
+        if '"' in query:
+            program, method, lineno = get_info_on_caller(depth=3)
+            self.logger.warning(f'Malformed Query: {program}, {method}, {lineno}')
+            query = query.replace('"', "'")
+
         while attempt < 5:
             try:
                 if not args:

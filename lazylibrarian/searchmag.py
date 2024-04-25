@@ -56,13 +56,13 @@ def search_magazines(mags=None, reset=False):
         searchlist = []
 
         if not mags:  # backlog search
-            searchmags = db.select('SELECT Title, Regex, DateType, LastAcquired, \
-                                 IssueDate from magazines WHERE Status="Active"')
+            searchmags = db.select("SELECT Title,Regex,DateType,LastAcquired,IssueDate from magazines "
+                                   "WHERE Status='Active'")
         else:
             searchmags = []
             for magazine in mags:
-                searchmags_temp = db.select('SELECT Title,Regex,DateType,LastAcquired,IssueDate from magazines \
-                                          WHERE Title=? AND Status="Active"', (magazine['bookid'],))
+                searchmags_temp = db.select("SELECT Title,Regex,DateType,LastAcquired,IssueDate from magazines "
+                                            "WHERE Title=? AND Status='Active'", (magazine['bookid'],))
                 for terms in searchmags_temp:
                     searchmags.append(terms)
 
@@ -286,7 +286,7 @@ def search_magazines(mags=None, reset=False):
                                 rejected = True
 
                         if not rejected and CONFIG.get_bool('BLACKLIST_FAILED'):
-                            blocked = db.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (nzburl,))
+                            blocked = db.match("SELECT * from wanted WHERE NZBurl=? and Status='Failed'", (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
                                              (nzbtitle_formatted, blocked['NZBprov']))
@@ -554,13 +554,13 @@ def download_maglist(maglist, table='wanted'):
             if snatch:
                 snatched += 1
                 if table == 'pastissues':
-                    db.action('UPDATE pastissues set status=? WHERE NZBurl=?', ("Snatched", magazine['nzburl']))
+                    db.action("UPDATE pastissues set status=? WHERE NZBurl=?", ('Snatched', magazine["nzburl"]))
                 logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
                 custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
                 notify_snatch("Magazine %s from %s at %s" % (unaccented(magazine['nzbtitle'], only_ascii=False),
                               CONFIG.disp_name(magazine["nzbprov"]), now()))
             else:
-                db.action('UPDATE ' + table + ' SET status="Failed",DLResult=? WHERE NZBurl=?',
+                db.action("UPDATE " + table + " SET status='Failed',DLResult=? WHERE NZBurl=?",
                           (res, magazine["nzburl"]))
     except Exception as e:
         logger.error(str(e))

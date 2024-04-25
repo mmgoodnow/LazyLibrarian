@@ -234,8 +234,10 @@ def check_for_updates():
         CONFIG.set_str('CURRENT_VERSION', 'd9002e449db276e0416a8d19423143cc677b2e84')
         CONFIG.set_int('GIT_UPDATED', 0)  # and ignore timestamp to force upgrade
     CONFIG.set_str('LATEST_VERSION', get_latest_version())
-    if CONFIG['CURRENT_VERSION'] == CONFIG['LATEST_VERSION']:
+    # allow comparison of long and short hashes
+    if CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']):
         CONFIG.set_int('COMMITS_BEHIND', 0)
+        CONFIG.set_int('GIT_UPDATED', int(time.time()))
         lazylibrarian.COMMIT_LIST = ""
     else:
         commits, lazylibrarian.COMMIT_LIST = get_commit_difference_from_git()

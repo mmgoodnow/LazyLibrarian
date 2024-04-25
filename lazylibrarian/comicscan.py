@@ -55,8 +55,8 @@ def comic_scan(comicid=None):
             mag_path = os.path.join(get_directory('eBook'), mag_path)
 
         if CONFIG.get_bool('FULL_SCAN') and not onetitle:
-            cmd = 'select Title,IssueID,IssueFile,comics.ComicID from comics,comicissues '
-            cmd += 'WHERE comics.ComicID = comicissues.ComicID'
+            cmd = ("select Title,IssueID,IssueFile,comics.ComicID from comics,comicissues "
+                    "WHERE comics.ComicID = comicissues.ComicID")
             mags = db.select(cmd)
             # check all the issues are still there, delete entry if not
             for mag in mags:
@@ -81,8 +81,8 @@ def comic_scan(comicid=None):
 
             # now check the comic titles and delete any with no issues
             if CONFIG.get_bool('COMIC_DELFOLDER'):
-                cmd = 'select Title,ComicID,(select count(*) as counter from comicissues '
-                cmd += 'where comics.comicid = comicissues.comicid) as issues from comics order by Title'
+                cmd = ("select Title,ComicID,(select count(*) as counter from comicissues "
+                        "where comics.comicid = comicissues.comicid) as issues from comics order by Title")
                 mags = db.select(cmd)
                 for mag in mags:
                     title = mag['Title']
@@ -160,7 +160,7 @@ def comic_scan(comicid=None):
                                     db.upsert("comics", new_value_dict, control_value_dict)
                         elif aka:
                             # is the aka id in the database
-                            mag_entry = db.match('SELECT * from comics WHERE aka LIKE "%' + aka + '%"')
+                            mag_entry = db.match("SELECT * from comics WHERE aka LIKE '%" + aka + "%'")
                             if mag_entry:
                                 logger.debug("aka %s exists for %s" % (aka, comicid))
                                 comicid = mag_entry['ComicID']  # use aka as comicid

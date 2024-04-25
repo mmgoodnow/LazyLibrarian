@@ -52,15 +52,13 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
         bookid = bookmatch['BookID']
         authorname = bookmatch['AuthorName']
         bookname = bookmatch['BookName']
-        cmd = 'SELECT authors.Status,Updated from authors,books '
-        cmd += 'WHERE authors.authorid=books.authorid and bookid=?'
+        cmd = "SELECT authors.Status,Updated from authors,books WHERE authors.authorid=books.authorid and bookid=?"
         auth_res = db.match(cmd, (bookid,))
         if auth_res:
             auth_status = auth_res['Status']
         else:
             auth_status = 'Unknown'
-        cmd = 'SELECT SeriesName,Status from series,member '
-        cmd += 'where series.SeriesID=member.SeriesID and member.BookID=?'
+        cmd = "SELECT SeriesName,Status from series,member where series.SeriesID=member.SeriesID and member.BookID=?"
         series = db.select(cmd, (bookid,))
         reject_series = None
         for ser in series:
@@ -329,17 +327,17 @@ def search_rss_book(books=None, library=None):
         searchbooks = []
         if not books:
             # We are performing a backlog search
-            cmd = 'SELECT BookID, AuthorName, Bookname, BookSub, BookAdded, books.Status, AudioStatus '
-            cmd += 'from books,authors WHERE (books.Status="Wanted" OR AudioStatus="Wanted") '
-            cmd += 'and books.AuthorID = authors.AuthorID order by BookAdded desc'
+            cmd = ("SELECT BookID, AuthorName, Bookname, BookSub, BookAdded, books.Status, AudioStatus from "
+                   "books,authors WHERE (books.Status='Wanted' OR AudioStatus='Wanted') and "
+                   "books.AuthorID = authors.AuthorID order by BookAdded desc")
             results = db.select(cmd)
             for terms in results:
                 searchbooks.append(terms)
         else:
             # The user has added a new book
             for book in books:
-                cmd = 'SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus '
-                cmd += 'from books,authors WHERE BookID=? AND books.AuthorID = authors.AuthorID'
+                cmd = ("SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus from books,authors "
+                       "WHERE BookID=? AND books.AuthorID = authors.AuthorID")
                 results = db.select(cmd, (book['bookid'],))
                 for terms in results:
                     searchbooks.append(terms)
@@ -369,7 +367,7 @@ def search_rss_book(books=None, library=None):
 
             if library is None or library == 'eBook':
                 if searchbook['Status'] == "Wanted":
-                    cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
+                    cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='eBook' and Status='Snatched'"
                     snatched = db.match(cmd, (searchbook["BookID"],))
                     if snatched:
                         logger.warning('eBook %s %s already marked snatched in wanted table' %
@@ -385,7 +383,7 @@ def search_rss_book(books=None, library=None):
 
             if library is None or library == 'AudioBook':
                 if searchbook['AudioStatus'] == "Wanted":
-                    cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
+                    cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='AudioBook' and Status='Snatched'"
                     snatched = db.match(cmd, (searchbook["BookID"],))
                     if snatched:
                         logger.warning('AudioBook %s %s already marked snatched in wanted table' %

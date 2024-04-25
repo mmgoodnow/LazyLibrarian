@@ -413,9 +413,9 @@ class GoogleBooks:
                                 rejected = 'isbn', 'No ISBN'
 
                         if not rejected:
-                            cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
-                            cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
-                            cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
+                            cmd = ("SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                                   "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and "
+                                   "books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                             match = db.match(cmd, (bookname, authorname))
                             if not match:
                                 in_db = lazylibrarian.librarysync.find_book_in_db(authorname, bookname,
@@ -430,8 +430,8 @@ class GoogleBooks:
                                     rejected = 'bookid', 'Got under different bookid %s' % bookid
                                     duplicates += 1
 
-                        cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
-                        cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
+                        cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult FROM books,authors "
+                               "WHERE authors.AuthorID = books.AuthorID AND BookID=?")
                         match = db.match(cmd, (bookid,))
                         if match:  # we have a book with this bookid already
                             if bookname != match['BookName'] or authorname != match['AuthorName']:
@@ -458,8 +458,8 @@ class GoogleBooks:
                         if check_status or rejected is None or (
                                 CONFIG.get_bool('IMP_IGNORE') and rejected[0] in ignorable):  # dates, isbn
 
-                            cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,ScanResult '
-                            cmd += 'FROM books WHERE BookID=?'
+                            cmd = ("SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,ScanResult "
+                                   "FROM books WHERE BookID=?")
                             existing = db.match(cmd, (bookid,))
                             if existing:
                                 book_status = existing['Status']
@@ -593,8 +593,8 @@ class GoogleBooks:
             delete_empty_series()
             self.logger.debug('[%s] The Google Books API was hit %s %s to populate book list' %
                               (authorname, api_hits, plural(api_hits, "time")))
-            cmd = 'SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=?'
-            cmd += ' AND Status != "Ignored" order by BookDate DESC'
+            cmd = ("SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=? AND "
+                   "Status != 'Ignored' order by BookDate DESC")
             lastbook = db.match(cmd, (authorid,))
 
             if lastbook:  # maybe there are no books [remaining] for this author

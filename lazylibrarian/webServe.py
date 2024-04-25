@@ -204,8 +204,7 @@ def serve_template(templatename, **kwargs):
                                                                                      msg, email)
                                     if result:
                                         cmd = ('INSERT into users (UserID, UserName, Name, Password, Email, '
-                                               'SendTo, Perms)')
-                                        cmd += ' VALUES (?, ?, ?, ?, ?, ?, ?)'
+                                               'SendTo, Perms) VALUES (?, ?, ?, ?, ?, ?, ?)')
                                         db.action(cmd, (pwd_generator(), user, fullname, md5_utf8(new_pwd),
                                                         email, '', lazylibrarian.perm_friend))
                                         msg = "New user added from proxy auth: %s: %s" % (user, 'Friend')
@@ -459,26 +458,26 @@ class WebInterface(object):
             displaylength = int(iDisplayLength)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
-            cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
-            cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
+            cmd = ("SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,HaveBooks,"
+                   "UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors ")
             if lazylibrarian.IGNORED_AUTHORS:
-                cmd += 'where Status == "Ignored" '
+                cmd += "where Status == 'Ignored' "
                 if CONFIG.get_bool('IGNORE_PAUSED'):
-                    cmd += 'or Status == "Paused" '
+                    cmd += "or Status == 'Paused' "
             else:
-                cmd += 'where Status != "Ignored" '
+                cmd += "where Status != 'Ignored' "
                 if CONFIG.get_bool('IGNORE_PAUSED'):
-                    cmd += 'and  Status != "Paused" '
+                    cmd += "and  Status != 'Paused' "
 
             myauthors = []
             if userid and userprefs & lazylibrarian.pref_myauthors:
-                res = db.select('SELECT WantID from subscribers WHERE Type="author" and UserID=?', (userid,))
+                res = db.select("SELECT WantID from subscribers WHERE Type='author' and UserID=?", (userid,))
                 loggerserverside.debug("User subscribes to %s authors" % len(res))
                 for author in res:
                     myauthors.append(author['WantID'])
-                cmd += ' and AuthorID in (' + ', '.join(('"{0}"'.format(w) for w in myauthors)) + ')'
+                cmd += " and AuthorID in (" + ", ".join(("'{0}'".format(w) for w in myauthors)) + ")"
 
-            cmd += ' order by AuthorName COLLATE NOCASE'
+            cmd += " order by AuthorName COLLATE NOCASE"
 
             loggerserverside.debug("get_index %s" % cmd)
 
@@ -865,7 +864,7 @@ class WebInterface(object):
             cnt = 0
             db = database.DBConnection()
             try:
-                feeds = db.select('SELECT * from subscribers where Type="feed" and UserID=?', (user,))
+                feeds = db.select("SELECT * from subscribers where Type='feed' and UserID=?", (user,))
             finally:
                 db.close()
             for provider in CONFIG.providers('RSS'):
@@ -988,8 +987,8 @@ class WebInterface(object):
                 result = notifiers.email_notifier.notify_message('LazyLibrarian New Account', msg, kwargs['email'])
 
                 if result:
-                    cmd = 'INSERT into users (UserID, UserName, Name, Password, Email, SendTo, Perms)'
-                    cmd += ' VALUES (?, ?, ?, ?, ?, ?, ?)'
+                    cmd = ("INSERT into users (UserID, UserName, Name, Password, Email, SendTo, Perms) VALUES "
+                           "(?, ?, ?, ?, ?, ?, ?)")
                     db.action(cmd, (pwd_generator(), kwargs['username'], kwargs['fullname'],
                                     md5_utf8(kwargs['password']), kwargs['email'], kwargs['sendto'], perms))
                     msg = "New user added: %s: %s" % (kwargs['username'], perm_msg)
@@ -1010,8 +1009,8 @@ class WebInterface(object):
                         return "Username already exists"
 
                 changes = ''
-                cmd = 'SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType,Theme'
-                cmd += ' from users where UserName=?'
+                cmd = ("SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType,Theme "
+                       "from users where UserName=?")
                 details = db.match(cmd, (user,))
 
                 if details:
@@ -1267,36 +1266,35 @@ class WebInterface(object):
 
             # We pass series.SeriesID twice for datatables as the render function modifies it,
             # and we need it in two columns. There is probably a better way...
-            cmd = 'SELECT series.SeriesID,AuthorName,SeriesName,series.Status,seriesauthors.AuthorID,series.SeriesID,'
-            cmd += 'Have,Total,series.Reason from series,authors,seriesauthors,member'
-            cmd += ' where authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID'
-            cmd += ' and member.seriesid=series.seriesid'  # and seriesnum=1'
+            cmd = ("SELECT series.SeriesID,AuthorName,SeriesName,series.Status,seriesauthors.AuthorID,series."
+                   "SeriesID,Have,Total,series.Reason from series,authors,seriesauthors,member where "
+                   "authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID and "
+                   "member.seriesid=series.seriesid")  # and seriesnum=1"
             args = []
             if which_status == 'Empty':
-                cmd += ' and Have = 0'
+                cmd += " and Have = 0"
             elif which_status == 'Partial':
-                cmd += ' and Have > 0'
+                cmd += " and Have > 0"
             elif which_status == 'Complete':
-                cmd += ' and Have > 0 and Have = Total'
+                cmd += " and Have > 0 and Have = Total"
             elif which_status not in ['All', 'None']:
-                cmd += ' and series.Status=?'
+                cmd += " and series.Status=?"
                 args.append(which_status)
             if author_id:
-                cmd += ' and seriesauthors.AuthorID=?'
+                cmd += " and seriesauthors.AuthorID=?"
                 args.append(author_id)
 
             myseries = []
             db = database.DBConnection()
             try:
                 if userid and userprefs & lazylibrarian.pref_myseries:
-                    res = db.select('SELECT WantID from subscribers WHERE Type="series" and UserID=?', (userid,))
+                    res = db.select("SELECT WantID from subscribers WHERE Type='series' and UserID=?", (userid,))
                     loggerserverside.debug("User subscribes to %s series" % len(res))
                     for series in res:
                         myseries.append(series['WantID'])
-                    cmd += ' and series.seriesID in (' + ', '.join('"{0}"'.format(w) for w in myseries) + ')'
+                    cmd += " and series.seriesID in (" + ", ".join("'{0}'".format(w) for w in myseries) + ")"
 
-                cmd += ' GROUP BY series.seriesID'
-                cmd += ' order by AuthorName,SeriesName'
+                cmd += " GROUP BY series.seriesID order by AuthorName,SeriesName"
 
                 loggerserverside.debug("get_series %s: %s" % (cmd, str(args)))
 
@@ -1392,21 +1390,19 @@ class WebInterface(object):
     def series_members(self, seriesid, ignored=False):
         db = database.DBConnection()
         try:
-            cmd = 'SELECT SeriesName,series.SeriesID,AuthorName,seriesauthors.AuthorID'
-            cmd += ' from series,authors,seriesauthors'
-            cmd += ' where authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID'
-            cmd += ' and series.SeriesID=?'
+            cmd = ("SELECT SeriesName,series.SeriesID,AuthorName,seriesauthors.AuthorID from "
+                   "series,authors,seriesauthors where authors.AuthorID=seriesauthors.AuthorID and "
+                   "series.SeriesID=seriesauthors.SeriesID and series.SeriesID=?")
             series = db.match(cmd, (seriesid,))
-            cmd = 'SELECT member.BookID,BookName,SeriesNum,BookImg,books.Status,AuthorName,authors.AuthorID,'
-            cmd += 'BookLink,WorkPage,AudioStatus,BookSub'
-            cmd += ' from member,series,books,authors'
-            cmd += ' where series.SeriesID=member.SeriesID and books.BookID=member.BookID'
-            cmd += ' and books.AuthorID=authors.AuthorID and '
+            cmd = ("SELECT member.BookID,BookName,SeriesNum,BookImg,books.Status,AuthorName,authors.AuthorID,"
+                   "BookLink,WorkPage,AudioStatus,BookSub from member,series,books,authors where "
+                   "series.SeriesID=member.SeriesID and books.BookID=member.BookID and "
+                   "books.AuthorID=authors.AuthorID and ")
             if not ignored or ignored == 'False':
-                cmd += '(books.Status != "Ignored" or AudioStatus != "Ignored")'
+                cmd += "(books.Status != 'Ignored' or AudioStatus != 'Ignored')"
             else:
-                cmd += '(books.Status == "Ignored" and AudioStatus == "Ignored")'
-            cmd += ' and series.SeriesID=? order by SeriesName'
+                cmd += "(books.Status == 'Ignored' and AudioStatus == 'Ignored')"
+            cmd += " and series.SeriesID=? order by SeriesName"
             members = db.select(cmd, (seriesid,))
             # is it a multi-author series?
             multi = "False"
@@ -1426,7 +1422,7 @@ class WebInterface(object):
             abandoned = set()
             cookie = cherrypy.request.cookie
             if cookie and 'll_uid' in list(cookie.keys()):
-                cmd = 'SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms,SendTo from users where UserID=?'
+                cmd = "SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms,SendTo from users where UserID=?"
                 res = db.match(cmd, (cookie['ll_uid'].value,))
                 if res:
                     to_read = set(w.strip('"') for w in get_list(res['ToRead']))
@@ -1533,7 +1529,7 @@ class WebInterface(object):
                                             have_read.discard(bookid)
                                             to_read.discard(bookid)
                                             logger.debug('Status set to "abandoned" for "%s"' % bookid)
-                                    cmd = 'UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?'
+                                    cmd = "UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?"
                                     db.action(cmd, (', '.join('"{0}"'.format(w) for w in to_read),
                                                     ', '.join('"{0}"'.format(w) for w in have_read),
                                                     ', '.join('"{0}"'.format(w) for w in reading),
@@ -1698,7 +1694,7 @@ class WebInterface(object):
                     if CONFIG['HTTP_USER'] != '':
                         adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
 
-                    admin = db.match('SELECT password from users where name="admin"')
+                    admin = db.match("SELECT password from users where name='admin'")
                     if admin:
                         if admin['password'] == md5_utf8('admin'):
                             adminmsg += "The default admin user is \"admin\" and password is \"admin\"<br>"
@@ -2220,8 +2216,8 @@ class WebInterface(object):
                         sourcefile = 'AudioFile'
                     else:
                         sourcefile = 'BookFile'
-                    cmd = 'SELECT %s from books,authors where books.AuthorID = authors.AuthorID' % sourcefile
-                    cmd += '  and AuthorName=? and %s <> ""' % sourcefile
+                    cmd = "SELECT %s from books,authors where books.AuthorID = authors.AuthorID" % sourcefile
+                    cmd += "  and AuthorName=? and %s <> ''" % sourcefile
                     anybook = db.match(cmd, (author_name,))
                     if anybook:
                         authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
@@ -2406,7 +2402,7 @@ class WebInterface(object):
                                                         CONFIG.disp_name(provider), now()))
                     schedule_job(action=SchedulerCommand.START, target='PostProcessor')
                 else:
-                    db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?', (res, url))
+                    db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?", (res, url))
                 raise cherrypy.HTTPRedirect("author_page?authorid=%s&library=%s" % (author_id, library))
             else:
                 logger.debug('snatch_book Invalid bookid [%s]' % bookid)
@@ -2449,7 +2445,7 @@ class WebInterface(object):
                     email = res['SendTo']
             if not booklang or booklang == 'None':
                 booklang = None
-            languages = db.select('SELECT DISTINCT BookLang from books WHERE STATUS !="Skipped" AND STATUS !="Ignored"')
+            languages = db.select("SELECT DISTINCT BookLang from books WHERE STATUS !='Skipped' AND STATUS !='Ignored'")
         finally:
             db.close()
         return serve_template(templatename="books.html", title='eBooks', books=[],
@@ -2487,7 +2483,7 @@ class WebInterface(object):
                     userprefs = check_int(cookie['ll_prefs'].value, 0)
                 if cookie and 'll_uid' in list(cookie.keys()):
                     userid = cookie['ll_uid'].value
-                    cmd = 'SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?'
+                    cmd = "SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?"
                     res = db.match(cmd, (userid,))
                     if res:
                         perm = check_int(res['Perms'], 0)
@@ -2498,15 +2494,14 @@ class WebInterface(object):
                         loggerserverside.debug("get_books userid %s read %s,%s,%s,%s" % (
                             cookie['ll_uid'].value, len(to_read), len(have_read), len(reading), len(abandoned)))
 
-            cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
-            cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-            cmd += ' group_concat(series.seriesid || "~" || series.seriesname || " #" || member.seriesnum, "^")'
-            cmd += ' as series, bookgenre,bookadded,scanresult,lt_workid,'
-            cmd += ' group_concat(series.seriesname || " #" || member.seriesnum, "; ") as altsub'
-            cmd += ' FROM books, authors'
-            cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
-            cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
-            cmd += ' WHERE books.AuthorID = authors.AuthorID'
+            cmd = ("SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang, "
+                   "booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary, "
+                   "group_concat(series.seriesid || '~' || series.seriesname || ' #' || member.seriesnum, '^') "
+                   "as series, bookgenre,bookadded,scanresult,lt_workid, "
+                   "group_concat(series.seriesname || ' #' || member.seriesnum, '; ') as altsub FROM books, authors "
+                   "LEFT OUTER JOIN member ON (books.BookID = member.BookID) "
+                   "LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID) "
+                   "WHERE books.AuthorID = authors.AuthorID")
             loggerserverside.debug("ToRead %s Read %s Reading %s Abandoned %s" % (len(to_read), len(have_read),
                                                                                   len(reading), len(abandoned)))
             types = []
@@ -2528,13 +2523,13 @@ class WebInterface(object):
 
             if kwargs['source'] == "Manage":
                 if kwargs['whichStatus'] == 'ToRead':
-                    cmd += ' and books.bookID in (' + ', '.join('"{0}"'.format(w) for w in to_read) + ')'
+                    cmd += " and books.bookID in (" + ", ".join("'{0}'".format(w) for w in to_read) + ")"
                 elif kwargs['whichStatus'] == 'Read':
-                    cmd += ' and books.bookID in (' + ', '.join('"{0}"'.format(w) for w in have_read) + ')'
+                    cmd += " and books.bookID in (" + ", ".join("'{0}'".format(w) for w in have_read) + ")"
                 elif kwargs['whichStatus'] == 'Reading':
-                    cmd += ' and books.bookID in (' + ', '.join('"{0}"'.format(w) for w in reading) + ')'
+                    cmd += " and books.bookID in (" + ", ".join("'{0}'".format(w) for w in reading) + ")"
                 elif kwargs['whichStatus'] == 'Abandoned':
-                    cmd += ' and books.bookID in (' + ', '.join('"{0}"'.format(w) for w in abandoned) + ')'
+                    cmd += " and books.bookID in (" + ", ".join("'{0}'".format(w) for w in abandoned) + ")"
                 elif kwargs['whichStatus'] != 'All':
                     cmd += " and " + status_type + "='" + kwargs['whichStatus'] + "'"
 
@@ -2543,17 +2538,17 @@ class WebInterface(object):
             elif kwargs['source'] == "Audio":
                 cmd += " and AUDIOSTATUS !='Skipped' AND AUDIOSTATUS !='Ignored'"
             elif kwargs['source'] == "Author":
-                cmd += ' and books.AuthorID=?'
+                cmd += " and books.AuthorID=?"
                 args.append(kwargs['AuthorID'])
                 if 'ignored' in kwargs and kwargs['ignored'] == "True":
-                    cmd += ' and %s="Ignored"' % status_type
+                    cmd += " and %s='Ignored'" % status_type
                 else:
-                    cmd += ' and %s != "Ignored"' % status_type
+                    cmd += " and %s != 'Ignored'" % status_type
 
             if kwargs['source'] in ["Books", "Author", "Audio"]:
                 # for these we need to check and filter on BookLang if set
                 if 'booklang' in kwargs and kwargs['booklang'] != '' and kwargs['booklang'] != 'None':
-                    cmd += ' and BOOKLANG=?'
+                    cmd += " and BOOKLANG=?"
                     args.append(kwargs['booklang'])
 
             if kwargs['source'] in ["Books", "Audio"]:
@@ -2561,14 +2556,14 @@ class WebInterface(object):
                         userprefs & lazylibrarian.pref_myafeeds:
                     loggerserverside.debug("Getting user booklist")
                     mybooks = []
-                    res = db.select('SELECT WantID from subscribers WHERE Type="author" and UserID=?', (userid,))
+                    res = db.select("SELECT WantID from subscribers WHERE Type='author' and UserID=?", (userid,))
                     loggerserverside.debug("User subscribes to %s authors" % len(res))
                     for authorid in res:
                         bookids = db.select('SELECT BookID from books WHERE AuthorID=?', (authorid['WantID'],))
                         for bookid in bookids:
                             mybooks.append(bookid['BookID'])
 
-                    res = db.select('SELECT WantID from subscribers WHERE Type="series" and UserID=?', (userid,))
+                    res = db.select("SELECT WantID from subscribers WHERE Type='series' and UserID=?", (userid,))
                     loggerserverside.debug("User subscribes to %s series" % len(res))
                     for series in res:
                         sel = 'SELECT BookID from member,series WHERE series.seriesid=?'
@@ -2577,7 +2572,7 @@ class WebInterface(object):
                         for bookid in bookids:
                             mybooks.append(bookid['BookID'])
 
-                    res = db.select('SELECT WantID from subscribers WHERE Type="feed" and UserID=?', (userid,))
+                    res = db.select("SELECT WantID from subscribers WHERE Type='feed' and UserID=?", (userid,))
                     loggerserverside.debug("User subscribes to %s feeds" % len(res))
                     for feed in res:
                         sel = 'SELECT BookID from books WHERE Requester like "%?%"'
@@ -2588,11 +2583,11 @@ class WebInterface(object):
 
                     mybooks = set(mybooks)
                     loggerserverside.debug("User booklist length %s" % len(mybooks))
-                    cmd += ' and books.bookID in (' + ', '.join('"{0}"'.format(w) for w in mybooks) + ')'
+                    cmd += " and books.bookID in (" + ", ".join("'{0}'".format(w) for w in mybooks) + ")"
 
-            cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
-            cmd += ' booklang, booksub, booklink, workpage, books.authorid, booklibrary, '
-            cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult, lt_workid'
+            cmd += (" GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid, "
+                    "booklang, booksub, booklink, workpage, books.authorid, booklibrary, audiostatus, audiolibrary, "
+                    "bookgenre, bookadded, scanresult, lt_workid")
 
             loggerserverside.debug("get_books %s: %s" % (cmd, str(args)))
             rowlist = db.select(cmd, tuple(args))
@@ -2941,8 +2936,8 @@ class WebInterface(object):
             try:
                 res = db.match('SELECT Name,UserName,UserID,Email from users where UserID=?', (cookie['ll_uid'].value,))
                 if res:
-                    cmd = 'SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE BookID=?'
-                    cmd += ' and books.AuthorID = authors.AuthorID'
+                    cmd = ("SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE BookID=? and "
+                           "books.AuthorID = authors.AuthorID")
                     bookdata = db.match(cmd, (kwargs['bookid'],))
                     kwargs.update(bookdata)
                     kwargs.update(res)
@@ -3084,8 +3079,8 @@ class WebInterface(object):
                         else:
                             try:
                                 comicid, issueid = itemid.split('_')
-                                cmd = 'SELECT Title,Cover from comics,comicissues WHERE '
-                                cmd += 'comics.ComicID=comicissues.ComicID and comics.ComicID=? and IssueID=?'
+                                cmd = ("SELECT Title,Cover from comics,comicissues WHERE "
+                                       "comics.ComicID=comicissues.ComicID and comics.ComicID=? and IssueID=?")
                                 res = db.match(cmd, (comicid, issueid))
                             except (IndexError, ValueError):
                                 res = None
@@ -3106,8 +3101,8 @@ class WebInterface(object):
             elif ftype == 'comic':
                 try:
                     comicid, issueid = itemid.split('_')
-                    cmd = 'SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
-                    cmd += ' and comics.ComicID=? and IssueID=?'
+                    cmd = ("SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID "
+                           "and comics.ComicID=? and IssueID=?")
                     res = db.match(cmd, (comicid, issueid))
                 except (IndexError, ValueError):
                     res = None
@@ -3206,8 +3201,8 @@ class WebInterface(object):
             if booktype is not None:
                 preftype = booktype
 
-            cmd = 'SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE BookID=?'
-            cmd += ' and books.AuthorID = authors.AuthorID'
+            cmd = ("SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE BookID=? and "
+                   "books.AuthorID = authors.AuthorID")
             bookdata = db.match(cmd, (bookid,))
         finally:
             db.close()
@@ -3522,12 +3517,11 @@ class WebInterface(object):
         try:
             authors = db.select(
                 "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
-            cmd = 'SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,'
-            cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile '
-            cmd += 'from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
+            cmd = ("SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,books."
+                   "AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile from "
+                   "books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?")
             bookdata = db.match(cmd, (bookid,))
-            cmd = 'SELECT SeriesName, SeriesNum from member,series '
-            cmd += 'where series.SeriesID=member.SeriesID and BookID=?'
+            cmd = "SELECT SeriesName, SeriesNum from member,series where series.SeriesID=member.SeriesID and BookID=?"
             seriesdict = db.select(cmd, (bookid,))
         finally:
             db.close()
@@ -3604,9 +3598,9 @@ class WebInterface(object):
                     else:
                         logger.debug("No %s found in %s" % (library, source))
 
-                cmd = 'SELECT BookName,BookSub,BookGenre,BookLang,BookImg,BookDate,BookDesc,books.Manual,AuthorName,'
-                cmd += 'books.AuthorID, BookIsbn, WorkID, ScanResult, BookFile'
-                cmd += ' from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
+                cmd = ("SELECT BookName,BookSub,BookGenre,BookLang,BookImg,BookDate,BookDesc,books.Manual,"
+                       "AuthorName,books.AuthorID, BookIsbn, WorkID, ScanResult, BookFile from books,authors "
+                       "WHERE books.AuthorID = authors.AuthorID and BookID=?")
                 bookdata = db.match(cmd, (bookid,))
                 if bookdata:
                     edited = ''
@@ -3616,8 +3610,8 @@ class WebInterface(object):
                     manual = bool(check_int(manual, 0))
 
                     if newid and not (bookid == newid):
-                        cmd = "SELECT BookName,Authorname from books,authors "
-                        cmd += "WHERE books.AuthorID = authors.AuthorID and BookID=?"
+                        cmd = ("SELECT BookName,Authorname from books,authors WHERE "
+                               "books.AuthorID = authors.AuthorID and BookID=?")
                         match = db.match(cmd, (newid,))
                         if match:
                             logger.warning("Cannot change bookid to %s, in use by %s/%s" %
@@ -3717,8 +3711,8 @@ class WebInterface(object):
                         }
                         db.upsert("books", new_value_dict, control_value_dict)
 
-                    cmd = 'SELECT SeriesName, SeriesNum, series.SeriesID from member,series '
-                    cmd += 'where series.SeriesID=member.SeriesID and BookID=?'
+                    cmd = ("SELECT SeriesName, SeriesNum, series.SeriesID from member,series where "
+                           "series.SeriesID=member.SeriesID and BookID=?")
                     old_series = db.select(cmd, (bookid,))
                     old_list = []
                     new_list = []
@@ -3742,6 +3736,10 @@ class WebInterface(object):
                     for item in old_series:
                         old_list.append([item['SeriesID'], item['SeriesNum'], item['SeriesName']])
 
+                    debug_msg = "Old series list for %s: %s" % (bookid, old_list)
+                    logger.debug(debug_msg)
+                    debug_msg = "New series list for %s: %s" % (bookid, new_list)
+                    logger.debug(debug_msg)
                     series_changed = False
                     for item in old_list:
                         if item[1:] not in [i[1:] for i in new_list]:
@@ -3749,6 +3747,8 @@ class WebInterface(object):
                     for item in new_list:
                         if item[1:] not in [i[1:] for i in old_list]:
                             series_changed = True
+                    if not series_changed:
+                        logger.debug("No series changes")
                     if series_changed:
                         set_series(new_list, bookid, reason=scanresult)
                         delete_empty_series()
@@ -3932,8 +3932,8 @@ class WebInterface(object):
                         db.action("delete from failedsearch WHERE BookID=? AND Library=?", (bookid, library))
                         logger.debug('%s delay set to zero for %s' % (library, bookid))
                     elif action in ["Remove", "Delete"]:
-                        cmd = 'SELECT AuthorName,Bookname,BookFile,AudioFile,books.AuthorID from books,authors '
-                        cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+                        cmd = ("SELECT AuthorName,Bookname,BookFile,AudioFile,books.AuthorID from books,authors "
+                               "WHERE BookID=? and books.AuthorID = authors.AuthorID")
                         bookdata = db.match(cmd, (bookid,))
                         if bookdata:
                             authorid = bookdata['AuthorID']
@@ -4036,13 +4036,13 @@ class WebInterface(object):
     @cherrypy.expose
     def mag_wall(self, title=''):
         self.label_thread('MAGWALL')
-        cmd = 'SELECT IssueFile,IssueID,IssueDate,Title,Cover from issues'
+        cmd = "SELECT IssueFile,IssueID,IssueDate,Title,Cover from issues"
         args = None
         if title:
             title = title.replace('&amp;', '&')
-            cmd += ' WHERE Title=?'
+            cmd += " WHERE Title=?"
             args = (title,)
-        cmd += ' order by IssueAcquired DESC'
+        cmd += " order by IssueAcquired DESC"
         db = database.DBConnection()
         try:
             issues = db.select(cmd, args)
@@ -4083,13 +4083,13 @@ class WebInterface(object):
     @cherrypy.expose
     def comic_wall(self, comicid=None):
         self.label_thread('COMICWALL')
-        cmd = 'SELECT IssueFile,IssueID,comics.ComicID,Title,Cover from comicissues,comics WHERE '
-        cmd += 'comics.ComicID = comicissues.ComicID'
+        cmd = ("SELECT IssueFile,IssueID,comics.ComicID,Title,Cover from comicissues,comics WHERE "
+               "comics.ComicID = comicissues.ComicID")
         args = None
         if comicid:
-            cmd += ' AND comics.ComicID=?'
+            cmd += " AND comics.ComicID=?"
             args = (comicid,)
-        cmd += ' order by IssueAcquired DESC'
+        cmd += " order by IssueAcquired DESC"
         db = database.DBConnection()
         try:
             issues = db.select(cmd, args)
@@ -4132,10 +4132,10 @@ class WebInterface(object):
     def book_wall(self, have='0'):
         self.label_thread('BOOKWALL')
         if have == '1':
-            cmd = 'SELECT BookLink,BookImg,BookID,BookName from books where Status="Open" order by BookLibrary DESC'
+            cmd = "SELECT BookLink,BookImg,BookID,BookName from books where Status='Open' order by BookLibrary DESC"
             title = 'Recently Downloaded Books'
         else:
-            cmd = 'SELECT BookLink,BookImg,BookID,BookName from books where Status != "Ignored" order by BookAdded DESC'
+            cmd = "SELECT BookLink,BookImg,BookID,BookName from books where Status != 'Ignored' order by BookAdded DESC"
             title = 'Recently Added Books'
         db = database.DBConnection()
         try:
@@ -4176,12 +4176,12 @@ class WebInterface(object):
     @cherrypy.expose
     def author_wall(self, have='1'):
         self.label_thread('AUTHORWALL')
-        cmd = 'SELECT Status,AuthorImg,AuthorID,AuthorName,HaveBooks,TotalBooks from authors '
+        cmd = "SELECT Status,AuthorImg,AuthorID,AuthorName,HaveBooks,TotalBooks from authors "
         if have == '1':
-            cmd += 'where Status="Active" or Status="Wanted" order by AuthorName ASC'
+            cmd += "where Status='Active' or Status='Wanted' order by AuthorName ASC"
             title = 'Active/Wanted Authors'
         else:
-            cmd += 'where Status !="Active" and Status != "Wanted" order by AuthorName ASC'
+            cmd += "where Status !='Active' and Status != 'Wanted' order by AuthorName ASC"
             title = 'Inactive Authors'
         db = database.DBConnection()
         try:
@@ -4401,17 +4401,17 @@ class WebInterface(object):
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
             db = database.DBConnection()
             try:
-                cmd = 'select comics.*,(select count(*) as counter from comicissues '
-                cmd += 'where comics.comicid = comicissues.comicid) as Iss_Cnt from comics'
+                cmd = ("select comics.*,(select count(*) as counter from comicissues where "
+                       "comics.comicid = comicissues.comicid) as Iss_Cnt from comics")
 
                 mycomics = []
                 if userid and userprefs & lazylibrarian.pref_mycomics:
-                    res = db.select('SELECT WantID from subscribers WHERE Type="comic" and UserID=?', (userid,))
+                    res = db.select("SELECT WantID from subscribers WHERE Type='comic' and UserID=?", (userid,))
                     loggerserverside.debug("User subscribes to %s comics" % len(res))
                     for mag in res:
                         mycomics.append(mag['WantID'])
-                    cmd += ' WHERE comics.comicid in (' + ', '.join('"{0}"'.format(w) for w in mycomics) + ')'
-                cmd += ' order by Title'
+                    cmd += " WHERE comics.comicid in (" + ", ".join("'{0}'".format(w) for w in mycomics) + ")"
+                cmd += " order by Title"
                 rowlist = db.select(cmd)
             finally:
                 db.close()
@@ -4564,8 +4564,8 @@ class WebInterface(object):
 
             # we may want to open an issue with an issueid
             if comicid and issueid:
-                cmd = 'SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
-                cmd += ' and comics.ComicID=? and IssueID=?'
+                cmd = ("SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID and "
+                       "comics.ComicID=? and IssueID=?")
                 iss_data = db.match(cmd, (comicid, issueid))
                 if iss_data:
                     issue_file = iss_data["IssueFile"]
@@ -4575,8 +4575,8 @@ class WebInterface(object):
                                               (iss_data["Title"], issueid, os.path.splitext(issue_file)[1]))
 
             # or we may just have a comicid to find comic in comicissues table
-            cmd = 'SELECT Title,IssueFile,IssueID from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
-            cmd += ' and comics.ComicID=?'
+            cmd = ("SELECT Title,IssueFile,IssueID from comics,comicissues WHERE comics.ComicID=comicissues.ComicID "
+                   "and comics.ComicID=?")
             iss_data = db.select(cmd, (comicid,))
         finally:
             db.close()
@@ -4864,8 +4864,8 @@ class WebInterface(object):
             comicid = None
             for item in args:
                 comicid, issueid = item.split('_')
-                cmd = 'SELECT IssueFile,Title,comics.ComicID from comics,comicissues WHERE '
-                cmd += 'comics.ComicID = comicissues.ComicID and comics.ComicID=? and IssueID=?'
+                cmd = ("SELECT IssueFile,Title,comics.ComicID from comics,comicissues WHERE "
+                       "comics.ComicID = comicissues.ComicID and comics.ComicID=? and IssueID=?")
                 issue = db.match(cmd, (comicid, issueid))
                 if issue:
                     if action == "Delete":
@@ -4879,8 +4879,8 @@ class WebInterface(object):
                         # Set latestcover to most recent issue cover
                         # Set lastacquired to acquired date of most recent issue we have
                         # Set added to acquired date of the earliest issue we have
-                        cmd = 'select IssueID,IssueAcquired,IssueFile from comicissues where ComicID=?'
-                        cmd += ' order by IssueID '
+                        cmd = ("select IssueID,IssueAcquired,IssueFile from comicissues where ComicID=?"
+                               " order by IssueID ")
                         newest = db.match(cmd + 'DESC', (comicid,))
                         oldest = db.match(cmd + 'ASC', (comicid,))
                         control_value_dict = {'ComicID': comicid}
@@ -4944,20 +4944,20 @@ class WebInterface(object):
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
             db = database.DBConnection()
             try:
-                cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
-                cmd += ' as Iss_Cnt from magazines'
+                cmd = ("select magazines.*,(select count(*) as counter from issues where "
+                       "magazines.title = issues.title) as Iss_Cnt from magazines")
 
                 mymags = []
                 if userid and userprefs & lazylibrarian.pref_mymags:
-                    res = db.select('SELECT WantID from subscribers WHERE Type="magazine" and UserID=?', (userid,))
+                    res = db.select("SELECT WantID from subscribers WHERE Type='magazine' and UserID=?", (userid,))
                     loggerserverside.debug("User subscribes to %s magazines" % len(res))
                     maglist = ''
                     for mag in res:
                         if maglist:
                             maglist += ', '
                         maglist += '"%s"' % mag['WantID']
-                    cmd += ' WHERE Title in (' + maglist + ')'
-                cmd += ' order by Title'
+                    cmd += " WHERE Title in (" + maglist + ")"
+                cmd += " order by Title"
 
                 loggerserverside.debug(cmd)
                 rowlist = db.select(cmd)
@@ -5484,10 +5484,10 @@ class WebInterface(object):
             displaylength = int(iDisplayLength)
             CONFIG.set_int('DISPLAYLENGTH', displaylength)
             # need to filter on whichStatus and optional mag title
-            cmd = 'SELECT NZBurl, NZBtitle, NZBdate, Auxinfo, NZBprov from pastissues WHERE Status=?'
+            cmd = "SELECT NZBurl, NZBtitle, NZBdate, Auxinfo, NZBprov from pastissues WHERE Status=?"
             args = [kwargs['whichStatus']]
             if 'mag' in kwargs and kwargs['mag'] != 'None':
-                cmd += ' AND BookID=?'
+                cmd += " AND BookID=?"
                 args.append(kwargs['mag'].replace('&amp;', '&'))
 
             loggerserverside.debug("get_past_issues %s: %s" % (cmd, str(args)))
@@ -5744,8 +5744,8 @@ class WebInterface(object):
                             # Set latestcover to most recent issue cover
                             # Set magazine_lastacquired to acquired date of most recent issue we have
                             # Set magazine_added to acquired date of the earliest issue we have
-                            cmd = 'select IssueDate,IssueAcquired,IssueFile,Cover from issues where title=?'
-                            cmd += ' order by IssueDate '
+                            cmd = ("select IssueDate,IssueAcquired,IssueFile,Cover from issues where title=? "
+                                   "order by IssueDate ")
                             newest = db.match(cmd + 'DESC', (title,))
                             oldest = db.match(cmd + 'ASC', (title,))
                             control_value_dict = {'Title': title}
@@ -6119,7 +6119,7 @@ class WebInterface(object):
         if 'IMPORTALT_%s' % library not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 threading.Thread(target=process_alternate, name='IMPORTALT_%s' % library,
-                                 args=[CONFIG['ALTERNATE_DIR'], library, True]).start()
+                                 args=[CONFIG['ALTERNATE_DIR'], library]).start()
             except Exception as e:
                 logger.error('Unable to complete the import: %s %s' % (type(e).__name__, str(e)))
         else:
@@ -6519,13 +6519,13 @@ class WebInterface(object):
                 elif bookid.startswith('CV') or bookid.startswith('CX'):
                     try:
                         comicid, issueid = bookid.split('_')
-                        cmd = "SELECT Title as BookName,comicissues.Description as BookDesc,Cover as BookImg,"
-                        cmd += "Contributors from comics,comicissues where "
-                        cmd += "comics.comicid = comicissues.comicid and comics.comicid=? and issueid=?"
+                        cmd = ("SELECT Title as BookName,comicissues.Description as BookDesc,Cover as BookImg,"
+                               "Contributors from comics,comicissues where comics.comicid = comicissues.comicid "
+                               "and comics.comicid=? and issueid=?")
                         res = db.match(cmd, (comicid, issueid))
                     except ValueError:
-                        cmd = "SELECT Title as BookName,Description as BookDesc,LatestCover as BookImg"
-                        cmd += " from comics where comicid=?"
+                        cmd = ("SELECT Title as BookName,Description as BookDesc,LatestCover as BookImg from comics "
+                               "where comicid=?")
                         res = db.match(cmd, (bookid,))
                 else:
                     cmd = "SELECT BookName,BookDesc,BookImg,AuthorID from books WHERE bookid=?"
@@ -6567,9 +6567,8 @@ class WebInterface(object):
                 match = db.match('select ScanResult from books WHERE bookid=?', (rowid,))
                 message = 'Reason: %s<br>' % match['ScanResult']
             else:
-                cmd = 'select NZBurl,NZBtitle,NZBdate,NZBprov,Status,NZBsize,' \
-                      'AuxInfo,NZBmode,DLResult,Source,DownloadID '
-                cmd += 'from wanted where rowid=?'
+                cmd = ("select NZBurl,NZBtitle,NZBdate,NZBprov,Status,NZBsize,AuxInfo,NZBmode,DLResult,Source,"
+                       "DownloadID rom wanted where rowid=?")
                 match = db.match(cmd, (rowid,))
                 dltype = match['AuxInfo']
                 if dltype not in ['eBook', 'AudioBook']:
@@ -6621,7 +6620,7 @@ class WebInterface(object):
         try:
             match = db.match('SELECT NZBtitle,Status,BookID,AuxInfo from wanted WHERE rowid=?', (rowid,))
             logger.debug('Marking %s history item %s as Failed' % (match['Status'], match['NZBtitle']))
-            db.action('UPDATE wanted SET Status="Failed" WHERE rowid=?', (rowid,))
+            db.action("UPDATE wanted SET Status='Failed' WHERE rowid=?", (rowid,))
             book_type = match['AuxInfo']
             if book_type not in ['AudioBook', 'eBook']:
                 if not book_type:
@@ -6629,9 +6628,9 @@ class WebInterface(object):
                 else:
                     book_type = 'Magazine'
             if book_type == 'AudioBook':
-                db.action('UPDATE books SET audiostatus="Wanted" WHERE BookID=?', (match['BookID'],))
+                db.action("UPDATE books SET audiostatus='Wanted' WHERE BookID=?", (match["BookID"],))
             else:
-                db.action('UPDATE books SET status="Wanted" WHERE BookID=?', (match['BookID'],))
+                db.action("UPDATE books SET status='Wanted' WHERE BookID=?", (match["BookID"],))
         finally:
             db.close()
 
@@ -6645,15 +6644,15 @@ class WebInterface(object):
                 # also reset the Snatched status in book table to Wanted and cancel any failed download task
                 # ONLY reset if status is still Snatched, as maybe a later task succeeded
                 status = "Snatched"
-                cmd = 'SELECT BookID,AuxInfo,Source,DownloadID from wanted WHERE Status=?'
+                cmd = "SELECT BookID,AuxInfo,Source,DownloadID from wanted WHERE Status=?"
                 rowlist = db.select(cmd, (status,))
                 for book in rowlist:
                     if book['BookID'] != 'unknown':
                         if book['AuxInfo'] == 'eBook':
-                            db.action('UPDATE books SET Status="Wanted" WHERE Bookid=? AND Status=?',
+                            db.action("UPDATE books SET Status='Wanted' WHERE Bookid=? AND Status=?",
                                       (book['BookID'], status))
                         elif book['AuxInfo'] == 'AudioBook':
-                            db.action('UPDATE books SET AudioStatus="Wanted" WHERE Bookid=? AND AudioStatus=?',
+                            db.action("UPDATE books SET AudioStatus='Wanted' WHERE Bookid=? AND AudioStatus=?",
                                       (book['BookID'], status))
                         if CONFIG.get_bool('DEL_FAILED'):
                             delete_task(book['Source'], book['DownloadID'], True)
@@ -6663,15 +6662,15 @@ class WebInterface(object):
                 if status == 'Snatched':
                     # also reset the Snatched status in book table to Wanted and cancel any failed download task
                     # ONLY reset if status is still Snatched, as maybe a later task succeeded
-                    cmd = 'SELECT BookID,AuxInfo,Source,DownloadID from wanted WHERE Status=?'
+                    cmd = "SELECT BookID,AuxInfo,Source,DownloadID from wanted WHERE Status=?"
                     rowlist = db.select(cmd, (status,))
                     for book in rowlist:
                         if book['BookID'] != 'unknown':
                             if book['AuxInfo'] == 'eBook':
-                                db.action('UPDATE books SET Status="Wanted" WHERE Bookid=? AND Status=?',
+                                db.action("UPDATE books SET Status='Wanted' WHERE Bookid=? AND Status=?",
                                           (book['BookID'], status))
                             elif book['AuxInfo'] == 'AudioBook':
-                                db.action('UPDATE books SET AudioStatus="Wanted" WHERE Bookid=? AND AudioStatus=?',
+                                db.action("UPDATE books SET AudioStatus='Wanted' WHERE Bookid=? AND AudioStatus=?",
                                           (book['BookID'], status))
                         if CONFIG.get_bool('DEL_FAILED'):
                             delete_task(book['Source'], book['DownloadID'], True)
