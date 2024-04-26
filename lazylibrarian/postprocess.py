@@ -1705,13 +1705,13 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         logger.warning('%s, deleting failed task' % dlresult)
                         delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
-                if book.get('Source'):
-                    logger.debug('%s was sent to %s %s %s ago. Progress %s %s' %
-                                 (book['NZBtitle'], book['Source'], mins, plural(mins, 'minute'),
-                                  progress, book.get('skipped')))
-                else:
-                    logger.debug('%s was sent somewhere?? %s minutes ago %s' % (book['NZBtitle'],
-                                                                                mins, book.get('skipped')))
+                book = dict(book)
+                skipped = book.get('skipped', '')
+                source = book.get('Source', 'somewhere??')
+                if source == 'DIRECT':
+                    source = book.get('NZBprov')
+                logger.debug('%s was sent to %s %s %s ago. Progress %s %s' %
+                                 (book['NZBtitle'], source, mins, plural(mins, 'minute'), progress, skipped))
 
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         # Check if postprocessor needs to run again
