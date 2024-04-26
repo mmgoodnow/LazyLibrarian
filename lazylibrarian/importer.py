@@ -297,7 +297,12 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     # noinspection PyBroadException
     try:
         new_author = True
-        dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
+        cmd = "SELECT * from authors WHERE AuthorID=?"
+        if authorid.startswith('OL'):
+            cmd += " or ol_id=?"
+        else:
+            cmd += " or gr_id=?"
+        dbauthor = db.match(cmd, (authorid,authorid))
         if dbauthor:
             new_author = False
         elif authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
@@ -377,7 +382,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         # if author is set to manual, should we allow replacing 'nophoto' ?
         new_img = False
         authorimg = current_author.get('authorimg')
-        if authorimg and 'nophoto' in authorimg:
+        if new_author or authorimg and 'nophoto' in authorimg:
             newimg = get_author_image(current_author['authorid'])
             if newimg:
                 authorimg = newimg

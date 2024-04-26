@@ -1297,10 +1297,10 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         if remove:
             # sometimes librarything tells us about a series contributor
             # but openlibrary doesnt agree...
-            res = db.select('select * from authors where status="Paused" and totalbooks=0')
+            res = db.select("select * from authors where status='Paused' and totalbooks=0")
             if len(res):
                 logger.debug("Removed %s empty series authors" % len(res))
-                db.action('delete from authors where status="Paused" and totalbooks=0')
+                db.action("delete from authors where status='Paused' and totalbooks=0")
 
         logger.info('Library scan complete')
         return new_book_count
