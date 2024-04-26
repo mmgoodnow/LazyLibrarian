@@ -326,8 +326,8 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                                 if not lyne.startswith('START=') and not lyne.startswith('END='):
                                     if not lyne.startswith('title='):
                                         o.write(lyne)
-                    remove_file(metadata)
-                    os.rename(os.path.join(bookfolder, "newmetadata.ll"), metadata)
+                remove_file(metadata)
+                os.rename(os.path.join(bookfolder, "newmetadata.ll"), metadata)
 
                 with open(metadata, 'a', encoding="utf-8") as f:
                     for item in part_durations:
