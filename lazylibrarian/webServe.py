@@ -3384,7 +3384,7 @@ class WebInterface(object):
     # kwargs needed for passing utf8 hidden input
     @cherrypy.expose
     def author_update(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
-                      editordata='', manual='0', **kwargs):
+                      editordata='', manual='0', aka='', **kwargs):
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -3401,6 +3401,8 @@ class WebInterface(object):
 
                 if authdata["AuthorBorn"] != authorborn:
                     edited += "Born "
+                if authdata["AKA"] != aka:
+                    edited += "AKA "
                 if authdata["AuthorDeath"] != authordeath:
                     edited += "Died "
                 if 'cover' in kwargs:
@@ -3493,6 +3495,7 @@ class WebInterface(object):
                         'AuthorDeath': authordeath,
                         'AuthorImg': authorimg,
                         'About': editordata,
+                        'AKA': aka,
                         'Manual': bool(manual)
                     }
                     db.upsert("authors", new_value_dict, control_value_dict)
