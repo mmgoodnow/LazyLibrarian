@@ -43,7 +43,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'MAX_WALL', 0),
     ConfigInt('General', 'MATCH_RATIO', 80),
     ConfigInt('General', 'DLOAD_RATIO', 90),
-    ConfigInt('General', 'NAME_RATIO', 90),
+    ConfigInt('General', 'NAME_RATIO', 80),
     ConfigInt('General', 'NAME_PARTIAL', 95),
     ConfigInt('General', 'NAME_PARTNAME', 98),
     ConfigInt('General', 'DISPLAYLENGTH', 10),
