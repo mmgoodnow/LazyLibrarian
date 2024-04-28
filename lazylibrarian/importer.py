@@ -302,7 +302,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             cmd += " or ol_id=?"
         else:
             cmd += " or gr_id=?"
-        dbauthor = db.match(cmd, (authorid,authorid))
+        dbauthor = db.match(cmd, (authorid, authorid))
         if dbauthor:
             new_author = False
         elif authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
@@ -315,11 +315,12 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         else:
             current_author = dict(dbauthor)
 
+        current_author['manual'] = False
         if new_author:
-            current_author['manual'] = False
             current_author['status'] = CONFIG['NEWAUTHOR_STATUS']
         else:
-            current_author['manual'] = dbauthor['manual']
+            if dbauthor['manual'] in [True, 'True', 1, '1']:
+                current_author['manual'] = True
             current_author['status'] = dbauthor['status']
 
         if not current_author or not current_author.get('authorid'):
@@ -375,8 +376,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             logger.debug("Adding new author id %s (%s) to database %s, Addbooks=%s" %
                          (current_author['authorid'], current_author['authorname'], reason, addbooks))
         else:
-            logger.debug("Updating author %s (%s) %s" % (current_author['authorid'],
-                                                         current_author['authorname'], entry_status))
+            logger.debug("Updating author %s (%s) %s, Addbooks=%s" % (current_author['authorid'],
+                                                                      current_author['authorname'],
+                                                                      entry_status, addbooks))
         db.upsert("authors", new_value_dict, control_value_dict)
 
         # if author is set to manual, should we allow replacing 'nophoto' ?
@@ -525,8 +527,12 @@ def collate_nopunctuation(string1, string2):
 def de_duplicate(authorid):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
     db.connection.create_collation('nopunctuation', collate_nopunctuation)
     total = 0
+    dupes = 0
+    authorname = ''
+    # noinspection PyBroadException
     try:
         # check/delete any duplicate titles - exact match only
         cmd = ("select count('bookname'),bookname from books where authorid=? and "
@@ -534,12 +540,13 @@ def de_duplicate(authorid):
                "having ( count(bookname) > 1 )")
         res = db.select(cmd, (authorid,))
         dupes = len(res)
-        author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
+        if author:
+            authorname = author['AuthorName']
         if not dupes:
             logger.debug("No duplicates to merge")
         else:
-            logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
-                                                                author['AuthorName']))
+            logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes,
+                                                                plural(dupes, 'title'), authorname))
             for item in res:
                 favourite = ''
                 copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE NOPUNCTUATION",
@@ -581,9 +588,12 @@ def de_duplicate(authorid):
                         logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
                         db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
                         total += 1
+    except Exception:
+        msg = 'Unhandled exception in de_duplicate: %s' % traceback.format_exc()
+        logger.warning(msg)
     finally:
         db.close()
-    logger.info("Deleted %s duplicate %s for %s" % (total, plural(dupes, 'title'), author['AuthorName']))
+    logger.info("Deleted %s duplicate %s for %s" % (total, plural(dupes, 'title'), authorname))
 
 
 def update_totals(authorid):
