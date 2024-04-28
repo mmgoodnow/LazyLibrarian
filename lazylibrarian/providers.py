@@ -523,7 +523,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                 logger.debug("Ignoring %s for Magazine" % dispname)
                 ignored = True
             elif "comic" in search_type and 'C' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Comic" % dispn)
+                logger.debug("Ignoring %s for Comic" % dispname)
                 ignored = True
             if not ignored:
                 if provider.get_int('APILIMIT'):
