@@ -6571,7 +6571,7 @@ class WebInterface(object):
                 message = 'Reason: %s<br>' % match['ScanResult']
             else:
                 cmd = ("select NZBurl,NZBtitle,NZBdate,NZBprov,Status,NZBsize,AuxInfo,NZBmode,DLResult,Source,"
-                       "DownloadID rom wanted where rowid=?")
+                       "DownloadID from wanted where rowid=?")
                 match = db.match(cmd, (rowid,))
                 dltype = match['AuxInfo']
                 if dltype not in ['eBook', 'AudioBook']:
