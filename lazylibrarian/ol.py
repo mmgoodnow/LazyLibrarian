@@ -460,8 +460,8 @@ class OpenLibrary:
             for item in seriesinfo:
                 name, count = item.split(b"</a>")
                 count = count.split(b'(')[1].split(b')')[0]
-                seriesid, name = name.split(b'">')
-                name = name.split(b'<')[0]
+                seriesid, name = name.split(b'>')
+                seriesid = seriesid.split(b'"')[0]
                 count = check_float(count, 0)
                 if count == int(count):  # drop the ".0"
                     count = int(count)
@@ -915,9 +915,10 @@ class OpenLibrary:
                                                 db.commit()
                                         if not exists:
                                             self.logger.debug("New series: %s" % series[0])
-                                            db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated,' +
-                                                      ' Reason) VALUES (?,?,?,?,?)',
-                                                      (seriesid, series[0], 'Paused', time.time(), id_librarything))
+                                            db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
+                                                      'Updated, Reason, Source) VALUES (?,?,?,?,?,?)',
+                                                      (seriesid, series[0], 'Paused', time.time(),
+                                                       id_librarything, 'OL'))
                                             db.commit()
                                             exists = {'Status': 'Paused'}
                                         seriesmembers = None
@@ -945,7 +946,7 @@ class OpenLibrary:
                                             for member in seriesmembers:
                                                 # member[order, bookname, authorname, authorlink, workid]
                                                 # remove any old entries for this series member
-                                                db.action("DELETE from member WHERE seriesid=? AND seriesnum=?",
+                                                db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
                                                           (seriesid, member[0]))
                                                 auth_name, exists = lazylibrarian.importer.get_preferred_author_name(
                                                     member[2])
