@@ -159,29 +159,34 @@ def set_series(serieslist=None, bookid=None, reason=""):
             # delete any old series-member entries
             db.action('DELETE from member WHERE BookID=?', (bookid,))
             for item in serieslist:
-                match = db.match('SELECT SeriesID from series where SeriesName=? COLLATE NOCASE', (item[2],))
+                match = db.match('SELECT SeriesID,Status,Source from series where SeriesName=? '
+                                 'COLLATE NOCASE', (item[2],))
                 debug_msg = "Series %s %s" % (item[2], "exists" if match else "is new")
                 logger.info(debug_msg)
                 if match:
                     seriesid = match['SeriesID']
-                    members, _api_hits = get_series_members(seriesid, item[2])
-                    debug_msg = "Existing series %s has %s members" % (item[2], len(members))
-                    logger.info(debug_msg)
-                    api_hits += _api_hits
+                    if match['Status'] in ['Paused', 'Ignored']:
+                        members = []
+                    else:
+                        members, _api_hits, source = get_series_members(seriesid, item[2])
+                        debug_msg = "Existing %s series %s has %s members" % (source, item[2], len(members))
+                        logger.info(debug_msg)
+                        api_hits += _api_hits
                 else:
                     # new series, need to set status and get SeriesID
                     if item[0]:
                         seriesid = item[0]
-                        members, _api_hits = get_series_members(seriesid, item[2])
-                        debug_msg = "New series %s:%s has %s members" % (item[2], seriesid, len(members))
+                        members, _api_hits, source = get_series_members(seriesid, item[2])
+                        debug_msg = "New %s series %s:%s has %s members" % (source, item[2], seriesid, len(members))
                         logger.info(debug_msg)
                         api_hits += _api_hits
                     else:
                         # no seriesid so generate it (row count + 1)
+                        source = 'LL'
                         cnt = db.match("select count(*) as counter from series")
                         res = check_int(cnt['counter'], 0)
                         seriesid = str(res + 1)
-                        debug_msg = "Series %s set seriesid %s" % (item[2], seriesid)
+                        debug_msg = "Series %s set LL seriesid %s" % (item[2], seriesid)
                         logger.info(debug_msg)
                         members = []
                     if len(members) < 2 and CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
@@ -196,9 +201,10 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         reason = "Bookid %s: %s" % (bookid, reason)
                         debug_msg = "Adding new series %s:%s" % (item[2], seriesid)
                         logger.info(debug_msg)
-                        db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                        db.action('INSERT into series (SeriesID, SeriesName, Status, Updated, Reason, Source) '
+                                  'VALUES (?, ?, ?, ?, ?, ?)',
                                   (seriesid, item[2], CONFIG['NEWSERIES_STATUS'],
-                                   0, 0, 0, reason, ''), suppress='UNIQUE')
+                                   time.time(), reason, source), suppress='UNIQUE')
 
                 book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
                 authorid = book['AuthorID']
@@ -692,7 +698,7 @@ def add_series_members(seriesid, refresh=False):
         entrystatus = series['Status']
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action("UPDATE series SET Status='Active' WHERE SeriesID=?", (seriesid,))
-        members, _ = get_series_members(seriesid, seriesname)
+        members, _, _ = get_series_members(seriesid, seriesname)
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action('UPDATE series SET Status=? WHERE SeriesID=?', (entrystatus, seriesid))
         for member in members:
@@ -780,7 +786,7 @@ def get_series_authors(seriesid):
             return 0
 
         seriesname = result['SeriesName']
-        members, api_hits = get_series_members(seriesid, seriesname)
+        members, api_hits, _ = get_series_members(seriesid, seriesname)
 
         if members:
             for member in members:
@@ -890,56 +896,59 @@ def get_series_members(seriesid=None, seriesname=None):
         Return as a list of lists """
     results = []
     api_hits = 0
+    source = ''
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
+        result = db.match('select SeriesName,Status,Source from series where SeriesID=?', (seriesid,))
         if result:
+            source = result['source']
             if result['Status'] in ['Paused', 'Ignored']:
                 logger.debug("Not getting additional series members for %s, status is %s" %
                              (result['SeriesName'], result['Status']))
-                return results, api_hits
+                return results, api_hits, source
 
-        if CONFIG['BOOK_API'] == 'GoodReads':
+        if not source or source == 'GR':
             params = {"format": "xml", "key": CONFIG['GR_API']}
             url = '/'.join([CONFIG['GR_URL'], 'series/%s?%s' % (seriesid, urlencode(params))])
             try:
                 rootxml, in_cache = gr_xml_request(url)
                 if not in_cache:
                     api_hits += 1
-                if rootxml is None:
-                    logger.debug("Series %s:%s not recognised at goodreads" % (seriesid, seriesname))
-                    return [], api_hits
             except Exception as e:
                 logger.error("%s finding series %s: %s" % (type(e).__name__, seriesid, str(e)))
-                return [], api_hits
+                return [], api_hits, source
 
-            works = rootxml.find('series/series_works')
-            books = works.iter('series_work')
-            if books is None:
-                logger.warning('No books found for %s' % seriesid)
-                return [], api_hits
-            for book in books:
-                mydict = {}
-                for mykey, location in [('order', 'user_position'),
-                                        ('bookname', 'work/best_book/title'),
-                                        ('authorname', 'work/best_book/author/name'),
-                                        ('workid', 'work/id'),
-                                        ('authorid', 'work/best_book/author/id'),
-                                        ('pubyear', 'work/original_publication_year'),
-                                        ('pubmonth', 'work/original_publication_month'),
-                                        ('pubday', 'work/original_publication_day'),
-                                        ('bookid', 'work/best_book/id')
-                                        ]:
-                    if book.find(location) is not None:
-                        mydict[mykey] = book.find(location).text
-                    else:
-                        mydict[mykey] = ""
-                results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
-                                mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
-                                mydict['pubday'], mydict['bookid']])
+            if rootxml is None:
+                logger.debug("Series %s:%s not recognised at goodreads" % (seriesid, seriesname))
+            else:
+                source = 'GR'
+                works = rootxml.find('series/series_works')
+                books = works.iter('series_work')
+                if books is None:
+                    logger.warning('No books found for %s' % seriesid)
+                    return [], api_hits, source
+                for book in books:
+                    mydict = {}
+                    for mykey, location in [('order', 'user_position'),
+                                            ('bookname', 'work/best_book/title'),
+                                            ('authorname', 'work/best_book/author/name'),
+                                            ('workid', 'work/id'),
+                                            ('authorid', 'work/best_book/author/id'),
+                                            ('pubyear', 'work/original_publication_year'),
+                                            ('pubmonth', 'work/original_publication_month'),
+                                            ('pubday', 'work/original_publication_day'),
+                                            ('bookid', 'work/best_book/id')
+                                            ]:
+                        if book.find(location) is not None:
+                            mydict[mykey] = book.find(location).text
+                        else:
+                            mydict[mykey] = ""
+                    results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
+                                    mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
+                                    mydict['pubday'], mydict['bookid']])
 
-        else:  # googlebooks and openlibrary
+        if not source or source == 'OL':  # googlebooks and openlibrary
             api_hits = 0
             results = []
             # noinspection PyUnresolvedReferences
@@ -1011,7 +1020,7 @@ def get_series_members(seriesid=None, seriesname=None):
             filtered.append(item)
     if len(filtered) and not first:
         logger.warning("Series %s (%s) has %s members but no book 1" % (seriesid, seriesname, len(filtered)))
-    return filtered, api_hits
+    return filtered, api_hits, source
 
 
 def get_gb_info(isbn=None, author=None, title=None, expire=False):
@@ -1208,21 +1217,24 @@ def get_work_series(bookid=None, source='GR', reason=""):
                                 match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                                 if not match:
                                     reason = "Bookid %s: %s" % (bookid, reason)
-                                    db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                    db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, '
+                                              'Reason, Source) VALUES (?, ?, ?, ?, ?, ?)',
                                               (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
-                                               0, 0, 0, reason, ''))
+                                               time.time(), reason, source))
                                 else:
                                     logger.warning("Name mismatch for series %s, [%s][%s]" % (
                                                 seriesid, seriesname, match['SeriesName']))
                             elif str(match['SeriesID']) != str(seriesid):
                                 logger.warning("SeriesID mismatch for series %s, [%s][%s] assume different series?" % (
                                             seriesname, seriesid, match['SeriesID']))
-                                match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
+                                match = db.match('SELECT SeriesName from series WHERE SeriesID=?',
+                                                 (seriesid,))
                                 if not match:
                                     reason = "Bookid %s: %s" % (bookid, reason)
-                                    db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                                              (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
-                                               0, 0, 0, reason, ''))
+                                    db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, '
+                                              'Reason, Source) VALUES (?, ?, ?, ?, ?, ?)',
+                                              (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'], time.time(),
+                                               reason, source))
                         finally:
                             db.close()
     else:
