@@ -114,8 +114,9 @@ from lazylibrarian.common import path_exists
 # 76 Add Label to wanted table
 # 77 Add Genres to magazines and comics
 # 78 Add last_login and login_count to users, sent_file table
+# 79 Add Source to series table
 
-db_current_version = 78
+db_current_version = 79
 
 
 def upgrade_needed():
@@ -1160,6 +1161,12 @@ def update_schema(db, upgradelog):
         upgradelog.write("%s v78: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('CREATE TABLE sent_file (WhenSent TEXT, UserID TEXT REFERENCES '
                   'users (UserID) ON DELETE CASCADE, Addr TEXT, FileName TEXT)')
+
+    if not has_column(db, "series", "Source"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding Source to series table'
+        upgradelog.write("%s v79: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action("ALTER TABLE series ADD COLUMN Source TEXT DEFAULT ''")
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))
