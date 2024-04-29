@@ -499,6 +499,13 @@ def crawl_image(crawler_name, src, cachedir, bookid, safeparams):
       coverlink, crawler_name if successful
     """
     logger = logging.getLogger(__name__)
+    # for key in logging.Logger.manager.loggerDict:
+    #     print(key)
+    logging.getLogger('lib.icrawler').setLevel(logging.CRITICAL)
+    logging.getLogger('feeder').setLevel(logging.CRITICAL)
+    logging.getLogger('downloader').setLevel(logging.CRITICAL)
+    logging.getLogger('parser').setLevel(logging.CRITICAL)
+
     icrawlerdir = os.path.join(cachedir, 'icrawler', bookid)
     if crawler_name == 'baidu':
         crawler = BaiduImageCrawler(storage={'root_dir': icrawlerdir})

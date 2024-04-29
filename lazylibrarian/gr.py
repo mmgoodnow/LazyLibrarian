@@ -571,7 +571,7 @@ class GoodReads:
                                         try:
                                             book_rootxml, in_cache = gr_xml_request(book_url)
                                             if book_rootxml is None:
-                                                self.logger.debug('Error requesting book page')
+                                                self.logger.debug('Error requesting book page for [%s]' % book.find(find_field).text)
                                             else:
                                                 try:
                                                     book_language = book_rootxml.find('./book/language_code').text

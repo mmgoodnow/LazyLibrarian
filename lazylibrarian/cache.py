@@ -86,6 +86,9 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
         Allow one retry on timeout by default """
     logger = logging.getLogger(__name__)
     http.client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
+    # for key in logging.Logger.manager.loggerDict:
+    #     print(key)
+    logging.getLogger('chardet').setLevel(logging.CRITICAL)
 
     url = make_unicode(url)
     if 'googleapis' in url:

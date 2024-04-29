@@ -473,7 +473,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         if books:
             logger.debug(
-                'Fuzz failed [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
+                'Best fuzz results [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
                 (author, book, best_ratio, ratio_name, ratio_id, best_partial, partial_name, partial_id,
                  best_partname, partname_name, partname_id))
 
