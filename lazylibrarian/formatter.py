@@ -343,23 +343,26 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
     except ValueError:
         m = "%02d" % month2num(m)
 
-    datestr = "%s-%s-%s %s:%s:00" % (y, m.zfill(2), d.zfill(2), hh, mm)
+    m = m.zfill(2)
+    d = d.zfill(2)
+    datestr = "%s-%s-%s %s:%s:00" % (y, m, d, hh, mm)
     if not formatstr:
         if len(dateparts) == 1:
             return datestr[:4]  # only year
         return datestr[:11]  # default yyyy-mm-dd
 
-    # noinspection PyBroadException
+    formattedstr = formatstr.replace(
+        '$Y', y).replace(
+        '$y', y[2:]).replace(
+        '$m', m).replace(
+        '$d', d)
     try:
-        return formatstr.replace(
-            '$Y', datestr[0:4]).replace(
-            '$y', datestr[2:4]).replace(
-            '$m', datestr[5:7]).replace(
-            '$d', datestr[8:10]).replace(
-            '$B', lazylibrarian.MONTHNAMES[int(datestr[5:7])][0].title()).replace(
-            '$b', lazylibrarian.MONTHNAMES[int(datestr[5:7])][1].title())
-    except Exception:
-        logger.error("Invalid datestr [%s]" % datestr)
+        if '$B' in formatstr or '$b' in formatstr:
+            monthname = lazylibrarian.MONTHNAMES[int(m)]
+            formattedstr = formattedstr.replace('$B', monthname[0].title()).replace('$b', monthname[1].title())
+        return formattedstr
+    except (NameError, IndexError):
+        logger.error("Invalid datestr [%s] for %s" % (datestr, formatstr))
         return datestr
 
 
