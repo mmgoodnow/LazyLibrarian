@@ -467,9 +467,9 @@ def clean_cache():
 
             # Remove files no longer referenced by the database
             UnreferencedCleaner("author", "Author cache", db, 'AuthorImg', 13,
-                                'authors where AuthorImg like "cache/author/%"').clean(),
+                                "authors where AuthorImg like 'cache/author/%'").clean(),
             UnreferencedCleaner("book", "Book cache", db, 'BookImg', 11,
-                                'books where BookImg like "cache/book/%"').clean(),
+                                "books where BookImg like 'cache/book/%'").clean(),
 
             # At this point there should be no more .jpg files in the root of the cachedir
             # Any that are still there are for books/authors deleted from database
