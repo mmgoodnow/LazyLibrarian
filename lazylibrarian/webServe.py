@@ -2009,8 +2009,8 @@ class WebInterface(object):
         if not authorname:  # still loading?
             raise cherrypy.HTTPRedirect("authors")
 
-        author['AuthorBorn'] = date_format(author['AuthorBorn'], CONFIG['AUTHOR_DATE_FORMAT'])
-        author['AuthorDeath'] = date_format(author['AuthorDeath'], CONFIG['AUTHOR_DATE_FORMAT'])
+        author['AuthorBorn'] = date_format(author['AuthorBorn'], CONFIG['AUTHOR_DATE_FORMAT'], context=authorname)
+        author['AuthorDeath'] = date_format(author['AuthorDeath'], CONFIG['AUTHOR_DATE_FORMAT'], context=authorname)
 
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]), author=author,
@@ -2752,9 +2752,9 @@ class WebInterface(object):
                         row[13] = row[15]
 
                     # Need to pass bookid and status twice for legacy as datatables modifies first one
-                    thisrow = [row[6], row[0], row[1], title, row[12], bookrate, date_format(row[4], ''),
+                    thisrow = [row[6], row[0], row[1], title, row[12], bookrate, date_format(row[4], context=row[6]),
                                row[5], row[11], row[6],
-                               date_format(row[13], CONFIG['DATE_FORMAT']),
+                               date_format(row[13], CONFIG['DATE_FORMAT'], context=row[6]),
                                row[5], row[16], flag]
 
                     if kwargs['source'] == "Manage":
@@ -2771,7 +2771,7 @@ class WebInterface(object):
                             thisrow.append('')
                     elif kwargs['source'] == 'Author':
                         thisrow.append(row[14])
-                        thisrow.append(date_format(row[15], CONFIG['DATE_FORMAT']))
+                        thisrow.append(date_format(row[15], CONFIG['DATE_FORMAT'], context=row[6]))
 
                     thisrow.append(row[18])
                     thisrow.append(row[19])
@@ -3431,7 +3431,7 @@ class WebInterface(object):
                     # use None to clear date
                     # Leave unchanged if fails datecheck
                     if authorborn is not None:
-                        ab = date_format(authorborn)
+                        ab = date_format(authorborn, context=authorname)
                         if len(ab) == 10:
                             authorborn = ab
                         else:
@@ -3440,7 +3440,7 @@ class WebInterface(object):
                             edited = edited.replace('Born ', '')
 
                     if authordeath is not None:
-                        ab = date_format(authordeath)
+                        ab = date_format(authordeath, context=authorname)
                         if len(ab) == 10:
                             authordeath = ab
                         else:
@@ -4465,7 +4465,7 @@ class WebInterface(object):
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
                                 row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
-                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
                             if check_year(row[5][:4]):
@@ -4475,7 +4475,7 @@ class WebInterface(object):
                         elif len(row[5]) == 12:
                             row[5] = 'Vol %d #%d %s' % (int(row[5][4:8]), int(row[5][8:]), row[5][:4])
                     else:
-                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'])
+                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'], context=row[0])
 
             loggerserverside.debug("get_comics returning %s to %s" % (displaystart, displaystart + displaylength))
             loggerserverside.debug("get_comics filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
@@ -4668,8 +4668,8 @@ class WebInterface(object):
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
-                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'])
-                row[2] = date_format(row[2], CONFIG['ISS_FORMAT'])
+                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0])
+                row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0])
 
             loggerserverside.debug("get_comic_issues returning %s to %s" % (displaystart, displaystart + displaylength))
             loggerserverside.debug("get_comic_issues filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
@@ -5001,7 +5001,7 @@ class WebInterface(object):
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
                 for row in rows:
-                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
                             if check_year(row[5][:4]):
@@ -5011,7 +5011,7 @@ class WebInterface(object):
                         elif len(row[5]) == 12:
                             row[5] = 'Vol %d #%d %s' % (int(row[5][4:8]), int(row[5][8:]), row[5][:4])
                     else:
-                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'])
+                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'], context=row[0])
 
                     if not row[1] or not row[1].startswith('cache/'):
                         row[1] = 'images/nocover.jpg'
@@ -5225,7 +5225,7 @@ class WebInterface(object):
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
-                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'])
+                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0])
                 if row[2] and row[2].isdigit():
                     if len(row[2]) == 8:
                         # Year/Issue or Volume/Issue with no year
@@ -5236,7 +5236,7 @@ class WebInterface(object):
                     elif len(row[2]) == 12:
                         row[2] = 'Vol %d #%d %s' % (int(row[2][4:8]), int(row[2][8:]), row[2][:4])
                 else:
-                    row[2] = date_format(row[2], CONFIG['ISS_FORMAT'])
+                    row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0])
                 if perm & lazylibrarian.perm_edit:
                     row[2] = row[2] + '<br><a href="edit_issue?issueid=' + row[4] + '"><small><i>Edit</i></a>'
 
@@ -5331,7 +5331,7 @@ class WebInterface(object):
                 if 'Y' in datetype:
                     issuedate = year + issuedate
 
-            issuenum = date_format(issuedate, "$Y-$m-$d")
+            issuenum = date_format(issuedate, "$Y-$m-$d", context=f"{kwargs.get('magtitle')}/{kwargs.get('issuenum')}")
 
         if not magtitle and issuenum:
             response = ('Issue %s of %s is unchanged. Insufficient information, '
@@ -6457,7 +6457,7 @@ class WebInterface(object):
                         row.append(-1)
                     row.append(rowid)
                     row.append(row[4])  # keep full datetime for tooltip
-                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0])
 
                     if row[1] in ['eBook', 'AudioBook']:
                         btn = '<button onclick="bookinfo(\'' + row[2]
