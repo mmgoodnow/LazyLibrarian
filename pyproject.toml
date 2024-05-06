@@ -7,7 +7,7 @@ where = ["lazylibrarian"]
 
 [project]
 name = "LazyLibrarian"
-version = "2024.03.01"
+version = "2024.05.06"
 description = "LazyLibrarian is a SickBeard, CouchPotato, Headphones-like application for ebooks, audiobooks and magazines"
 readme = "README.md"
 requires-python = ">=3.7"
