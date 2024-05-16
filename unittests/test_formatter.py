@@ -280,7 +280,7 @@ class FormatterTest(LLTestCaseWithStartup):
             ("May 1995", "1995-05-01"),  # openlibrary
             ("June 20, 2008", "2008-06-20"),
             ("28Dec2008", "2008-12-28"),  # Compressed into one string
-            ("XYZ is not a date", "XYZ-00-not a:date:00"),  # Error, but seen as a date
+            ("XYZ is not a date", "XYZ-00-not"),  # Error, but seen as a date
             ("XYZ", "XYZ"),  # Error, just a string
             ("", ""),
         ]
@@ -335,10 +335,9 @@ class FormatterTest(LLTestCaseWithStartup):
     def test_make_utf8bytes(self):
         strings = [
             ("", b'', ""),
-            ("This is a test", b'This is a test', ""),
+            ("This is a test", b'This is a test', ''),
             ("ÆØÅ, æøå and ½é",
-             b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5 and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9',
-             "ISO-8859-15"),
+            b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5 and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9', 'ISO-8859-15'),
         ]
         for teststr in strings:
             encoded, name = formatter.make_utf8bytes(teststr[0])

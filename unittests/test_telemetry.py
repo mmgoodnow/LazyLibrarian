@@ -83,7 +83,6 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
 
     def test_set_config_data(self):
         t = telemetry.LazyTelemetry()
-
         t.set_config_data(self.cfg())
         cfg = t.get_config_telemetry()
 
@@ -92,7 +91,7 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
         # json_fromcfg = json.dumps(obj=cfg)
         # print(json_fromcfg)
         json_good = json.loads("""
-            {"switches": "EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ",
+            {"switches": "EBOOK_TAB COMIC_TAB SERIES_TAB API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ",
             "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ",
             "BOOK_API": "OpenLibrary",
             "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 1}
@@ -101,11 +100,6 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
 
     def test_record_usage_data(self):
         t = telemetry.LazyTelemetry()
-        t.record_usage_data("API/getHelp")
-        t.record_usage_data("web/test")
-        t.record_usage_data("API/getHelp")
-        t.record_usage_data("Download/NZB")
-
         usg = t.get_usage_telemetry()
         self.assertEqual(usg["API/getHelp"], 2)
         self.assertEqual(usg["web/test"], 1)
@@ -123,6 +117,11 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
     def test_construct_data_string(self):
         t = telemetry.LazyTelemetry()
         t.set_install_data(self.cfg(), testing=True)
+        t.set_config_data(self.cfg())
+        t.record_usage_data("API/getHelp")
+        t.record_usage_data("web/test")
+        t.record_usage_data("API/getHelp")
+        t.record_usage_data("Download/NZB")
         s_got = dict()
         s_got['server'] = t.construct_data_string(send_config=False, send_usage=False)
         s_got['config'] = t.construct_data_string(send_config=True, send_usage=False, send_server=False)
@@ -131,9 +130,9 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
             ['server',
              'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt","python_ver":"3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]"}'],
             ['config',
-             'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
+             'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
             ['usage',
-             'usage={"config2/save_config_and_backup_old":1,"API/getHelp":2,"web/test":1,"Download/NZB":1,"test_telemetry/test_record_usage_data":1}'],
+             'usage={"API/getHelp":2,"web/test":1,"Download/NZB":1}'],
         ]
         # Test individual strings
         for expect in s_expect:

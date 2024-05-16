@@ -422,8 +422,8 @@ class JSONCacheRequest(CacheRequest):
         except ValueError:
             self.logger.error("Error decoding json from %s" % hashfilename)
             # normally delete bad data, but keep for inspection if debug logging cache
-            if not self.cachelogger.isEnabledFor(logging.DEBUG):
-                remove_file(hashfilename)
+            # if not self.cachelogger.isEnabledFor(logging.DEBUG):
+            remove_file(hashfilename)
             return None, False
         return source, True
 

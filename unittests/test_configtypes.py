@@ -63,9 +63,9 @@ class Config2Test(LLTestCase):
             ci.set_bool(True)  # Write Error
             self.assertEqual(ci.get_bool(), False)  # Read Error
         self.assertListEqual(cm.output, [
-            'WARNING:lazylibrarian.configtypes:Cannot set config[STRVALUE] to 2: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[STRVALUE] to 2: incorrect type str/int',
             'WARNING:lazylibrarian.configtypes:Type error reading config[STRVALUE] (Override)',
-            'WARNING:lazylibrarian.configtypes:Cannot set config[STRVALUE] to True: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[STRVALUE] to True: incorrect type str/bool',
             'WARNING:lazylibrarian.configtypes:Type error reading config[STRVALUE] (Override)'
         ])
 
@@ -105,8 +105,8 @@ class Config2Test(LLTestCase):
 
         self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.configtypes:Type error reading config[INTVALUE] (42)',
-            'WARNING:lazylibrarian.configtypes:Cannot set config[INTVALUE] to Override: incorrect type',
-            'WARNING:lazylibrarian.configtypes:Cannot set config[INTVALUE] to True: incorrect type',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[INTVALUE] to Override: incorrect type int/str',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[INTVALUE] to True: incorrect type int/bool',
             'WARNING:lazylibrarian.configtypes:Type error reading config[INTVALUE] (2)'
         ])
         expected = Counter({Access.READ_OK: 8, Access.WRITE_OK: 3, Access.WRITE_ERR: 2, Access.READ_ERR: 2})
@@ -180,7 +180,7 @@ class Config2Test(LLTestCase):
             self.assertEqual(ci.get_save_str(), 'False')
             self.assertFalse(ci.is_enabled())
         self.assertListEqual(cm.output, [
-            'WARNING:lazylibrarian.configtypes:Cannot set config[BOOLVALUE] to Override: incorrect type'
+            'WARNING:lazylibrarian.configtypes:Cannot set config[BOOLVALUE] to Override: incorrect type bool/str'
         ])
         expected = Counter({Access.READ_OK: 13, Access.WRITE_OK: 1, Access.WRITE_ERR: 1})
         self.single_access_compare(ci.accesses, expected, [], 'Basic Bool Config not working as expected')

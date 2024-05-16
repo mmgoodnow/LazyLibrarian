@@ -395,7 +395,7 @@ class TestCache(LLTestCaseWithConfigandDIRS):
         mock_fetch_url.return_value = ('{"test": "Hello"}', True)
         data, in_cache = cache.json_request('fakeit', True, True)
         self.assertFalse(in_cache, 'Data should not yet be cached')
-        self.assertEqual(data, {'test': 'Hello'}, 'Unexpected data')
+        self.assertEqual(data, {"test": "Hello"}, 'Unexpected data')
 
         self.assertEqual(lazylibrarian.CACHE_HIT, cache_hits+2)
 

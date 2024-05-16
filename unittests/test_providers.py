@@ -54,9 +54,9 @@ class ProvidersTest(LLTestCase):
         nzb = list(resultxml.findall("./channel/item//"))
 
         result = providers.return_results_by_search_type(book, nzb, search_mode='book', host='hostname')
-        self.assertEqual({'bookid': 'input_bookid', 'nzbdate': 'Sat, 02 Mar 2013 06:51:28 +0100', 'nzbtitle':
+        self.assertDictEqual({'bookid': 'input_bookid', 'nzbdate': 'Sat, 02 Mar 2013 06:51:28 +0100', 'nzbtitle':
                           'Debbie Macomber - When First They Met (html)', 'nzbsize': '192447', 'nzburl': 'http',
-                          'nzbprov': 'hostname', 'nzbmode': 'book', 'priority': 0}, result)
+                          'nzbprov': 'hostname', 'nzbmode': 'book', 'priority': 0, 'prov_page': 'https://www.usenet-crawler.com/details/1c055031d3b32be8e2b9eaee1e33c315#comments'}, result)
 
     def test_ReturnResultsFieldsBySearchTypeForMag(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
@@ -110,11 +110,11 @@ class ProvidersTest(LLTestCase):
         resultxml = ElementTree.fromstring(newsnabplus_resp)
         nzb = list(resultxml.findall("./channel/item//"))
         result = providers.return_results_by_search_type(book, nzb, 'hostname', 'mag')
-        self.assertEqual(
+        self.assertDictEqual(
             {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100',
              'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
              'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4',
-             'nzbprov': 'hostname', 'nzbmode': 'mag', 'priority': 0}, result)
+             'nzbprov': 'hostname', 'nzbmode': 'mag', 'priority': 0, 'prov_page': 'https://www.usenet-crawler.com/details/6814309804e3648c58a9f23345c2a28a#comments'}, result)
 
     def test_ReturnResultsFieldsBySearchTypeForGeneral(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
@@ -168,11 +168,11 @@ class ProvidersTest(LLTestCase):
         resultxml = ElementTree.fromstring(newsnabplus_resp)
         nzb = list(resultxml.findall("./channel/item//"))
         result = providers.return_results_by_search_type(book, nzb, 'hostname', None)
-        self.assertEqual(
+        self.assertDictEqual(
             {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100',
              'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
              'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4',
-             'nzbprov': 'hostname', 'nzbmode': None, 'priority': 0}, result)
+             'nzbprov': 'hostname', 'nzbmode': None, 'priority': 0, 'prov_page': 'https://www.usenet-crawler.com/details/6814309804e3648c58a9f23345c2a28a#comments'}, result)
 
     def test_wishlist_type(self):
         provs = [

@@ -12,7 +12,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import chardet
+# import chardet
 import datetime
 from hashlib import md5
 import os
@@ -331,17 +331,19 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
     else:
         d, m, y, hh, mm = 0, 0, 0, 0, 0
 
+    try:
+        _ = int(m)
+    except ValueError:
+        try:
+            m = "%02d" % month2num(m)
+        except IndexError:
+            m = 0
     if not m:
         msg = f"Unrecognised datestr {datestr}"
         if context:
             msg = f'{msg} for {context}'
-        logger.warning(msg)
+        logger.error(msg)
         return datestr
-
-    try:
-        _ = int(m)
-    except ValueError:
-        m = "%02d" % month2num(m)
 
     m = m.zfill(2)
     d = d.zfill(2)
@@ -517,14 +519,56 @@ def md5_utf8(txt):
     return md5(txt).hexdigest()
 
 
+# CP850: 0x80-0xA5 (fortunately not used in ISO-8859-15) aka latin-1
+# UTF-8: 1st hex code 0xC2-0xC3 followed by a 2nd hex code 0xA1-0xFF
+# ISO-8859-15: 0xA6-0xFF
+# The function will detect if string contains a special character
+# If there is special character, detects if it is a UTF-8, CP850 or ISO-8859-15 encoding
+def make_utf8bytes(txt):
+    name = make_bytestr(txt)
+    # parse to detect if CP850/ISO-8859-15 is used
+    # and return tuple of bytestring encoded in utf-8, detected encoding
+    for idx in range(len(name)):
+        # /!\ detection is done 2char by 2char for UTF-8 special character
+        ch = chr(name[idx])
+        if idx < (len(name) - 1):
+            chx = chr(name[idx + 1])
+            # Detect UTF-8
+            if ((ch == '\xC2') | (ch == '\xC3')) & ((chx >= '\xA0') & (chx <= '\xFF')):
+                return name, 'UTF-8'
+        # Detect CP850 or Windows CP1252 (latin-1)
+        if (ch >= '\x80') & (ch <= '\xA5'):
+            name = name.decode('cp850')
+            return name.encode('utf-8'), 'CP850'
+        # Detect ISO-8859-15 (latin-9)
+        if (ch >= '\xA6') & (ch <= '\xFF'):
+            name = name.decode('iso-8859-15')
+            return name.encode('utf-8'), 'ISO-8859-15'
+    return name, ''
+
+
+"""
 def make_utf8bytes(txt):
     name = make_bytestr(txt)
     result = chardet.detect(name)
     detected_encoding = result['encoding']
-    if detected_encoding.lower() != 'utf-8':
-        name = name.decode(detected_encoding).encode('utf-8')
+    if not detected_encoding:
+        detected_encoding = ""
+    elif detected_encoding.lower() != 'utf-8':
+        try:
+            name = name.decode(detected_encoding).encode('utf-8')
+        except UnicodeDecodeError;
+            logger = logging.getLogger(__name__)
+            logger.debug(f"{detected_encoding} failed to decode {repr(name)}")
+            if '1252' not in detected_encoding:
+                logger.debug(f"Retry as cp1252")
+                try:
+                    name = name.decode('cp1252').encode('utf-8')
+                except UnicodeDecodeError;
+                    logger.debug(f"Unable to decode name [{repr(name)}]")
+                    detected_encoding = 'unknown'
     return name, detected_encoding
-
+"""
 
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
@@ -546,7 +590,7 @@ def make_unicode(txt: Optional[Union[str, bytes]]) -> Optional[Union[str, bytes]
     for encoding in _encodings:
         try:
             return txt.decode(encoding)
-        except (UnicodeError, LookupError):
+        except (UnicodeDecodeError, LookupError):
             pass
     logger = logging.getLogger(__name__)
     logger.debug(f"Unable to decode name [{repr(txt)}]")
@@ -570,7 +614,7 @@ def make_bytestr(txt):
     for encoding in _encodings:
         try:
             return txt.encode(encoding)
-        except UnicodeError:
+        except (UnicodeDecodeError, LookupError):
             pass
     logger = logging.getLogger(__name__)
     logger.debug("Unable to encode name [%s]" % repr(txt))

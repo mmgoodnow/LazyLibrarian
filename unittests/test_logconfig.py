@@ -42,8 +42,8 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         exercise_logger('unittest', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR], 3)
         exercise_logger('special', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR], 4)
         # All of the special loggers default to INFO
-        exercise_logger('special.configread', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR], 3)
-        exercise_logger('special.configwrite', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR], 3)
+        exercise_logger('special.configread', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR], 4)
+        exercise_logger('special.configwrite', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR], 4)
         exercise_logger('special.dbcomms.dbtiming', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR], 3)
 
     def test_setting_log_level(self):
@@ -95,14 +95,14 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
     def test_get_loglevel(self):
         self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('root'), 'Root not INFO')
         self.assertEqual(logging.DEBUG, LOGCONFIG.get_loglevel('special'), 'Special not DEBUG')
-        self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel('special.fuzz'), 'Special.fuzz not INFO')
+        self.assertEqual(logging.DEBUG, LOGCONFIG.get_loglevel('special.fuzz'), 'Special.fuzz not DEBUG')
         self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel(None), 'None not WARNING')
         self.assertEqual(logging.INFO, LOGCONFIG.get_loglevel(''), 'blank not WARNING')
 
     def test_get_loglevel_name(self):
         self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('root'), 'Root not INFO')
         self.assertEqual('DEBUG', LOGCONFIG.get_loglevel_name('special'), 'special not DEBUG')
-        self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('special.fuzz'), 'special.fuzz not INFO')
+        self.assertEqual('DEBUG', LOGCONFIG.get_loglevel_name('special.fuzz'), 'special.fuzz not DEBUG')
         # Undefined logger gets root level:
         self.assertEqual('INFO', LOGCONFIG.get_loglevel_name('somelogger-notdefinedyet'), 'Undefined is not INFO')
 
@@ -122,7 +122,6 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
 
     def test_is_special_logger_enabled(self):
         # Test with special.fuzz
-        self.assertFalse(LOGCONFIG.is_special_logger_enabled('fuzz'))
         LOGCONFIG.enable_special_logger('fuzz', True)
         self.assertTrue(LOGCONFIG.is_special_logger_enabled('fuzz'))
         LOGCONFIG.enable_special_logger('fuzz', False)
@@ -136,10 +135,10 @@ class TestLogConfig(LLTestCaseWithConfigandDIRS):
         loggers = LOGCONFIG.get_special_logger_list()
         for logger in loggers:
             shortname = LOGCONFIG.get_short_special_logger_name(logger.name)
-            self.assertFalse(LOGCONFIG.is_special_logger_enabled(shortname),
-                             'All special loggers should be disabled by default')
-            self.assertFalse(logger.isEnabledFor(logging.DEBUG),
-                             'Results should be consistent with is_special_logger_enabled')
+            if shortname != "cherrypy":
+                self.assertTrue(logger.isEnabledFor(logging.DEBUG), f'{shortname} is not DEBUG')
+            else:
+                self.assertFalse(logger.isEnabledFor(logging.DEBUG), f'{shortname} is DEBUG')
 
             with self.assertLogs(logger.name) as lm:
                 self.assertFalse(logger.isEnabledFor(logging.DEBUG), logger.name)
