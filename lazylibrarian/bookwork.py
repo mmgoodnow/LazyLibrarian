@@ -161,10 +161,10 @@ def set_series(serieslist=None, bookid=None, reason=""):
             for item in serieslist:
                 match = db.match('SELECT SeriesID,Status,Source from series where SeriesName=? '
                                  'COLLATE NOCASE', (item[2],))
-                debug_msg = "Series %s %s" % (item[2], "exists" if match else "is new")
-                logger.info(debug_msg)
                 if match:
                     seriesid = match['SeriesID']
+                    debug_msg = "Series %s exists (%s) %s" % (item[2], seriesid, match['Status'])
+                    logger.info(debug_msg)
                     if match['Status'] in ['Paused', 'Ignored']:
                         members = []
                     else:
@@ -174,6 +174,8 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         api_hits += _api_hits
                 else:
                     # new series, need to set status and get SeriesID
+                    debug_msg = "Series %s is new" % item[2]
+                    logger.info(debug_msg)
                     if item[0]:
                         seriesid = item[0]
                         members, _api_hits, source = get_series_members(seriesid, item[2])
@@ -181,11 +183,15 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         logger.info(debug_msg)
                         api_hits += _api_hits
                     else:
-                        # no seriesid so generate it (row count + 1)
+                        # no seriesid so generate it (first available unused integer)
                         source = 'LL'
-                        cnt = db.match("select count(*) as counter from series")
-                        res = check_int(cnt['counter'], 0)
-                        seriesid = str(res + 1)
+                        res = 1
+                        while True:
+                            cnt = db.match('select * from series where seriesid=?', (res,))
+                            if not cnt:
+                                break
+                            res += 1
+                        seriesid = str(res)
                         debug_msg = "Series %s set LL seriesid %s" % (item[2], seriesid)
                         logger.info(debug_msg)
                         members = []
