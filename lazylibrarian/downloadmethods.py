@@ -640,7 +640,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             source = "QBITTORRENT"
             if torrent:
                 logger.debug("Sending %s data to qBittorrent" % tor_title)
-                status, res = qbittorrent.add_file(torrent, hashid, tor_title)  # returns True or False
+                status, res = qbittorrent.add_file(make_unicode(torrent), hashid, tor_title)  # returns True or False
             else:
                 logger.debug("Sending %s url to qBittorrent" % tor_title)
                 status, res = qbittorrent.add_torrent(tor_url, hashid)  # returns True or False
