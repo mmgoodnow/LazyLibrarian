@@ -638,12 +638,12 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
 
         if CONFIG.get_bool('TOR_DOWNLOADER_QBITTORRENT') and CONFIG['QBITTORRENT_HOST']:
             source = "QBITTORRENT"
-            if torrent:
-                logger.debug("Sending %s data to qBittorrent" % tor_title)
-                status, res = qbittorrent.add_file(make_unicode(torrent), hashid, tor_title)  # returns True or False
-            else:
-                logger.debug("Sending %s url to qBittorrent" % tor_title)
-                status, res = qbittorrent.add_torrent(tor_url, hashid)  # returns True or False
+            # if torrent:
+            # logger.debug("Sending %s data to qBittorrent" % tor_title)
+            # status, res = qbittorrent.add_file(make_unicode(torrent), hashid, tor_title)  # returns True or False
+            # else:
+            logger.debug("Sending %s url to qBittorrent" % tor_title)
+            status, res = qbittorrent.add_torrent(tor_url, hashid)  # returns True or False
             if status:
                 download_id = hashid
                 tor_title = qbittorrent.get_name(hashid)
