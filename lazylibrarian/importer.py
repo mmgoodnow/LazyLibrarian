@@ -313,7 +313,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         if new_author or refresh:
             current_author = get_all_author_details(authorid, authorname)
         else:
-            current_author = dict(dbauthor)
+            current_author = {}
+            for item in dict(dbauthor):
+                current_author[item.lower()] = dbauthor[item]
 
         current_author['manual'] = False
         if new_author:

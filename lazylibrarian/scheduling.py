@@ -347,7 +347,7 @@ def all_author_update(refresh=False):
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        cmd = ("SELECT AuthorID from authors WHERE Status='Active' or Status='Loading' or Status='Wanted'"
+        cmd = ("SELECT AuthorID,AuthorName from authors WHERE Status='Active' or Status='Loading' or Status='Wanted'"
                " order by Updated ASC")
         activeauthors = db.select(cmd)
         lazylibrarian.AUTHORS_UPDATE = 1
@@ -356,7 +356,7 @@ def all_author_update(refresh=False):
             if lazylibrarian.STOPTHREADS:
                 logger.debug("Aborting ActiveAuthorUpdate")
                 break
-            add_author_to_db(refresh=refresh, authorid=author['AuthorID'],
+            add_author_to_db(refresh=refresh, authorid=author['AuthorID'], authorname=author['AuthorName'],
                              reason="all_author_update")
         logger.info('Active author update complete')
         msg = 'Updated %i active %s' % (len(activeauthors), plural(len(activeauthors), "author"))

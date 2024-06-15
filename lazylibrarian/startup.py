@@ -274,8 +274,6 @@ class StartupLazyLibrarian:
         except Exception as e:
             self.logger.error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
             sys.exit(0)
-        finally:
-            db.close()
 
         curr_ver = upgrade_needed()
         if curr_ver:
