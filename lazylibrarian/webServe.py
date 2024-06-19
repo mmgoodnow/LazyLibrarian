@@ -184,7 +184,7 @@ def serve_template(templatename, **kwargs):
                         user = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_USER'))
                         if user:
                             logger.debug("%s: %s" % (CONFIG.get_str('PROXY_AUTH_USER'), user))
-                            res = db.match('SELECT * from users where UserName=?', user)
+                            res = db.match('SELECT * from users where UserName=?', (user,))
                             if res:
                                 logger.debug("%s is a registered user" % user)
                                 db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
@@ -212,7 +212,7 @@ def serve_template(templatename, **kwargs):
                                         cnt = db.match("select count(*) as counter from users")
                                         if cnt['counter'] > 1:
                                             lazylibrarian.SHOWLOGOUT = 1
-                                        res = db.match('SELECT * from users where UserName=?', user)
+                                        res = db.match('SELECT * from users where UserName=?', (user,))
                                         db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
                                                   (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                                     else:

@@ -106,7 +106,7 @@ def bok_login(sess, headers):
             requests.utils.add_dict_to_cookiejar(sess.cookies, my_cookies)
 
     if not CONFIG['BOK_PASS']:
-        return
+        return True
 
     bok_login_url = f"{host}/login"
     data = {
@@ -122,9 +122,11 @@ def bok_login(sess, headers):
     logger.debug("b-ok login response: %s" % response.status_code)
     if not str(response.status_code).startswith('2'):
         logger.error("Login Response:%s" % response)
+        return False
     # use these login cookies for all 1-lib, z-library, b-ok domains
     for c in sess.cookies:
         c.domain = ''
+    return True
 
 
 def direct_bok(book=None, prov=None, test=False):
@@ -157,7 +159,8 @@ def direct_bok(book=None, prov=None, test=False):
     
     headers = {'User-Agent': get_user_agent()}
     s = requests.Session()
-    bok_login(s, headers)
+    if not bok_login(s, headers):
+        return results, "Login failed"
 
     if 'singlelogin' in host:
         host = host.replace('singlelogin', 'z-library').split('/?')[0]
