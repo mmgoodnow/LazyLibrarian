@@ -483,18 +483,18 @@ def book_rename(bookid):
         logger.debug(msg)
         return '', msg
 
-    f = exists['BookFile']
-    if not f:
+    fullname = exists['BookFile']
+    if not fullname:
         msg = "No filename for %s in BookRename" % bookid
         logger.debug(msg)
         return '', msg
 
-    if not os.path.isfile(f):
+    if not os.path.isfile(fullname):
         msg = "Missing source file for %s in BookRename" % bookid
         logger.debug(msg)
         return '', msg
 
-    r = os.path.dirname(f)
+    r = os.path.dirname(fullname)
     if not CONFIG.get_bool('CALIBRE_RENAME'):
         try:
             # noinspection PyTypeChecker
@@ -507,13 +507,13 @@ def book_rename(bookid):
         if calibreid:
             msg = '[%s] looks like a calibre directory: not renaming book' % os.path.basename(r)
             logger.debug(msg)
-            return f, msg
+            return fullname, msg
 
     reject = multibook(r)
     if reject:
-        msg = "Not renaming %s, found multiple %s" % (f, reject)
+        msg = "Not renaming %s, found multiple %s" % (fullname, reject)
         logger.debug(msg)
-        return f, msg
+        return fullname, msg
 
     namevars = name_vars(bookid)
     dest_path = namevars['FolderName']
@@ -526,22 +526,26 @@ def book_rename(bookid):
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
         msg = "book_rename [%s] looks like an omnibus? Not renaming" % new_basename
         logger.warning(msg)
-        return f, msg
+        return fullname, msg
 
     if oldpath != dest_path:
         try:
             dest_path = safe_move(oldpath, dest_path)
             logger.debug("book_rename folder %s to %s" % (oldpath, dest_path))
+            fullname = os.path.join(dest_path, os.path.basename(fullname))
         except Exception as why:
             if not path_isdir(dest_path):
                 msg = 'Unable to create directory %s: %s' % (dest_path, why)
                 logger.error(msg)
-                return f, msg
+                return fullname, msg
 
-    book_basename, _ = os.path.splitext(os.path.basename(f))
+    book_basename, _ = os.path.splitext(os.path.basename(fullname))
 
     if book_basename == new_basename:
-        return f, "No change"
+        if oldpath != dest_path:
+            return fullname, "Folder change"
+        else:
+            return fullname, "No change"
     else:
         msg = ''
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
@@ -567,12 +571,12 @@ def book_rename(bookid):
                         msg += m
                         oldname = os.path.join(oldpath, fname)
                         if oldname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
-                            f = nfname
+                            fullname = nfname
                     except Exception as e:
                         m = 'Unable to rename [%s] to [%s] %s %s ' % (ofname, nfname, type(e).__name__, str(e))
                         logger.error(m)
                         msg += m
-        return f, msg
+        return fullname, msg
 
 
 def name_vars(bookid, abridged=''):
