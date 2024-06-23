@@ -49,7 +49,7 @@ from lazylibrarian.formatter import today, size_in_bytes, md5_utf8, check_int
 # Prevents a common UnicodeDecodeError when downloading from many sources that don't use utf-8
 irc.client.ServerConnection.buffer_class = buffer.LenientDecodingLineBuffer
 
-searchtimeout = 60
+searchtimeout = 180
 dltimeout = 360
 
 
