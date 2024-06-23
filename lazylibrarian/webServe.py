@@ -3307,7 +3307,7 @@ class WebInterface(object):
                             target = fname + '.' + item
                             if path_isfile(target):
                                 types.append(item)
-                        logger.debug('Preftype:%s Types:%s' % (preftype, str(types)))
+                        logger.debug('Preftype:%s Available:%s' % (preftype, str(types)))
                         if preftype and len(types):
                             if preftype in types:
                                 bookfile = fname + '.' + preftype
