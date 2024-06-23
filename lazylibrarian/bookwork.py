@@ -568,6 +568,8 @@ def set_work_pages():
                 else:
                     if check_int(LAST_NEW, 0) + 43200 < time.time():
                         logger.debug('No WorkPage found for %s: %s' % (book['AuthorName'], book['BookName']))
+                    if worklink is None:
+                        break
             msg = 'Updated %s %s' % (counter, plural(counter, "page"))
             logger.debug("set_work_pages complete: " + msg)
         else:
@@ -587,6 +589,8 @@ def get_work_page(bookid=None):
         logger.error("get_work_page - No bookID")
         return ''
     work = get_bookwork(bookid, "Workpage")
+    if work is None:
+        return None
     if work:
         try:
             page = work.split('og:url')[1].split('="')[1].split('"')[0]

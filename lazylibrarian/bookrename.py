@@ -13,6 +13,7 @@
 
 import os
 import re
+import shutil
 import logging
 import traceback
 
@@ -519,25 +520,30 @@ def book_rename(bookid):
     dest_path = namevars['FolderName']
     dest_dir = get_directory('eBook')
     dest_path = os.path.join(dest_dir, dest_path)
-    dest_path = stripspaces(dest_path)
+    dest_path = stripspaces(dest_path.rstrip(os.sep))
     oldpath = r
 
     new_basename = namevars['BookFile']
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
-        msg = "book_rename [%s] looks like an omnibus? Not renaming" % new_basename
+        msg = "[%s] looks like an omnibus? Not renaming" % new_basename
         logger.warning(msg)
         return fullname, msg
 
     if oldpath != dest_path:
         try:
-            dest_path = safe_move(oldpath, dest_path)
-            logger.debug("book_rename folder %s to %s" % (oldpath, dest_path))
+            if len(oldpath) > len(dest_path) and oldpath.startswith(dest_path):
+                # oldpath is a subdir within new correct destination
+                logger.debug(f"move contents of folder {oldpath} to {dest_path}")
+                shutil.copytree(oldpath, dest_path, dirs_exist_ok=True)
+                shutil.rmtree(oldpath)
+            else:
+                logger.debug(f"rename folder {oldpath} to {dest_path}")
+                dest_path = safe_move(oldpath, dest_path)
             fullname = os.path.join(dest_path, os.path.basename(fullname))
         except Exception as why:
-            if not path_isdir(dest_path):
-                msg = 'Unable to create directory %s: %s' % (dest_path, why)
-                logger.error(msg)
-                return fullname, msg
+            msg = f'Rename failed: {why}'
+            logger.error(msg)
+            return fullname, msg
 
     book_basename, _ = os.path.splitext(os.path.basename(fullname))
 
@@ -566,7 +572,7 @@ def book_rename(bookid):
                 if ofname != nfname:
                     try:
                         nfname = safe_move(ofname, nfname)
-                        m = "book_rename file %s to %s " % (ofname, nfname)
+                        m = f"rename file {ofname} to {nfname} "
                         logger.debug(m)
                         msg += m
                         oldname = os.path.join(oldpath, fname)
@@ -576,7 +582,7 @@ def book_rename(bookid):
                         m = 'Unable to rename [%s] to [%s] %s %s ' % (ofname, nfname, type(e).__name__, str(e))
                         logger.error(m)
                         msg += m
-        return fullname, msg
+    return fullname, msg
 
 
 def name_vars(bookid, abridged=''):
