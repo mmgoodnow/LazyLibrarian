@@ -564,7 +564,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     bookfile = book['BookFile']
 
                     if bookfile and not path_isfile(bookfile):
-                        db.action('update books set Status=?,BookFile="",BookLibrary="" where BookID=?',
+                        db.action("update books set Status=?,BookFile='',BookLibrary='' where BookID=?",
                                   (status, book['BookID']))
                         logger.warning('eBook %s - %s updated as not found on disk' %
                                        (book['AuthorName'], book['BookName']))
@@ -1255,7 +1255,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                               plural(cachesize['counter'], 'entry')))
 
             # Cache any covers and images
-            images = db.select('select bookid, bookimg, bookname from books where bookimg like "http%"')
+            images = db.select("select bookid, bookimg, bookname from books where bookimg like 'http%'")
             if len(images):
                 logger.info("Caching %s for %i %s" % (plural(len(images), "cover"), len(images),
                                                       plural(len(images), "book")))
