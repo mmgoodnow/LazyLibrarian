@@ -2425,7 +2425,7 @@ class WebInterface(object):
             if not booklang or booklang == 'None':
                 booklang = None
             languages = db.select(
-                'SELECT DISTINCT BookLang from books WHERE AUDIOSTATUS !="Skipped" AND AUDIOSTATUS !="Ignored"')
+                "SELECT DISTINCT BookLang from books WHERE AUDIOSTATUS !='Skipped' AND AUDIOSTATUS !='Ignored'")
         finally:
             db.close()
         return serve_template(templatename="audio.html", title='AudioBooks', books=[],
