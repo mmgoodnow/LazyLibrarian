@@ -195,10 +195,6 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         debug_msg = "Series %s set LL seriesid %s" % (item[2], seriesid)
                         logger.info(debug_msg)
                         members = []
-                    if len(members) < 2 and CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
-                        logger.info("Ignoring single-book-series %s" % item[2])
-                        continue
-                    else:
                         newserieslist.append(item)
                         if not reason:
                             program, method, lineno = get_info_on_caller(depth=1)

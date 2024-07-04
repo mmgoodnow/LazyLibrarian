@@ -3526,6 +3526,13 @@ class WebInterface(object):
             bookdata = db.match(cmd, (bookid,))
             cmd = "SELECT SeriesName, SeriesNum from member,series where series.SeriesID=member.SeriesID and BookID=?"
             seriesdict = db.select(cmd, (bookid,))
+            if bookdata:
+                cmd = ("SELECT SeriesName from series,seriesauthors WHERE series.seriesid = seriesauthors.seriesid and "
+                       "authorid=? ORDER by SeriesName COLLATE NOCASE")
+                series = db.select(cmd, (bookdata['AuthorID'],))
+            else:
+                series = db.select("SELECT SeriesName from series WHERE Status !='Ignored' "
+                                   "ORDER by SeriesName COLLATE NOCASE")
         finally:
             db.close()
         if bookdata:
@@ -3564,7 +3571,7 @@ class WebInterface(object):
                 if item[0] not in ['title', 'creator', 'ISBN', 'date', 'description']:
                     subs.append(item)
             return serve_template(templatename="editbook.html", title="Edit Book", config=bookdata,
-                                  seriesdict=seriesdict, authors=authors, covers=covers, replaces=subs)
+                                  seriesdict=seriesdict, authors=authors, covers=covers, replaces=subs, series=series)
         else:
             logger.info('Missing book %s' % bookid)
 
