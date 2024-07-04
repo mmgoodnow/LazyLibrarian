@@ -20,7 +20,7 @@ import traceback
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation
-from lazylibrarian.filesystem import path_isdir, syspath, remove_file, listdir, safe_move, opf_file, get_directory
+from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory
 from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, sanitize
 from lazylibrarian.opfedit import opf_read
 
@@ -40,6 +40,7 @@ def id3read(filename):
 
     filename = syspath(filename)
     logger = logging.getLogger(__name__)
+    # noinspection PyBroadException
     try:
         res = TinyTag.is_supported(filename)
     except Exception:
@@ -349,7 +350,7 @@ def audio_rename(bookid, rename=False, playlist=False):
     if exists:
         book_filename = exists['AudioFile']
         if book_filename:
-            r = os.path.dirname(book_filename)
+            old_path = os.path.dirname(book_filename)
         else:
             logger.debug("No filename for %s in audio_rename" % bookid)
             return ''
@@ -361,7 +362,7 @@ def audio_rename(bookid, rename=False, playlist=False):
         logger.warning("TinyTag library not available")
         return ''
 
-    parts, failed, _, abridged = audio_parts(r, exists['BookName'], exists['AuthorName'])
+    parts, failed, _, abridged = audio_parts(old_path, exists['BookName'], exists['AuthorName'])
 
     if failed or not parts:
         return exists['AudioFile']
@@ -374,24 +375,32 @@ def audio_rename(bookid, rename=False, playlist=False):
     dest_path = seriesinfo['AudioFolderName']
     dest_dir = get_directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
+
     # check for windows case-insensitive
-    if os.name == 'nt' and r.lower() == dest_path.lower():
-        dest_path = r
-    if rename and r != dest_path:
+    if os.name == 'nt' and old_path.lower() == dest_path.lower():
+        dest_path = old_path
+
+    if rename and old_path != dest_path:
         try:
-            logger.debug("Moving folder [%s] to [%s]" % (repr(r), repr(dest_path)))
-            dest_path = safe_move(r, dest_path)
-            r = dest_path
-            book_filename = os.path.join(r, os.path.basename(book_filename))
+            if len(old_path) > len(dest_path) and old_path.startswith(dest_path):
+                # old_path is a subdir within new correct destination
+                logger.debug(f"move contents of folder {old_path} to {dest_path}")
+                shutil.copytree(old_path, dest_path, dirs_exist_ok=True)
+                shutil.rmtree(old_path)
+            else:
+                logger.debug(f"moving folder {old_path} to {dest_path}")
+                dest_path = safe_move(old_path, dest_path)
+            book_filename = os.path.join(dest_path, os.path.basename(book_filename))
         except Exception as why:
-            if not path_isdir(dest_path):
-                logger.error('Unable to create directory %s: %s' % (dest_path, why))
+            msg = f'Rename failed: {why}'
+            logger.error(msg)
+            return ''
 
     if playlist:
         try:
-            playlist = open(os.path.join(r, 'playlist.ll'), "w")
+            playlist = open(os.path.join(dest_path, 'playlist.ll'), "w")
         except Exception as why:
-            logger.error('Unable to create playlist in %s: %s' % (r, why))
+            logger.error('Unable to create playlist in %s: %s' % (dest_path, why))
             playlist = None
 
     if len(parts) == 1:
@@ -408,8 +417,8 @@ def audio_rename(bookid, rename=False, playlist=False):
             else:
                 playlist.write("%s\n" % make_unicode(part[3]))
         if rename:
-            n = os.path.join(make_unicode(r), make_unicode(outfile))
-            o = os.path.join(make_unicode(r), make_unicode(part[3]))
+            n = os.path.join(make_unicode(dest_path), make_unicode(outfile))
+            o = os.path.join(make_unicode(dest_path), make_unicode(part[3]))
             # check for windows case-insensitive
             if os.name == 'nt' and n.lower() == o.lower():
                 n = o
@@ -437,8 +446,8 @@ def audio_rename(bookid, rename=False, playlist=False):
                 else:
                     playlist.write("%s\n" % make_unicode(part[3]))
             if rename:
-                n = os.path.join(make_unicode(r), make_unicode(pattern))
-                o = os.path.join(make_unicode(r), make_unicode(part[3]))
+                n = os.path.join(make_unicode(dest_path), make_unicode(pattern))
+                o = os.path.join(make_unicode(dest_path), make_unicode(part[3]))
                 # check for windows case-insensitive
                 if os.name == 'nt' and n.lower() == o.lower():
                     n = o
@@ -495,22 +504,22 @@ def book_rename(bookid):
         logger.debug(msg)
         return '', msg
 
-    r = os.path.dirname(fullname)
+    old_path = os.path.dirname(fullname)
     if not CONFIG.get_bool('CALIBRE_RENAME'):
         try:
             # noinspection PyTypeChecker
-            calibreid = r.rsplit('(', 1)[1].split(')')[0]
+            calibreid = old_path.rsplit('(', 1)[1].split(')')[0]
             if not calibreid.isdigit():
                 calibreid = ''
         except IndexError:
             calibreid = ''
 
         if calibreid:
-            msg = '[%s] looks like a calibre directory: not renaming book' % os.path.basename(r)
+            msg = '[%s] looks like a calibre directory: not renaming book' % os.path.basename(old_path)
             logger.debug(msg)
             return fullname, msg
 
-    reject = multibook(r)
+    reject = multibook(old_path)
     if reject:
         msg = "Not renaming %s, found multiple %s" % (fullname, reject)
         logger.debug(msg)
@@ -521,7 +530,6 @@ def book_rename(bookid):
     dest_dir = get_directory('eBook')
     dest_path = os.path.join(dest_dir, dest_path)
     dest_path = stripspaces(dest_path.rstrip(os.sep))
-    oldpath = r
 
     new_basename = namevars['BookFile']
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
@@ -529,16 +537,20 @@ def book_rename(bookid):
         logger.warning(msg)
         return fullname, msg
 
-    if oldpath != dest_path:
+    # check for windows case-insensitive
+    if os.name == 'nt' and old_path.lower() == dest_path.lower():
+        dest_path = old_path
+
+    if old_path != dest_path:
         try:
-            if len(oldpath) > len(dest_path) and oldpath.startswith(dest_path):
-                # oldpath is a subdir within new correct destination
-                logger.debug(f"move contents of folder {oldpath} to {dest_path}")
-                shutil.copytree(oldpath, dest_path, dirs_exist_ok=True)
-                shutil.rmtree(oldpath)
+            if len(old_path) > len(dest_path) and old_path.startswith(dest_path):
+                # old_path is a subdir within new correct destination
+                logger.debug(f"move contents of folder {old_path} to {dest_path}")
+                shutil.copytree(old_path, dest_path, dirs_exist_ok=True)
+                shutil.rmtree(old_path)
             else:
-                logger.debug(f"rename folder {oldpath} to {dest_path}")
-                dest_path = safe_move(oldpath, dest_path)
+                logger.debug(f"rename folder {old_path} to {dest_path}")
+                dest_path = safe_move(old_path, dest_path)
             fullname = os.path.join(dest_path, os.path.basename(fullname))
         except Exception as why:
             msg = f'Rename failed: {why}'
@@ -548,7 +560,7 @@ def book_rename(bookid):
     book_basename, _ = os.path.splitext(os.path.basename(fullname))
 
     if book_basename == new_basename:
-        if oldpath != dest_path:
+        if old_path != dest_path:
             return fullname, "Folder change"
         else:
             return fullname, "No change"
@@ -575,7 +587,7 @@ def book_rename(bookid):
                         m = f"rename file {ofname} to {nfname} "
                         logger.debug(m)
                         msg += m
-                        oldname = os.path.join(oldpath, fname)
+                        oldname = os.path.join(old_path, fname)
                         if oldname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
                             fullname = nfname
                     except Exception as e:
