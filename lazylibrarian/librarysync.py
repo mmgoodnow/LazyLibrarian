@@ -35,7 +35,7 @@ from lazylibrarian.formatter import plural, is_valid_isbn, get_list, unaccented,
     replace_all, replace_quotes_with, split_title, now, make_unicode
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.importer import update_totals, add_author_name_to_db, search_for
+from lazylibrarian.importer import update_totals, add_author_name_to_db, search_for, collate_nopunctuation, title_translates
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.preprocessor import preprocess_audio
 from lib.mobi import Mobi
@@ -242,6 +242,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     book = book.replace('\n', ' ')
     logger.debug('Searching database for [%s] by [%s]' % (book, author))
     db = database.DBConnection()
+    db.connection.create_collation('nopunctuation', collate_nopunctuation)
     try:
         check_exist_author = db.match('SELECT AuthorID FROM authors where AuthorName=? COLLATE NOCASE', (author,))
         if check_exist_author:
@@ -263,7 +264,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             return 0, ''
 
         cmd = ("SELECT BookID,books.Status,AudioStatus FROM books,authors where books.AuthorID = authors.AuthorID and "
-               "authors.AuthorID=? and BookName=? COLLATE NOCASE")
+               "authors.AuthorID=? and BookName=? COLLATE NOPUNCTUATION")
         res = db.select(cmd, (authorid, book))
 
         whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
@@ -356,12 +357,6 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         if book_partname == book_lower:
             book_partname = ''
 
-        # translations: eg allow "fire & fury" to match "fire and fury"
-        translates = [
-            [' & ', ' and '],
-            [' + ', ' plus '],
-        ]
-
         for a_book in books:
             a_bookname = a_book['BookName']
             if a_book['BookSub'] and book_sub:
@@ -372,7 +367,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             a_book_lower = unaccented(a_bookname.lower(), only_ascii=False)
             a_book_lower = replace_quotes_with(a_book_lower, '')
 
-            for entry in translates:
+            for entry in title_translates:
                 if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
                     a_book_lower = a_book_lower.replace(entry[0], entry[1])
                 if entry[1] in a_book_lower and entry[1] not in book_lower and entry[0] in book_lower:
@@ -581,7 +576,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     bookfile = book['AudioFile']
 
                     if bookfile and not path_isfile(bookfile):
-                        db.action('update books set AudioStatus=?,AudioFile="",AudioLibrary="" where BookID=?',
+                        db.action("update books set AudioStatus=?,AudioFile='',AudioLibrary='' where BookID=?",
                                   (status, book['BookID']))
                         logger.warning('Audiobook %s - %s updated as not found on disk' %
                                        (book['AuthorName'], book['BookName']))
@@ -1267,7 +1262,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     if success:
                         db.action('update books set BookImg=? where BookID=?', (newimg, bookid))
 
-            images = db.select('select AuthorID, AuthorImg, AuthorName from authors where AuthorImg like "http%"')
+            images = db.select("select AuthorID, AuthorImg, AuthorName from authors where AuthorImg like 'http%'")
             if len(images):
                 logger.info("Caching %s for %i %s" % (plural(len(images), "image"), len(images),
                                                       plural(len(images), "author")))

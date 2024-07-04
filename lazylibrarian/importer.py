@@ -38,7 +38,7 @@ def is_valid_authorid(authorid: str, api=None) -> bool:
         return False  # Reject blank, or non-string
     if api is None:
         api = CONFIG['BOOK_API']
-    # GoogleBooks doesn't provide authorid so we use one of the other sources
+    # GoogleBooks doesn't provide authorid, so we use one of the other sources
     if authorid.isdigit() and api in ['GoodReads', 'GoogleBooks']:
         return True
     if authorid.startswith('OL') and authorid.endswith('A') and api in ['OpenLibrary', 'GoogleBooks']:
@@ -489,7 +489,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     followid = ''
                 db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, current_author['authorid']))
         else:
-            # if we're not loading any books and it's a new author,
+            # if we're not loading any books, and it's a new author,
             # mark author as paused in case it's a wishlist or a series contributor
             if new_author and not addbooks:
                 entry_status = 'Paused'
@@ -515,7 +515,17 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         db.close()
 
 
+# translations: e.g. allow "fire & fury" to match "fire and fury"
+title_translates = [
+    [' & ', ' and '],
+    [' + ', ' plus '],
+]
+
+
 def collate_nopunctuation(string1, string2):
+    for entry in title_translates:
+        string1 = string1.replace(entry[0], entry[1])
+        string2 = string2.replace(entry[0], entry[1])
     # strip all punctuation so things like "it's" matches "its"
     str1 = string1.lower().translate(str.maketrans('', '', string.punctuation))
     str2 = string2.lower().translate(str.maketrans('', '', string.punctuation))
