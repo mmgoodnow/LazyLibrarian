@@ -15,11 +15,10 @@ from configparser import ConfigParser
 from os import sep
 from typing import Dict, List, Optional, Generator, Tuple
 
-from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configarray import ArrayConfig
-from lazylibrarian.configenums import Access, OnChangeReason
 from lazylibrarian.configdefs import BASE_DEFAULTS, ARRAY_DEFS, configitem_from_default
+from lazylibrarian.configenums import Access, OnChangeReason
 from lazylibrarian.configtypes import ConfigItem, ConfigBool, CaseInsensitiveDict, ConfigDict, \
     ConfigScheduler, ConfigDictListIterator, ErrorListIterator
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
@@ -427,15 +426,6 @@ class LLConfigHandler(ConfigDict):
                     else:
                         self.logger.debug(f"Stopping job {schedule}")
                         schedule_job(SchedulerCommand.STOP, schedule)
-
-        # Clean up the database if needed (Does this really belong here?)
-        if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():
-            self.logger.debug("Deleting single-book series from database")
-            db = database.DBConnection()
-            try:
-                db.action('DELETE from series where total=1')
-            finally:
-                db.close()
 
         # Update the redact list since things may have changed
         self._update_redactlist()

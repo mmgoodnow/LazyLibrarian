@@ -399,6 +399,10 @@ def check_db(upgradelog=None):
                 logger.warning("Found %s series marked Skipped, updating to Paused" % tot)
                 db.action("UPDATE series SET Status='Paused' WHERE Status='Skipped'")
 
+            if CONFIG['NO_SINGLE_BOOK_SERIES']:
+                logger.debug("Deleting single-book series from database")
+                db.action("DELETE from series where source != 'LL' and total=1")
+
             # Extract any librarything workids from workpage url
             cmd = ("SELECT WorkPage,BookID from books WHERE WorkPage like '%librarything.com/work/%' "
                    "and LT_WorkID is NULL")
