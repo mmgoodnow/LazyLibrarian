@@ -21,6 +21,7 @@ import cherrypy
 try:
     import cherrypy_cors
 except ImportError:
+    # noinspection PyUnresolvedReferences
     import lib.cherrypy_cors as cherrypy_cors
 import logging
 from shutil import copyfile
@@ -63,6 +64,7 @@ def initialize(options=None):
         'tools.encode.encoding': 'utf-8',
         'tools.decode.on': True,
         'error_page.401': error_page_401,
+        'error_page.403': error_page_403,
         'error_page.404': error_page_404,
     }
 
@@ -249,7 +251,8 @@ def initialize(options=None):
         if cp_ver and int(cp_ver.split('.')[0]) < 12:
             cherrypy.engine.timeout_monitor.unsubscribe()
         cherrypy.server.start()
-        copyfile(os.path.join(DIRS.PROG_DIR, 'data', 'images', 'lazylibrarian.png'), os.path.join(DIRS.CACHEDIR, 'alive.png'))
+        copyfile(os.path.join(DIRS.PROG_DIR, 'data', 'images', 'lazylibrarian.png'),
+                 os.path.join(DIRS.CACHEDIR, 'alive.png'))
     except Exception as e:
         msg = 'CherryPy failed to start on port %i' % (options['http_port'])
         if psutil:
@@ -272,7 +275,11 @@ def initialize(options=None):
     cherrypy.server.wait()
 
 
-# noinspection PyShadowingNames,PyUnusedLocal
+def error_page_403(status, message, traceback, version):
+    """ Custom handler for 403 error """
+    return error_page_401(status=status, message=message, traceback=traceback, version=version)
+
+
 def error_page_404(status, message, traceback, version):
     """ Custom handler for 404 error """
     return error_page_401(status=status, message=message, traceback=traceback, version=version)
