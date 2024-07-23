@@ -992,14 +992,18 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 db.upsert("users", new_value_dict, control_value_dict)
 
                 if shelf_changed:
-                    for exclusive_shelf in ['HaveRead', 'ToRead', 'Reading' 'Abandoned']:
+                    for exclusive_shelf in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']:
                         if exclusive_shelf not in new_value_dict:
-                            old_set = set(get_list(user[exclusive_shelf]))
-                            new_set = old_set - ll_set
-                            if len(old_set) != len(new_set):
-                                new_list = ', '.join(str(x) for x in new_set)
-                                db.upsert("users", {exclusive_shelf: new_list}, control_value_dict)
-                                logger.debug("Removed duplicates from %s shelf" % exclusive_shelf)
+                            try:
+                                old_set = set(get_list(user[exclusive_shelf]))
+                                new_set = old_set - ll_set
+                                if len(old_set) != len(new_set):
+                                    new_list = ', '.join(str(x) for x in new_set)
+                                    db.upsert("users", {exclusive_shelf: new_list}, control_value_dict)
+                                    logger.debug("Removed duplicates from %s shelf" % exclusive_shelf)
+                            except Exception as e:
+                                logger.debug(f"Unable to update {exclusive_shelf} for {user['UserID']}")
+                                logger.error(e)
         else:
             # get new definitive list from ll
             if 'eBook' in library:
