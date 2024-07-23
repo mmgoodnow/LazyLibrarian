@@ -779,7 +779,7 @@
                     });
                 });
         });
-        $('#test_ebookconvert').click(function () {
+        $('#test_ebook_convert').click(function () {
             let prg = $.trim($("#ebook_convert").val());
             $.get("test_ebook_convert", { 'prg': prg},
                 function (data) {
@@ -863,6 +863,24 @@
                 $("#myAlert").addClass('hidden');
                 bootbox.dialog({
                     title: 'Generate API',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(){ location.reload(); }
+                        },
+                    }
+                });
+            });
+        });
+
+       $('#generate_ro_api').on('click', function() {
+            $("#myAlert").removeClass('hidden');
+            $.get('generate_ro_api', function(data) {
+                $("#myAlert").addClass('hidden');
+                bootbox.dialog({
+                    title: 'Generate Read-Only API',
                     message: '<pre>'+data+'</pre>',
                     buttons: {
                         primary: {

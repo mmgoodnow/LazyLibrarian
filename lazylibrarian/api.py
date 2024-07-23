@@ -64,174 +64,182 @@ from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
 from lazylibrarian.telemetry import TELEMETRY, telemetry_send
 
-cmd_dict = {'help': 'list available commands. ' +
-                    'Time consuming commands take an optional &wait parameter if you want to wait for completion, ' +
-                    'otherwise they return OK straight away and run in the background',
-            'showMonths': 'List installed monthnames',
-            'dumpMonths': 'Save installed monthnames to file',
-            'deduplicate': '&id= [&wait] De-duplicate authors books',
-            'saveTable': '&table= Save a database table to a file',
-            'getIndex': 'list all authors',
-            'getAuthor': '&id= get author by AuthorID and list their books',
-            'getAuthorImage': '&id= [&refresh] [&max] get one or more images for this author',
-            'setAuthorImage': '&id= &img= set a new image for this author',
-            'setAuthorLock': '&id= lock author name/image/dates',
-            'setAuthorUnlock': '&id= unlock author name/image/dates',
-            'setBookLock': '&id= lock book details',
-            'setBookUnlock': '&id= unlock book details',
-            'setBookImage': '&id= &img= set a new image for this book',
-            'shrinkMag': '&name= &size= shrink magazine size',
-            'getAuthorImages': '[&wait] get images for all authors without one',
-            'getWanted': 'list wanted books',
-            'getRead': 'list read books for current user',
-            'getReading': 'list currently-reading books for current user',
-            'getToRead': 'list to-read books for current user',
-            'getAbandoned': 'list abandoned books for current user',
-            'getSnatched': 'list snatched books',
-            'getHistory': 'list history',
-            'getDebug': 'show debug log header',
-            'getModules': 'show installed modules',
-            'checkModules': 'Check using lazylibrarian library modules',
-            'createSupportZip': 'Create support.zip. Requires that LOGFILEREDACT is enabled',
-            'clearLogs': 'clear current log',
-            'getMagazines': 'list magazines',
-            'getIssues': '&name= list issues of named magazine',
-            'getIssueName': '&name= get name of issue from path/filename',
-            'createMagCovers': '[&wait] [&refresh] create covers for magazines, optionally refresh existing ones',
-            'createMagCover': '&file= [&refresh] [&page=] create cover for magazine issue, optional page number',
-            'forceMagSearch': '[&wait] search for all wanted magazines',
-            'forceBookSearch': '[&wait] [&type=eBook/AudioBook] search for all wanted books',
-            'forceRSSSearch': '[&wait] search all entries in rss feeds',
-            'forceComicSearch': '[&wait] search for all wanted comics',
-            'getRSSFeed': '&feed= [&limit=] show rss feed entries',
-            'forceWishlistSearch': '[&wait] search all entries in wishlists',
-            'forceProcess': '[&dir] [ignorekeepseeding] process books/mags in download or named dir',
-            'pauseAuthor': '&id= pause author by AuthorID',
-            'resumeAuthor': '&id= resume author by AuthorID',
-            'ignoreAuthor': '&id= ignore author by AuthorID',
-            'refreshAuthor': '&name= [&refresh] reload author (and their books) by name, optionally refresh cache',
-            'authorUpdate': 'update the oldest author',
-            'seriesUpdate': 'update the oldest series',
-            'forceActiveAuthorsUpdate': '[&wait] [&refresh] reload all active authors and book data, refresh cache',
-            'forceLibraryScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part book library',
-            'forceComicScan': '[&wait] [&id=] rescan whole or part comic library',
-            'forceAudioBookScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part audiobook library',
-            'forceMagazineScan': '[&wait] [&title=] rescan whole or part magazine library',
-            'getVersion': 'show lazylibrarian current/git version',
-            'getCurrentVersion': 'show lazylibrarian current version',
-            'shutdown': 'stop lazylibrarian',
-            'restart': 'restart lazylibrarian',
-            'update': 'update lazylibrarian',
-            'findAuthor': '&name= search goodreads/googlebooks for named author',
-            'findAuthorID': '&name= find goodreads ID for named author',
-            'findBook': '&name= search goodreads/googlebooks for named book',
-            'addBook': '&id= add book details to the database',
-            'moveBooks': '&fromname= &toname= move all books from one author to another by AuthorName',
-            'moveBook': '&id= &toid= move one book to new author by BookID and AuthorID',
-            'addAuthor': '&name= [&books] add author to database by name, optionally add their books',
-            'addAuthorID': '&id= add author to database by AuthorID, optionally add their books',
-            'removeAuthor': '&id= remove author from database by AuthorID',
-            'addMagazine': '&name= add magazine to database by name',
-            'removeMagazine': '&name= remove magazine and all of its issues from database by name',
-            'queueBook': '&id= [&type=eBook/AudioBook] mark book as Wanted, default eBook',
-            'unqueueBook': '&id= [&type=eBook/AudioBook] mark book as Skipped, default eBook',
-            'readCFG': '&name=&group= read value of config variable "name" in section "group"',
-            'writeCFG': '&name=&group=&value= set config variable "name" in section "group" to value',
-            'loadCFG': 'reload config from file',
-            'getBookCover': '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google for BookID',
-            'getAllBooks': 'list all books in the database',
-            'listNoLang': 'list all books in the database with unknown language',
-            'listNoDesc': 'list all books in the database with no description',
-            'listNoISBN': 'list all books in the database with no isbn',
-            'listNoGenre': 'list all books in the database with no genre',
-            'listNoBooks': 'list all authors in the database with no books',
-            'listDupeBooks': 'list all books in the database with more than one entry',
-            'listDupeBookStatus': 'list all copies of books in the database with more than one entry',
-            'removeNoBooks': 'delete all authors in the database with no books',
-            'listIgnoredAuthors': 'list all authors in the database marked ignored',
-            'listIgnoredBooks': 'list all books in the database marked ignored',
-            'listIgnoredSeries': 'list all series in the database marked ignored',
-            'listMissingWorkpages': 'list all books with errorpage or no workpage',
-            'searchBook': '&id= [&wait] [&type=eBook/AudioBook] search for one book by BookID',
-            'searchItem': '&item= get search results for an item (author, title, isbn)',
-            'showStats': 'show database statistics',
-            'showJobs': 'show status of running jobs',
-            'restartJobs': 'restart background jobs',
-            'showThreads': 'show threaded processes',
-            'checkRunningJobs': 'ensure all needed jobs are running',
-            'vacuum': 'vacuum the database',
-            'getWorkSeries': '&id= &source= Get series from Librarything using BookID or GoodReads using WorkID',
-            'addSeriesMembers': '&id= add series members to database using SeriesID',
-            'getSeriesMembers': '&id= Get list of series members using SeriesID',
-            'getSeriesAuthors': '&id= Get all authors for a series and import them',
-            'getWorkPage': '&id= Get url of Librarything BookWork using BookID',
-            'getBookCovers': '[&wait] Check all books for cached cover and download one if missing',
-            'getBookAuthors': '&id= Get list of authors associated with this book',
-            'cleanCache': '[&wait] Clean unused and expired files from the LazyLibrarian caches',
-            'deleteEmptySeries': 'Delete any book series that have no members',
-            'setNoDesc': '[&refresh] Set descriptions for all books, include "No Description" entries on refresh',
-            'setNoGenre': '[&refresh] Set book genre for all books without one, include "Unknown" entries on refresh',
-            'setWork_Pages': '[&wait] Set the WorkPages links in the database',
-            'setAllBookSeries': '[&wait] Set the series details from goodreads or librarything workpages',
-            'setAllBookAuthors': '[&wait] Set all authors for all books from book workpages',
-            'setWorkID': '[&wait] [&bookids] Set WorkID for all books that dont have one, or bookids',
-            'importAlternate': '[&wait] [&dir=] [&library=] Import ebooks/audiobooks from named or alternate folder' +
-                               ' and any subfolders',
-            'includeAlternate': '[&wait] [&dir=] [&library=] Include links to ebooks/audiobooks from named or ' +
-                                ' alternate folder and any subfolders',
-            'importCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Import a CSV wishlist from named ' +
-                                 'or alternate directory',
-            'exportCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Export a CSV wishlist to named ' +
-                                 'or alternate directory',
-            'grSync': '&status= &shelf= [&library=] [&reset] Sync books with given status to a goodreads shelf, ' +
-                      'or reset goodreads shelf to match lazylibrarian',
-            'grFollow': '&id= Follow an author on goodreads',
-            'grFollowAll': 'Follow all lazylibrarian authors on goodreads',
-            'grUnfollow': '&id= Unfollow an author on goodreads',
-            'writeOPF': '&id= [&refresh] write out an opf file for a bookid, optionally overwrite existing opf',
-            'writeAllOPF': '[&refresh] write out opf files for all books, optionally overwrite existing opf',
-            'renameAudio': '&id Rename an audiobook using configured pattern',
-            'createPlaylist': '&id Create playlist for an audiobook',
-            'nameVars': '&id Show the name variables that would be used for a bookid',
-            'showCaps': '&provider= get a list of capabilities from a provider',
-            'calibreList': '[&toread=] [&read=] get a list of books in calibre library',
-            'syncCalibreList': '[&toread=] [&read=] sync list of read/toread books with calibre',
-            'logMessage': '&level= &text=  send a message to lazylibrarian logger',
-            'comicid': '&name= &source= [&best] try to identify comic from name',
-            'comicmeta': '&name= [&xml] get metadata from comic archive, xml or dictionary',
-            'getBookPubdate': '&id= get original publication date of a book by bookid',
-            'gc_init': 'Initialise gc_before state',
-            'gc_stats': 'Show difference since gc_init',
-            'gc_collect': 'Run garbage collection & return how many items',
-            'listNewAuthors': '[&limit=] List newest authors and show when added and reason for adding',
-            'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
-            'importBook': '[&library=] &id= &dir= add library [eBook|Audio] bookid from folder',
-            'importMag': '&title= &num= &file= add magazine issue from file',
-            'preprocessAudio': '&dir= &author= &title= [&id=] [&tag] [&merge] preprocess an audiobook folder',
-            'preprocessBook': '&dir= preprocess an ebook folder',
-            'preprocessMagazine': '&dir= &cover= preprocess a magazine folder',
-            'memUse': 'memory usage of the program in kB',
-            'cpuUse': 'recent cpu usage of the program',
-            'nice': 'show current nice level',
-            'nicer': 'make a little nicer',
-            'subscribe': '&user= &feed= subscribe a user to a feed',
-            'unsubscribe': '&user= &feed= remove a user from a feed',
-            'listAlienAuthors': 'List authors not matching current book api',
-            'listAlienBooks': 'List books not matching current book api',
-            'listNabProviders': 'List all newznab/torznab providers, prowlarr compatible format',
-            'listRSSProviders': 'List all rss/wishlist providers',
-            'listTorrentProviders': 'List all torrent providers',
-            'listIRCProviders': 'List all irc providers',
-            'listDirectProviders': 'List all direct providers',
-            'listProviders': 'List all providers',
-            'changeProvider': '&name= &xxx= Change values for a provider',
-            'addProvider': '&type= &xxx= Add a new provider',
-            'delProvider': '&name= Delete a provider',
-            'renameBook': '&id= Rename a book to match configured pattern',
-            'newAuthorid': '&id= &newid= update an authorid',
-            'telemetryShow': 'show the current telemetry data',
-            'telemetrySend': 'send the latest telemetry data, if configured',
+# dict of known commands. 0 = any valid api key, 1 = not available with the read-only key
+cmd_dict = {'help': (0, 'list available commands. Time consuming commands take an optional &wait parameter '
+                        'if you want to wait for completion, otherwise they return OK straight away '
+                        'and run in the background'),
+            'showMonths': (0, 'List installed monthnames'),
+            'dumpMonths': (1, 'Save installed monthnames to file'),
+            'deduplicate': (1, '&id= [&wait] De-duplicate authors books'),
+            'saveTable': (0, '&table= Save a database table to a file'),
+            'getIndex': (0, 'list all authors'),
+            'getAuthor': (0, '&id= get author by AuthorID and list their books'),
+            'getAuthorImage': (0, '&id= [&refresh] [&max] get one or more images for this author'),
+            'setAuthorImage': (1, '&id= &img= set a new image for this author'),
+            'setAuthorLock': (1, '&id= lock author name/image/dates'),
+            'setAuthorUnlock': (1, '&id= unlock author name/image/dates'),
+            'setBookLock': (1, '&id= lock book details'),
+            'setBookUnlock': (1, '&id= unlock book details'),
+            'setBookImage': (1, '&id= &img= set a new image for this book'),
+            'shrinkMag': (1, '&name= &size= shrink magazine size'),
+            'getAuthorImages': (1, '[&wait] get images for all authors without one'),
+            'getWanted': (0, 'list wanted books'),
+            'getRead': (0, 'list read books for current user'),
+            'getReading': (0, 'list currently-reading books for current user'),
+            'getToRead': (0, 'list to-read books for current user'),
+            'getAbandoned': (0, 'list abandoned books for current user'),
+            'getSnatched': (0, 'list snatched books'),
+            'getHistory': (0, 'list history'),
+            'getDebug': (0, 'show debug log header'),
+            'getModules': (0, 'show installed modules'),
+            'checkModules': (0, 'Check using lazylibrarian library modules'),
+            'createSupportZip': (0, 'Create support.zip. Requires that LOGFILEREDACT is enabled'),
+            'clearLogs': (1, 'clear current log'),
+            'getMagazines': (0, 'list magazines'),
+            'getIssues': (0, '&name= list issues of named magazine'),
+            'getIssueName': (0, '&name= get name of issue from path/filename'),
+            'createMagCovers': (1, '[&wait] [&refresh] create covers for magazines, optionally refresh existing ones'),
+            'createMagCover': (1, '&file= [&refresh] [&page=] create cover for magazine issue, optional page number'),
+            'forceMagSearch': (1, '[&wait] search for all wanted magazines'),
+            'forceBookSearch': (1, '[&wait] [&type=eBook/AudioBook] search for all wanted books'),
+            'forceRSSSearch': (1, '[&wait] search all entries in rss feeds'),
+            'forceComicSearch': (1, '[&wait] search for all wanted comics'),
+            'getRSSFeed': (0, '&feed= [&limit=] show rss feed entries'),
+            'forceWishlistSearch': (1, '[&wait] search all entries in wishlists'),
+            'forceProcess': (1, '[&dir] [ignorekeepseeding] process books/mags in download or named dir'),
+            'pauseAuthor': (1, '&id= pause author by AuthorID'),
+            'resumeAuthor': (1, '&id= resume author by AuthorID'),
+            'ignoreAuthor': (1, '&id= ignore author by AuthorID'),
+            'refreshAuthor': (1, '&name= [&refresh] reload author (and their books) by name, optionally refresh cache'),
+            'authorUpdate': (1, 'update the oldest author'),
+            'seriesUpdate': (1, 'update the oldest series'),
+            'forceActiveAuthorsUpdate': (1, '[&wait] [&refresh] reload all active authors and book data, '
+                                            'refresh cache'),
+            'forceLibraryScan': (1, '[&wait] [&remove] [&dir=] [&id=] rescan whole or part book library'),
+            'forceComicScan': (1, '[&wait] [&id=] rescan whole or part comic library'),
+            'forceAudioBookScan': (1, '[&wait] [&remove] [&dir=] [&id=] rescan whole or part audiobook library'),
+            'forceMagazineScan': (1, '[&wait] [&title=] rescan whole or part magazine library'),
+            'getVersion': (0, 'show lazylibrarian current/git version'),
+            'getCurrentVersion': (0, 'show lazylibrarian current version'),
+            'shutdown': (1, 'stop lazylibrarian'),
+            'restart': (1, 'restart lazylibrarian'),
+            'update': (1, 'update lazylibrarian'),
+            'findAuthor': (0, '&name= search goodreads/googlebooks for named author'),
+            'findAuthorID': (0, '&name= find goodreads ID for named author'),
+            'findBook': (0, '&name= search goodreads/googlebooks for named book'),
+            'addBook': (1, '&id= add book details to the database'),
+            'moveBooks': (1, '&fromname= &toname= move all books from one author to another by AuthorName'),
+            'moveBook': (1, '&id= &toid= move one book to new author by BookID and AuthorID'),
+            'addAuthor': (1, '&name= [&books] add author to database by name, optionally add their books'),
+            'addAuthorID': (1, '&id= add author to database by AuthorID, optionally add their books'),
+            'removeAuthor': (1, '&id= remove author from database by AuthorID'),
+            'addMagazine': (1, '&name= add magazine to database by name'),
+            'removeMagazine': (1, '&name= remove magazine and all of its issues from database by name'),
+            'queueBook': (1, '&id= [&type=eBook/AudioBook] mark book as Wanted, default eBook'),
+            'unqueueBook': (1, '&id= [&type=eBook/AudioBook] mark book as Skipped, default eBook'),
+            'readCFG': (1, '&name=&group= read value of config variable "name" in section "group"'),
+            'writeCFG': (1, '&name=&group=&value= set config variable "name" in section "group" to value'),
+            'loadCFG': (1, 'reload config from file'),
+            'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
+                                'for BookID'),
+            'getAllBooks': (0, 'list all books in the database'),
+            'listNoLang': (0, 'list all books in the database with unknown language'),
+            'listNoDesc': (0, 'list all books in the database with no description'),
+            'listNoISBN': (0, 'list all books in the database with no isbn'),
+            'listNoGenre': (0, 'list all books in the database with no genre'),
+            'listNoBooks': (0, 'list all authors in the database with no books'),
+            'listDupeBooks': (0, 'list all books in the database with more than one entry'),
+            'listDupeBookStatus': (0, 'list all copies of books in the database with more than one entry'),
+            'removeNoBooks': (1, 'delete all authors in the database with no books'),
+            'listIgnoredAuthors': (0, 'list all authors in the database marked ignored'),
+            'listIgnoredBooks': (0, 'list all books in the database marked ignored'),
+            'listIgnoredSeries': (0, 'list all series in the database marked ignored'),
+            'listMissingWorkpages': (0, 'list all books with errorpage or no workpage'),
+            'searchBook': (1, '&id= [&wait] [&type=eBook/AudioBook] search for one book by BookID'),
+            'searchItem': (1, '&item= get search results for an item (author, title, isbn)'),
+            'showStats': (0, 'show database statistics'),
+            'showJobs': (0, 'show status of running jobs'),
+            'restartJobs': (1, 'restart background jobs'),
+            'showThreads': (0, 'show threaded processes'),
+            'checkRunningJobs': (0, 'ensure all needed jobs are running'),
+            'vacuum': (1, 'vacuum the database'),
+            'getWorkSeries': (0, '&id= &source= Get series from Librarything using BookID or GoodReads using WorkID'),
+            'addSeriesMembers': (1, '&id= add series members to database using SeriesID'),
+            'getSeriesMembers': (0, '&id= Get list of series members using SeriesID'),
+            'getSeriesAuthors': (1, '&id= Get all authors for a series and import them'),
+            'getWorkPage': (0, '&id= Get url of Librarything BookWork using BookID'),
+            'getBookCovers': (1, '[&wait] Check all books for cached cover and download one if missing'),
+            'getBookAuthors': (0, '&id= Get list of authors associated with this book'),
+            'cleanCache': (1, '[&wait] Clean unused and expired files from the LazyLibrarian caches'),
+            'deleteEmptySeries': (1, 'Delete any book series that have no members'),
+            'setNoDesc': (1, '[&refresh] Set descriptions for all books, include "No Description" entries on refresh'),
+            'setNoGenre': (1, '[&refresh] Set book genre for all books without one, include "Unknown" '
+                              'entries on refresh'),
+            'setWork_Pages': (1, '[&wait] Set the WorkPages links in the database'),
+            'setAllBookSeries': (1, '[&wait] Set the series details from goodreads or librarything workpages'),
+            'setAllBookAuthors': (1, '[&wait] Set all authors for all books from book workpages'),
+            'setWorkID': (1, '[&wait] [&bookids] Set WorkID for all books that dont have one, or bookids'),
+            'importAlternate': (1, '[&wait] [&dir=] [&library=] Import ebooks/audiobooks from named or '
+                                   'alternate folder and any subfolders'),
+            'includeAlternate': (1, '[&wait] [&dir=] [&library=] Include links to ebooks/audiobooks from named '
+                                    'or  alternate folder and any subfolders'),
+            'importCSVwishlist': (1, '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Import a CSV wishlist '
+                                     'from named or alternate directory'),
+            'exportCSVwishlist': (1, '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Export a CSV wishlist '
+                                     'to named or alternate directory'),
+            'grSync': (1, '&status= &shelf= [&library=] [&reset] Sync books with given status to a goodreads '
+                          'shelf, or reset goodreads shelf to match lazylibrarian'),
+            'grFollow': (1, '&id= Follow an author on goodreads'),
+            'grFollowAll': (1, 'Follow all lazylibrarian authors on goodreads'),
+            'grUnfollow': (1, '&id= Unfollow an author on goodreads'),
+            'writeOPF': (1, '&id= [&refresh] write out an opf file for a bookid, optionally overwrite existing opf'),
+            'writeAllOPF': (1, '[&refresh] write out opf files for all books, optionally overwrite existing opf'),
+            'renameAudio': (1, '&id Rename an audiobook using configured pattern'),
+            'createPlaylist': (1, '&id Create playlist for an audiobook'),
+            'nameVars': (0, '&id Show the name variables that would be used for a bookid'),
+            'showCaps': (0, '&provider= get a list of capabilities from a provider'),
+            'calibreList': (0, '[&toread=] [&read=] get a list of books in calibre library'),
+            'syncCalibreList': (0, '[&toread=] [&read=] sync list of read/toread books with calibre'),
+            'logMessage': (1, '&level= &text=  send a message to lazylibrarian logger'),
+            'comicid': (0, '&name= &source= [&best] try to identify comic from name'),
+            'comicmeta': (0, '&name= [&xml] get metadata from comic archive, xml or dictionary'),
+            'getBookPubdate': (0, '&id= get original publication date of a book by bookid'),
+            'gc_init': (1, 'Initialise gc_before state'),
+            'gc_stats': (1, 'Show difference since gc_init'),
+            'gc_collect': (1, 'Run garbage collection & return how many items'),
+            'listNewAuthors': (0, '[&limit=] List newest authors and show when added and reason for adding'),
+            'listNewBooks': (0, '[&limit=] List newest books and show when added and reason for adding'),
+            'importBook': (1, '[&library=] &id= &dir= add library [eBook|Audio] bookid from folder'),
+            'importMag': (1, '&title= &num= &file= add magazine issue from file'),
+            'preprocessAudio': (1, '&dir= &author= &title= [&id=] [&tag] [&merge] preprocess an audiobook folder'),
+            'preprocessBook': (1, '&dir= preprocess an ebook folder'),
+            'preprocessMagazine': (1, '&dir= &cover= preprocess a magazine folder'),
+            'memUse': (0, 'memory usage of the program in kB'),
+            'cpuUse': (0, 'recent cpu usage of the program'),
+            'nice': (0, 'show current nice level'),
+            'nicer': (1, 'make a little nicer'),
+            'subscribe': (1, '&user= &feed= subscribe a user to a feed'),
+            'unsubscribe': (1, '&user= &feed= remove a user from a feed'),
+            'listAlienAuthors': (0, 'List authors not matching current book api'),
+            'listAlienBooks': (0, 'List books not matching current book api'),
+            'listNabProviders': (0, 'List all newznab/torznab providers, prowlarr compatible format'),
+            'listRSSProviders': (0, 'List all rss/wishlist providers'),
+            'listTorrentProviders': (0, 'List all torrent providers'),
+            'listIRCProviders': (0, 'List all irc providers'),
+            'listDirectProviders': (0, 'List all direct providers'),
+            'listProviders': (0, 'List all providers'),
+            'changeProvider': (1, '&name= &xxx= Change values for a provider'),
+            'addProvider': (1, '&type= &xxx= Add a new provider'),
+            'delProvider': (1, '&name= Delete a provider'),
+            'renameBook': (1, '&id= Rename a book to match configured pattern'),
+            'newAuthorid': (1, '&id= &newid= update an authorid'),
+            'telemetryShow': (0, 'show the current telemetry data'),
+            'telemetrySend': (1, 'send the latest telemetry data, if configured'),
             }
+
+
+def get_case_insensitive_key_value(input_dict, key):
+    return next((value for dict_key, value in input_dict.items() if dict_key.lower() == key.lower()), None)
 
 
 class Api(object):
@@ -265,7 +273,7 @@ class Api(object):
                                                                   'Message': 'Missing parameter: apikey'}}
             return
 
-        if kwargs['apikey'] != CONFIG.get_str('API_KEY'):
+        if kwargs['apikey'] != CONFIG.get_str('API_KEY') and kwargs['apikey'] != CONFIG.get_str('API_RO_KEY'):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 401, 'Message': 'Incorrect API key'}}
             return
         else:
@@ -279,6 +287,12 @@ class Api(object):
         if kwargs['cmd'].lower() not in self.lower_cmds:
             self.data = {'Success': False, 'Data': '',
                          'Error':  {'Code': 405, 'Message': 'Unknown command: %s, try cmd=help' % kwargs['cmd']}}
+            return
+
+        if get_case_insensitive_key_value(cmd_dict, kwargs['cmd'])[0] != 0 and self.apikey != CONFIG.get_str('API_KEY'):
+            self.data = {'Success': False, 'Data': '',
+                         'Error':  {'Code': 405, 'Message': 'Command: %s not available with read-only '
+                                                            'api access key, try cmd=help' % kwargs['cmd']}}
             return
 
         self.cmd = kwargs.pop('cmd')
@@ -936,8 +950,10 @@ class Api(object):
               '<p/>\n\n' \
               '<ul>\n'
         for key in sorted(cmd_dict):
-            res += f"<li>{key}: {cmd_dict[key]}</li>\n"
-        res += '</ul></html>'
+            # list all commands if full access api_key, or only the read-only commands
+            if self.apikey == CONFIG.get_str('API_KEY') or cmd_dict[key][0] == 0:
+                res += f"<li>{key}: {cmd_dict[key][1]}</li>\n"
+            res += '</ul></html>'
         self.data = res
 
     def _listalienauthors(self):
@@ -2399,13 +2415,19 @@ class Api(object):
         TELEMETRY.record_usage_data()
         check_running_jobs()
 
-    def _showjobs(self):
+    def _showjobs(self, **kwargs):
         TELEMETRY.record_usage_data()
-        self.data = show_jobs()
+        if 'json' in kwargs:
+            self.data = show_jobs(json=True)
+        else:
+            self.data = show_jobs()
 
-    def _showstats(self):
+    def _showstats(self, **kwargs):
         TELEMETRY.record_usage_data()
-        self.data = show_stats()
+        if 'json' in kwargs:
+            self.data = show_stats(json=True)
+        else:
+            self.data = show_stats()
 
     def _importalternate(self, **kwargs):
         TELEMETRY.record_usage_data()

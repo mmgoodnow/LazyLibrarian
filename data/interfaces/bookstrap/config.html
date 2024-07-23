@@ -467,11 +467,18 @@
                   <fieldset>
                     <fieldset id="api_options">
                       <div class="form-group">
-                        <label for="api_key">API key</label>
+                        <label for="api_key">API Full Access key</label>
                         <input type="text" name="api_key" id="api_key" value="${CONFIG['API_KEY']}" size="36">
                         <input class="button btn btn-sm btn-primary" type="button" value="Generate" id="generate_api">
                         <br>
-                        <small>Current API key: <strong>${CONFIG['API_KEY']}</strong></small>
+                        <small>Current API Full Access key: <strong>${CONFIG['API_KEY']}</strong></small>
+                      </div>
+                      <div class="form-group">
+                        <label for="api_key">API Read-Only key</label>
+                        <input type="text" name="api_ro_key" id="api_ro_key" value="${CONFIG['API_RO_KEY']}" size="36">
+                        <input class="button btn btn-sm btn-primary" type="button" value="Generate" id="generate_ro_api">
+                        <br>
+                        <small>Current API Read-Only key: <strong>${CONFIG['API_RO_KEY']}</strong></small>
                       </div>
                     </fieldset>
                   </fieldset>
@@ -1233,7 +1240,7 @@
                         <input type="text" id="utorrent_user" name="utorrent_user" value="${CONFIG['UTORRENT_USER']}" class="form-control" placeholder="uTorrent Username">
                       </div>
                       <div class="form-group col-md-6">
-                        <label>Password:</label>
+                        <label for="utorrent_pass" class="control-label">Password:</label>
                         <input type="password" id="utorrent_pass" name="utorrent_pass" value="${CONFIG['UTORRENT_PASS']}" class="form-control" placeholder="uTorrent Password">
                       </div>
                       <div class="form-group col-md-6">
@@ -1836,14 +1843,14 @@
                     </div>
                   </div>
                   <div class="form-group">
-                    <label class="control-label">Post-Processing Interval:</label>
+                    <label for="scan_interval" class="control-label">Post-Processing Interval:</label>
                     <div class="input-group">
                       <input type="number" id="scan_interval" name="scan_interval" value="${CONFIG['SCAN_INTERVAL']}" class="form-control" placeholder="0 to disable">
                       <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="How often to check for new downloads">Minutes</span>
                     </div>
                   </div>
                   <div class="form-group">
-                    <label class="control-label">Post-Processing Delay:</label>
+                    <label for="pp_delay" class="control-label">Post-Processing Delay:</label>
                     <div class="input-group">
                       <input type="number" id="pp_delay" name="pp_delay" value="${CONFIG['PP_DELAY']}" class="form-control" placeholder="0 to disable">
                       <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="How long to wait after download is complete before processing">Seconds</span>
@@ -3475,7 +3482,7 @@
                 %endfor
                 %endif
                 <div class="col-md-6">
-                <label>Settings:</label><br>
+                <label for="savefilters">Settings:</label><br>
                 <input type="button" value="Export Filters" id="savefilters" class="btn btn-default" />
                 <input type="button" value="Import Filters" id="loadfilters" class="btn btn-default" />
                 </div>

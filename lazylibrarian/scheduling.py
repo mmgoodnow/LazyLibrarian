@@ -21,8 +21,7 @@ import threading
 import traceback
 import logging
 from enum import Enum
-from typing import Optional, List
-
+from typing import Optional
 from lib.apscheduler.scheduler import Scheduler
 
 import lazylibrarian
@@ -503,8 +502,9 @@ def ago(when):
         return "just now"
 
 
-def show_jobs():
+def show_jobs(json=False):
     result = []
+    resultdict = {}
     db = database.DBConnection()
     for job in SCHED.get_jobs():
         job = str(job)
@@ -526,57 +526,81 @@ def show_jobs():
         if timeparts[0] == '1' and timeparts[1].endswith('s'):
             timeparts[1] = timeparts[1][:-1]
         jobinfo = "%s: Next run in %s %s" % (jobname, timeparts[0], timeparts[1])
+        resultdict[jobname] = {}
+        resultdict[jobname]['next'] = f"Next run in {timeparts[0]} {timeparts[1]}"
         res = db.match("SELECT Start,Finish from jobs WHERE Name='%s'" % threadname)
 
         if res:
             if res['Start'] > res['Finish']:
+                resultdict[jobname] = {}
+                resultdict[jobname]['last'] = "Running since %s" % ago(res['Start'])
                 jobinfo += " (Running since %s)" % ago(res['Start'])
             elif res['Finish']:
+                resultdict[jobname]['last'] = "Last run %s" % ago(res['Finish'])
                 jobinfo += " (Last run %s)" % ago(res['Finish'])
         result.append(jobinfo)
 
     result.append(' ')
     overdue, total, name, _, days = is_overdue('author')
+    resultdict['Author'] = {}
     if name:
+        resultdict['Author']['Name'] = name
+        resultdict['Author']['Overdue'] = days
         result.append('Oldest author info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
+        resultdict['Author']['Overdue'] = 0
         result.append("There are no authors needing update")
     elif days == CONFIG.get_int('CACHE_AGE'):
+        resultdict['Author']['Due'] = overdue
         result.append("Found %s %s from %s due update" % (overdue, plural(overdue, "author"), total))
     else:
+        resultdict['Author']['Late'] = overdue
         result.append("Found %s %s from %s overdue update" % (overdue, plural(overdue, "author"), total))
 
     overdue, total, name, _, days = is_overdue('series')
+    resultdict['Series'] = {}
     if name:
+        resultdict['Series']['Name'] = name
+        resultdict['Series']['Overdue'] = days
         result.append('Oldest series info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
+        resultdict['Series']['Overdue'] = 0
         result.append("There are no series needing update")
     elif days == CONFIG.get_int('CACHE_AGE'):
+        resultdict['Series']['Due'] = overdue
         result.append("Found %s series from %s due update" % (overdue, total))
     else:
+        resultdict['Series']['Late'] = overdue
         result.append("Found %s series from %s overdue update" % (overdue, total))
+    if json:
+        return resultdict
     return result
 
 
-def show_stats() -> List[str]:
-    """ Return status of activity suitable for display. """
+def show_stats(json=False):
+    """ Return status of activity suitable for display, or json if requested """
     gb_status = "Blocked" if BLOCKHANDLER.is_blocked('googleapis') else "Active"
-
+    resultdict = {}
+    cache = {'hit': check_int(lazylibrarian.CACHE_HIT, 0), 'miss': check_int(lazylibrarian.CACHE_MISS, 0)}
+    sleep = {'goodreads': lazylibrarian.TIMERS['SLEEP_GR'], 'librarything': lazylibrarian.TIMERS['SLEEP_LT'],
+             'comicvine': lazylibrarian.TIMERS['SLEEP_CV']}
+    resultdict['cache'] = cache
+    resultdict['sleep'] = sleep
     result = ["Cache %i %s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
                                           plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
                                           check_int(lazylibrarian.CACHE_MISS, 0)),
-              "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
-                  lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
-                  lazylibrarian.TIMERS['SLEEP_CV']),
-              "GoogleBooks API %i calls, %s" % (BLOCKHANDLER.get_gb_calls(), gb_status)]
+                "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
+                lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
+                lazylibrarian.TIMERS['SLEEP_CV']),
+                "GoogleBooks API %i calls, %s" % (BLOCKHANDLER.get_gb_calls(), gb_status)]
 
     db = database.DBConnection()
     try:
         snatched = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
         if snatched['counter']:
+            resultdict['snatched'] = snatched['counter']
             result.append("%i Snatched %s" % (snatched['counter'], plural(snatched['counter'], "item")))
-        else:
-            result.append("No Snatched items")
+        result.append("No Snatched items")
 
         series_stats = []
         res = db.match("SELECT count(*) as counter FROM series")
@@ -593,6 +617,10 @@ def show_stats() -> List[str]:
         series_stats.append(['Monitor', res['counter']])
         overdue = is_overdue('series')[0]
         series_stats.append(['Overdue', overdue])
+        series_stats = {}
+        for item in series_stats:
+            series_stats[item[0]] = item[1]
+        resultdict['series_stats'] = series_stats
 
         mag_stats = []
         if CONFIG.get_bool('MAG_TAB'):
@@ -604,16 +632,25 @@ def show_stats() -> List[str]:
                    "as counter from magazines where counter=0")
             res = db.match(cmd)
             mag_stats.append(['Empty', len(res)])
+            magstats = {}
+            for item in mag_stats:
+                magstats[item[0]] = item[1]
+            resultdict['mag_stats'] = magstats
 
         if CONFIG.get_bool('COMIC_TAB'):
+            comicstats = {}
             res = db.match("SELECT count(*) as counter FROM comics")
             mag_stats.append(['Comics', res['counter']])
+            comicstats['Comics'] = res['counter']
             res = db.match("SELECT count(*) as counter FROM comicissues")
             mag_stats.append(['Issues', res['counter']])
+            comicstats['Issues'] = res['counter']
             cmd = ("select (select count(*) as counter from comicissues where comics.comicid = comicissues.comicid) "
                    "as counter from comics where counter=0")
             res = db.match(cmd)
             mag_stats.append(['Empty', len(res)])
+            comicstats['Empty'] = len(res)
+            resultdict['comic_stats'] = comicstats
 
         book_stats = []
         audio_stats = []
@@ -627,12 +664,22 @@ def show_stats() -> List[str]:
             statusdict[item['Status']] = item['counter']
         for item in ['Have', 'Open', 'Wanted', 'Ignored']:
             book_stats.append([item, statusdict.get(item, 0)])
+        bookstats = {}
+        for item in book_stats:
+            bookstats[item[0]] = item[1]
+        resultdict['book_stats'] = bookstats
+
         res = db.select("SELECT AudioStatus,count(*) as counter from books group by AudioStatus")
         statusdict = {}
         for item in res:
             statusdict[item['AudioStatus']] = item['counter']
         for item in ['Have', 'Open', 'Wanted', 'Ignored']:
             audio_stats.append([item, statusdict.get(item, 0)])
+        audiostats = {}
+        for item in audio_stats:
+            audiostats[item[0]] = item[1]
+        resultdict['audio_stats'] = audiostats
+
         for column in ['BookGenre', 'BookDesc']:
             cmd = ("SELECT count(*) as counter FROM books WHERE Status != 'Ignored' "
                    "and (%s is null or %s = '')")
@@ -651,6 +698,10 @@ def show_stats() -> List[str]:
         cmd = "SELECT count(*) as counter FROM genres"
         res = db.match(cmd)
         missing_stats.append(['Genres', res['counter']])
+        missingstats = {}
+        for item in missing_stats:
+            missingstats[item[0]] = item[1]
+        resultdict['missing_stats'] = missingstats
 
         if not CONFIG.get_bool('AUDIO_TAB'):
             audio_stats = []
@@ -667,8 +718,16 @@ def show_stats() -> List[str]:
         author_stats.append(['Blank', res['counter']])
         overdue = is_overdue('author')[0]
         author_stats.append(['Overdue', overdue])
+        authorstats = {}
+        for item in author_stats:
+            authorstats[item[0]] = item[1]
+        resultdict['author_stats'] = authorstats
     finally:
         db.close()
+
+    if json:
+        return resultdict
+
     for stats in [author_stats, book_stats, missing_stats, series_stats, audio_stats, mag_stats]:
         if len(stats):
             header = ''

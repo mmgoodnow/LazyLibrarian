@@ -65,6 +65,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
 
     ConfigBool('API', 'API_ENABLED', 0),
     ConfigStr('API', 'API_KEY', ''),
+    ConfigStr('API', 'API_RO_KEY', ''),
 
     ConfigStr('Proxy', 'PROXY_HOST', ''),
     ConfigStr('Proxy', 'PROXY_TYPE', ''),
