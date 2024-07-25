@@ -527,7 +527,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 title_translates = [
     [' & ', ' and '],
     [' + ', ' plus '],
-    ['The ', '']
+    ['the ', '']
 ]
 
 
@@ -557,10 +557,9 @@ def de_duplicate(authorid):
     authorname = ''
     # noinspection PyBroadException
     try:
-        # check/delete any duplicate titles - exact match only
-        cmd = ("select count('bookname'),bookname from books where authorid=? and "
-               "( Status != 'Ignored' or AudioStatus != 'Ignored' ) group by bookname COLLATE NOPUNCTUATION "
-               "having ( count(bookname) > 1 )")
+        # check/delete any duplicate titles - exact match only, no fuzz
+        cmd = ("select count('bookname'),bookname from books where authorid=? "
+               "group by bookname COLLATE NOPUNCTUATION having ( count(bookname) > 1 )")
         res = db.select(cmd, (authorid,))
         dupes = len(res)
         if author:
@@ -571,14 +570,22 @@ def de_duplicate(authorid):
             logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes,
                                                                 plural(dupes, 'title'), authorname))
             for item in res:
+                logger.debug(dict(item))
+            for item in res:
                 favourite = ''
                 copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE NOPUNCTUATION",
                                    (authorid, item[1]))
                 for copy in copies:
-                    if (copy['Status'] in ['Open', 'Have', 'Wanted'] or
-                            copy['AudioStatus'] in ['Open', 'Have', 'Wanted']):
+                    if (copy['Status'] in ['Open', 'Have'] or
+                            copy['AudioStatus'] in ['Open', 'Have']):
                         favourite = copy
                         break
+                if not favourite:
+                    for copy in copies:
+                        if (copy['Status'] in ['Wanted'] or
+                                copy['AudioStatus'] in ['Wanted']):
+                            favourite = copy
+                            break
                 if not favourite:
                     for copy in copies:
                         if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
@@ -597,20 +604,22 @@ def de_duplicate(authorid):
                                     'OriginalPubDate', 'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']:
                             if not favourite[key] and copy[key]:
                                 cmd = "UPDATE books SET %s=? WHERE BookID=?" % key
-                                logger.debug("Copy %s from %s" % (key, copy['BookID']))
+                                logger.debug(f"Copy {key} from {copy['BookID']}: {copy['BookName']}")
                                 db.action(cmd, (copy[key], favourite['BookID']))
-                                if key == 'BookFile' and favourite['Status'] not in ['Open', 'Have']:
-                                    logger.debug("Copy Status from %s" % copy['BookID'])
-                                    db.action('UPDATE books SET Status=? WHERE BookID=?',
-                                              (copy['Status'], favourite['BookID']))
-                                if key == 'AudioFile' and favourite['AudioStatus'] not in ['Open', 'Have']:
-                                    logger.debug("Copy AudioStatus from %s" % copy['BookID'])
-                                    db.action('UPDATE books SET AudioStatus=? WHERE BookID=?',
-                                              (copy['AudioStatus'], favourite['BookID']))
+                                if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
+                                    if key == 'BookFile' and favourite['Status'] not in ['Open', 'Have']:
+                                        logger.debug("Copy Status from %s" % copy['BookID'])
+                                        db.action('UPDATE books SET Status=? WHERE BookID=?',
+                                                  (copy['Status'], favourite['BookID']))
+                                    if key == 'AudioFile' and favourite['AudioStatus'] not in ['Open', 'Have']:
+                                        logger.debug("Copy AudioStatus from %s" % copy['BookID'])
+                                        db.action('UPDATE books SET AudioStatus=? WHERE BookID=?',
+                                                  (copy['AudioStatus'], favourite['BookID']))
 
-                        logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
-                        db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
-                        total += 1
+                        if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
+                            logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
+                            db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
+                            total += 1
     except Exception:
         msg = 'Unhandled exception in de_duplicate: %s' % traceback.format_exc()
         logger.warning(msg)

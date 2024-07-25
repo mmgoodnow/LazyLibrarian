@@ -323,7 +323,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         books = db.select(cmd, (authorid,))
 
         if not len(books):
-            logger.warning("No books by %s in database" % author)
+            logger.warning(f"No {source} titles by {author} in database")
             return 0, ''
 
         loggerfuzz.debug(cmd)
