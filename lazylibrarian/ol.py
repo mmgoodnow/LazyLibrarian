@@ -984,8 +984,7 @@ class OpenLibrary:
                                                         if not match:
                                                             self.logger.debug("Adding %s as series author for %s" %
                                                                               (auth_name, series[0]))
-                                                            db.action("INSERT INTO seriesauthors ('SeriesID', " +
-                                                                      '"AuthorID") VALUES (?, ?)',
+                                                            db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
                                                                       (seriesid, auth_key), suppress='UNIQUE')
 
                                                 # if book not in library, use librarything workid to get an isbn

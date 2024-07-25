@@ -426,7 +426,7 @@ class GoogleBooks:
                             if match:
                                 if match['BookID'] != bookid:  # we have a different book with this author/title already
                                     self.logger.debug(f'Rejecting bookid {bookid} for [{authorname}][{bookname}]'
-                                                      f' already got {match['BookID']}')
+                                                      f' already got {match["BookID"]}')
                                     rejected = 'bookid', 'Got under different bookid %s' % bookid
                                     duplicates += 1
 
