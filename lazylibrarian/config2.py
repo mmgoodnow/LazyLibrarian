@@ -14,6 +14,7 @@ from collections import Counter
 from configparser import ConfigParser
 from os import sep
 from typing import Dict, List, Optional, Generator, Tuple
+from urllib.parse import unquote_plus
 
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configarray import ArrayConfig
@@ -212,9 +213,20 @@ class LLConfigHandler(ConfigDict):
             Assumes that all UI settings are of the form section_num_setting=value """
         for pname, array in self.arrays.items():
             for inx, config in enumerate(array):
+                # noinspection PyUnresolvedReferences
                 for key, item in config.items():
                     setting = f'{pname.lower()}_{inx}_{key.lower()}'
                     value = kwargs.get(setting)
+                    if value and key in ['HOST', 'SERVER', 'URL']:
+                        unquoted_value = unquote_plus(value)
+                        for token in ['<', '&', '>', '=', '"', "'", '+', '(', ')']:
+                            if token in unquoted_value:
+                                if token in ['&', '='] and key.lower() in ['host']:
+                                    pass
+                                else:
+                                    self.logger.warning(f'Cannot set value of {pname}{inx} {key}, contains "{token}"')
+                                    value = None
+                                    break
                     if value is not None:
                         if key.lower() == 'apilimit' and isinstance(value, list):
                             value = value[0]

@@ -645,7 +645,7 @@ class OpenLibrary:
                         if auth_id != authorid:
                             rejected = 'name', 'Different author (%s/%s/%s)' % (authorid, auth_id, auth_name)
                         else:
-                            in_db = lazylibrarian.librarysync.find_book_in_db(auth_name, title,
+                            in_db = lazylibrarian.librarysync.find_book_in_db(auth_name, title, source='ol_id',
                                                                               ignored=False, library='eBook',
                                                                               reason='ol_get_author_books %s,%s' %
                                                                               (authorid, title))
@@ -845,11 +845,11 @@ class OpenLibrary:
                                     db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
                                               'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
                                               'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
-                                              'ScanResult, OriginalPubDate, BookPages) ' +
-                                              'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                              'ScanResult, OriginalPubDate, BookPages, ol_id) ' +
+                                              'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                               (authorid, title, bookdesc, genres, isbn, publishers, bookrate, cover,
                                                link, key, bookdate, lang, now(), book_status, '', audio_status,
-                                               id_librarything, reason, first_publish_year, bookpages))
+                                               id_librarything, reason, first_publish_year, bookpages, key))
 
                                     if 'nocover' in cover or 'nophoto' in cover:
                                         start = time.time()
@@ -1095,20 +1095,19 @@ class OpenLibrary:
                                                                     added_count += 1
                                                                     if not lang:
                                                                         lang = 'Unknown'
-                                                                    db.action('INSERT INTO books (AuthorID, ' +
-                                                                              'BookName, BookDesc, BookGenre, ' +
-                                                                              'BookIsbn, BookPub, BookRate, ' +
-                                                                              'BookImg, BookLink, BookID, ' +
-                                                                              'BookDate, BookLang, BookAdded, ' +
-                                                                              'Status, WorkPage, AudioStatus, ' +
-                                                                              'LT_WorkID, ScanResult, ' +
-                                                                              'OriginalPubDate) VALUES ' +
-                                                                              '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                                                    db.action('INSERT INTO books (AuthorID, '
+                                                                              'BookName, BookDesc, BookGenre, BookIsbn,'
+                                                                              ' BookPub, BookRate, BookImg, BookLink, '
+                                                                              'BookID,BookDate, BookLang, BookAdded, '
+                                                                              'Status, WorkPage, AudioStatus, '
+                                                                              'LT_WorkID, ScanResult, OriginalPubDate,'
+                                                                              ' ol_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,'
+                                                                              '?,?,?,?,?,?,?,?,?)',
                                                                               (bauth_key, title, '', genres, '',
                                                                                '', rating, cover, worklink, workid,
                                                                                publish_date, lang, '', bookstatus,
                                                                                '', audiostatus, member[4],
-                                                                               reason, publish_date))
+                                                                               reason, publish_date, workid))
 
                                                                     if 'nocover' in cover or 'nophoto' in cover:
                                                                         start = time.time()
@@ -1160,10 +1159,10 @@ class OpenLibrary:
                                     lang = 'Unknown'
                                 db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
                                           'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
-                                          'WorkPage, AudioStatus, ScanResult, OriginalPubDate) ' +
-                                          'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                          (authorid, title, cover, link, key, publish_date,
-                                           lang, now(), book_status, '', audio_status, reason, first_publish_year))
+                                          'WorkPage, AudioStatus, ScanResult, OriginalPubDate, ol_id) ' +
+                                          'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                          (authorid, title, cover, link, key, publish_date, lang, now(),
+                                           book_status, '', audio_status, reason, first_publish_year, key))
                                 if 'nocover' in cover or 'nophoto' in cover:
                                     start = time.time()
                                     cover = get_cover(key, title)
@@ -1405,7 +1404,8 @@ class OpenLibrary:
                     "BookAdded": today(),
                     "WorkID": workid,
                     "ScanResult": reason,
-                    "OriginalPubDate": originalpubdate
+                    "OriginalPubDate": originalpubdate,
+                    "ol_id": bookid
                 }
 
                 db.upsert("books", new_value_dict, control_value_dict)

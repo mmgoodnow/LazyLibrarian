@@ -104,6 +104,18 @@
               <label for="workid" class="control-label">WorkID:</label>
               <input type="text" id="workid" name="workid" value="${config['WorkID']}" class="form-control" placeholder="">
           </div>
+          <div class="form-group col-md-6">
+              <label for="grid" class="control-label">GoodReads:</label>
+              <input type="text" id="grid" name="grid" value="${config['gr_id']}" class="form-control" placeholder="" readonly>
+          </div>
+          <div class="form-group col-md-6">
+              <label for="olid" class="control-label">OpenLibrary:</label>
+              <input type="text" id="olid" name="olid" value="${config['ol_id']}" class="form-control" placeholder="" readonly>
+          </div>
+          <div class="form-group col-md-6">
+              <label for="gbid" class="control-label">GoogleBooks:</label>
+              <input type="text" id="gbid" name="gbid" value="${config['gb_id']}" class="form-control" placeholder="" readonly>
+          </div>
         </fieldset>
         <div class="form-group">
             %for item in seriesdict:

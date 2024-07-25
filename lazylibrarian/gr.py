@@ -571,7 +571,8 @@ class GoodReads:
                                         try:
                                             book_rootxml, in_cache = gr_xml_request(book_url)
                                             if book_rootxml is None:
-                                                self.logger.debug('Error requesting book page for [%s]' % book.find(find_field).text)
+                                                self.logger.debug('Error requesting book page for [%s]'
+                                                                  % book.find(find_field).text)
                                             else:
                                                 try:
                                                     book_language = book_rootxml.find('./book/language_code').text
@@ -804,6 +805,7 @@ class GoodReads:
 
                             if not match:
                                 in_db = lazylibrarian.librarysync.find_book_in_db(author_name_result, bookname,
+                                                                                  source='gr_id',
                                                                                   ignored=False, library='eBook',
                                                                                   reason='gr_get_author_books')
                                 if in_db and in_db[0]:

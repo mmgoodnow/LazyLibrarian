@@ -13,6 +13,7 @@
 import os
 import subprocess
 import logging
+from urllib.parse import unquote_plus
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
@@ -173,9 +174,14 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     # if we get here, looks like we have all the parts
     # output file will be the same type as the first input file
     # unless the user supplies a parameter to override it
+    out_type = ''
     if CONFIG['FFMPEG_OUT']:
         out_type = '.' + CONFIG['FFMPEG_OUT'].lower().lstrip('.')
-    else:
+        unquoted_type = unquote_plus(out_type)
+        for token in ['<', '>', '=', '"']:
+            if token in unquoted_type:
+                logger.warning(f'Cannot set output type, contains "{token}"')
+    if not out_type:
         out_type = os.path.splitext(parts[0][3])[1]
 
     if '-f ' in CONFIG['AUDIO_OPTIONS']:

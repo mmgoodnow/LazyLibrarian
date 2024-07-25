@@ -14,6 +14,7 @@ from __future__ import with_statement
 
 import datetime
 import os
+import string
 import time
 import traceback
 import uuid
@@ -115,8 +116,10 @@ from lazylibrarian.common import path_exists
 # 77 Add Genres to magazines and comics
 # 78 Add last_login and login_count to users, sent_file table
 # 79 Add Source to series table
+# 80 Add Unauthorised table
+# 81 Add ol_id and gb_id to books table
 
-db_current_version = 79
+db_current_version = 81
 
 
 def upgrade_needed():
@@ -1131,7 +1134,7 @@ def update_schema(db, upgradelog):
 
     if not has_column(db, "authors", "ol_id"):
         changes += 1
-        lazylibrarian.UPDATE_MSG = 'Adding ol_id to series table'
+        lazylibrarian.UPDATE_MSG = 'Adding ol_id to authors table'
         upgradelog.write("%s v75: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE authors ADD COLUMN ol_id TEXT')
         res = db.select("SELECT authorid from authors WHERE authorid like 'OL%A'")
@@ -1161,16 +1164,49 @@ def update_schema(db, upgradelog):
         upgradelog.write("%s v78: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE users ADD COLUMN Last_Login TEXT')
         db.action('ALTER TABLE users ADD COLUMN Login_Count INTEGER DEFAULT 0')
-        lazylibrarian.UPDATE_MSG = 'Creating sent_file table'
-        upgradelog.write("%s v78: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
-        db.action('CREATE TABLE sent_file (WhenSent TEXT, UserID TEXT REFERENCES '
-                  'users (UserID) ON DELETE CASCADE, Addr TEXT, FileName TEXT)')
+        if not has_column(db, "sent_file", "UserID"):
+            changes += 1
+            lazylibrarian.UPDATE_MSG = 'Creating sent_file table'
+            upgradelog.write("%s v78: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+            db.action('CREATE TABLE sent_file (WhenSent TEXT, UserID TEXT REFERENCES '
+                      'users (UserID) ON DELETE CASCADE, Addr TEXT, FileName TEXT)')
 
     if not has_column(db, "series", "Source"):
         changes += 1
         lazylibrarian.UPDATE_MSG = 'Adding Source to series table'
         upgradelog.write("%s v79: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action("ALTER TABLE series ADD COLUMN Source TEXT DEFAULT ''")
+
+    if not has_column(db, "unauthorised", "UserID"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Creating unauthorised table'
+        upgradelog.write("%s v80: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('CREATE TABLE unauthorised (AccessTime TEXT, UserID TEXT REFERENCES '
+                  'users (UserID) ON DELETE CASCADE, Attempt TEXT)')
+
+    if not has_column(db, "books", "ol_id"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding ol_id and gb_id to books table'
+        upgradelog.write("%s v81: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE books ADD COLUMN ol_id TEXT')
+        db.action('ALTER TABLE books ADD COLUMN gb_id TEXT')
+
+        allowed = set(string.ascii_letters + string.digits + '-_')
+        res = db.select("SELECT bookid from books")
+        lazylibrarian.UPDATE_MSG = "Populating new fields in books table for %s books" % len(res)
+        logger.debug(lazylibrarian.UPDATE_MSG)
+        for book in res:
+            if book['bookid'] and book['bookid'].startswith('OL') and book['bookid'].endswith('W'):
+                db.action("UPDATE books SET ol_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
+            elif book['bookid'] and book['bookid'].isnumeric():
+                db.action("UPDATE books SET gr_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
+            elif book['bookid']:
+                if set(book['bookid']) <= allowed:
+                    db.action("UPDATE books SET gb_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
+            else:
+                logger.warning(f"Unable to determine bookid type for {book['bookid']}")
+        lazylibrarian.UPDATE_MSG = "Processed %s books" % len(res)
+        logger.debug(lazylibrarian.UPDATE_MSG)
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))

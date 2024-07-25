@@ -418,15 +418,15 @@ class GoogleBooks:
                                    "books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                             match = db.match(cmd, (bookname, authorname))
                             if not match:
-                                in_db = lazylibrarian.librarysync.find_book_in_db(authorname, bookname,
+                                in_db = lazylibrarian.librarysync.find_book_in_db(authorname, bookname, source='gb_id',
                                                                                   ignored=False, library='eBook',
                                                                                   reason='gb_get_author_books')
                                 if in_db and in_db[0]:
                                     match = {'BookID': in_db[0]}
                             if match:
                                 if match['BookID'] != bookid:  # we have a different book with this author/title already
-                                    self.logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
-                                                      (match['BookID'], authorname, bookname, bookid))
+                                    self.logger.debug(f'Rejecting bookid {bookid} for [{authorname}][{bookname}]'
+                                                      f' already got {match['BookID']}')
                                     rejected = 'bookid', 'Got under different bookid %s' % bookid
                                     duplicates += 1
 
@@ -439,7 +439,7 @@ class GoogleBooks:
                                                   (bookid, authorname, bookname, match['AuthorName'],
                                                    match['BookName']))
                                 duplicates += 1
-                                rejected = 'got', 'Already got this book in database'
+                                rejected = 'got', 'Already got this bookid in database'
                             else:
                                 msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
                                     bookid, authorname, bookname, match['Status'])
@@ -518,7 +518,8 @@ class GoogleBooks:
                                     "AudioStatus": audio_status,
                                     "BookAdded": added,
                                     "WorkID": '',
-                                    "ScanResult": reason
+                                    "ScanResult": reason,
+                                    "gb_id": bookid
                                 }
 
                                 db.upsert("books", new_value_dict, control_value_dict)
@@ -781,7 +782,8 @@ class GoogleBooks:
                 "Status": bookstatus,
                 "AudioStatus": audiostatus,
                 "ScanResult": reason,
-                "BookAdded": today()
+                "BookAdded": today(),
+                "gb_id": bookid
             }
 
             db.upsert("books", new_value_dict, control_value_dict)

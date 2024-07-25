@@ -17,6 +17,7 @@ import time
 import traceback
 from operator import itemgetter
 from queue import Queue
+from urllib.parse import unquote_plus
 
 import lazylibrarian
 from lazylibrarian import database
@@ -103,6 +104,12 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     if not author or len(author) < 2 or 'unknown' in author.lower() or 'anonymous' in author.lower():
         logger.debug('Invalid Author Name [%s]' % author)
         return "", "", False
+
+    unquoted_author = unquote_plus(author)
+    for token in ['<', '>', '=', '"']:
+        if token in unquoted_author:
+            logger.warning(f'Cannot set authorname, contains "{token}"')
+            return "", "", False
 
     db = database.DBConnection()
     try:
@@ -516,19 +523,23 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
 
 # translations: e.g. allow "fire & fury" to match "fire and fury"
+# or "the lord of the rings" matches "lord of the rings"
 title_translates = [
     [' & ', ' and '],
     [' + ', ' plus '],
+    ['The ', '']
 ]
 
 
 def collate_nopunctuation(string1, string2):
+    string1 = string1.lower()
+    string2 = string2.lower()
     for entry in title_translates:
         string1 = string1.replace(entry[0], entry[1])
         string2 = string2.replace(entry[0], entry[1])
     # strip all punctuation so things like "it's" matches "its"
-    str1 = string1.lower().translate(str.maketrans('', '', string.punctuation))
-    str2 = string2.lower().translate(str.maketrans('', '', string.punctuation))
+    str1 = string1.translate(str.maketrans('', '', string.punctuation))
+    str2 = string2.translate(str.maketrans('', '', string.punctuation))
     if str1 < str2:
         return -1
     elif str1 > str2:
@@ -582,7 +593,7 @@ def de_duplicate(authorid):
                         for key in ['BookSub', 'BookDesc', 'BookGenre', 'BookIsbn', 'BookPub', 'BookRate',
                                     'BookImg', 'BookPages', 'BookLink', 'BookFile', 'BookDate', 'BookLang',
                                     'BookAdded', 'WorkPage', 'Manual', 'SeriesDisplay', 'BookLibrary',
-                                    'AudioFile', 'AudioLibrary', 'WorkID', 'ScanResult',
+                                    'AudioFile', 'AudioLibrary', 'WorkID', 'ScanResult', 'gr_id', 'ol_id', 'gb_id',
                                     'OriginalPubDate', 'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']:
                             if not favourite[key] and copy[key]:
                                 cmd = "UPDATE books SET %s=? WHERE BookID=?" % key

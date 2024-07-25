@@ -69,6 +69,7 @@ from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
     create_opf, process_book_from_dir, process_issues
+from lazylibrarian.processcontrol import get_info_on_caller
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
@@ -353,6 +354,53 @@ def serve_template(templatename, **kwargs):
 class WebInterface(object):
 
     auth = AuthController()
+
+    @staticmethod
+    def validate_param(keyword, value, tokens, errorpage):
+        unquoted = unquote_plus(value)
+        for token in tokens:
+            if token in unquoted:
+                logger = logging.getLogger(__name__)
+                msg = f"Invalid {keyword}: contains {token}"
+                logger.warning(msg)
+                if errorpage:
+                    raise cherrypy.HTTPError({errorpage}, msg)
+                return False
+        return True
+
+    @staticmethod
+    def check_permitted(required_perm):
+        userid = ''
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            perm = 0
+            db = database.DBConnection()
+            try:
+                res = db.match('SELECT * from users where UserID=?', (cookie['ll_uid'].value,))
+                if res:
+                    perm = check_int(res['Perms'], 0)
+                    userid = res['UserID']
+            finally:
+                db.close()
+        else:
+            perm = lazylibrarian.perm_admin
+
+        if perm & required_perm:
+            return
+
+        _, method, _ = get_info_on_caller(depth=1)
+        TELEMETRY.record_usage_data()
+        logger = logging.getLogger(__name__)
+        msg = f"Unauthorised attempt to access {method}"
+        if userid:
+            logger.warning(f'{msg} by user {userid}')
+            db = database.DBConnection()
+            cmd = 'INSERT into unauthorised (AccessTime, UserID, Attempt) VALUES (?, ?, ?)'
+            db.action(cmd, (now(), userid, method))
+        else:
+            logger.warning(f'{msg}')
+
+        raise cherrypy.HTTPError(403, msg)
 
     @cherrypy.expose
     def index(self):
@@ -886,6 +934,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def admin_delete(self, **kwargs):
+        self.check_permitted(lazylibrarian.perm_admin)
         db = database.DBConnection()
         try:
             user = kwargs['user']
@@ -911,6 +960,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def get_user_profile(self, **kwargs):
+        self.check_permitted(lazylibrarian.perm_admin)
         db = database.DBConnection()
         try:
             match = db.match('SELECT * from users where UserName=?', (kwargs['user'],))
@@ -940,6 +990,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def admin_users(self, **kwargs):
+        self.check_permitted(lazylibrarian.perm_admin)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -980,6 +1031,8 @@ class WebInterface(object):
                 else:
                     perm_msg = 'Custom %s' % perms
 
+                self.validate_param("username", kwargs['username'], ['<', '>', '='], 404)
+                self.validate_param("fullname", kwargs['fullname'], ['<', '>', '='], 404)
                 msg = lazylibrarian.NEWUSER_MSG.replace('{username}', kwargs['username']).replace(
                     '{password}', kwargs['password']).replace(
                     '{permission}', perm_msg)
@@ -1142,6 +1195,7 @@ class WebInterface(object):
     # SERIES ############################################################
     @cherrypy.expose
     def remove_series(self, seriesid):
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -1149,7 +1203,7 @@ class WebInterface(object):
             if seriesdata:
                 db.action("DELETE from series WHERE SeriesID=?", (seriesid,))
             else:
-                logger.info('Missing series %s' % seriesid)
+                logger.warning(f'Missing series: {seriesid}')
         finally:
             db.close()
         raise cherrypy.HTTPRedirect("series")
@@ -1188,6 +1242,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def series_update(self, seriesid='', **kwargs):
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         db = database.DBConnection()
@@ -1203,6 +1258,8 @@ class WebInterface(object):
                         seriesid = new_id
                         updated = True
                     new_name = kwargs.get('new_name')
+                    if new_name:
+                        self.validate_param("new series name", new_name, ['<', '>', '='], 404)
                     if new_name and new_name != seriesname:
                         seriesname = new_name
                         updated = True
@@ -1225,6 +1282,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def refresh_series(self, seriesid):
+        self.check_permitted(lazylibrarian.perm_force)
         threadname = 'SERIESMEMBERS_%s' % seriesid
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
             threading.Thread(target=add_series_members, name=threadname, args=[seriesid, True]).start()
@@ -1371,6 +1429,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def series(self, authorid=None, which_status=None):
+        self.check_permitted(lazylibrarian.perm_series)
         title = "Series"
         if authorid:
             db = database.DBConnection()
@@ -1388,6 +1447,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def series_members(self, seriesid, ignored=False):
+        self.check_permitted(lazylibrarian.perm_series)
         db = database.DBConnection()
         try:
             cmd = ("SELECT SeriesName,series.SeriesID,AuthorName,seriesauthors.AuthorID from "
@@ -1465,6 +1525,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_series(self, action=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         args.pop('book_table_length', None)
@@ -1556,8 +1617,7 @@ class WebInterface(object):
                             logger.debug("Unsubscribe %s to series %s" % (userid, seriesid))
 
                 if "redirect" in args:
-                    if not args['redirect'] == 'None':
-                        raise cherrypy.HTTPRedirect("series?authorid=%s" % args['redirect'])
+                    raise cherrypy.HTTPRedirect("series?authorid=%s" % args['redirect'])
                 raise cherrypy.HTTPRedirect("series")
         finally:
             db.close()
@@ -1566,6 +1626,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def save_filters(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
         savedir = DIRS.DATADIR
         mags = dump_table('magazines', savedir)
@@ -1574,6 +1635,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def save_users(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
         savedir = DIRS.DATADIR
         users = dump_table('users', savedir)
@@ -1582,6 +1644,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def load_filters(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
         savedir = DIRS.DATADIR
         mags = restore_table('magazines', savedir)
@@ -1590,6 +1653,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def load_users(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
         savedir = DIRS.DATADIR
         users = restore_table('users', savedir)
@@ -1676,11 +1740,12 @@ class WebInterface(object):
     def config_update(self, **kwargs):
         """ Update config based on settings in the UI """
         logger = logging.getLogger(__name__)
+        self.check_permitted(lazylibrarian.perm_config)
         db = database.DBConnection()
         try:
             adminmsg = ''
             if 'user_accounts' in kwargs:
-                logger.error('CFG2: Need to handle user account changes')
+                # logger.error('CFG2: Need to handle user account changes')
                 if kwargs['user_accounts']:
                     email = ''
                     if 'admin_email' in kwargs and kwargs['admin_email']:
@@ -1767,6 +1832,16 @@ class WebInterface(object):
             for key, item in CONFIG.config.items():
                 if key.lower() in kwargs:
                     value = kwargs[key.lower()]
+                    # validate entries here...
+                    if value:
+                        if key.lower() in ['bok_pass', 'bok_host']:
+                            tokens = ['<', '>', '"', "'", '+', '(', ')']
+                        elif key.lower() in ['user_agent']:
+                            tokens = ['<', '&', '>', '=', '"', "'", '+']
+                        else:
+                            tokens = ['<', '&', '>', '=', '"', "'", '+', '(', ')']
+                        if not self.validate_param(key.lower(), value, tokens, None):
+                            value = item
                     CONFIG.set_from_ui(key, value)
                 else:
                     if isinstance(item, ConfigBool) and item.get_read_count() > 0:
@@ -1863,11 +1938,15 @@ class WebInterface(object):
 
     @cherrypy.expose
     def search(self, searchfor, btnsearch=None):
+        self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger('special.searching')
         logger.debug(f"Search {btnsearch}: {searchfor}")
         
         self.label_thread('SEARCH')
         if not searchfor:
+            raise cherrypy.HTTPRedirect("home")
+
+        if not self.validate_param("searchfor", searchfor, ['<', '>', '='], None):
             raise cherrypy.HTTPRedirect("home")
 
         lazylibrarian.SEARCHING = 1
@@ -1903,10 +1982,11 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_authors(self, action=None, redirect=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         for arg in ['author_table_length', 'ignored']:
             args.pop(arg, None)
-        if not redirect:
+        if not self.valid_source(redirect):
             redirect = "authors"
         if action:
             db = database.DBConnection()
@@ -1964,6 +2044,7 @@ class WebInterface(object):
     @cherrypy.expose
     def author_page(self, authorid, book_lang=None, library='eBook', ignored=False, book_filter=''):
         global lastauthor
+        self.check_permitted(lazylibrarian.perm_ebook + lazylibrarian.perm_audio)
         db = database.DBConnection()
         try:
             user = 0
@@ -2020,6 +2101,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def set_author(self, authorid, status):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -2058,6 +2140,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def remove_author(self, authorid):
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -2076,6 +2159,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def refresh_author(self, authorid):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -2164,6 +2248,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def library_scan_author(self, authorid, **kwargs):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         loggerfuzz = logging.getLogger('special.fuzz')
         db = database.DBConnection()
@@ -2241,6 +2326,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def add_author(self, authorname):
+        self.check_permitted(lazylibrarian.perm_search)
         threading.Thread(target=add_author_name_to_db, name='ADDAUTHOR',
                          args=[authorname, False, True, 'WebServer add_author %s' % authorname]).start()
         time.sleep(2)  # so we get some data before going to authorpage
@@ -2248,6 +2334,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def add_author_id(self, authorid):
+        self.check_permitted(lazylibrarian.perm_search)
         threading.Thread(target=add_author_to_db, name='ADDAUTHORID',
                          args=['', False, authorid, True, 'WebServer add_author_id %s' % authorid]).start()
         time.sleep(2)  # so we get some data before going to authorpage
@@ -2325,6 +2412,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def booksearch(self, author=None, title=None, bookid=None, action=''):
+        self.check_permitted(lazylibrarian.perm_search)
         self.label_thread('BOOKSEARCH')
         if '_title' in action:
             searchterm = title
@@ -2358,6 +2446,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def snatch_book(self, bookid=None, mode=None, provider=None, url=None, size=None, library=None, title=''):
+        self.check_permitted(lazylibrarian.perm_download)
         logger = logging.getLogger(__name__)
         logger.debug("snatch %s bookid %s mode=%s from %s url=[%s] %s" %
                      (library, bookid, mode, provider, url, title))
@@ -2412,6 +2501,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def audio(self, booklang=None, book_filter=''):
+        self.check_permitted(lazylibrarian.perm_audio)
         user = 0
         email = ''
         db = database.DBConnection()
@@ -2433,6 +2523,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def books(self, booklang=None, book_filter=''):
+        self.check_permitted(lazylibrarian.perm_ebook)
         user = 0
         email = ''
         db = database.DBConnection()
@@ -2820,6 +2911,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def add_book(self, bookid=None, authorid=None, library=None):
+        self.check_permitted(lazylibrarian.perm_search)
         if library == 'eBook':
             ebook_status = "Wanted"
             audio_status = "Skipped"
@@ -2886,6 +2978,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def start_book_search(self, books=None, library=None, force=False):
+        self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
         if books:
             if CONFIG.use_any():
@@ -3385,6 +3478,7 @@ class WebInterface(object):
     @cherrypy.expose
     def author_update(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
                       editordata='', manual='0', aka='', **kwargs):
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -3513,16 +3607,16 @@ class WebInterface(object):
     @cherrypy.expose
     def edit_book(self, bookid=None, library='eBook', images=False):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"        
+        logger = logging.getLogger(__name__)
         self.label_thread('EDIT_BOOK')
         TELEMETRY.record_usage_data()
-        logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
             authors = db.select(
                 "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
-            cmd = ("SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,books."
-                   "AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile from "
-                   "books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?")
+            cmd = ("SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,books.AuthorID,"
+                   "BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile,books.gr_id,"
+                   "books.gb_id,books.ol_id from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?")
             bookdata = db.match(cmd, (bookid,))
             cmd = "SELECT SeriesName, SeriesNum from member,series where series.SeriesID=member.SeriesID and BookID=?"
             seriesdict = db.select(cmd, (bookid,))
@@ -3580,6 +3674,7 @@ class WebInterface(object):
                     manual='0', authorname='', cover='', newid='', editordata='', bookisbn='', workid='',
                     **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         if bookid:
             db = database.DBConnection()
@@ -3839,6 +3934,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_books(self, authorid=None, seriesid=None, action=None, redirect=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         if 'library' in args:
             library = args['library']
@@ -3864,7 +3960,7 @@ class WebInterface(object):
 
         db = database.DBConnection()
         try:
-            if not redirect:
+            if not self.valid_source(redirect):
                 redirect = "books"
             check_totals = []
             if redirect == 'author':
@@ -4307,6 +4403,7 @@ class WebInterface(object):
     @cherrypy.expose
     def comic_update(self, comicid='', new_name='', new_id='', aka='', editordata='', **kwargs):
         logger = logging.getLogger(__name__)
+        self.check_permitted(lazylibrarian.perm_edit)
         db = database.DBConnection()
         try:
             comicdata = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
@@ -4351,6 +4448,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def search_for_comic(self, comicid=None):
+        self.check_permitted(lazylibrarian.perm_search)
         db = database.DBConnection()
         try:
             bookdata = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
@@ -4364,6 +4462,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def start_comic_search(self, comicid=None):
+        self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
         if comicid:
             if CONFIG.use_any():
@@ -4376,6 +4475,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def comics(self, comic_filter=''):
+        self.check_permitted(lazylibrarian.perm_comics)
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             user = cookie['ll_uid'].value
@@ -4502,6 +4602,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def comic_scan(self, **kwargs):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         if 'comicid' in kwargs:
             comicid = kwargs['comicid']
@@ -4529,13 +4630,17 @@ class WebInterface(object):
     @cherrypy.expose
     def comicissue_page(self, comicid):
         global lastcomic
+        logger = logging.getLogger(__name__)
+        self.check_permitted(lazylibrarian.perm_comics)
         db = database.DBConnection()
         try:
             mag_data = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
         finally:
             db.close()
         if not mag_data:
-            raise cherrypy.HTTPError(404, "Comic ID %s not found" % comicid)
+            logger.warning(f"Invalid comic ID: {comicid}")
+            raise cherrypy.HTTPError(404, f"Comic ID {comicid} not found")
+
         title = mag_data['Title']
         if title and '&' in title and '&amp;' not in title:
             safetitle = title.replace('&', '&amp;')
@@ -4566,6 +4671,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def open_comic(self, comicid=None, issueid=None):
+        self.check_permitted(lazylibrarian.perm_download)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -4700,6 +4806,7 @@ class WebInterface(object):
         # noinspection PyGlobalUndefined
         global comicresults
         logger = logging.getLogger(__name__)
+        self.check_permitted(lazylibrarian.perm_search)
         comicresults = []
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("comics")
@@ -4746,47 +4853,48 @@ class WebInterface(object):
         # add a comic from a list in comicresults.html
         global comicresults
         logger = logging.getLogger(__name__)
+        self.check_permitted(lazylibrarian.perm_comics)
         apikey = CONFIG['CV_APIKEY']
         if not comicid or comicid == 'None':
             raise cherrypy.HTTPRedirect("comics")
-        elif comicid.startswith('CV') and not apikey:
+        if comicid.startswith('CV') and not apikey:
             msg = "Please obtain an apikey from https://comicvine.gamespot.com/api/"
             logger.warning(msg)
-            raise cherrypy.HTTPError(404, msg)
+            raise cherrypy.HTTPError(403, msg)
 
-        else:
-            db = database.DBConnection()
-            try:
-                exists = db.match('SELECT Title from comics WHERE ComicID=?', (comicid,))
-                if exists:
-                    logger.debug("Comic %s already exists (%s)" % (exists['Title'], exists['comicid']))
-                else:
+        self.validate_param("comicid", comicid, ['<', '&', '>', '=', '"', "'", '+', '(', ')'], 404)
+        db = database.DBConnection()
+        try:
+            exists = db.match('SELECT Title from comics WHERE ComicID=?', (comicid,))
+            if exists:
+                logger.debug("Comic %s already exists (%s)" % (exists['Title'], exists['comicid']))
+            else:
+                match = False
+                try:
+                    for item in comicresults:
+                        if item['seriesid'] == comicid:
+                            aka = ''
+                            akares = cv_identify(item['title'])
+                            if not akares:
+                                akares = cx_identify(item['title'])
+                            if akares and akares[3]['seriesid'] != comicid:
+                                aka = akares[3]['seriesid']
+                            db.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
+                                      'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
+                                      'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                      (comicid, item['title'], 'Active', now(), None,
+                                       now(), None, 'Wanted', None, item['searchterm'], item['start'],
+                                       item['first'], item['last'], item['publisher'], item['link'], aka))
+                            match = True
+                            break
+                except NameError:
                     match = False
-                    try:
-                        for item in comicresults:
-                            if item['seriesid'] == comicid:
-                                aka = ''
-                                akares = cv_identify(item['title'])
-                                if not akares:
-                                    akares = cx_identify(item['title'])
-                                if akares and akares[3]['seriesid'] != comicid:
-                                    aka = akares[3]['seriesid']
-                                db.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
-                                          'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
-                                          'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                          (comicid, item['title'], 'Active', now(), None,
-                                           now(), None, 'Wanted', None, item['searchterm'], item['start'],
-                                           item['first'], item['last'], item['publisher'], item['link'], aka))
-                                match = True
-                                break
-                    except NameError:
-                        match = False
-                    if not match:
-                        msg = "Failed to get data for %s" % comicid
-                        logger.warning(msg)
-                        raise cherrypy.HTTPError(404, msg)
-            finally:
-                db.close()
+                if not match:
+                    msg = "Failed to get data for %s" % comicid
+                    logger.warning(msg)
+                    raise cherrypy.HTTPError(404, msg)
+        finally:
+            db.close()
         if kwargs.get('comicfilter'):
             raise cherrypy.HTTPRedirect("comics?comic_filter=" + kwargs.get('comicfilter'))
         else:
@@ -4794,6 +4902,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_comics(self, action=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -4867,6 +4976,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_comic_issues(self, action=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -5052,6 +5162,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def magazines(self, mag_filter=''):
+        self.check_permitted(lazylibrarian.perm_magazines)
         db = database.DBConnection()
         try:
             cookie = cherrypy.request.cookie
@@ -5095,17 +5206,19 @@ class WebInterface(object):
     @cherrypy.expose
     def magazine_update(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         new_title = kwargs.get('new_title')
         old_title = kwargs.get('old_title')
-        if not old_title and new_title:
+        if not old_title and not new_title:
             logger.debug('Insufficient information, need Old and New Title')
             raise cherrypy.HTTPRedirect("magazines")
         if old_title == new_title:
-            logger.debug('Title for %s unchanged' % new_title)
+            logger.debug(f'Title for {old_title} unchanged')
             raise cherrypy.HTTPRedirect("magazines")
-        logger.debug("Changing title [%s] to [%s]" % (old_title, new_title))
 
+        self.validate_param("magazine title", new_title, ['<', '>', '='], 404)
+        logger.debug("Changing title [%s] to [%s]" % (old_title, new_title))
         db = database.DBConnection()
         try:
             db.action('PRAGMA foreign_keys = OFF')
@@ -5266,9 +5379,9 @@ class WebInterface(object):
     @cherrypy.expose
     def edit_issue(self, issueid=None):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        logger = logging.getLogger(__name__)
         self.label_thread('EDIT_ISSUE')
         TELEMETRY.record_usage_data()
-        logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
             issuedata = db.match("SELECT Title,IssueDate,IssueID from issues WHERE IssueID=?", (issueid,))
@@ -5283,6 +5396,7 @@ class WebInterface(object):
     @cherrypy.expose
     def issue_update(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         issueid = kwargs.get('issueid')
         if not issueid:
@@ -5357,6 +5471,11 @@ class WebInterface(object):
                 response = 'Issue %s of %s, changed %s' % (issue["IssueDate"], issue['Title'], edited,)
                 if issue["Title"] != magtitle:
                     if not magazine:
+                        if not magtitle:
+                            logger.warning(f"Missing magazine title")
+                            raise cherrypy.HTTPError(404, f"Magazine title missing")
+
+                        self.validate_param("magazine title", magtitle, ['<', '>', '='], 404)
                         logger.debug("Magazine title [%s] not found, adding it" % magtitle)
                         control_value_dict = {"Title": magtitle}
                         new_value_dict = {"LastAcquired": today(),
@@ -5432,6 +5551,17 @@ class WebInterface(object):
     @cherrypy.expose
     def issue_page(self, title, response=''):
         global lastmagazine
+        self.check_permitted(lazylibrarian.perm_magazines)
+        logger = logging.getLogger(__name__)
+        db = database.DBConnection()
+        try:
+            res = db.match('SELECT title from magazines where Title=?', (title,))
+        finally:
+            db.close()
+        if not res:
+            logger.warning(f"Unknown magazine title: {title}")
+            raise cherrypy.HTTPError(404, f"Magazine title {title} not found")
+
         if title and '&' in title and '&amp;' not in title:  # could use htmlparser but seems overkill for just '&'
             safetitle = title.replace('&', '&amp;')
         else:
@@ -5467,6 +5597,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def past_issues(self, mag=None, **kwargs):
+        self.check_permitted(lazylibrarian.perm_magazines)
         if not mag or mag == 'None':
             title = "Past Issues"
         else:
@@ -5560,6 +5691,7 @@ class WebInterface(object):
     @cherrypy.expose
     def open_mag(self, bookid=None, email=False):
         logger = logging.getLogger(__name__)
+        self.check_permitted(lazylibrarian.perm_download)
         bookid = unquote_plus(bookid)
         db = database.DBConnection()
         try:
@@ -5577,6 +5709,11 @@ class WebInterface(object):
                                            os.path.splitext(issue_file)[1]), email=email)
 
             # or we may just have a title to find magazine in issues table
+            mag_data = db.select('SELECT * from magazines WHERE Title=?', (bookid,))
+            if not mag_data:
+                logger.warning(f"Unknown magazine title: {bookid}")
+                raise cherrypy.HTTPError(404, f"Magazine {bookid} not found")
+
             mag_data = db.select('SELECT * from issues WHERE Title=?', (bookid,))
         finally:
             db.close()
@@ -5603,6 +5740,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_past_issues(self, action=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -5676,6 +5814,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_issues(self, action=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -5809,8 +5948,8 @@ class WebInterface(object):
             res, err, rc = calibredb('set_metadata', ['--field', 'cover:%s' % issue['CoverFile']], [calibre_id])
             logger.debug("Update result: %s [%s] %s" % (res, err, rc))
 
-    @staticmethod
-    def delete_issue(issuefile):
+    def delete_issue(self, issuefile):
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         try:
             # delete the magazine file and any cover image / opf
@@ -5831,6 +5970,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def mark_magazines(self, action=None, **args):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -5908,6 +6048,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def search_for_mag(self, bookid=None):
+        self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
         bookid = unquote_plus(bookid)
         db = database.DBConnection()
@@ -5926,6 +6067,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def start_magazine_search(self, mags=None):
+        self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
         if mags:
             if CONFIG.use_any():
@@ -5938,59 +6080,62 @@ class WebInterface(object):
 
     @cherrypy.expose
     def add_magazine(self, title=None, **kwargs):
+        self.check_permitted(lazylibrarian.perm_magazines)
         logger = logging.getLogger(__name__)
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("magazines")
-        else:
-            db = database.DBConnection()
-            try:
-                reject = None
-                if '~' in title:  # separate out the "reject words" list
-                    reject = title.split('~', 1)[1].strip()
-                    title = title.split('~', 1)[0].strip()
 
-                # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-                title = replace_quotes_with(title, "'")
-                title_exploded = title.split()
-                # replace symbols by words
-                new_title = []
-                for word in title_exploded:
-                    if word == '&':
-                        word = 'and'
-                    elif word == '+':
-                        word = 'and'
-                    new_title.append(word)
-                title = ' '.join(new_title)
-                exists = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (title,))
-                if exists:
-                    logger.debug("Magazine %s already exists (%s)" % (title, exists['Title']))
-                else:
-                    # title = title.title()
-                    control_value_dict = {"Title": title}
-                    new_value_dict = {
-                        "Regex": None,
-                        "Reject": reject,
-                        "Genre": "",
-                        "DateType": "",
-                        "Status": "Active",
-                        "MagazineAdded": today(),
-                        "IssueStatus": "Wanted"
-                    }
-                    db.upsert("magazines", new_value_dict, control_value_dict)
-                    mags = [{"bookid": title}]
-                    if CONFIG.get_bool('IMP_AUTOSEARCH'):
-                        self.start_magazine_search(mags)
-            finally:
-                db.close()
-            if kwargs.get('magfilter'):
-                raise cherrypy.HTTPRedirect("magazines?mag_filter=" + kwargs.get('magfilter'))
+        self.validate_param("magazine title", title, ['<', '>', '='], 404)
+        db = database.DBConnection()
+        try:
+            reject = None
+            if '~' in title:  # separate out the "reject words" list
+                reject = title.split('~', 1)[1].strip()
+                title = title.split('~', 1)[0].strip()
+
+            # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
+            title = replace_quotes_with(title, "'")
+            title_exploded = title.split()
+            # replace symbols by words
+            new_title = []
+            for word in title_exploded:
+                if word == '&':
+                    word = 'and'
+                elif word == '+':
+                    word = 'and'
+                new_title.append(word)
+            title = ' '.join(new_title)
+            exists = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (title,))
+            if exists:
+                logger.debug("Magazine %s already exists (%s)" % (title, exists['Title']))
             else:
-                raise cherrypy.HTTPRedirect("magazines")
+                # title = title.title()
+                control_value_dict = {"Title": title}
+                new_value_dict = {
+                    "Regex": None,
+                    "Reject": reject,
+                    "Genre": "",
+                    "DateType": "",
+                    "Status": "Active",
+                    "MagazineAdded": today(),
+                    "IssueStatus": "Wanted"
+                }
+                db.upsert("magazines", new_value_dict, control_value_dict)
+                mags = [{"bookid": title}]
+                if CONFIG.get_bool('IMP_AUTOSEARCH'):
+                    self.start_magazine_search(mags)
+        finally:
+            db.close()
+        if kwargs.get('magfilter'):
+            raise cherrypy.HTTPRedirect("magazines?mag_filter=" + kwargs.get('magfilter'))
+        else:
+            raise cherrypy.HTTPRedirect("magazines")
 
     # UPDATES ###########################################################
 
     @cherrypy.expose
     def check_for_updates(self):
+        self.check_permitted(lazylibrarian.perm_force)
         self.label_thread('UPDATES')
         versioncheck.check_for_updates()
         if CONFIG.get_int('COMMITS_BEHIND') == 0:
@@ -6019,6 +6164,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def force_update(self):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         if 'AAUPDATE' not in [n.name for n in [t for t in threading.enumerate()]]:
             threading.Thread(target=all_author_update, name='AAUPDATE', args=[False]).start()
@@ -6028,6 +6174,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def update(self):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         self.label_thread('UPDATING')
         logger.debug('(webServe-Update) - Performing update')
@@ -6041,6 +6188,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def library_scan(self, **kwargs):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         types = []
         if CONFIG.get_bool('EBOOK_TAB'):
@@ -6068,6 +6216,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def magazine_scan(self, **kwargs):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         if 'title' in kwargs:
             title = kwargs['title']
@@ -6095,6 +6244,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def include_alternate(self, library='eBook'):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         if 'ALT-LIBRARYSCAN' not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
@@ -6108,6 +6258,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def import_issues(self, title=None):
+        self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         if not title:
             logger.error("No title to import")
@@ -6125,6 +6276,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     def import_alternate(self, library='eBook'):
+        self.check_permitted(lazylibrarian.perm_force)
+        self.validate_param("library name", library, ['<', '>', '='], 404)
         logger = logging.getLogger(__name__)
         if 'IMPORTALT_%s' % library not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
@@ -6209,6 +6362,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     def import_csv(self, library=''):
+        self.check_permitted(lazylibrarian.perm_force)
+        self.validate_param("library name", library, ['<', '>', '='], 404)
         logger = logging.getLogger(__name__)
         if 'IMPORTCSV_%s' % library not in [n.name for n in [t for t in threading.enumerate()]]:
             self.label_thread('IMPORTCSV')
@@ -6230,6 +6385,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     def export_csv(self, library=''):
+        self.check_permitted(lazylibrarian.perm_force)
+        self.validate_param("library name", library, ['<', '>', '='], 404)
         self.label_thread('EXPORTCSV')
         message = export_csv(CONFIG['ALTERNATE_DIR'], library=library)
         message = message.replace('\n', '<br>')
@@ -6239,6 +6396,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def shutdown(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('SHUTDOWN')
         # lazylibrarian.config_write()
         remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
@@ -6249,6 +6407,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def restart(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('RESTART')
         remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
         lazylibrarian.SIGNAL = 'restart'
@@ -6258,6 +6417,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def show_jobs(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         # show the current status of LL cron jobs
         resultlist = show_jobs()
@@ -6268,6 +6428,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def show_apprise(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         logger = logging.getLogger(__name__)
         # show the available notifiers
@@ -6286,6 +6447,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def show_stats(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         # show some database status info
         resultlist = show_stats()
@@ -6296,11 +6458,13 @@ class WebInterface(object):
 
     @cherrypy.expose
     def restart_jobs(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         restart_jobs(command=SchedulerCommand.RESTART)
         # return self.show_jobs()
 
     @cherrypy.expose
     def stop_jobs(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         restart_jobs(command=SchedulerCommand.STOP)
         # return self.show_jobs()
 
@@ -6308,6 +6472,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def clear_log(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         logger = logging.getLogger(__name__)
         LOGCONFIG.clear_ui_log()
         logger.info('Screen log cleared')
@@ -6321,6 +6486,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def delete_logs(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         logger = logging.getLogger(__name__)
         result = LOGCONFIG.delete_log_files((CONFIG['LOGDIR']))
         logger.info(result)
@@ -6345,6 +6511,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def logs(self):
+        self.check_permitted(lazylibrarian.perm_logs)
         return serve_template(templatename="logs.html", title="Log", lineList=[])  # lazylibrarian.LOGLIST)
 
     # noinspection PyUnusedLocal
@@ -6382,6 +6549,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def history(self):
+        self.check_permitted(lazylibrarian.perm_history)
         return serve_template(templatename="history.html", title="History", history=[])
 
     # noinspection PyUnusedLocal
@@ -6606,6 +6774,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def deletehistory(self, rowid=None):
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         if not rowid:
             logger.warning("No rowid in deletehistory")
@@ -6623,6 +6792,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def markhistory(self, rowid=None):
+        self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         if not rowid:
             return
@@ -6646,6 +6816,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def clearhistory(self, status=None):
+        self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
@@ -6700,15 +6871,24 @@ class WebInterface(object):
                 host = kwargs['host']
             if 'api' in kwargs and kwargs['api']:
                 api = kwargs['api']
+            fail = ''
+            if not self.validate_param("provider name", kwargs['name'], ['<', '>', '='], None):
+                fail += 'name '
+            if not self.validate_param("provider host", kwargs['host'], ['<', '>', '='], None):
+                fail += 'host '
+            if not self.validate_param("provider api", kwargs['api'], ['<', '>'], None):
+                fail += 'api '
+            if fail:
+                return f"{kwargs['name']} test FAILED, bad parameter: {fail}"
 
             result, name = test_provider(kwargs['name'], host=host, api=api)
             if result is False:
-                msg = "%s test FAILED, check debug log" % name
+                msg = f"{name} test FAILED, check debug log"
             elif result is True:
-                msg = "%s test PASSED" % name
+                msg = f"{name} test PASSED"
                 CONFIG.save_config_and_backup_old(section=kwargs['name'])
             else:
-                msg = "%s test PASSED, found %s" % (name, result)
+                msg = f"{name} test PASSED, found {result}"
                 CONFIG.save_config_and_backup_old(section=kwargs['name'])
         else:
             msg = "Invalid or missing name in testprovider"
@@ -6716,6 +6896,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def clearblocked(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         logger = logging.getLogger(__name__)
         # clear any currently blocked providers
@@ -6735,6 +6916,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def cleardownloads(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         logger = logging.getLogger(__name__)
         # clear download counters
@@ -6754,6 +6936,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def showdownloads(self):
+        self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         # show provider download totals
         result = ''
@@ -6802,8 +6985,10 @@ class WebInterface(object):
     def grauth_step1(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'gr_api' in kwargs:
+            self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], 404)
             CONFIG.set_str('GR_API', kwargs['gr_api'])
         if 'gr_secret' in kwargs:
+            self.validate_param("goodreads secret", kwargs['gr_secret'], ['<', '>', '='], 404)
             CONFIG.set_str('GR_SECRET', kwargs['gr_secret'])
         ga = grsync.GrAuth()
         res = ga.goodreads_oauth1()
@@ -6822,15 +7007,31 @@ class WebInterface(object):
     def test_gr_auth(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'gr_api' in kwargs:
-            CONFIG.set_str('GR_API', kwargs['gr_api'])
+            if self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], None):
+                CONFIG.set_str('GR_API', kwargs['gr_api'])
+            else:
+                fail += "api "
         if 'gr_secret' in kwargs:
-            CONFIG.set_str('GR_SECRET', kwargs['gr_secret'])
+            if self.validate_param("goodreads secret", kwargs['gr_secret'], ['<', '>', '='], None):
+                CONFIG.set_str('GR_SECRET', kwargs['gr_secret'])
+            else:
+                fail += 'secret '
         if 'gr_oauth_token' in kwargs:
-            CONFIG.set_str('GR_OAUTH_TOKEN', kwargs['gr_oauth_token'])
+            if self.validate_param("goodreads oauth token", kwargs['gr_oauth_token'], ['<', '>', '='], None):
+                CONFIG.set_str('GR_OAUTH_TOKEN', kwargs['gr_oauth_token'])
+            else:
+                fail += 'oauth_token '
         if 'gr_oauth_secret' in kwargs:
-            CONFIG.set_str('GR_OAUTH_SECRET', kwargs['gr_oauth_secret'])
-        res = grsync.test_auth()
+            if self.validate_param("goodreads oauth secret", kwargs['gr_oauth_secret'], ['<', '>', '='], None):
+                CONFIG.set_str('GR_OAUTH_SECRET', kwargs['gr_oauth_secret'])
+            else:
+                fail += "oauth_secret "
+        if fail:
+            res = f'gr_auth failed, bad parameter: {fail}'
+        else:
+            res = grsync.test_auth()
         if res.startswith('Pass:'):
             CONFIG.save_config_and_backup_old(section='API')
         return res
@@ -6869,19 +7070,31 @@ class WebInterface(object):
     def test_android_pn(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'url' in kwargs:
-            CONFIG.set_str('ANDROIDPN_URL', kwargs['url'])
+            if self.validate_param("android_pn url", kwargs['url'], ['<', '>', '='], None):
+                CONFIG.set_str('ANDROIDPN_URL', kwargs['url'])
+            else:
+                fail = 'url'
         if 'username' in kwargs:
-            CONFIG.set_str('ANDROIDPN_USERNAME', kwargs['username'])
+            if self.validate_param("android_pn username", kwargs['username'], ['<', '>', '='], None):
+                CONFIG.set_str('ANDROIDPN_USERNAME', kwargs['username'])
+            else:
+                fail = 'username'
         if 'broadcast' in kwargs:
             if kwargs['broadcast'] == 'True':
                 CONFIG.set_bool('ANDROIDPN_BROADCAST', True)
             else:
                 CONFIG.set_bool('ANDROIDPN_BROADCAST', False)
-        result = notifiers.androidpn_notifier.test_notify()
+        if fail:
+            result = ''
+        else:
+            result = notifiers.androidpn_notifier.test_notify()
         if result:
             CONFIG.save_config_and_backup_old(section='AndroidPN')
             return "Test AndroidPN notice sent successfully"
+        elif fail:
+            return f"AndroidPN failed, bad parameter: {fail}"
         else:
             return "Test AndroidPN notice failed"
 
@@ -6889,12 +7102,21 @@ class WebInterface(object):
     def test_boxcar(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'token' in kwargs:
-            CONFIG.set_str('BOXCAR_TOKEN', kwargs['token'])
-        result = notifiers.boxcar_notifier.test_notify()
+            if self.validate_param("boxcar token", kwargs['token'], ['<', '>'], None):
+                CONFIG.set_str('BOXCAR_TOKEN', kwargs['token'])
+            else:
+                fail = 'token'
+        if fail:
+            result = ''
+        else:
+            result = notifiers.boxcar_notifier.test_notify()
         if result:
             CONFIG.save_config_and_backup_old(section='Boxcar')
             return "Boxcar notification successful,\n%s" % result
+        elif fail:
+            return f'boxcar failed, bad parameter: {fail}'
         else:
             return "Boxcar notification failed"
 
@@ -6902,14 +7124,26 @@ class WebInterface(object):
     def test_pushbullet(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'token' in kwargs:
-            CONFIG.set_str('PUSHBULLET_TOKEN', kwargs['token'])
+            if self.validate_param("pushbullet token", kwargs['url'], ['<', '>'], None):
+                CONFIG.set_str('PUSHBULLET_TOKEN', kwargs['token'])
+            else:
+                fail += 'token '
         if 'device' in kwargs:
-            CONFIG.set_str('PUSHBULLET_DEVICEID', kwargs['device'])
-        result = notifiers.pushbullet_notifier.test_notify()
+            if self.validate_param("pushbullet device", kwargs['device'], ['<', '>'], None):
+                CONFIG.set_str('PUSHBULLET_DEVICEID', kwargs['device'])
+            else:
+                fail += 'device '
+        if fail:
+            result = ''
+        else:
+            result = notifiers.pushbullet_notifier.test_notify()
         if result:
             CONFIG.save_config_and_backup_old(section='PushBullet')
             return "Pushbullet notification successful,\n%s" % result
+        elif fail:
+            return f'Pushbullet failed, bad parameter: {fail}'
         else:
             return "Pushbullet notification failed"
 
@@ -6917,22 +7151,36 @@ class WebInterface(object):
     def test_pushover(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'apitoken' in kwargs:
-            CONFIG.set_str('PUSHOVER_APITOKEN', kwargs['apitoken'])
+            if self.validate_param("pushover apitoken", kwargs['apitoken'], ['<', '>', '='], None):
+                CONFIG.set_str('PUSHOVER_APITOKEN', kwargs['apitoken'])
+            else:
+                fail += 'apitoken '
         if 'keys' in kwargs:
-            CONFIG.set_str('PUSHOVER_KEYS', kwargs['keys'])
+            if self.validate_param("pushover keys", kwargs['keys'], ['<', '>', '='], None):
+                CONFIG.set_str('PUSHOVER_KEYS', kwargs['keys'])
+            else:
+                fail += 'keys '
         if 'priority' in kwargs:
             res = check_int(kwargs['priority'], 0, positive=False)
             if res < -2 or res > 1:
                 res = 0
             CONFIG.set_int('PUSHOVER_PRIORITY', res)
         if 'device' in kwargs:
-            CONFIG.set_str('PUSHOVER_DEVICE', kwargs['device'])
-
-        result = notifiers.pushover_notifier.test_notify()
+            if self.validate_param("pushover device", kwargs['device'], ['<', '>', '='], None):
+                CONFIG.set_str('PUSHOVER_DEVICE', kwargs['device'])
+            else:
+                fail += 'device '
+        if fail:
+            result = ''
+        else:
+            result = notifiers.pushover_notifier.test_notify()
         if result:
             CONFIG.save_config_and_backup_old(section='Pushover')
             return "Pushover notification successful,\n%s" % result
+        elif fail:
+            return f'Pushover failed, bad parameter: {fail}'
         else:
             return "Pushover notification failed"
 
@@ -6940,15 +7188,26 @@ class WebInterface(object):
     def test_telegram(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'token' in kwargs:
-            CONFIG.set_str('TELEGRAM_TOKEN', kwargs['token'])
+            if self.validate_param("telegram token", kwargs['token'], ['<', '>', '='], None):
+                CONFIG.set_str('TELEGRAM_TOKEN', kwargs['token'])
+            else:
+                fail += 'token '
         if 'userid' in kwargs:
-            CONFIG.set_str('TELEGRAM_USERID', kwargs['userid'])
-
-        result = notifiers.telegram_notifier.test_notify()
+            if self.validate_param("telegram userid", kwargs['userid'], ['<', '>', '='], None):
+                CONFIG.set_str('TELEGRAM_USERID', kwargs['userid'])
+            else:
+                fail += 'userid '
+        if fail:
+            result = ''
+        else:
+            result = notifiers.telegram_notifier.test_notify()
         if result:
             CONFIG.save_config_and_backup_old(section='Telegram')
             return "Test Telegram notice sent successfully"
+        elif fail:
+            return f'Telegram failed, bad parameter: {fail}'
         else:
             return "Test Telegram notice failed"
 
@@ -6956,15 +7215,26 @@ class WebInterface(object):
     def test_prowl(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'apikey' in kwargs:
-            CONFIG.set_str('PROWL_APIKEY', kwargs['apikey'])
+            if self.validate_param("prowl apikey", kwargs['apikey'], ['<', '>', '='], None):
+                CONFIG.set_str('PROWL_APIKEY', kwargs['apikey'])
+            else:
+                fail += 'apikey '
         if 'priority' in kwargs:
-            CONFIG.set_int('PROWL_PRIORITY', check_int(kwargs['priority'], 0))
-
-        result = notifiers.prowl_notifier.test_notify()
+            if self.validate_param("prowl priority", kwargs['priority'], ['<', '>', '='], None):
+                CONFIG.set_int('PROWL_PRIORITY', check_int(kwargs['priority'], 0))
+            else:
+                fail += 'priority '
+        if fail:
+            result = ''
+        else:
+            result = notifiers.prowl_notifier.test_notify()
         if result:
             CONFIG.save_config_and_backup_old(section='Prowl')
             return "Test Prowl notice sent successfully"
+        elif fail:
+            return f'Prowl failed, bad parameter: {fail}'
         else:
             return "Test Prowl notice failed"
 
@@ -6972,15 +7242,26 @@ class WebInterface(object):
     def test_growl(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
-        if 'apikey' in kwargs:
-            CONFIG.set_str('GROWL_HOST', kwargs['host'])
-        if 'priority' in kwargs:
-            CONFIG.set_str('GROWL_PASSWORD', kwargs['password'])
-
-        result = notifiers.growl_notifier.test_notify()
+        fail = ''
+        if 'host' in kwargs:
+            if self.validate_param("growl host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('GROWL_HOST', kwargs['host'])
+            else:
+                fail += 'host '
+        if 'password' in kwargs:
+            if self.validate_param("growl password", kwargs['password'], ['<', '>', '='], None):
+                CONFIG.set_str('GROWL_PASSWORD', kwargs['password'])
+            else:
+                fail += 'password'
+        if fail:
+            result = ''
+        else:
+            result = notifiers.growl_notifier.test_notify()
         if result:
             CONFIG.save_config_and_backup_old(section='Growl')
             return "Test Growl notice sent successfully"
+        elif fail:
+            return f'Growl failed, bad parameter: {fail}'
         else:
             return "Test Growl notice failed"
 
@@ -6988,14 +7269,25 @@ class WebInterface(object):
     def test_slack(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'token' in kwargs:
-            CONFIG.set_str('SLACK_TOKEN', kwargs['token'])
+            if self.validate_param("slack token", kwargs['token'], ['<', '>', '='], None):
+                CONFIG.set_str('SLACK_TOKEN', kwargs['token'])
+            else:
+                fail += 'token '
         if 'url' in kwargs:
-            CONFIG.set_str('SLACK_URL', kwargs['url'])
-
-        result = notifiers.slack_notifier.test_notify()
+            if self.validate_param("slack url", kwargs['url'], ['<', '>', '='], None):
+                CONFIG.set_str('SLACK_URL', kwargs['url'])
+            else:
+                fail += 'url'
+        if fail:
+            result = ''
+        else:
+            result = notifiers.slack_notifier.test_notify()
         if result != "ok":
             return "Slack notification failed,\n%s" % result
+        elif fail:
+            return f'Slack failed, bad parameter: {fail}'
         else:
             CONFIG.save_config_and_backup_old(section='Slack')
             return "Slack notification successful"
@@ -7004,11 +7296,20 @@ class WebInterface(object):
     def test_custom(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'script' in kwargs:
-            CONFIG.set_str('CUSTOM_SCRIPT', kwargs['script'])
-        result = notifiers.custom_notifier.test_notify()
-        if result is False:
+            if self.validate_param("custom script", kwargs['script'], ['<', '>', '='], None):
+                CONFIG.set_str('CUSTOM_SCRIPT', kwargs['script'])
+            else:
+                fail = 'script'
+        if fail:
+            result = ''
+        else:
+            result = notifiers.custom_notifier.test_notify()
+        if not result:
             return "Custom notification failed"
+        elif fail:
+            return f'Custom notification failed, bad parameter: {fail}'
         else:
             CONFIG.save_config_and_backup_old(section='Custom')
             return "Custom notification successful"
@@ -7017,6 +7318,7 @@ class WebInterface(object):
     def test_email(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'tls' in kwargs:
             if kwargs['tls'] == 'True':
                 CONFIG.set_bool('EMAIL_TLS', True)
@@ -7033,21 +7335,43 @@ class WebInterface(object):
             else:
                 CONFIG.set_bool('EMAIL_SENDFILE_ONDOWNLOAD', False)
         if 'emailfrom' in kwargs:
-            CONFIG.set_str('EMAIL_FROM', kwargs['emailfrom'])
+            if self.validate_param("email from", kwargs['emailfrom'], ['<', '>', '='], None):
+                CONFIG.set_str('EMAIL_FROM', kwargs['emailfrom'])
+            else:
+                fail += 'emailfrom '
         if 'emailto' in kwargs:
-            CONFIG.set_str('EMAIL_TO', kwargs['emailto'])
+            if self.validate_param("email to", kwargs['emailto'], ['<', '>', '='], None):
+                CONFIG.set_str('EMAIL_TO', kwargs['emailto'])
+            else:
+                fail += 'emailto '
         if 'server' in kwargs:
-            CONFIG.set_str('EMAIL_SMTP_SERVER', kwargs['server'])
+            if self.validate_param("email smtp server", kwargs['server'], ['<', '>', '='], None):
+                CONFIG.set_str('EMAIL_SMTP_SERVER', kwargs['server'])
+            else:
+                fail += 'server '
         if 'user' in kwargs:
-            CONFIG.set_str('EMAIL_SMTP_USER', kwargs['user'])
+            if self.validate_param("email smtp user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('EMAIL_SMTP_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'password' in kwargs:
-            CONFIG.set_str('EMAIL_SMTP_PASSWORD', kwargs['password'])
+            if self.validate_param("email password", kwargs['password'], ['<', '>', '='], None):
+                CONFIG.set_str('EMAIL_SMTP_PASSWORD', kwargs['password'])
+            else:
+                fail += 'password '
         if 'port' in kwargs:
-            CONFIG.set_int('EMAIL_SMTP_PORT', check_int(kwargs['port'], 0))
-
-        result = notifiers.email_notifier.test_notify()
+            if self.validate_param("email port", kwargs['port'], ['<', '>', '='], None):
+                CONFIG.set_int('EMAIL_SMTP_PORT', check_int(kwargs['port'], 0))
+            else:
+                fail += 'port '
+        if fail:
+            result = ''
+        else:
+            result = notifiers.email_notifier.test_notify()
         if not result:
             return "Email notification failed"
+        elif fail:
+            return f'email notificaton failed, bad parameter: {fail}'
         else:
             CONFIG.save_config_and_backup_old(section='Email')
             return "Email notification successful, check your email"
@@ -7063,14 +7387,34 @@ class WebInterface(object):
         return a.fetch_data
 
     @cherrypy.expose
-    def generate_api(self):
+    def generate_ro_api(self):
+        return self.generate_api(ro=True)
+
+    @cherrypy.expose
+    def generate_api(self, ro=False):
         logger = logging.getLogger(__name__)
         api_key = hashlib.sha224(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[0:32]
-        CONFIG.set_str('API_KEY', api_key)
+        if ro:
+            CONFIG.set_str('API_RO_KEY', api_key)
+        else:
+            CONFIG.set_str('API_KEY', api_key)
         logger.info("New API generated")
         return api_key
 
     # ALL ELSE ##########################################################
+
+    @staticmethod
+    def valid_source(source=None):
+        if str(source).lower() in ['books', 'audio', 'magazines', 'comics', 'author', 'manage', 'series', 'members']:
+            return True
+        logger = logging.getLogger(__name__)
+        program, method, lineno = get_info_on_caller(depth=1)
+        if lineno > 0:
+            reason = f"{program}:{method}:{lineno}"
+        else:
+            reason = 'Unknown reason'
+        logger.warning(f'Invalid source:{reason}: [{source}]')
+        return False
 
     @cherrypy.expose
     def force_process(self, source=None):
@@ -7080,7 +7424,9 @@ class WebInterface(object):
             schedule_job(action=SchedulerCommand.RESTART, target='PostProcessor')
         else:
             logger.debug('POSTPROCESSOR already running')
-        raise cherrypy.HTTPRedirect(source)
+        if self.valid_source(source):
+            raise cherrypy.HTTPRedirect(source)
+        raise cherrypy.HTTPRedirect('index')
 
     @cherrypy.expose
     def force_wish(self, source=None):
@@ -7089,12 +7435,13 @@ class WebInterface(object):
             search_wishlist()
         else:
             logger.warning('WishList search called but no wishlist providers set')
-        if source:
+        if self.valid_source(source):
             raise cherrypy.HTTPRedirect(source)
-        raise cherrypy.HTTPRedirect('books')
+        raise cherrypy.HTTPRedirect('index')
 
     @cherrypy.expose
     def force_search(self, source=None, title=None):
+        self.validate_param("search title", title, ['<', '>', '='], 404)
         logger = logging.getLogger(__name__)
         if source in ["magazines", 'comics']:
             if CONFIG.use_any():
@@ -7124,13 +7471,14 @@ class WebInterface(object):
                     schedule_job(SchedulerCommand.STARTNOW, "search_rss_book")
             else:
                 logger.warning('Search called but no download providers set')
-        else:
-            logger.debug("force_search called with bad source")
-            raise cherrypy.HTTPRedirect('books')
+
+        if not self.valid_source(source):
+            raise cherrypy.HTTPRedirect('index')
         raise cherrypy.HTTPRedirect(source)
 
     @cherrypy.expose
     def manage(self, **kwargs):
+        self.check_permitted(lazylibrarian.perm_managebooks)
         types = []
         if CONFIG.get_bool('EBOOK_TAB'):
             types.append('eBook')
@@ -7154,20 +7502,41 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         loggerdlcomms = logging.getLogger('special.dlcomms')
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('DELUGE_HOST', kwargs['host'])
+            if self.validate_param("deluge host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('DELUGE_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'base' in kwargs:
-            CONFIG.set_str('DELUGE_BASE', kwargs['base'])
+            if self.validate_param("deluge base", kwargs['base'], ['<', '>', '='], None):
+                CONFIG.set_str('DELUGE_BASE', kwargs['base'])
+            else:
+                fail += 'base '
         if 'cert' in kwargs:
-            CONFIG.set_str('DELUGE_CERT', kwargs['cert'])
+            if self.validate_param("deluge cert", kwargs['cert'], ['<', '>', '='], None):
+                CONFIG.set_str('DELUGE_CERT', kwargs['cert'])
+            else:
+                fail += 'cert '
         if 'port' in kwargs:
             CONFIG.set_int('DELUGE_PORT', check_int(kwargs['port'], 0))
         if 'pwd' in kwargs:
-            CONFIG.set_str('DELUGE_PASS', kwargs['pwd'])
+            if self.validate_param("deluge pass", kwargs['pwd'], ['<', '>'], None):
+                CONFIG.set_str('DELUGE_PASS', kwargs['pwd'])
+            else:
+                fail += 'password '
         if 'label' in kwargs:
-            CONFIG.set_str('DELUGE_LABEL', kwargs['label'])
+            if self.validate_param("deluge label", kwargs['label'], ['<', '>', '='], None):
+                CONFIG.set_str('DELUGE_LABEL', kwargs['label'])
+            else:
+                fail += 'label '
         if 'user' in kwargs:
-            CONFIG.set_str('DELUGE_USER', kwargs['user'])
+            if self.validate_param("deluge user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('DELUGE_USER', kwargs['user'])
+            else:
+                fail += 'user '
+        if fail:
+            return f"deluge failed, bad parameter: {fail}"
 
         try:
             if not CONFIG['DELUGE_USER']:
@@ -7228,42 +7597,80 @@ class WebInterface(object):
     def test_sabnzbd(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('SAB_HOST', kwargs['host'])
+            if self.validate_param("sab host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('SAB_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'port' in kwargs:
             CONFIG.set_int('SAB_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            CONFIG.set_str('SAB_USER', kwargs['user'])
+            if self.validate_param("sab user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('SAB_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'pwd' in kwargs:
-            CONFIG.set_str('SAB_PASS', kwargs['pwd'])
+            if self.validate_param("sab pass", kwargs['pass'], ['<', '>'], None):
+                CONFIG.set_str('SAB_PASS', kwargs['pwd'])
+            else:
+                fail += 'password '
         if 'api' in kwargs:
-            CONFIG.set_str('SAB_API', kwargs['api'])
+            if self.validate_param("sab api", kwargs['api'], ['<', '>', '='], None):
+                CONFIG.set_str('SAB_API', kwargs['api'])
+            else:
+                fail += 'api '
         if 'cat' in kwargs:
-            CONFIG.set_str('SAB_CAT', kwargs['cat'])
+            if self.validate_param("sab cat", kwargs['cat'], ['<', '>', '='], None):
+                CONFIG.set_str('SAB_CAT', kwargs['cat'])
+            else:
+                fail += 'cat '
         if 'subdir' in kwargs:
-            CONFIG.set_str('SAB_SUBDIR', kwargs['subdir'])
-        msg = sabnzbd.check_link()
-        if 'success' in msg:
-            CONFIG.save_config_and_backup_old(section='sab_nzbd')
+            if self.validate_param("sab subdir", kwargs['subdir'], ['<', '>', '='], None):
+                CONFIG.set_str('SAB_SUBDIR', kwargs['subdir'])
+            else:
+                fail += 'subdir '
+        if fail:
+            msg = f"sab failed, bad parameter: {fail}"
+        else:
+            msg = sabnzbd.check_link()
+            if 'success' in msg:
+                CONFIG.save_config_and_backup_old(section='sab_nzbd')
         return msg
 
     @cherrypy.expose
     def test_nzbget(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('NZBGET_HOST', kwargs['host'])
+            if self.validate_param("nzbget host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('NZBGET_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'port' in kwargs:
             CONFIG.set_int('NZBGET_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            CONFIG.set_str('NZBGET_USER', kwargs['user'])
+            if self.validate_param("nzbget user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('NZBGET_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'pwd' in kwargs:
-            CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
+            if self.validate_param("nzbget pass", kwargs['pass'], ['<', '>', '='], None):
+                CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
+            else:
+                fail += 'password '
         if 'cat' in kwargs:
-            CONFIG.set_str('NZBGET_CATEGORY', kwargs['cat'])
+            if self.validate_param("nzbget category", kwargs['cat'], ['<', '>', '='], None):
+                CONFIG.set_str('NZBGET_CATEGORY', kwargs['cat'])
+            else:
+                fail += 'cat '
         if 'pri' in kwargs:
             CONFIG.set_int('NZBGET_PRIORITY', check_int(kwargs['pri'], 0))
-        msg = nzbget.check_link()
+        if fail:
+            msg = f'NzbGet failed, bad parameter: {fail}'
+        else:
+            msg = nzbget.check_link()
         if 'success' in msg:
             CONFIG.save_config_and_backup_old(section='NZBGet')
         return msg
@@ -7272,17 +7679,33 @@ class WebInterface(object):
     def test_transmission(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('TRANSMISSION_HOST', kwargs['host'])
+            if self.validate_param("transmission host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('TRANSMISSION_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'base' in kwargs:
-            CONFIG.set_str('TRANSMISSION_BASE', kwargs['base'])
+            if self.validate_param("transmission base", kwargs['base'], ['<', '>', '='], None):
+                CONFIG.set_str('TRANSMISSION_BASE', kwargs['base'])
+            else:
+                fail += 'base '
         if 'port' in kwargs:
             CONFIG.set_int('TRANSMISSION_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            CONFIG.set_str('TRANSMISSION_USER', kwargs['user'])
+            if self.validate_param("transmission user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('TRANSMISSION_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'pwd' in kwargs:
-            CONFIG.set_str('TRANSMISSION_PASS', kwargs['pwd'])
-        msg = transmission.check_link()
+            if self.validate_param("transmission pass", kwargs['pwd'], ['<', '>'], None):
+                CONFIG.set_str('TRANSMISSION_PASS', kwargs['pwd'])
+            else:
+                fail += 'password '
+        if fail:
+            msg = f'Transmission failed, bad parameter: {fail}'
+        else:
+            msg = transmission.check_link()
         if 'success' in msg:
             CONFIG.save_config_and_backup_old(section='TRANSMISSION')
         return msg
@@ -7291,19 +7714,38 @@ class WebInterface(object):
     def test_qbittorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('QBITTORRENT_HOST', kwargs['host'])
+            if self.validate_param("qbit host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('QBITTORRENT_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'port' in kwargs:
             CONFIG.set_int('QBITTORRENT_PORT', check_int(kwargs['port'], 0))
         if 'base' in kwargs:
-            CONFIG.set_str('QBITTORRENT_BASE', kwargs['base'])
+            if self.validate_param("qbit base", kwargs['base'], ['<', '>', '='], None):
+                CONFIG.set_str('QBITTORRENT_BASE', kwargs['base'])
+            else:
+                fail += 'base '
         if 'user' in kwargs:
-            CONFIG.set_str('QBITTORRENT_USER', kwargs['user'])
+            if self.validate_param("qbit user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('QBITTORRENT_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'pwd' in kwargs:
-            CONFIG.set_str('QBITTORRENT_PASS', kwargs['pwd'])
+            if self.validate_param("qbit password", kwargs['pwd'], ['<', '>'], None):
+                CONFIG.set_str('QBITTORRENT_PASS', kwargs['pwd'])
+            else:
+                fail += 'password '
         if 'label' in kwargs:
-            CONFIG.set_str('QBITTORRENT_LABEL', kwargs['label'])
-        msg = qbittorrent.check_link()
+            if self.validate_param("qbit label", kwargs['label'], ['<', '>', '='], None):
+                CONFIG.set_str('QBITTORRENT_LABEL', kwargs['label'])
+            else:
+                fail += 'label '
+        if fail:
+            msg = f'QbitTorrent failed, bad parameter: {fail}'
+        else:
+            msg = qbittorrent.check_link()
         if 'success' in msg:
             CONFIG.save_config_and_backup_old(section='QBITTORRENT')
         return msg
@@ -7312,19 +7754,38 @@ class WebInterface(object):
     def test_utorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('UTORRENT_HOST', kwargs['host'])
+            if self.validate_param("utorrent host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('UTORRENT_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'port' in kwargs:
             CONFIG.set_int('UTORRENT_PORT', check_int(kwargs['port'], 0))
         if 'base' in kwargs:
-            CONFIG.set_str('UTORRENT_BASE', kwargs['base'])
+            if self.validate_param("utorrent base", kwargs['base'], ['<', '>', '='], None):
+                CONFIG.set_str('UTORRENT_BASE', kwargs['base'])
+            else:
+                fail += 'base '
         if 'user' in kwargs:
-            CONFIG.set_str('UTORRENT_USER', kwargs['user'])
+            if self.validate_param("utorrent user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('UTORRENT_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'pwd' in kwargs:
-            CONFIG.set_str('UTORRENT_PASS', kwargs['pwd'])
+            if self.validate_param("utorrent password", kwargs['pwd'], ['<', '>'], None):
+                CONFIG.set_str('UTORRENT_PASS', kwargs['pwd'])
+            else:
+                fail += 'password '
         if 'label' in kwargs:
-            CONFIG.set_str('UTORRENT_LABEL', kwargs['label'])
-        msg = utorrent.check_link()
+            if self.validate_param("utorrent label", kwargs['label'], ['<', '>', '='], None):
+                CONFIG.set_str('UTORRENT_LABEL', kwargs['label'])
+            else:
+                fail += 'label '
+        if fail:
+            msg = f'utorrent failed, bad parameter: {fail}'
+        else:
+            msg = utorrent.check_link()
         if 'success' in msg:
             CONFIG.save_config_and_backup_old(section='UTORRENT')
         return msg
@@ -7333,17 +7794,36 @@ class WebInterface(object):
     def test_rtorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('RTORRENT_HOST', kwargs['host'])
+            if self.validate_param("rtorrent host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('RTORRENT_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'dir' in kwargs:
-            CONFIG.set_str('RTORRENT_DIR', kwargs['dir'])
+            if self.validate_param("rtorrent dir", kwargs['dir'], ['<', '>', '='], None):
+                CONFIG.set_str('RTORRENT_DIR', kwargs['dir'])
+            else:
+                fail += 'dir '
         if 'user' in kwargs:
-            CONFIG.set_str('RTORRENT_USER', kwargs['user'])
+            if self.validate_param("rtorrent user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('RTORRENT_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'pwd' in kwargs:
-            CONFIG.set_str('RTORRENT_PASS', kwargs['pwd'])
+            if self.validate_param("rtorrent password", kwargs['pwd'], ['<', '>'], None):
+                CONFIG.set_str('RTORRENT_PASS', kwargs['pwd'])
+            else:
+                fail += 'psaaword '
         if 'label' in kwargs:
-            CONFIG.set_str('RTORRENT_LABEL', kwargs['label'])
-        msg = rtorrent.check_link()
+            if self.validate_param("rtorrent label", kwargs['label'], ['<', '>', '='], None):
+                CONFIG.set_str('RTORRENT_LABEL', kwargs['label'])
+            else:
+                fail += 'label '
+        if fail:
+            msg = f'rtorrent failed, bad parameter: {fail}'
+        else:
+            msg = rtorrent.check_link()
         if 'success' in msg:
             CONFIG.save_config_and_backup_old(section='RTORRENT')
         return msg
@@ -7352,17 +7832,33 @@ class WebInterface(object):
     def test_synology(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
+        fail = ''
         if 'host' in kwargs:
-            CONFIG.set_str('SYNOLOGY_HOST', kwargs['host'])
+            if self.validate_param("synology host", kwargs['host'], ['<', '>', '='], None):
+                CONFIG.set_str('SYNOLOGY_HOST', kwargs['host'])
+            else:
+                fail += 'host '
         if 'port' in kwargs:
             CONFIG.set_int('SYNOLOGY_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            CONFIG.set_str('SYNOLOGY_USER', kwargs['user'])
+            if self.validate_param("synology user", kwargs['user'], ['<', '>', '='], None):
+                CONFIG.set_str('SYNOLOGY_USER', kwargs['user'])
+            else:
+                fail += 'user '
         if 'pwd' in kwargs:
-            CONFIG.set_str('SYNOLOGY_PASS', kwargs['pwd'])
+            if self.validate_param("synology password", kwargs['pwd'], ['<', '>'], None):
+                CONFIG.set_str('SYNOLOGY_PASS', kwargs['pwd'])
+            else:
+                fail += 'password '
         if 'dir' in kwargs:
-            CONFIG.set_str('SYNOLOGY_DIR', kwargs['dir'])
-        msg = synology.check_link()
+            if self.validate_param("synology dir", kwargs['dir'], ['<', '>', '='], None):
+                CONFIG.set_str('SYNOLOGY_DIR', kwargs['dir'])
+            else:
+                fail += 'dir '
+        if fail:
+            msg = f'synology failed, bad parameter: {fail}'
+        else:
+            msg = synology.check_link()
         if 'success' in msg:
             CONFIG.save_config_and_backup_old(section='SYNOLOGY')
         return msg
@@ -7373,7 +7869,10 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         loggerpostprocess = logging.getLogger('special.postprocess')
         if 'prg' in kwargs and kwargs['prg']:
-            CONFIG.set_str('FFMPEG', kwargs['prg'])
+            if self.validate_param("ffmpeg program", kwargs['prg'], ['<', '>', '='], None):
+                CONFIG.set_str('FFMPEG', kwargs['prg'])
+            else:
+                return 'ffmpeg failed, bad parameter: program'
         ffmpeg = CONFIG['FFMPEG']
         try:
             if loggerpostprocess.isEnabledFor(logging.DEBUG):
@@ -7403,7 +7902,11 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            CONFIG.set_str('EBOOK_CONVERT', kwargs['prg'])
+            if self.validate_param("ebook convert", kwargs['prg'], ['<', '>', '='], None):
+                CONFIG.set_str('EBOOK_CONVERT', kwargs['prg'])
+            else:
+                return "ebook-convert failed, bad parameter"
+
         prg = CONFIG['EBOOK_CONVERT']
         try:
             params = [prg, "--version"]
@@ -7418,7 +7921,10 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            CONFIG.set_str('IMP_CALIBREDB', kwargs['prg'])
+            if self.validate_param("calibredb", kwargs['prg'], ['<', '>', '='], None):
+                CONFIG.set_str('IMP_CALIBREDB', kwargs['prg'])
+            else:
+                return f'calibredb failed, bad parameter: program'
         return calibre_test()
 
     @cherrypy.expose
@@ -7426,7 +7932,10 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            CONFIG.set_str('EXT_PREPROCESS', kwargs['prg'])
+            if self.validate_param("preprocessor", kwargs['prg'], ['<', '>', '='], None):
+                CONFIG.set_str('EXT_PREPROCESS', kwargs['prg'])
+            else:
+                return f'preprocessor failed, bad parameter: program'
         if len(CONFIG['EXT_PREPROCESS']):
             params = [CONFIG['EXT_PREPROCESS'], 'test', '']
             rc, res, err = run_script(params)
@@ -7444,9 +7953,9 @@ class WebInterface(object):
         data = op.fetch_data()
         return data
 
-    @staticmethod
-    def send_file(myfile, name=None, email=False):
+    def send_file(self, myfile, name=None, email=False):
         logger = logging.getLogger(__name__)
+        self.check_permitted(lazylibrarian.perm_download)
         userid = ''
         if CONFIG.get_bool('USER_ACCOUNTS'):
             cookie = cherrypy.request.cookie
@@ -7529,7 +8038,7 @@ class WebInterface(object):
     @cherrypy.expose
     def set_current_tabs(self, **kwargs):
         if 'config_tab' in kwargs:
-            CONFIG.set_from_ui('CONFIG_TAB_NUM', kwargs['config_tab'])
+            CONFIG.set_from_ui('CONFIG_TAB_NUM', check_int(kwargs['config_tab'], 1))
 
     # noinspection PyUnusedLocal
     @cherrypy.expose

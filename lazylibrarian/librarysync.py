@@ -29,13 +29,14 @@ from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file, opf_file, \
-    get_directory
-from lazylibrarian.formatter import plural, is_valid_isbn, get_list, unaccented, \
-    replace_all, replace_quotes_with, split_title, now, make_unicode
+from lazylibrarian.filesystem import (DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file,
+                                      opf_file, get_directory)
+from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented, replace_all, replace_quotes_with,
+                                     split_title, now, make_unicode)
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.importer import update_totals, add_author_name_to_db, search_for, collate_nopunctuation, title_translates
+from lazylibrarian.importer import (update_totals, add_author_name_to_db, search_for, collate_nopunctuation,
+                                    title_translates)
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.preprocessor import preprocess_audio
 from lib.mobi import Mobi
@@ -231,7 +232,7 @@ def get_book_info(fname):
     return res
 
 
-def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_book_in_db'):
+def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_book_in_db', source=''):
     # Fuzzy search for book in library, return LL bookid and status if found or zero
     # prefer an exact match on author & book
     # prefer 'Have' if the user has marked the one they want
@@ -240,7 +241,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     logger = logging.getLogger(__name__)
     loggerfuzz = logging.getLogger('special.fuzz')
     book = book.replace('\n', ' ')
-    logger.debug('Searching database for [%s] by [%s]' % (book, author))
+    logger.debug(f'Searching database for [{book}] by [{author}] {source}')
     db = database.DBConnection()
     db.connection.create_collation('nopunctuation', collate_nopunctuation)
     try:
@@ -265,6 +266,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         cmd = ("SELECT BookID,books.Status,AudioStatus FROM books,authors where books.AuthorID = authors.AuthorID and "
                "authors.AuthorID=? and BookName=? COLLATE NOPUNCTUATION")
+        if source:
+            cmd += f' and books.{source} = BookID'
         res = db.select(cmd, (authorid, book))
 
         whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
@@ -300,6 +303,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         # Try a more complex fuzzy match against each book in the db by this author
         cmd = ("SELECT BookID,BookName,BookSub,BookISBN,books.Status,AudioStatus FROM books,authors where "
                "books.AuthorID = authors.AuthorID ")
+        if source:
+            cmd += f' and books.{source} = BookID '
         ign = ''
         if library == 'eBook':
             if ignored is True:
