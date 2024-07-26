@@ -357,6 +357,8 @@ class WebInterface(object):
 
     @staticmethod
     def validate_param(keyword, value, tokens, errorpage):
+        if not value:
+            return True
         unquoted = unquote_plus(value)
         for token in tokens:
             if token in unquoted:
