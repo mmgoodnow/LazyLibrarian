@@ -443,7 +443,7 @@ class JSONCacheRequest(CacheRequest):
 def clean_cache():
     """ Remove unused files from the cache - delete if expired or unused.
         Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine  Comic  IRC
-        Check covers and authorimages etc referenced in the database exist
+        Check covers and authorimages etc. referenced in the database exist
         and change database entry if missing, expire old pastissues table entries """
 
     threadname = thread_name()
@@ -453,7 +453,7 @@ def clean_cache():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        db.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
+        db.upsert("jobs", {'Start': time.time()}, {'Name': 'CLEANCACHE'})
         result = [
             # Remove files that are too old from cache directories
             FileExpirer("IRCCache", False, check_int(lazylibrarian.IRC_CACHE_EXPIRY, 0)).clean(),
@@ -476,9 +476,9 @@ def clean_cache():
             ExtensionCleaner("", ".jpg").clean(),
 
             # Verify the cover images referenced in the database are present, replace if not
-            DBCleaner("book", "Cover", db, "books", "BookImg", "BookName", "BookID", "images/nocover.png").clean(),
+            DBCleaner("book", "Cover", db, "books", "BookImg", "BookName", "BookID", 'images/nocover.png').clean(),
             DBCleaner("author", "Image", db, "authors", "AuthorImg", "AuthorName", "AuthorID",
-                      "images/nophoto.png").clean(),
+                      'images/nophoto.png').clean(),
         ]
 
         expiry = CONFIG.get_int('CACHE_AGE')
@@ -502,7 +502,7 @@ def clean_cache():
             result.append(msg)
             logger.debug(msg)
     finally:
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
+        db.upsert("jobs", {'Finish': time.time()}, {'Name': 'CLEANCACHE'})
         db.close()
 
     thread_name(threadname)
@@ -687,7 +687,7 @@ class DBCleaner(CacheCleaner):
             else:
                 self.cleaned += 1
                 self.logger.debug('%s missing for %s %s' % (self.typestr, item[self.fname], imgfile))
-                updatequery = f'update {self.table} set {self.fimg}="{self.fallback}" where {self.fid}=?'
+                updatequery = f"update {self.table} set {self.fimg}='{self.fallback}' where {self.fid}=?"
                 self.db.action(updatequery, (item[self.fid],))
 
         msg = "Cleaned %i missing %s, kept %i" % (self.cleaned, plural(self.cleaned, self.typestr), self.kept)
