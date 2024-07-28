@@ -97,7 +97,7 @@ class DBConnection:
 
         if '"' in query:
             program, method, lineno = get_info_on_caller(depth=3)
-            self.logger.warning(f'Malformed Query: {program}, {method}, {lineno}')
+            self.logger.warning(f'Malformed Query: {query}: {program}, {method}, {lineno}')
             query = query.replace('"', "'")
 
         while attempt < 5:
