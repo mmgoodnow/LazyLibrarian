@@ -328,6 +328,9 @@ class LLConfigHandler(ConfigDict):
             savecount = self.save_config_to_filename(syspath(self.configfilename + '.new'), save_all)
             if savecount == 0:
                 return 0
+            elif savecount < 0:
+                self.logger.error("Error saving config")
+                return -1
             else:
                 import os
 
