@@ -523,7 +523,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
 
 # translations: e.g. allow "fire & fury" to match "fire and fury"
-# or "the lord of the rings" matches "lord of the rings"
+# or "the lord of the rings" to match "lord of the rings"
 title_translates = [
     [' & ', ' and '],
     [' + ', ' plus '],
