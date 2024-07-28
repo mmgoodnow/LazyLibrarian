@@ -36,7 +36,7 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header, create_support_zip, docker
+from lazylibrarian.common import log_header, create_support_zip, docker, get_readinglist
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
@@ -84,10 +84,10 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'shrinkMag': (1, '&name= &size= shrink magazine size'),
             'getAuthorImages': (1, '[&wait] get images for all authors without one'),
             'getWanted': (0, 'list wanted books'),
-            'getRead': (0, 'list read books for current user'),
-            'getReading': (0, 'list currently-reading books for current user'),
-            'getToRead': (0, 'list to-read books for current user'),
-            'getAbandoned': (0, 'list abandoned books for current user'),
+            'getRead': (1, '&id= list read books for current user'),
+            'getReading': (1, '&id= list currently-reading books for user'),
+            'getToRead': (1, '&id= list to-read books for user'),
+            'getAbandoned': (1, '&id= list abandoned books for user'),
             'getSnatched': (0, 'list snatched books'),
             'getHistory': (0, 'list history'),
             'getDebug': (0, 'show debug log header'),
@@ -1146,53 +1146,37 @@ class Api(object):
         self.data = self._dic_from_query(
             "SELECT * from books WHERE Status='Wanted'")
 
-    def _getread(self):
+    def _getread(self, **kwargs):
         TELEMETRY.record_usage_data()
-        userid = None
-        cookie = cherrypy.request.cookie
-        if cookie and 'll_uid' in list(cookie.keys()):
-            userid = cookie['ll_uid'].value
-        if not userid:
-            self.data = 'No userid'
+        self.id = kwargs.get('id')
+        if not self.id:
+            self.data = 'Missing parameter: id'
         else:
-            self.data = self._dic_from_query(
-                "SELECT haveread from users WHERE userid='%s'" % userid)
+            self.data = get_readinglist("HaveRead", self.id)
 
-    def _gettoread(self):
+    def _gettoread(self, **kwargs):
         TELEMETRY.record_usage_data()
-        userid = None
-        cookie = cherrypy.request.cookie
-        if cookie and 'll_uid' in list(cookie.keys()):
-            userid = cookie['ll_uid'].value
-        if not userid:
-            self.data = 'No userid'
+        self.id = kwargs.get('id')
+        if not self.id:
+            self.data = 'Missing parameter: id'
         else:
-            self.data = self._dic_from_query(
-                "SELECT toread from users WHERE userid='%s'" % userid)
+            self.data = get_readinglist("ToRead", self.id)
 
-    def _getreading(self):
+    def _getreading(self, **kwargs):
         TELEMETRY.record_usage_data()
-        userid = None
-        cookie = cherrypy.request.cookie
-        if cookie and 'll_uid' in list(cookie.keys()):
-            userid = cookie['ll_uid'].value
-        if not userid:
-            self.data = 'No userid'
+        self.id = kwargs.get('id')
+        if not self.id:
+            self.data = 'Missing parameter: id'
         else:
-            self.data = self._dic_from_query(
-                "SELECT reading from users WHERE userid='%s'" % userid)
+            self.data = get_readinglist("Reading", self.id)
 
-    def _getabandoned(self):
+    def _getabandoned(self, **kwargs):
         TELEMETRY.record_usage_data()
-        userid = None
-        cookie = cherrypy.request.cookie
-        if cookie and 'll_uid' in list(cookie.keys()):
-            userid = cookie['ll_uid'].value
-        if not userid:
-            self.data = 'No userid'
+        self.id = kwargs.get('id')
+        if not self.id:
+            self.data = 'Missing parameter: id'
         else:
-            self.data = self._dic_from_query(
-                "SELECT abandoned from users WHERE userid='%s'" % userid)
+            self.data = get_readinglist("Abandoned", self.id)
 
     def _vacuum(self):
         TELEMETRY.record_usage_data()
@@ -2468,10 +2452,10 @@ class Api(object):
         else:
             threading.Thread(target=export_csv, name='API-EXPORTCSV', args=[usedir, status, library]).start()
 
-    def _telemetryshow(self, **kwargs):
+    def _telemetryshow(self):
         TELEMETRY.record_usage_data()
         self.data = TELEMETRY.get_data_for_ui_preview(send_usage=True, send_config=True)
 
-    def _telemetrysend(self, **kwargs):
+    def _telemetrysend(self):
         TELEMETRY.record_usage_data()
         self.data = telemetry_send()
