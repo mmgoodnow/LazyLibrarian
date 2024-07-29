@@ -619,7 +619,7 @@ def de_duplicate(authorid):
                         if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
                             logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
                             db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
-                            for table in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']
+                            for table in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']:
                                 db.action(f"UPDATE {table} SET Bookid=? WHERE BookID=?", (favourite['BookID'], copy['BookID']))
 
                             total += 1

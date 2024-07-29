@@ -491,7 +491,7 @@ def check_db(upgradelog=None):
                 msg = 'Removing %s %s with no authorid' % (len(books), plural(len(books), "book"))
                 logger.warning(msg)
                 for book in books:
-                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']
+                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']:
                         db.action(f"DELETE from {table} WHERE BookID=?", (book['BookID'],))
 
             # remove authors with no authorid
@@ -591,7 +591,7 @@ def check_db(upgradelog=None):
                         cnt += 1
                         msg = 'Removing excluded genre [%s]' % item
                         logger.warning(msg)
-                        for table in ['genrebooks', 'genres']
+                        for table in ['genrebooks', 'genres']:
                             db.action(f"DELETE from {table} WHERE GenreID=?", (match['GenreID'],))
 
                 for item in lazylibrarian.GRGENRES.get('genreExcludeParts', []):
@@ -602,7 +602,7 @@ def check_db(upgradelog=None):
                         for itm in matches:
                             msg = 'Removing excluded genre [%s]' % itm['GenreName']
                             logger.warning(msg)
-                            for table in ['genrebooks', 'genres']
+                            for table in ['genrebooks', 'genres']:
                                 db.action(f"DELETE from {table} WHERE GenreID=?", (itm['GenreID'],))
 
                 for item in lazylibrarian.GRGENRES.get('genreReplace', {}):

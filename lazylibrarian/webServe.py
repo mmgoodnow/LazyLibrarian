@@ -4076,7 +4076,7 @@ class WebInterface(object):
                             authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
                             if authorcheck:
                                 if authorcheck['Status'] not in ['Active', 'Wanted']:
-                                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']
+                                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']:
                                         db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                     logger.info('Removed "%s" from database' % bookname)
                                 elif 'eBook' in library:
@@ -4088,7 +4088,7 @@ class WebInterface(object):
                                               {"BookID": bookid})
                                     logger.debug('AudioStatus set to Ignored for "%s"' % bookname)
                             else:
-                                for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']
+                                for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']:
                                     db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                 logger.info('Removed "%s" from database' % bookname)
 

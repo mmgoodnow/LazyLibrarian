@@ -408,7 +408,15 @@ def log_header(online=True) -> str:
         except Exception:
             vers = "not found"
         header += "Levenshtein: %s\n" % vers
-
+        # noinspection PyBroadException
+        try:
+            import rapidfuzz
+            vers = getattr(rapidfuzz, "__version__", None)
+            if not vers:
+                vers = "installed"
+        except Exception:
+            vers = "not found"
+        header += "Rapidfuzz: %s\n" % vers
     try:
         import magic
         try:
