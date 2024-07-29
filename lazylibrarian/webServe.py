@@ -1838,7 +1838,8 @@ class WebInterface(object):
                     if value:
                         if key.lower() in ['bok_pass', 'bok_host']:
                             tokens = ['<', '>', '"', "'", '+', '(', ')']
-                        elif key.lower() in ['user_agent', 'fmt_series']:
+                        elif (key.lower() in ['user_agent', 'fmt_series'] or key.lower().endswith['_folder']
+                              or key.lower().endswith['_file']):
                             tokens = ['<', '&', '>', '=', '"', "'", '+']
                         else:
                             tokens = ['<', '&', '>', '=', '"', "'", '+', '(', ')']
