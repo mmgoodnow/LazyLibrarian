@@ -131,8 +131,6 @@ def restore_table(table, savedir=None, status=None):
                                       "Email": item['Email'],
                                       "Name": item['Name'],
                                       "Perms": item['Perms'],
-                                      "HaveRead": item['HaveRead'],
-                                      "ToRead": item['ToRead'],
                                       "CalibreRead": item['CalibreRead'],
                                       "CalibreToRead": item['CalibreToRead'],
                                       "BookType": item['BookType']

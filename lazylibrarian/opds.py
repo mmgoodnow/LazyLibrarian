@@ -28,7 +28,7 @@ from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img, ImageType
-from lazylibrarian.common import mime_type, zip_audio
+from lazylibrarian.common import mime_type, zip_audio, get_readinglist
 from lazylibrarian.filesystem import path_isfile, listdir, any_file
 from lazylibrarian.formatter import make_unicode, check_int, plural, get_list
 from urllib.parse import quote_plus
@@ -270,12 +270,7 @@ class OPDS(object):
                 )
 
             if userid:
-                res = db.match('SELECT HaveRead,ToRead from users where userid=?', (kwargs['user'],))
-                if res:
-                    readfilter = get_list(res['HaveRead'])
-                else:
-                    readfilter = []
-
+                readfilter = get_readinglist("HaveRead", kwargs['user'])
                 if len(readfilter) > 0:
                     entries.append(
                         {
@@ -288,12 +283,7 @@ class OPDS(object):
                             'rel': 'subsection',
                         }
                     )
-
-                if res:
-                    readfilter = get_list(res['ToRead'])
-                else:
-                    readfilter = []
-
+                readfilter = get_readinglist("ToRead", kwargs['user'])
                 if len(readfilter) > 0:
                     entries.append(
                         {
@@ -616,7 +606,7 @@ class OPDS(object):
         for author in page:
             totalbooks = check_int(author['TotalBooks'], 0)
             havebooks = check_int(author['HaveEBooks'], 0)
-            lastupdated = datetime.datetime.utcfromtimestamp(author['Updated']).strftime("%Y-%m-%d")
+            lastupdated = datetime.datetime.fromtimestamp(author['Updated'], datetime.UTC).strftime("%Y-%m-%d")
             name = make_unicode(author['AuthorName'])
             entry = {
                     'title': escape('%s (%s/%s)' % (name, havebooks, totalbooks)),
@@ -693,7 +683,7 @@ class OPDS(object):
         for author in page:
             totalbooks = check_int(author['TotalBooks'], 0)
             havebooks = check_int(author['HaveAudioBooks'], 0)
-            lastupdated = datetime.datetime.utcfromtimestamp(author['Updated']).strftime("%Y-%m-%d")
+            lastupdated = datetime.datetime.fromtimestamp(author['Updated'], datetime.UTC).strftime("%Y-%m-%d")
             name = make_unicode(author['AuthorName'])
             entry = {
                     'title': escape('%s (%s/%s)' % (name, havebooks, totalbooks)),
@@ -1576,18 +1566,9 @@ class OPDS(object):
 
             readfilter = None
             if sorder == 'Read' and 'user' in kwargs:
-                res = db.match('SELECT HaveRead from users where userid=?', (kwargs['user'],))
-                if res:
-                    readfilter = get_list(res['HaveRead'])
-                else:
-                    readfilter = []
-            if sorder == 'ToRead' and 'user' in kwargs:
-                res = db.match('SELECT ToRead from users where userid=?', (kwargs['user'],))
-                if res:
-                    readfilter = get_list(res['ToRead'])
-                else:
-                    readfilter = []
-
+                readfilter = get_readinglist("HaveRead", kwargs['user'])
+            elif sorder == 'ToRead' and 'user' in kwargs:
+                readfilter = get_readinglist("ToRead", kwargs['user'])
             if readfilter is not None:
                 self.loggerdlcomms.debug("Filter length %s" % len(readfilter))
                 filtered = []

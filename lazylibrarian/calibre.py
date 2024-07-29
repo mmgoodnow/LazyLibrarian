@@ -22,6 +22,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.filesystem import get_directory
 from lazylibrarian.formatter import unaccented, get_list
+from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
 from thefuzz import fuzz
@@ -70,7 +71,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
             if cookie and 'll_uid' in list(cookie.keys()):
                 userid = cookie['ll_uid'].value
         if userid:
-            res = db.match('SELECT UserName,ToRead,HaveRead,CalibreRead,CalibreToRead,Perms from users where UserID=?',
+            res = db.match('SELECT UserName,CalibreRead,CalibreToRead,Perms from users where UserID=?',
                            (userid,))
             if res:
                 username = res['UserName']
@@ -78,11 +79,8 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     col_read = res['CalibreRead']
                 if not col_toread:
                     col_toread = res['CalibreToRead']
-                toreadlist = get_list(res['ToRead'])
-                readlist = get_list(res['HaveRead'])
-                # suppress duplicates (just in case)
-                toreadlist = list(set(toreadlist))
-                readlist = list(set(readlist))
+                toreadlist = get_readinglist("ToRead", userid)
+                readlist = get_readinglist("HaveRead", userid)
             else:
                 return "Error: Unable to get user column settings for %s" % userid
 
@@ -288,8 +286,9 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     logger.debug("Lazylibrarian removed %s from to_read" % item)
                     calibre_changes += 1
             if calibre_changes:
-                db.action('UPDATE users SET ToRead=?,HaveRead=? WHERE UserID=?',
-                          (', '.join(toreadlist), ', '.join(readlist), userid))
+                set_readinglist("ToRead", userid, toreadlist)
+                set_readinglist("HaveRead", userid, readlist)
+
             ll_changes = 0
             for item in added_to_ll_toread:
                 if item in map_ltoc:

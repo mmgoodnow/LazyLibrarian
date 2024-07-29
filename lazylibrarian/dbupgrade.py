@@ -118,8 +118,9 @@ from lazylibrarian.common import path_exists
 # 79 Add Source to series table
 # 80 Add Unauthorised table
 # 81 Add ol_id and gb_id to books table
+# 82 Add reading list tables, remove from users table
 
-db_current_version = 81
+db_current_version = 82
 
 
 def upgrade_needed():
@@ -490,7 +491,8 @@ def check_db(upgradelog=None):
                 msg = 'Removing %s %s with no authorid' % (len(books), plural(len(books), "book"))
                 logger.warning(msg)
                 for book in books:
-                    db.action("DELETE from books WHERE BookID=?", (book['BookID'],))
+                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']
+                        db.action(f"DELETE from {table} WHERE BookID=?", (book['BookID'],))
 
             # remove authors with no authorid
             lazylibrarian.UPDATE_MSG = 'Removing authors with no authorid'
@@ -589,8 +591,9 @@ def check_db(upgradelog=None):
                         cnt += 1
                         msg = 'Removing excluded genre [%s]' % item
                         logger.warning(msg)
-                        db.action('DELETE from genrebooks WHERE GenreID=?', (match['GenreID'],))
-                        db.action('DELETE from genres WHERE GenreID=?', (match['GenreID'],))
+                        for table in ['genrebooks', 'genres']
+                            db.action(f"DELETE from {table} WHERE GenreID=?", (match['GenreID'],))
+
                 for item in lazylibrarian.GRGENRES.get('genreExcludeParts', []):
                     cmd = "SELECT GenreID,GenreName from genres where GenreName like '%" + item + "%' COLLATE NOCASE"
                     matches = db.select(cmd)
@@ -599,8 +602,9 @@ def check_db(upgradelog=None):
                         for itm in matches:
                             msg = 'Removing excluded genre [%s]' % itm['GenreName']
                             logger.warning(msg)
-                            db.action('DELETE from genrebooks WHERE GenreID=?', (itm['GenreID'],))
-                            db.action('DELETE from genres WHERE GenreID=?', (itm['GenreID'],))
+                            for table in ['genrebooks', 'genres']
+                                db.action(f"DELETE from {table} WHERE GenreID=?", (itm['GenreID'],))
+
                 for item in lazylibrarian.GRGENRES.get('genreReplace', {}):
                     match = db.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
                     if match:
@@ -716,6 +720,59 @@ def check_db(upgradelog=None):
                 for item in latest:
                     db.action('UPDATE magazines SET LatestCover=? WHERE Title=?', (item['cover'], item['title']))
 
+            lazylibrarian.UPDATE_MSG = 'Checking goodreads lists'
+            res = db.select("SELECT Label,SyncList from sync WHERE UserID='goodreads'")
+            cmd = "SELECT gr_id from books WHERE BookID=?"
+            for synclist in res:
+                old_list = get_list(synclist['SyncList'])
+                new_list = []
+                for item in old_list:
+                    item = str(item).strip('"')
+                    if item.isnumeric():
+                        new_list.append(item)
+                    else:
+                        # not a goodreads ID
+                        match = db.match(cmd, (item,))
+                        if match and match[0]:
+                            new_list.append(match[0])
+                            logger.debug("Bookid %s is goodreads %s" % (item, match[0]))
+                        else:
+                            logger.debug("Bookid %s in %s not matched at GoodReads, removed" % (item, synclist['Label']))
+                new_set = set(new_list)
+                new_list = ','.join(new_set)
+                db.action("UPDATE sync SET SyncList=? WHERE Label=? AND UserID='goodreads'", (new_list, synclist['Label']))
+
+            lazylibrarian.UPDATE_MSG = 'Checking reading lists'
+            bookids = []
+            res = db.select('SELECT BookID from books')
+            for bookid in res:
+                bookids.append(bookid[0])
+            bookids = set(bookids)
+            read_ids = []
+            reading_lists = ['HaveRead', 'ToRead', 'Reading', 'Abandoned']
+            for table in reading_lists:
+                exists = db.select('PRAGMA table_info(%s)' % table)
+                if exists:
+                    res = db.select('SELECT BookID from %s' % table)
+                    for bookid in res:
+                        read_ids.append(bookid[0])
+
+            read_ids = set(read_ids)
+            no_bookid = read_ids.difference(bookids)
+            logger.info("Found %s missing bookids in reading lists" % len(no_bookid))
+            for item in no_bookid:
+                cmd= 'SELECT BookID from books WHERE ol_id=? OR gr_id=? OR lt_workid=? OR gb_id=?'
+                res = db.match(cmd, (item, item, item, item))
+                if res:
+                    logger.debug(f"Bookid {item} is now {res[0]}")
+                    for table in reading_lists:
+                        cmd = f'UPDATE {table} SET BookID=? WHERE BookID=?'
+                        db.action(cmd, (res[0], item))
+                else:
+                    logger.debug(f"Bookid {item} is unknown, deleting it")
+                    for table in reading_lists:
+                        cmd = f'DELETE FROM {table} WHERE BookID=?'
+                        db.action(cmd, (item,))
         except Exception as e:
             msg = 'Error: %s %s' % (type(e).__name__, str(e))
             logger.error(msg)
@@ -1207,6 +1264,48 @@ def update_schema(db, upgradelog):
                 logger.warning(f"Unable to determine bookid type for {book['bookid']}")
         lazylibrarian.UPDATE_MSG = "Processed %s books" % len(res)
         logger.debug(lazylibrarian.UPDATE_MSG)
+
+    if has_column(db, "users", "HaveRead"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding reading tables'
+        upgradelog.write("%s v82: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('CREATE TABLE haveread (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, BookID TEXT)')
+        db.action('CREATE TABLE toread (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, BookID TEXT)')
+        db.action('CREATE TABLE reading (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, BookID TEXT)')
+        db.action('CREATE TABLE abandoned (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, BookID TEXT)')
+        res = db.select("SELECT UserID,HaveRead,ToRead,Reading,Abandoned from users")
+        lazylibrarian.UPDATE_MSG = f"Populating new fields in reading tables for {len(res)} users"
+        logger.debug(lazylibrarian.UPDATE_MSG)
+        cnt = 0
+        for user in res:
+            userid = user['UserID']
+            for reading_list in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']:
+                id_list = get_list(user[reading_list])
+                if id_list:
+                    cnt += 1
+                    new_list = []
+                    for item in id_list:
+                        item = str(item).strip('"')
+                        new_list.append(item)
+                    new_set = set(new_list)
+                    for item in new_set:
+                        cmd = 'INSERT into %s (UserID, BookID) VALUES (?,?)' % reading_list
+                        db.action(cmd, (userid, item))
+
+        lazylibrarian.UPDATE_MSG = f"Processed {cnt} reading lists"
+        logger.debug(lazylibrarian.UPDATE_MSG)
+
+        db.action('DROP TABLE IF EXISTS temp')
+        db.action('CREATE TABLE temp (UserID TEXT UNIQUE, UserName TEXT UNIQUE, Password TEXT, Email TEXT, Name TEXT,' +
+                  ' Perms INTEGER DEFAULT 0, CalibreRead TEXT, CalibreToRead TEXT, BookType TEXT, SendTo TEXT,' +
+                  ' Last_Login TEXT, Login_Count INTEGER DEFAULT 0, Prefs INTEGER DEFAULT 0, Theme TEXT)')
+        db.action('INSERT INTO temp SELECT UserID,UserName,Password,Email,Name,Perms,CalibreRead,CalibreToRead,' +
+                  'BookType,SendTo,Last_Login,Login_Count,Prefs,Theme FROM users')
+        db.action('PRAGMA foreign_keys = OFF')
+        db.action('DROP TABLE users')
+        db.action('ALTER TABLE temp RENAME TO users')
+        db.action('PRAGMA foreign_keys = ON')
+        db.action('vacuum')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))

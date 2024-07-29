@@ -43,7 +43,7 @@ from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb, ge
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import create_support_zip, log_header, pwd_generator, pwd_check, \
-    is_valid_email, mime_type, zip_audio, run_script
+    is_valid_email, mime_type, zip_audio, run_script, get_readinglist, set_readinglist
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, make_dirs
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
@@ -1484,13 +1484,14 @@ class WebInterface(object):
             abandoned = set()
             cookie = cherrypy.request.cookie
             if cookie and 'll_uid' in list(cookie.keys()):
-                cmd = "SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms,SendTo from users where UserID=?"
-                res = db.match(cmd, (cookie['ll_uid'].value,))
+                cmd = "SELECT UserName,Perms,SendTo from users where UserID=?"
+                userid = cookie['ll_uid'].value
+                res = db.match(cmd, (userid,))
                 if res:
-                    to_read = set(w.strip('"') for w in get_list(res['ToRead']))
-                    have_read = set(w.strip('"') for w in get_list(res['HaveRead']))
-                    reading = set(w.strip('"') for w in get_list(res['Reading']))
-                    abandoned = set(w.strip('"') for w in get_list(res['Abandoned']))
+                    to_read = get_readinglist('ToRead', userid)
+                    have_read = get_readinglist('HaveRead', userid)
+                    reading = get_readinglist('Reading', userid)
+                    abandoned = get_readinglist('Abandoned', userid)
                     email = res['SendTo']
         finally:
             db.close()
@@ -1551,53 +1552,50 @@ class WebInterface(object):
                     elif action in ["Unread", "Read", "ToRead", "Reading", "Abandoned"]:
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
-                            res = db.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
-                                           (cookie['ll_uid'].value,))
-                            if res:
-                                to_read = set(w.strip('"') for w in get_list(res['ToRead']))
-                                have_read = set(w.strip('"') for w in get_list(res['HaveRead']))
-                                reading = set(w.strip('"') for w in get_list(res['Reading']))
-                                abandoned = set(w.strip('"') for w in get_list(res['Abandoned']))
-                                members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
-                                if members:
-                                    for item in members:
-                                        bookid = item['bookid']
-                                        if action == "Unread":
-                                            to_read.discard(bookid)
-                                            have_read.discard(bookid)
-                                            reading.discard(bookid)
-                                            abandoned.discard(bookid)
-                                            logger.debug('Status set to "unread" for "%s"' % bookid)
-                                        elif action == "Read":
-                                            to_read.discard(bookid)
-                                            reading.discard(bookid)
-                                            abandoned.discard(bookid)
-                                            have_read.add(bookid)
-                                            logger.debug('Status set to "read" for "%s"' % bookid)
-                                        elif action == "ToRead":
-                                            reading.discard(bookid)
-                                            abandoned.discard(bookid)
-                                            have_read.discard(bookid)
-                                            to_read.add(bookid)
-                                            logger.debug('Status set to "to read" for "%s"' % bookid)
-                                        elif action == "Reading":
-                                            reading.add(bookid)
-                                            abandoned.discard(bookid)
-                                            have_read.discard(bookid)
-                                            to_read.discard(bookid)
-                                            logger.debug('Status set to "reading" for "%s"' % bookid)
-                                        elif action == "Abandoned":
-                                            reading.discard(bookid)
-                                            abandoned.add(bookid)
-                                            have_read.discard(bookid)
-                                            to_read.discard(bookid)
-                                            logger.debug('Status set to "abandoned" for "%s"' % bookid)
-                                    cmd = "UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?"
-                                    db.action(cmd, (', '.join('"{0}"'.format(w) for w in to_read),
-                                                    ', '.join('"{0}"'.format(w) for w in have_read),
-                                                    ', '.join('"{0}"'.format(w) for w in reading),
-                                                    ', '.join('"{0}"'.format(w) for w in abandoned),
-                                                    cookie['ll_uid'].value))
+                            userid = cookie['ll_uid'].value
+                            to_read = set(get_readinglist('ToRead', userid))
+                            have_read = set(get_readinglist('HaveRead', userid))
+                            reading = set(get_readinglist('Reading', userid))
+                            abandoned = set(get_readinglist('Abandoned', userid))
+                            members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
+                            if members:
+                                for item in members:
+                                    bookid = item['bookid']
+                                    if action == "Unread":
+                                        to_read.discard(bookid)
+                                        have_read.discard(bookid)
+                                        reading.discard(bookid)
+                                        abandoned.discard(bookid)
+                                        logger.debug('Status set to "unread" for "%s"' % bookid)
+                                    elif action == "Read":
+                                        to_read.discard(bookid)
+                                        reading.discard(bookid)
+                                        abandoned.discard(bookid)
+                                        have_read.add(bookid)
+                                        logger.debug('Status set to "read" for "%s"' % bookid)
+                                    elif action == "ToRead":
+                                        reading.discard(bookid)
+                                        abandoned.discard(bookid)
+                                        have_read.discard(bookid)
+                                        to_read.add(bookid)
+                                        logger.debug('Status set to "to read" for "%s"' % bookid)
+                                    elif action == "Reading":
+                                        reading.add(bookid)
+                                        abandoned.discard(bookid)
+                                        have_read.discard(bookid)
+                                        to_read.discard(bookid)
+                                        logger.debug('Status set to "reading" for "%s"' % bookid)
+                                    elif action == "Abandoned":
+                                        reading.discard(bookid)
+                                        abandoned.add(bookid)
+                                        have_read.discard(bookid)
+                                        to_read.discard(bookid)
+                                        logger.debug('Status set to "abandoned" for "%s"' % bookid)
+                                set_readinglist('ToRead', userid, to_read)
+                                set_readinglist('HaveRead', userid, have_read)
+                                set_readinglist('Reading', userid, reading)
+                                set_readinglist('Abandoned', userid, abandoned)
+
                     elif action == 'Subscribe':
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
@@ -2577,14 +2575,14 @@ class WebInterface(object):
                     userprefs = check_int(cookie['ll_prefs'].value, 0)
                 if cookie and 'll_uid' in list(cookie.keys()):
                     userid = cookie['ll_uid'].value
-                    cmd = "SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?"
+                    cmd = "SELECT UserName,Perms from users where UserID=?"
                     res = db.match(cmd, (userid,))
                     if res:
                         perm = check_int(res['Perms'], 0)
-                        to_read = set(w.strip('"') for w in get_list(res['ToRead']))
-                        have_read = set(w.strip('"') for w in get_list(res['HaveRead']))
-                        reading = set(w.strip('"') for w in get_list(res['Reading']))
-                        abandoned = set(w.strip('"') for w in get_list(res['Abandoned']))
+                        to_read = get_readinglist("ToRead", userid)
+                        have_read = get_readinglist("HaveRead", userid)
+                        reading = get_readinglist("Reading", userid)
+                        abandoned = get_readinglist("Abandoned", userid)
                         loggerserverside.debug("get_books userid %s read %s,%s,%s,%s" % (
                             cookie['ll_uid'].value, len(to_read), len(have_read), len(reading), len(abandoned)))
 
@@ -3955,11 +3953,11 @@ class WebInterface(object):
         for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype', 'AuthorID']:
             args.pop(arg, None)
 
-        cookie = None
         to_read = []
         have_read = []
         reading = []
         abandoned = []
+        userid = ''
 
         db = database.DBConnection()
         try:
@@ -3973,13 +3971,11 @@ class WebInterface(object):
                 if action in reading_lists:
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
-                        userdata = db.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
-                                            (cookie['ll_uid'].value,))
-                        if userdata:
-                            to_read = set(w.strip('"') for w in get_list(userdata['ToRead']))
-                            have_read = set(w.strip('"') for w in get_list(userdata['HaveRead']))
-                            reading = set(w.strip('"') for w in get_list(userdata['Reading']))
-                            abandoned = set(w.strip('"') for w in get_list(userdata['Abandoned']))
+                        userid = cookie['ll_uid'].value
+                        to_read = set(get_readinglist("ToRead", userid))
+                        have_read = set(get_readinglist("HaveRead", userid))
+                        reading = set(get_readinglist("Reading", userid))
+                        abandoned = set(get_readinglist("Abandoned", userid))
 
                 for bookid in args:
                     if action in reading_lists:
@@ -4080,8 +4076,8 @@ class WebInterface(object):
                             authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
                             if authorcheck:
                                 if authorcheck['Status'] not in ['Active', 'Wanted']:
-                                    db.action('delete from books where bookid=?', (bookid,))
-                                    db.action('delete from wanted where bookid=?', (bookid,))
+                                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']
+                                        db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                     logger.info('Removed "%s" from database' % bookname)
                                 elif 'eBook' in library:
                                     db.upsert("books", {"Status": "Ignored", "ScanResult": "User deleted"},
@@ -4092,17 +4088,15 @@ class WebInterface(object):
                                               {"BookID": bookid})
                                     logger.debug('AudioStatus set to Ignored for "%s"' % bookname)
                             else:
-                                db.action('delete from books where bookid=?', (bookid,))
-                                db.action('delete from wanted where bookid=?', (bookid,))
+                                for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']
+                                    db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                 logger.info('Removed "%s" from database' % bookname)
 
-                if action in reading_lists and cookie:
-                    db.action('UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?',
-                              (', '.join('"{0}"'.format(w) for w in to_read),
-                               ', '.join('"{0}"'.format(w) for w in have_read),
-                               ', '.join('"{0}"'.format(w) for w in reading),
-                               ', '.join('"{0}"'.format(w) for w in abandoned),
-                               cookie['ll_uid'].value))
+                if action in reading_lists and userid:
+                    set_readinglist("ToRead", userid, to_read)
+                    set_readinglist("HaveRead", userid, have_read)
+                    set_readinglist("Reading", userid, reading)
+                    set_readinglist("Abandoned", userid, abandoned)
         finally:
             db.close()
 

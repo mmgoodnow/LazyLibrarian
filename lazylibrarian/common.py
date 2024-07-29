@@ -55,6 +55,37 @@ def get_user_agent() -> str:
         return 'LazyLibrarian' + ' (' + platform.system() + ' ' + platform.release() + ')'
 
 
+def get_readinglist(table, user):
+    # return a set of all bookids in a readinglist
+    db = database.DBConnection()
+    readinglist = []
+    try:
+        cmd = f"SELECT bookid from {table} WHERE userid=?"
+        res = db.select(cmd, (user,))
+        if res:
+            for item in res:
+                readinglist.append(item[0])
+            # suppress duplicates, just in case...
+            readinglist = list(set(readinglist))
+    finally:
+        db.close()
+        return readinglist
+
+
+def set_readinglist(table, user, booklist):
+    # set the readinglist for a user
+    db = database.DBConnection()
+    try:
+        readinglist = set(booklist)
+        cmd = f"DELETE from {table} WHERE userid=?"
+        db.action(cmd, (user,))
+        cmd = f"INSERT into {table} ('UserID', 'BookID') VALUES (?,?)"
+        for book in readinglist:
+            db.action(cmd, (user, book))
+    finally:
+        db.close()
+
+
 def multibook(foldername, recurse=False):
     # Check for more than one book in the folder(tree). Note we can't rely on basename
     # being the same, so just check for more than one bookfile of the same type
@@ -203,9 +234,11 @@ def create_support_zip() -> (str, str):
 
     return msg, outfile
 
+
 def docker():
     cgroup = Path("/proc/self/cgroup")
     return Path('/.dockerenv').is_file() or cgroup.is_file() and cgroup.read_text().find('docker') > -1
+
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
 def log_header(online=True) -> str:

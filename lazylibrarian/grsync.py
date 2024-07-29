@@ -25,6 +25,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.cache import gr_api_sleep
+from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.formatter import plural, get_list, check_int, thread_name
 from lazylibrarian.gr import GoodReads
 
@@ -643,27 +644,40 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             usershelf = shelf + '_' + user['UserID']
             logger.info('Syncing %s %ss to %s shelf' % (status, library, shelf))
             if shelf == 'read':
-                ll_list = get_list(user['HaveRead'])
+                ll_list = get_readinglist('HaveRead', user['UserID'])
             elif shelf == 'currently-reading':
-                ll_list = get_list(user['Reading'])
+                ll_list = get_readinglist('Reading', user['UserID'])
             elif shelf == 'abandoned':
-                ll_list = get_list(user['Abandoned'])
+                ll_list = get_readinglist('Abandoned', user['UserID'])
             elif shelf == 'to-read':
-                ll_list = get_list(user['ToRead'])
+                ll_list = get_readinglist('ToRead', user['UserID'])
             else:  # if shelf == 'unread':
                 unread = set()
                 res = db.select("SELECT gr_id from books where status in ('Open', 'Have')")
                 for item in res:
                     unread.add(item['gr_id'])
                 read = set()
-                for item in ['HaveRead', 'To-Read', 'Reading', 'Abandoned']:
-                    try:
-                        contents = set(get_list(user[item]))
-                    except IndexError:
-                        contents = set()
+                for item in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']:
+                    contents = set(get_readinglist(item, user['UserID']))
                     read = read.union(contents)
                 unread.difference_update(read)
                 ll_list = list(unread)
+
+            new_list = []
+            cmd = "SELECT gr_id from books WHERE BookID=?"
+            for item in ll_list:
+                item = str(item).strip('"')
+                if item.isnumeric():
+                    new_list.append(item)
+                else:
+                    # not a goodreads ID
+                    match = db.match(cmd, (item,))
+                    if match and match[0]:
+                        new_list.append(match[0])
+                        logger.debug("Bookid %s is goodreads %s" % (item, match[0]))
+                    else:
+                        logger.debug("No GoodReads ID for Bookid %s, removed" % item)
+            ll_list = new_list
 
         else:
             if dstatus == "Open":
@@ -719,9 +733,9 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             else:
                 # make sure no old info lying around
                 if user:
-                    db.match('DELETE from sync where UserID="goodreads" and Label=?', (usershelf,))
+                    db.match("DELETE from sync where UserID='goodreads' and Label=?", (usershelf,))
                 else:
-                    db.match('DELETE from sync where UserID="goodreads" and Label=?', (shelf,))
+                    db.match("DELETE from sync where UserID='goodreads' and Label=?", (shelf,))
                 logger.debug("Created new goodreads shelf: %s" % shelf)
 
         gr_shelf = ga.get_gr_shelf_contents(shelf=shelf)
@@ -759,9 +773,9 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
 
         # For HAVE/OPEN method is the same, but only change status if HAVE, not OPEN
         if user:
-            res = db.match('select SyncList from sync where UserID="goodreads" and Label=?', (usershelf,))
+            res = db.match("select SyncList from sync where UserID='goodreads' and Label=?", (usershelf,))
         else:
-            res = db.match('select SyncList from sync where UserID="goodreads" and Label=?', (shelf,))
+            res = db.match("select SyncList from sync where UserID='goodreads' and Label=?", (shelf,))
         last_sync = []
         shelf_changed = 0
         ll_changed = []
@@ -773,10 +787,10 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         added_to_ll = list(set(ll_list) - set(last_sync) - set(gr_shelf))
         removed_from_ll = list(set(last_sync) - set(ll_list))
         # remove any that have no gr_id
-        added_to_shelf = [i for i in added_to_shelf if i]
-        removed_from_shelf = [i for i in removed_from_shelf if i]
-        added_to_ll = [i for i in added_to_ll if i]
-        removed_from_ll = [i for i in removed_from_ll if i]
+        added_to_shelf = [i for i in added_to_shelf if i and i.isnumeric()]
+        removed_from_shelf = [i for i in removed_from_shelf if i and i.isnumeric()]
+        added_to_ll = [i for i in added_to_ll if i and i.isnumeric()]
+        removed_from_ll = [i for i in removed_from_ll if i and i.isnumeric()]
 
         logger.info("%s missing from lazylibrarian %s" % (len(removed_from_ll), shelf))
         if removed_from_ll:
@@ -791,7 +805,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     res = None
                     content = ''
                 if res:
-                    logger.debug("%10s removed from %s shelf" % (book, shelf))
+                    logger.debug("BookID %10s removed from %s shelf" % (book, shelf))
                     shelf_changed += 1
                 else:
                     if '404' not in content:  # already removed is ok
@@ -815,7 +829,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             elif user:
                 try:
                     ll_list.remove(book)
-                    logger.debug("%10s removed from user %s" % (book, shelf))
+                    logger.debug("BookID %10s removed from user %s" % (book, shelf))
                 except ValueError:
                     pass
             else:
@@ -823,7 +837,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     if res['Status'] in ['Have', 'Wanted']:
                         db.action("UPDATE books SET Status='Skipped' WHERE gr_id=?", (book,))
                         ll_changed.append(book)
-                        logger.debug("%10s set to Skipped" % book)
+                        logger.debug("BookID %10s set to Skipped" % book)
                     else:
                         if res['Status'] == 'Open' and shelf == CONFIG['GR_OWNED']:
                             logger.warning("Adding book %s [%s] back to %s shelf" % (
@@ -841,7 +855,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     if res['AudioStatus'] in ['Have', 'Wanted']:
                         db.action("UPDATE books SET AudioStatus='Skipped' WHERE gr_id=?", (book,))
                         ll_changed.append(book)
-                        logger.debug("%10s set to Skipped" % book)
+                        logger.debug("BookID %10s set to Skipped" % book)
                     else:
                         if res['AudioStatus'] == 'Open' and shelf == CONFIG['GR_AOWNED']:
                             logger.warning("Adding audiobook %s [%s] back to %s shelf" % (
@@ -974,36 +988,29 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
 
         # set new definitive list for ll
         if user:
-            new_value_dict = {}
-            control_value_dict = {"UserID": user['UserID']}
             ll_set = set(ll_list)
             count = len(ll_set)
-            books = ', '.join(str(x) for x in ll_set)
 
+            exclusive_shelves = ['HaveRead', 'ToRead', 'Reading', 'Abandoned']
             if shelf == 'read':
-                new_value_dict = {'HaveRead': books}
+                set_readinglist('HaveRead', user['UserID'], ll_set)
+                exclusive_shelves.remove('HaveRead')
             elif shelf == 'currently-reading':
-                new_value_dict = {'Reading': books}
+                set_readinglist('Reading', user['UserID'], ll_set)
+                exclusive_shelves.remove('Reading')
             elif shelf == 'to-read':
-                new_value_dict = {'ToRead': books}
+                set_readinglist('ToRead', user['UserID'], ll_set)
+                exclusive_shelves.remove('ToRead')
             elif shelf == 'abandoned':
-                new_value_dict = {'Abandoned': books}
-            if new_value_dict:
-                db.upsert("users", new_value_dict, control_value_dict)
-
-                if shelf_changed:
-                    for exclusive_shelf in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']:
-                        if exclusive_shelf not in new_value_dict:
-                            try:
-                                old_set = set(get_list(user[exclusive_shelf]))
-                                new_set = old_set - ll_set
-                                if len(old_set) != len(new_set):
-                                    new_list = ', '.join(str(x) for x in new_set)
-                                    db.upsert("users", {exclusive_shelf: new_list}, control_value_dict)
-                                    logger.debug("Removed duplicates from %s shelf" % exclusive_shelf)
-                            except Exception as e:
-                                logger.debug(f"Unable to update {exclusive_shelf} for {user['UserID']}")
-                                logger.error(e)
+                set_readinglist('Abandoned', user['UserID'], ll_set)
+                exclusive_shelves.remove('Abandoned')
+            if shelf_changed:
+                for exclusive_shelf in exclusive_shelves:
+                    old_set = set(get_readinglist(exclusive_shelf, user['UserID']))
+                    new_set = old_set - ll_set
+                    if len(old_set) != len(new_set):
+                        set_readinglist(exclusive_shelf, user['UserID'], new_set)
+                        logger.debug("Removed duplicates from %s shelf" % exclusive_shelf)
         else:
             # get new definitive list from ll
             if 'eBook' in library:
@@ -1028,7 +1035,8 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 ll_list.append(terms['gr_id'])
             ll_set = set(ll_list)
             count = len(ll_set)
-            books = ', '.join(str(x) for x in ll_set)
+
+        books = ', '.join(str(x) for x in ll_set)
 
         # store as comparison for next sync
         if shelf != 'unread':
