@@ -620,7 +620,8 @@ def de_duplicate(authorid):
                             logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
                             db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
                             for table in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']:
-                                db.action(f"UPDATE {table} SET Bookid=? WHERE BookID=?", (favourite['BookID'], copy['BookID']))
+                                db.action(f"UPDATE {table} SET Bookid=? WHERE BookID=?",
+                                          (favourite['BookID'], copy['BookID']))
 
                             total += 1
     except Exception:

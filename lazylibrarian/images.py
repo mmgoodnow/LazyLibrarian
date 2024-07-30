@@ -44,8 +44,10 @@ else:
     BaiduImageCrawler = None
     FlickrImageCrawler = None
 
+# noinspection PyProtectedMember
 from PyPDF3 import PdfFileWriter, PdfFileReader
 
+# noinspection PyBroadException
 try:
     import magic
 except Exception:  # magic might fail for multiple reasons
@@ -869,6 +871,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 from wand.image import Image
                 interface = "wand"
             except ImportError:
+                Image = None
                 try:
                     # No PythonMagick in python3
                     # noinspection PyUnresolvedReferences

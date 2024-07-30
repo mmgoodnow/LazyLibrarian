@@ -737,10 +737,12 @@ def check_db(upgradelog=None):
                             new_list.append(match[0])
                             logger.debug("Bookid %s is goodreads %s" % (item, match[0]))
                         else:
-                            logger.debug("Bookid %s in %s not matched at GoodReads, removed" % (item, synclist['Label']))
+                            logger.debug("Bookid %s in %s not matched at GoodReads, removed" %
+                                         (item, synclist['Label']))
                 new_set = set(new_list)
                 new_list = ','.join(new_set)
-                db.action("UPDATE sync SET SyncList=? WHERE Label=? AND UserID='goodreads'", (new_list, synclist['Label']))
+                db.action("UPDATE sync SET SyncList=? WHERE Label=? AND UserID='goodreads'",
+                          (new_list, synclist['Label']))
 
             lazylibrarian.UPDATE_MSG = 'Checking reading lists'
             bookids = []
@@ -761,7 +763,7 @@ def check_db(upgradelog=None):
             no_bookid = read_ids.difference(bookids)
             logger.info("Found %s missing bookids in reading lists" % len(no_bookid))
             for item in no_bookid:
-                cmd= 'SELECT BookID from books WHERE ol_id=? OR gr_id=? OR lt_workid=? OR gb_id=?'
+                cmd = 'SELECT BookID from books WHERE ol_id=? OR gr_id=? OR lt_workid=? OR gb_id=?'
                 res = db.match(cmd, (item, item, item, item))
                 if res:
                     logger.debug(f"Bookid {item} is now {res[0]}")

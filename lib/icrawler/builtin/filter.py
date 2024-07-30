@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-class Filter():
+class Filter:
 
     def __init__(self):
         self.rules = {}
@@ -20,7 +20,7 @@ class Filter():
             if name not in self.rules:
                 raise KeyError(
                     'unsupported filter "{}"， supported filter options are {}'.
-                    format(name), ', '.join(self.rules.keys()))
+                    format(name, ', '.join(self.rules.keys())))
             format_fn, choices = self.rules[name]
             # validate the option value
             if isinstance(choices, type) and not isinstance(val, choices):
