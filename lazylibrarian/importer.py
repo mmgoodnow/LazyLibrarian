@@ -216,20 +216,32 @@ def get_all_author_details(authorid=None, authorname=None):
     ol_author = {}
     gr_author = {}
 
-    if authorid.startswith('OL'):
-        ol_id = authorid
+    db = database.DBConnection()
+    match = db.match('SELECT ol_id,gr_id,authorname from authors WHERE authorid=?', (authorid,))
+    if match:
+        ol_id = match['ol_id']
+        gr_id = match['gr_id']
+        if not authorname:
+            authorname = match['authorname']
+    db.close()
+
+    if CONFIG['OL_API']:
+        if not ol_id and authorid.startswith('OL'):
+            ol_id = authorid
         ol = OpenLibrary(ol_id)
         ol_author = ol.get_author_info(authorid=ol_id)
         if not authorname:
             authorname = ol_author['authorname']
-    elif CONFIG['GR_API']:
-        gr_id = authorid
+
+    if CONFIG['GR_API'] and not authorid.startswith('OL'):
+        if not gr_id and authorid.isnumeric():
+            gr_id = authorid
         gr = GoodReads(gr_id)
         gr_author = gr.get_author_info(authorid=gr_id)
         if not authorname:
             authorname = gr_author['authorname']
 
-    if not ol_id and 'unknown' not in authorname and 'anonymous' not in authorname:
+    if not ol_id and CONFIG['OL_API'] and 'unknown' not in authorname and 'anonymous' not in authorname:
         ol = OpenLibrary(authorname)
         ol_author = ol.find_author_id()
         if ol_author:
@@ -430,11 +442,12 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
                     if CONFIG.get_bool('MULTI_SOURCE'):
-                        book_api = OpenLibrary()
-                        book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                                  bookstatus=bookstatus,
-                                                  audiostatus=audiostatus, entrystatus=entry_status,
-                                                  refresh=refresh, reason=reason)
+                        if CONFIG['OL_API']:
+                            book_api = OpenLibrary()
+                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
+                                                      bookstatus=bookstatus,
+                                                      audiostatus=audiostatus, entrystatus=entry_status,
+                                                      refresh=refresh, reason=reason)
                         if CONFIG['GR_API']:
                             book_api = GoodReads(current_author['authorname'])
                             book_api.get_author_books(current_author['authorid'], current_author['authorname'],
@@ -448,18 +461,19 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
                     if CONFIG.get_bool('MULTI_SOURCE'):
-                        book_api = OpenLibrary()
-                        book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                                  bookstatus=bookstatus,
-                                                  audiostatus=audiostatus, entrystatus=entry_status,
-                                                  refresh=refresh, reason=reason)
+                        if CONFIG['OL_API']:
+                            book_api = OpenLibrary()
+                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
+                                                      bookstatus=bookstatus,
+                                                      audiostatus=audiostatus, entrystatus=entry_status,
+                                                      refresh=refresh, reason=reason)
                         if CONFIG['GB_API']:
                             book_api = GoogleBooks()
                             book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                                       bookstatus=bookstatus,
                                                       audiostatus=audiostatus, entrystatus=entry_status,
                                                       refresh=refresh, reason=reason)
-                elif CONFIG['BOOK_API'] == "OpenLibrary":
+                elif CONFIG['BOOK_API'] == "OpenLibrary" and CONFIG['OL_API']:
                     book_api = OpenLibrary(current_author['authorname'])
                     book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                               bookstatus=bookstatus,
@@ -730,7 +744,7 @@ def search_for(searchterm, source=None):
         gr = GoodReads(searchterm)
         search_api = threading.Thread(target=gr.find_results, name='GR-RESULTS', args=[searchterm, myqueue])
         search_api.start()
-    elif source == "OpenLibrary":
+    elif source == "OpenLibrary" and CONFIG['OL_API']:
         myqueue = Queue()
         ol = OpenLibrary(searchterm)
         search_api = threading.Thread(target=ol.find_results, name='OL-RESULTS', args=[searchterm, myqueue])

@@ -973,12 +973,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # have author and book title but no database entry for it
                                 if not bookid:
                                     sources = [CONFIG['BOOK_API']]
-
                                     if CONFIG.get_bool('MULTI_SOURCE'):
                                         # Either original source doesn't have the book or it didn't match language prefs
                                         # or it's under a different author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
-                                        if "OpenLibrary" not in sources:
+                                        if "OpenLibrary" not in sources and CONFIG['OL_API']:
                                             sources.append("OpenLibrary")
                                         if "GoodReads" not in sources and CONFIG['GR_API']:
                                             sources.append("GoodReads")
