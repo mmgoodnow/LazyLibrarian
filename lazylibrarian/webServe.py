@@ -6871,7 +6871,7 @@ class WebInterface(object):
             fail = ''
             if not self.validate_param("provider name", kwargs['name'], ['<', '>', '='], None):
                 fail += 'name '
-            if not self.validate_param("provider host", kwargs['host'], ['<', '>', '='], None):
+            if not self.validate_param("provider host", kwargs['host'], ['<', '>'], None):
                 fail += 'host '
             if not self.validate_param("provider api", kwargs['api'], ['<', '>'], None):
                 fail += 'api '
