@@ -958,6 +958,30 @@
             });
         });
 
+        $('#ol_api').on('click', function() {
+            let status = $("#ol_api").prop("checked") ? 'True' : ''
+            $.get('ol_api_changed', {'status': status},
+            function(data) {
+                location.reload();
+            });
+        });
+
+        $('#gr_api').on('change', function() {
+            let apikey = $.trim($("#gr_api").val());
+            $.get('gr_api_changed', {'gr_api': apikey},
+            function(data) {
+                location.reload();
+            });
+        });
+
+        $('#gb_api').on('change', function() {
+            let apikey = $.trim($("#gb_api").val());
+            $.get('gb_api_changed', {'gb_api': apikey},
+            function(data) {
+                location.reload();
+            });
+        });
+
         $("form #bookstrap_theme").on("change", function() {
             $("head #theme").attr("href", "https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/" + $(this).val() + "/bootstrap.min.css");
         });

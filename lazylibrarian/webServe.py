@@ -6858,6 +6858,36 @@ class WebInterface(object):
         raise cherrypy.HTTPRedirect("history")
 
     @cherrypy.expose
+    def ol_api_changed(self, **kwargs):
+        if kwargs['status']:
+            CONFIG.set_bool('OL_API', True)
+        else:
+            CONFIG.set_bool('OL_API', False)
+        if not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+            # ensure at least one option is available
+            CONFIG.set_bool('OL_API', True)
+        return kwargs['status']
+
+    @cherrypy.expose
+    def gr_api_changed(self, **kwargs):
+        self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], 404)
+        CONFIG.set_str('GR_API', kwargs['gr_api'])
+        if not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+            # ensure at least one option is available
+            CONFIG.set_bool('OL_API', True)
+        return kwargs['gr_api']
+
+    @cherrypy.expose
+    def gb_api_changed(self, **kwargs):
+        print(kwargs['gb_api'])
+        self.validate_param("googlebooks api", kwargs['gb_api'], ['<', '>', '='], 404)
+        CONFIG.set_str('GB_API', kwargs['gb_api'])
+        if not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+            # ensure at least one option is available
+            CONFIG.set_bool('OL_API', True)
+        return kwargs['gb_api']
+
+    @cherrypy.expose
     def testprovider(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("TESTPROVIDER")
