@@ -228,18 +228,20 @@ def get_all_author_details(authorid=None, authorname=None):
     if CONFIG['OL_API']:
         if not ol_id and authorid.startswith('OL'):
             ol_id = authorid
-        ol = OpenLibrary(ol_id)
-        ol_author = ol.get_author_info(authorid=ol_id)
-        if not authorname:
-            authorname = ol_author['authorname']
+        if ol_id:
+            ol = OpenLibrary(ol_id)
+            ol_author = ol.get_author_info(authorid=ol_id)
+            if not authorname:
+                authorname = ol_author['authorname']
 
-    if CONFIG['GR_API'] and not authorid.startswith('OL'):
+    if CONFIG['GR_API']:
         if not gr_id and authorid.isnumeric():
             gr_id = authorid
-        gr = GoodReads(gr_id)
-        gr_author = gr.get_author_info(authorid=gr_id)
-        if not authorname:
-            authorname = gr_author['authorname']
+        if gr_id:
+            gr = GoodReads(gr_id)
+            gr_author = gr.get_author_info(authorid=gr_id)
+            if not authorname:
+                authorname = gr_author['authorname']
 
     if not ol_id and CONFIG['OL_API'] and 'unknown' not in authorname and 'anonymous' not in authorname:
         ol = OpenLibrary(authorname)
@@ -255,26 +257,27 @@ def get_all_author_details(authorid=None, authorname=None):
             gr_id = gr_author['authorid']
             gr_author = gr.get_author_info(authorid=gr_id)
 
-    if ol_author:
-        ol_author['ol_id'] = ol_author['authorid']
-        ol_name = ol_author['authorname']
+    # which source do we prefer
+    if ol_author and CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+        author['authorid'] = ol_author['authorid']
+        author['ol_id'] = ol_author['authorid']
+        author['authorname'] = ol_author['authorname']
         for item in ol_author:
             if not author.get(item):  # if key doesn't exist or value empty
                 author[item] = ol_author[item]
-    if gr_author:
-        gr_author['gr_id'] = gr_author['authorid']
-        gr_name = gr_author['authorname']
         for item in gr_author:
             if not author.get(item):
                 author[item] = gr_author[item]
-
-    # which id do we prefer
-    if ol_author and CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-        author['authorid'] = author['ol_id']
-        author['authorname'] = ol_name
     elif gr_author:
-        author['authorid'] = author['gr_id']
-        author['authorname'] = gr_name
+        author['authorid'] = gr_author['authorid']
+        author['gr_id'] = gr_author['authorid']
+        author['authorname'] = gr_author['authorname']
+        for item in gr_author:
+            if not author.get(item):  # if key doesn't exist or value empty
+                author[item] = gr_author[item]
+        for item in ol_author:
+            if not author.get(item):
+                author[item] = ol_author[item]
     else:
         author = {}
 
