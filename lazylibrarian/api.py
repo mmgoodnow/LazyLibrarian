@@ -213,6 +213,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'importMag': (1, '&title= &num= &file= add magazine issue from file'),
             'preprocessAudio': (1, '&dir= &author= &title= [&id=] [&tag] [&merge] preprocess an audiobook folder'),
             'preprocessBook': (1, '&dir= preprocess an ebook folder'),
+            'preprocessAllBooks': (1, 'run preprocessor on all existing ebooks'),
             'preprocessMagazine': (1, '&dir= &cover= preprocess a magazine folder'),
             'memUse': (0, 'memory usage of the program in kB'),
             'cpuUse': (0, 'recent cpu usage of the program'),
@@ -1040,6 +1041,19 @@ class Api(object):
             self.data = 'Missing parameter: dir'
             return
         preprocess_ebook(kwargs['dir'])
+        self.data = 'OK'
+
+    def _preprocessallbooks(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        q = "SELECT BookFile from books where BookFile != '' and BookFile is not null"
+        res = self._dic_from_query(q)
+        cnt = 0
+        for item in res:
+            folder = os.path.dirname(item['BookFile'])
+            cnt += 1
+            if os.path.isdir(folder):
+                self.logger.debug(f"Preprocessing {cnt} of {len(res)}")
+                preprocess_ebook(folder)
         self.data = 'OK'
 
     def _preprocessmagazine(self, **kwargs):
