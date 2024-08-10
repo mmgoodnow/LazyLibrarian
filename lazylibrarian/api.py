@@ -17,6 +17,7 @@ import shutil
 import sys
 import threading
 import logging
+import dateutil.parser as dp
 
 import configparser
 from queue import Queue
@@ -96,7 +97,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'createSupportZip': (0, 'Create support.zip. Requires that LOGFILEREDACT is enabled'),
             'clearLogs': (1, 'clear current log'),
             'getMagazines': (0, 'list magazines'),
-            'getIssues': (0, '&name= list issues of named magazine'),
+            'getIssues': (0, '[&name=] [&sort=] [&limit=] list issues of named magazine'),
             'getIssueName': (0, '&name= get name of issue from path/filename'),
             'createMagCovers': (1, '[&wait] [&refresh] create covers for magazines, optionally refresh existing ones'),
             'createMagCover': (1, '&file= [&refresh] [&page=] create cover for magazine issue, optional page number'),
@@ -142,7 +143,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
-            'getAllBooks': (0, 'list all books in the database'),
+            'getAllBooks': (0, '[&sort=] [&limit=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
             'listNoISBN': (0, 'list all books in the database with no isbn'),
@@ -346,6 +347,12 @@ class Api(object):
         for row in rows:
             # noinspection PyTypeChecker
             row_as_dic = dict(list(zip(list(row.keys()), row)))
+            for key in ['BookLibrary', 'AudioLibrary', 'BookDate', 'BookAdded']:
+                if row_as_dic.get(key):
+                    try:
+                        row_as_dic[key] = dp.parse(row_as_dic[key]).isoformat() + 'Z'
+                    except dp._parser.ParserError:
+                        pass
             rows_as_dic.append(row_as_dic)
 
         return rows_as_dic
@@ -1463,25 +1470,42 @@ class Api(object):
         TELEMETRY.record_usage_data()
         self.data = self._dic_from_query('SELECT * from magazines order by Title COLLATE NOCASE')
 
-    def _getallbooks(self):
+    def _getallbooks(self, **kwargs):
         TELEMETRY.record_usage_data()
-        q = 'SELECT authors.AuthorID,AuthorName,AuthorLink,BookName,BookSub,BookGenre,BookIsbn,BookPub,'
-        q += 'BookRate,BookImg,BookPages,BookLink,BookID,BookDate,BookLang,BookAdded,books.Status '
-        q += 'from books,authors where books.AuthorID = authors.AuthorID'
+        self.limit = kwargs.get('limit')
+        self.sort = kwargs.get('sort')
+        q = '''SELECT authors.AuthorID,AuthorName,AuthorLink,BookName,BookSub,BookGenre,BookIsbn,BookPub,
+                BookRate,BookImg,BookPages,BookLink,BookID,BookDate,BookLang,BookAdded,books.Status,
+                audiostatus,booklibrary,audiolibrary from books,authors where books.AuthorID = authors.AuthorID'''
+
+        if self.sort:
+            q += f' order by {self.sort}'
+        if self.limit and self.limit.isnumeric():
+            q += f' limit {self.limit}'
         self.data = self._dic_from_query(q)
 
     def _getissues(self, **kwargs):
         TELEMETRY.record_usage_data()
         self.id = kwargs.get('name')
-        if not self.id:
-            self.data = 'Missing parameter: name'
-            return
-        magazine = self._dic_from_query(
-            'SELECT * from magazines WHERE Title="' + self.id + '"')
-        issues = self._dic_from_query(
-            'SELECT * from issues WHERE Title="' + self.id + '" order by IssueDate DESC')
-
-        self.data = {'magazine': magazine, 'issues': issues}
+        self.limit = kwargs.get('limit')
+        self.sort = kwargs.get('sort')
+        if self.id:
+            magazine = self._dic_from_query(
+                'SELECT * from magazines WHERE Title="' + self.id + '"')
+            q = 'SELECT * from issues WHERE Title="' + self.id + '"'
+            if self.sort:
+                q += f' order by {self.sort}'
+            if self.limit and self.limit.isnumeric():
+                q += f' limit {self.limit}'
+            issues = self._dic_from_query(q)
+            self.data = {'magazine': magazine, 'issues': issues}
+        else:
+            q = 'SELECT * from issues'
+            if self.sort:
+                q += f' order by {self.sort}'
+            if self.limit and self.limit.isnumeric():
+                q += f' limit {self.limit}'
+            self.data = self._dic_from_query(q)
 
     def _shrinkmag(self, **kwargs):
         TELEMETRY.record_usage_data()
