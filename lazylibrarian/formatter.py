@@ -752,6 +752,10 @@ def format_author_name(author: str, postfix: List[str]) -> str:
             else:
                 # guess its "surname, forename" or "surname, initial(s)" so swap them round
                 forename = words[1].strip()
+                # openlibrary adds period to shoretened fornames, eg "Will.""
+                # make sure we don't interfere with initials...
+                if forename.endswith('.') and len(forename) > 2 and forename.count('.') == 1:
+                    forename = forename.strip('.')
                 surname = words[0].strip()
             if author != forename + ' ' + surname:
                 fuzzlogger.debug('Formatted authorname [%s] to [%s %s]' % (author, forename, surname))
