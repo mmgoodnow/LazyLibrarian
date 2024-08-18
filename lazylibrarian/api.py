@@ -347,7 +347,7 @@ class Api(object):
         for row in rows:
             # noinspection PyTypeChecker
             row_as_dic = dict(list(zip(list(row.keys()), row)))
-            for key in ['BookLibrary', 'AudioLibrary', 'BookDate', 'BookAdded']:
+            for key in ['BookLibrary', 'AudioLibrary', 'BookAdded']:
                 if row_as_dic.get(key):
                     try:
                         row_as_dic[key] = dp.parse(row_as_dic[key]).isoformat() + 'Z'
@@ -1050,7 +1050,7 @@ class Api(object):
         preprocess_ebook(kwargs['dir'])
         self.data = 'OK'
 
-    def _preprocessallbooks(self, **kwargs):
+    def _preprocessallbooks(self):
         TELEMETRY.record_usage_data()
         q = "SELECT BookFile from books where BookFile != '' and BookFile is not null"
         res = self._dic_from_query(q)

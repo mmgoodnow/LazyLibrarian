@@ -150,7 +150,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
         if raw:
             return r.content, True
         return r.text, True
-    elif r.status_code == 403:
+    elif r.status_code == 403 and 'googleapis' in url:
         # noinspection PyBroadException
         try:
             source = r.json()

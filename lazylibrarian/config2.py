@@ -514,7 +514,7 @@ class LLConfigHandler(ConfigDict):
         for key in self.config.keys():
             if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
                 for word in wordlist:
-                    if word in key and self[key]:
+                    if word in key and self[key] and len(self[key]) > 3:
                         self.REDACTLIST.append(u"%s" % self[key])
         for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
             if self[key]:

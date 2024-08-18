@@ -282,7 +282,7 @@ class OpenLibrary:
             self.matchinglogger.debug(str(authorinfo))
             return {}
 
-        self.logger.debug("[%s] Processing info for authorID: %s" % (author_name, authorid))
+        self.logger.debug("[%s] Returning OL info for authorID: %s" % (author_name, authorid))
         author_dict = {
             'authorid': authorid,
             'authorlink': author_link,
@@ -984,7 +984,8 @@ class OpenLibrary:
                                                         if not match:
                                                             self.logger.debug("Adding %s as series author for %s" %
                                                                               (auth_name, series[0]))
-                                                            db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
+                                                            db.action('INSERT INTO seriesauthors (SeriesID, '
+                                                                      'AuthorID) VALUES (?, ?)',
                                                                       (seriesid, auth_key), suppress='UNIQUE')
 
                                                 # if book not in library, use librarything workid to get an isbn

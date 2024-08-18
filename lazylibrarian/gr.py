@@ -332,7 +332,7 @@ class GoodReads:
         # added authorname to author_dict - this holds the intact name preferred by GR
         # except GR messes up names like "L. E. Modesitt, Jr." where it returns <name>Jr., L. E. Modesitt</name>
         authorname = format_author_name(resultxml[1].text, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        self.logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
+        self.logger.debug("[%s] Returning GR info for authorID: %s" % (authorname, authorid))
         author_dict = {
             'authorid': resultxml[0].text,
             'authorlink': resultxml.find('link').text,
