@@ -225,61 +225,46 @@ def get_all_author_details(authorid=None, authorname=None):
             authorname = match['authorname']
     db.close()
 
-    if CONFIG['OL_API']:
+    if CONFIG['OL_API'] and (CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks'] or CONFIG.get_bool('MULTI_SOURCE')):
         if not ol_id and authorid.startswith('OL'):
             ol_id = authorid
+        if not ol_id and 'unknown' not in authorname and 'anonymous' not in authorname:
+            ol = OpenLibrary(authorname)
+            ol_author = ol.find_author_id()
+            if ol_author:
+                ol_id = ol_author['authorid']
         if ol_id:
             ol = OpenLibrary(ol_id)
             ol_author = ol.get_author_info(authorid=ol_id)
             if not authorname:
                 authorname = ol_author['authorname']
 
-    if CONFIG['GR_API']:
+    if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'GoogleBooks'] or
+                             CONFIG.get_bool('MULTI_SOURCE')):
         if not gr_id and authorid.isnumeric():
             gr_id = authorid
+        if not gr_id and CONFIG['GR_API'] and 'unknown' not in authorname and 'anonymous' not in authorname:
+            gr = GoodReads(authorname)
+            gr_author = gr.find_author_id()
+            if gr_author:
+                gr_id = gr_author['authorid']
         if gr_id:
             gr = GoodReads(gr_id)
             gr_author = gr.get_author_info(authorid=gr_id)
             if not authorname:
                 authorname = gr_author['authorname']
 
-    if not ol_id and CONFIG['OL_API'] and 'unknown' not in authorname and 'anonymous' not in authorname:
-        ol = OpenLibrary(authorname)
-        ol_author = ol.find_author_id()
-        if ol_author:
-            ol_id = ol_author['authorid']
-            ol_author = ol.get_author_info(authorid=ol_id)
-
-    if not gr_id and CONFIG['GR_API'] and 'unknown' not in authorname and 'anonymous' not in authorname:
-        gr = GoodReads(authorname)
-        gr_author = gr.find_author_id()
-        if gr_author:
-            gr_id = gr_author['authorid']
-            gr_author = gr.get_author_info(authorid=gr_id)
-
     # which source do we prefer
-    if ol_author and CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-        author['authorid'] = ol_author['authorid']
+    if ol_author:
         author['ol_id'] = ol_author['authorid']
-        author['authorname'] = ol_author['authorname']
         for item in ol_author:
             if not author.get(item):  # if key doesn't exist or value empty
                 author[item] = ol_author[item]
-        for item in gr_author:
-            if not author.get(item):
-                author[item] = gr_author[item]
-    elif gr_author:
-        author['authorid'] = gr_author['authorid']
+    if gr_author:
         author['gr_id'] = gr_author['authorid']
-        author['authorname'] = gr_author['authorname']
         for item in gr_author:
-            if not author.get(item):  # if key doesn't exist or value empty
+            if not author.get(item) or CONFIG['BOOK_API'] == 'GoodReads':
                 author[item] = gr_author[item]
-        for item in ol_author:
-            if not author.get(item):
-                author[item] = ol_author[item]
-    else:
-        author = {}
 
     if author:
         akas = []
@@ -352,6 +337,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             # goodreads sometimes changes authorid
             # maybe change of provider or no reply from provider
             logger.error(msg)
+            db.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
             return msg
 
         if authorid and current_author['authorid'] != authorid:
@@ -400,9 +386,10 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             logger.debug("Adding new author id %s (%s) to database %s, Addbooks=%s" %
                          (current_author['authorid'], current_author['authorname'], reason, addbooks))
         else:
-            logger.debug("Updating author %s (%s) %s, Addbooks=%s" % (current_author['authorid'],
-                                                                      current_author['authorname'],
-                                                                      entry_status, addbooks))
+            logger.debug("Updating author %s (%s) %s, Addbooks=%s, Manual=%s" % (current_author['authorid'],
+                                                                                 current_author['authorname'],
+                                                                                 entry_status, addbooks,
+                                                                                 current_author['manual']))
         db.upsert("authors", new_value_dict, control_value_dict)
 
         # if author is set to manual, should we allow replacing 'nophoto' ?
@@ -439,6 +426,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             if entry_status not in ['Ignored', 'Paused']:
                 # process books
                 if CONFIG['BOOK_API'] == "GoogleBooks" and CONFIG['GB_API']:
+                    logger.debug("Getting GoogleBooks for %s:%s" % (current_author['authorid'],
+                                                                    current_author['authorname']))
                     book_api = GoogleBooks()
                     book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                               bookstatus=bookstatus,
@@ -447,17 +436,23 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     if CONFIG.get_bool('MULTI_SOURCE'):
                         if CONFIG['OL_API']:
                             book_api = OpenLibrary()
-                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
+                            logger.debug("Getting OpenLibrary for %s:%s" % (current_author.get('ol_id', ''),
+                                                                            current_author['authorname']))
+                            book_api.get_author_books(current_author['ol_id'], current_author['authorname'],
                                                       bookstatus=bookstatus,
                                                       audiostatus=audiostatus, entrystatus=entry_status,
                                                       refresh=refresh, reason=reason)
                         if CONFIG['GR_API']:
+                            logger.debug("Getting GoodReads for %s:%s" % (current_author.get('gr_id', ''),
+                                                                          current_author['authorname']))
                             book_api = GoodReads(current_author['authorname'])
-                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
+                            book_api.get_author_books(current_author['gr_id'], current_author['authorname'],
                                                       bookstatus=bookstatus,
                                                       audiostatus=audiostatus, entrystatus=entry_status,
                                                       refresh=refresh, reason=reason)
                 elif CONFIG['BOOK_API'] == "GoodReads" and CONFIG['GR_API']:
+                    logger.debug("Getting GoodReads for %s:%s" % (current_author.get('gr_id', ''),
+                                                                  current_author['authorname']))
                     book_api = GoodReads(current_author['authorname'])
                     book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                               bookstatus=bookstatus,
@@ -465,18 +460,24 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                               refresh=refresh, reason=reason)
                     if CONFIG.get_bool('MULTI_SOURCE'):
                         if CONFIG['OL_API']:
+                            logger.debug("Getting OpenLibrary for %s:%s" % (current_author.get('ol_id', ''),
+                                                                            current_author['authorname']))
                             book_api = OpenLibrary()
                             book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                                       bookstatus=bookstatus,
                                                       audiostatus=audiostatus, entrystatus=entry_status,
                                                       refresh=refresh, reason=reason)
                         if CONFIG['GB_API']:
+                            logger.debug("Getting GoogleBooks for %s:%s" % (current_author['authorid'],
+                                                                            current_author['authorname']))
                             book_api = GoogleBooks()
                             book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                                       bookstatus=bookstatus,
                                                       audiostatus=audiostatus, entrystatus=entry_status,
                                                       refresh=refresh, reason=reason)
                 elif CONFIG['BOOK_API'] == "OpenLibrary" and CONFIG['OL_API']:
+                    logger.debug("Getting OpenLibrary for %s:%s" % (current_author.get('ol_id', ''),
+                                                                    current_author['authorname']))
                     book_api = OpenLibrary(current_author['authorname'])
                     book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                               bookstatus=bookstatus,
@@ -484,12 +485,16 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                               refresh=refresh, reason=reason)
                     if CONFIG.get_bool('MULTI_SOURCE'):
                         if CONFIG['GR_API']:
+                            logger.debug("Getting GoodReads for %s:%s" % (current_author.get('gr_id', ''),
+                                                                          current_author['authorname']))
                             book_api = GoodReads()
                             book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                                       bookstatus=bookstatus,
                                                       audiostatus=audiostatus, entrystatus=entry_status,
                                                       refresh=refresh, reason=reason)
                         if CONFIG['GB_API']:
+                            logger.debug("Getting GoogleBooks for %s:%s" % (current_author['authorid'],
+                                                                            current_author['authorname']))
                             book_api = GoogleBooks()
                             book_api.get_author_books(current_author['authorid'], current_author['authorname'],
                                                       bookstatus=bookstatus,
