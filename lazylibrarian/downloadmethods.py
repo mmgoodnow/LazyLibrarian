@@ -267,6 +267,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     headers = {'Accept-encoding': 'gzip', 'User-Agent': get_user_agent()}
     dl_url = make_unicode(dl_url)
     s = requests.Session()
+    proxies = proxy_list()
+    if proxies:
+        s.proxies.update(proxies)
     if provider == 'zlibrary':
         # do we need to log in?
         if CONFIG['BOK_PASS']:
