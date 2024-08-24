@@ -7683,7 +7683,7 @@ class WebInterface(object):
             else:
                 fail += 'user '
         if 'pwd' in kwargs:
-            if self.validate_param("nzbget pass", kwargs['pass'], ['<', '>', '='], None):
+            if self.validate_param("nzbget pass", kwargs['pwd'], ['<', '>', '='], None):
                 CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
             else:
                 fail += 'password '
