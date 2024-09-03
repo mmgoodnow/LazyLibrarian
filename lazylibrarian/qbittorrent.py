@@ -396,19 +396,34 @@ def add_file(data, hashid, title):
     loggerdlcomms = logging.getLogger('special.dlcomms')
 
     loggerdlcomms.debug('add_file(data)')
+    args = {}
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
+    args['paused'] = 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'
+    dl_dir = CONFIG['QBITTORRENT_DIR']
+    if dl_dir:
+        args['savepath'] = dl_dir
+
+    if CONFIG['QBITTORRENT_LABEL']:
+        if qbclient.cmdset == 2:
+            args['category'] = CONFIG['QBITTORRENT_LABEL']
+        else:
+            if 6 < qbclient.api < 10:
+                args['label'] = CONFIG['QBITTORRENT_LABEL']
+            elif qbclient.api >= 10:
+                args['category'] = CONFIG['QBITTORRENT_LABEL']
+    loggerdlcomms.debug('add_torrent args(%s)' % args)
     files = {'torrents': {'filename': title, 'content': data}}
     if qbclient.cmdset == 2:
         # noinspection PyProtectedMember
-        res = qbclient._command('torrents/add', files=files)
+        res = qbclient._command('torrents/add', args, files=files)
     else:
         # noinspection PyProtectedMember
-        res = qbclient._command('command/upload', files=files)
+        res = qbclient._command('command/upload', args, files=files)
     if not res:
         # sometimes returns "Fails." when it hasn't failed, so look if hashid was added correctly
         logger.debug("add_file thinks it failed")
@@ -576,7 +591,8 @@ def encode_multipart(fields, files, boundary=None):
         '--{0}--'.format(boundary),
         '',
     ))
-    body = make_bytestr('\r\n'.join(lines))
+    
+    body = b'\r\n'.join([make_bytestr(l) for l in lines])
 
     headers = {
         'Content-Type': 'multipart/form-data; boundary={0}'.format(boundary),
