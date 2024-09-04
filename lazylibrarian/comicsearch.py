@@ -318,7 +318,8 @@ def download_comiclist(foundissues):
                         bookid,
                         item['title'],
                         item['url'],
-                        'comic')
+                        'comic',
+                        provider=item['provider'])
                 elif item['mode'] == 'direct':
                     snatch, res = direct_dl_method(
                         bookid,

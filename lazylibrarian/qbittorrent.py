@@ -332,18 +332,9 @@ def check_link():
         return "qBittorrent login FAILED: %s %s" % (type(err).__name__, str(err))
 
 
-def add_torrent(link, hashid):
-    logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-
-    loggerdlcomms.debug('add_torrent(%s)' % link)
+def get_args(qbclient, provider):
+    """ Get optional arguments based on configuration"""
     args = {}
-    hashid = hashid.lower()
-    qbclient = QbittorrentClient()
-    if not qbclient.cmdset:
-        res = "Failed to login to qBittorrent"
-        logger.debug(res)
-        return False, res
     args['paused'] = 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'
     dl_dir = CONFIG['QBITTORRENT_DIR']
     if dl_dir:
@@ -357,6 +348,33 @@ def add_torrent(link, hashid):
                 args['label'] = CONFIG['QBITTORRENT_LABEL']
             elif qbclient.api >= 10:
                 args['category'] = CONFIG['QBITTORRENT_LABEL']
+
+    if provider:
+        for item in CONFIG.providers('TORZNAB'):
+            if item['NAME'] == provider or item['DISPNAME'] == provider or item['HOST'] == provider:
+                seed_ratio = item.get_item("SEED_RATIO").value
+                if seed_ratio:
+                    args['ratioLimit'] = seed_ratio
+                seed_duration = item.get_item("SEED_DURATION").value
+                if seed_duration:
+                    args['seedingTimeLimit'] = seed_duration
+                break
+
+    return args
+
+def add_torrent(link, hashid, provider):
+    logger = logging.getLogger(__name__)
+    loggerdlcomms = logging.getLogger('special.dlcomms')
+
+    loggerdlcomms.debug('add_torrent(%s)' % link)
+    
+    hashid = hashid.lower()
+    qbclient = QbittorrentClient()
+    if not qbclient.cmdset:
+        res = "Failed to login to qBittorrent"
+        logger.debug(res)
+        return False, res
+    args = get_args(qbclient, provider)
     loggerdlcomms.debug('add_torrent args(%s)' % args)
     args['urls'] = link
 
@@ -391,31 +409,18 @@ def add_torrent(link, hashid):
     return False, res
 
 
-def add_file(data, hashid, title):
+def add_file(data, hashid, title, provider):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
 
     loggerdlcomms.debug('add_file(data)')
-    args = {}
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
-    args['paused'] = 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'
-    dl_dir = CONFIG['QBITTORRENT_DIR']
-    if dl_dir:
-        args['savepath'] = dl_dir
-
-    if CONFIG['QBITTORRENT_LABEL']:
-        if qbclient.cmdset == 2:
-            args['category'] = CONFIG['QBITTORRENT_LABEL']
-        else:
-            if 6 < qbclient.api < 10:
-                args['label'] = CONFIG['QBITTORRENT_LABEL']
-            elif qbclient.api >= 10:
-                args['category'] = CONFIG['QBITTORRENT_LABEL']
+    args = get_args(qbclient, provider)
     loggerdlcomms.debug('add_torrent args(%s)' % args)
     files = {'torrents': {'filename': title, 'content': data}}
     if qbclient.cmdset == 2:

@@ -563,6 +563,8 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigInt('', "DLPRIORITY", 0),
         ConfigDownloadTypes('', "DLTYPES", 'A,E,M'),
         ConfigInt('', "SEEDERS", 0),
+        ConfigInt('', "SEED_RATIO", 0),
+        ConfigInt('', "SEED_DURATION", 0),
         ConfigInt('', "LASTUSED", 0),
     ]),
     'RSS': ('HOST', 'RSS_%i', [

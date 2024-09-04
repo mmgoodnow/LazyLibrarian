@@ -533,7 +533,8 @@ def download_maglist(maglist, table='wanted'):
                     magazine['bookid'],
                     magazine['nzbtitle'],
                     magazine['nzburl'],
-                    'magazine')
+                    'magazine',
+                    provider=magazine['nzbprov'])
             elif magazine['nzbmode'] == 'direct':
                 snatch, res = direct_dl_method(
                     magazine['bookid'],
