@@ -318,11 +318,17 @@ def remove_torrent(hashid, remove_data=False):
     return False
 
 
-def add_torrent(link, hashid):
+def add_torrent(link, hashid, provider_options=None):
     uclient = UtorrentClient()
     uclient.add_url(link)
     loggerdlcomms = logging.getLogger('special.dlcomms')
     loggerdlcomms.debug("Add hashid %s" % hashid)
+    
+    if provider_options:
+        if "seed_ratio" in provider_options:
+            uclient.setprops(hashid, "seed_time", provider_options["seed_ratio"])
+        if "seed_duration" in provider_options:
+            uclient.setprops(hashid, "seed_ratio", provider_options["seed_duration"])
     count = 10
     while count:
         torrentlist = uclient.list()

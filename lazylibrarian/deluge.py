@@ -42,7 +42,7 @@ deluge_verify_cert = False
 headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
 
 
-def add_torrent(link, data=None):
+def add_torrent(link, data=None, provider_options=None):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
     try:
@@ -109,6 +109,8 @@ def add_torrent(link, data=None):
             logger.info('Deluge: Torrent sent to Deluge successfully  (%s)' % retid)
             if CONFIG.get_bool('TORRENT_PAUSED'):
                 torrent_pause(retid)
+            if "seed_ratio" in provider_options:
+                set_seed_ratio({"hash": retid, "ratio": provider_options["seed_ratio"]})
             return retid, ''
 
         res = 'Deluge returned status %s' % retid

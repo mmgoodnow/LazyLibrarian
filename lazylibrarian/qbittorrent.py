@@ -332,7 +332,7 @@ def check_link():
         return "qBittorrent login FAILED: %s %s" % (type(err).__name__, str(err))
 
 
-def get_args(qbclient, provider):
+def get_args(qbclient, provider_options):
     """ Get optional arguments based on configuration"""
     args = {}
     args['paused'] = 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'
@@ -349,20 +349,14 @@ def get_args(qbclient, provider):
             elif qbclient.api >= 10:
                 args['category'] = CONFIG['QBITTORRENT_LABEL']
 
-    if provider:
-        for item in CONFIG.providers('TORZNAB'):
-            if item['NAME'] == provider or item['DISPNAME'] == provider or item['HOST'] == provider:
-                seed_ratio = item.get_item("SEED_RATIO").value
-                if seed_ratio:
-                    args['ratioLimit'] = seed_ratio
-                seed_duration = item.get_item("SEED_DURATION").value
-                if seed_duration:
-                    args['seedingTimeLimit'] = seed_duration
-                break
+    if "seed_ratio" in provider_options:
+        args['ratioLimit'] = provider_options["seed_ratio"]
+    if "seed_duration" in provider_options:
+        args['seedingTimeLimit'] =  provider_options["seed_duration"]
 
     return args
 
-def add_torrent(link, hashid, provider):
+def add_torrent(link, hashid, provider_options):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
 
@@ -374,7 +368,7 @@ def add_torrent(link, hashid, provider):
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
-    args = get_args(qbclient, provider)
+    args = get_args(qbclient, provider_options)
     loggerdlcomms.debug('add_torrent args(%s)' % args)
     args['urls'] = link
 
@@ -409,7 +403,7 @@ def add_torrent(link, hashid, provider):
     return False, res
 
 
-def add_file(data, hashid, title, provider):
+def add_file(data, hashid, title, provider_options):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
 
@@ -420,7 +414,7 @@ def add_file(data, hashid, title, provider):
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
-    args = get_args(qbclient, provider)
+    args = get_args(qbclient, provider_options)
     loggerdlcomms.debug('add_torrent args(%s)' % args)
     files = {'torrents': {'filename': title, 'content': data}}
     if qbclient.cmdset == 2:

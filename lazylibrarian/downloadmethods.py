@@ -606,10 +606,22 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             logger.debug("data: %s" % make_unicode(str(torrent[:50])))
             return False, res
 
+        provider_options = {}
+        if provider:
+            for item in CONFIG.providers('TORZNAB'):
+                if item['NAME'] == provider or item['DISPNAME'] == provider or item['HOST'] == provider:
+                    seed_ratio = item.get_item("SEED_RATIO").value
+                    if seed_ratio:
+                        provider_options['seed_ratio'] = seed_ratio
+                    seed_duration = item.get_item("SEED_DURATION").value
+                    if seed_duration:
+                        provider_options['seed_duration'] = seed_duration
+                    break
+
         if CONFIG.get_bool('TOR_DOWNLOADER_UTORRENT') and CONFIG['UTORRENT_HOST']:
             logger.debug("Sending %s to Utorrent" % tor_title)
             source = "UTORRENT"
-            download_id, res = utorrent.add_torrent(tor_url, hashid)  # returns hash or False
+            download_id, res = utorrent.add_torrent(tor_url, hashid, provider_options)  # returns hash or False
             if download_id:
                 if CONFIG.get_bool('TORRENT_PAUSED'):
                     utorrent.pause_torrent(download_id)
@@ -644,10 +656,10 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             source = "QBITTORRENT"
             if torrent:
                 logger.debug("Sending %s data to qBittorrent" % tor_title)
-                status, res = qbittorrent.add_file(torrent, hashid, tor_title, provider)  # returns True or False
+                status, res = qbittorrent.add_file(torrent, hashid, tor_title, provider_options)  # returns True or False
             else:
                 logger.debug("Sending %s url to qBittorrent" % tor_title)
-                status, res = qbittorrent.add_torrent(tor_url, hashid, provider)  # returns True or False
+                status, res = qbittorrent.add_torrent(tor_url, hashid, provider_options)  # returns True or False
             if status:
                 download_id = hashid
                 tor_title = qbittorrent.get_name(hashid)
@@ -663,10 +675,10 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 logger.debug("Sending %s data to Transmission:%s" % (tor_title, directory))
                 # transmission needs b64encoded metainfo to be unicode, not bytes
                 download_id, res = transmission.add_torrent(None, directory=directory,
-                                                            metainfo=make_unicode(b64encode(torrent)))
+                                                            metainfo=make_unicode(b64encode(torrent)), provider_options=provider_options)
             else:
                 logger.debug("Sending %s url to Transmission:%s" % (tor_title, directory))
-                download_id, res = transmission.add_torrent(tor_url, directory=directory)  # returns id or False
+                download_id, res = transmission.add_torrent(tor_url, directory=directory, provider_options=provider_options)  # returns id or False
             if download_id:
                 # transmission returns its own int, but we store hashid instead
                 download_id = hashid
@@ -690,9 +702,9 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 source = "DELUGEWEBUI"
                 if torrent:
                     logger.debug("Sending %s data to Deluge" % tor_title)
-                    download_id, res = deluge.add_torrent(tor_title, data=b64encode(torrent))
+                    download_id, res = deluge.add_torrent(tor_title, data=b64encode(torrent), provider_options=provider_options)
                 else:
-                    logger.debug("Sending %s url to Deluge" % tor_title)
+                    logger.debug("Sending %s url to Deluge" % tor_title, provider_options=provider_options)
                     download_id, res = deluge.add_torrent(tor_url)  # can be link or magnet, returns hash or False
                 if download_id:
                     if not label:
@@ -733,6 +745,9 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                             label = use_label(source, library)
                         if label:
                             _ = client.call('label.set_torrent', download_id, label.lower())
+                        if "seed_ratio" in provider_options:
+                            _ = client.call('core.set_torrent_stop_at_ratio', download_id, True)
+                            _ = client.call('core.set_torrent_stop_ratio', download_id, provider_options["seed_ratio"])
                         result = client.call('core.get_torrent_status', download_id, {})
                         if 'name' in result:
                             tor_title = result['name']
