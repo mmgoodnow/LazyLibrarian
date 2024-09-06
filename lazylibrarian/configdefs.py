@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import List, Dict, Tuple
 
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, \
-    ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder, \
+    ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFloat, ConfigFolder, \
     ConfigScheduler, ConfigDownloadTypes, ConfigConnection, TimeUnit
 from lazylibrarian.formatter import ImportPrefs
 from lazylibrarian.logconfig import LogConfig
@@ -563,7 +563,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigInt('', "DLPRIORITY", 0),
         ConfigDownloadTypes('', "DLTYPES", 'A,E,M'),
         ConfigInt('', "SEEDERS", 0),
-        ConfigInt('', "SEED_RATIO", 0),
+        ConfigFloat('', "SEED_RATIO", 0),
         ConfigInt('', "SEED_DURATION", 0),
         ConfigInt('', "LASTUSED", 0),
     ]),

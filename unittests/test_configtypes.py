@@ -132,6 +132,47 @@ class Config2Test(LLTestCase):
         expected = Counter({Access.READ_OK: 4, Access.WRITE_OK: 1, Access.WRITE_ERR: 2})
         self.single_access_compare(ci.accesses, expected, [], 'Ranged Int Config not working as expected')
 
+    def test_ConfigFloat(self):
+        """ Tests for ConfigFloat class """
+        cf = configtypes.ConfigFloat('Section', 'Floatvalue', 1.1)
+        self.set_loglevel(logging.DEBUG)
+        with self.assertLogs(self.logger, level='INFO') as cm:
+            self.assertEqual(cf.get_int(), False) # Read Error
+            self.assertEqual(cf.get_str(), '1.1')
+            self.assertEqual(cf.get_bool(), False)  # Read Error
+
+            cf.set_str('Override')  # Write Error
+            self.assertEqual(cf.get_str(), '1.1')
+
+            cf.set_int(2)
+            self.assertEqual(cf.get_int(), False) # Read Error
+            self.assertEqual(cf.get_float(), 2.0)
+            self.assertEqual(str(cf), '2.0')
+            cf.set_bool(True)  # Write Error
+            self.assertEqual(cf.get_bool(), False)  # Read Error
+
+            cf.set_float(5.5)
+            self.assertEqual(cf.get_float(), 5.5)
+            self.assertEqual(str(cf), '5.5')
+
+            self.assertTrue(cf.set_from_ui('123.5'))
+            self.assertEqual(cf.get_float(), 123.5)
+            self.assertTrue(cf.set_from_ui('abc'))  # Works, but sets it to default. As expected?
+            self.assertEqual(cf.get_float(), 1.1)
+            self.assertFalse(cf.set_from_ui('False'))  # Not changed, remains default
+            self.assertEqual(cf.get_float(), 1.1)
+
+        self.assertListEqual(cm.output, [
+            'WARNING:lazylibrarian.configtypes:Type error reading config[FLOATVALUE] (1.1)',
+            'WARNING:lazylibrarian.configtypes:Type error reading config[FLOATVALUE] (1.1)',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[FLOATVALUE] to Override: incorrect type float/str',
+            'WARNING:lazylibrarian.configtypes:Type error reading config[FLOATVALUE] (2.0)',
+            'WARNING:lazylibrarian.configtypes:Cannot set config[FLOATVALUE] to True: incorrect type float/bool',
+            'WARNING:lazylibrarian.configtypes:Type error reading config[FLOATVALUE] (2.0)'
+        ])
+        expected = Counter({Access.READ_OK: 9, Access.WRITE_OK: 4, Access.WRITE_ERR: 2, Access.READ_ERR: 4})
+        self.single_access_compare(cf.accesses, expected, [], 'Basic Float Config not working as expected')
+
     def test_ConfigPerm(self):
         """ Tests for ConfigPerm class """
         ci = configtypes.ConfigPerm('Section', 'PermissionValue', '0o777')
