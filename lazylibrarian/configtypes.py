@@ -115,6 +115,13 @@ class ConfigItem:
     def set_bool(self, value: bool) -> bool:
         return False
 
+    def get_float(self) -> float:
+        self._on_read(False)
+        return 0.0
+    
+    def set_float(self, value: float) -> float:
+        return False
+
     def reset_to_default(self) -> bool:
         return self._on_set(self.default)
 
@@ -228,6 +235,11 @@ class ConfigInt(ConfigItem):
             return 0
 
     def set_int(self, value: int) -> bool:
+        if type(value) != int:
+            try:
+                value = int(value)
+            except (ValueError, TypeError):
+                return self._on_type_mismatch(value, 'int/' + type(value))
         return self._on_set(value)
 
     def set_str(self, value: str) -> bool:
@@ -273,9 +285,19 @@ class ConfigFloat(ConfigItem):
             return 0
 
     def set_int(self, value: int) -> bool:
+        if type(value) not in [float, int]:
+            try:
+                value = float(value)
+            except (ValueError, TypeError):
+                return self._on_type_mismatch(value, 'float/' + type(value))
         return self._on_set(float(value))
 
     def set_float(self, value: float) -> bool:
+        if type(value) != float:
+            try:
+                value = float(value)
+            except (ValueError, TypeError):
+                return self._on_type_mismatch(value, 'float/' + type(value))
         return self._on_set(value)
 
     def set_str(self, value: str) -> bool:
@@ -757,6 +779,22 @@ class ConfigDict:
         else:
             self.config[key.upper()] = ConfigBool('', key, False, is_new=True, persist=False)
             self.set_bool(key, value)
+
+    """ Floats """
+
+    def get_float(self, key: str) -> float:
+        if key.upper() in self.config:
+            return self.config[key.upper()].get_float()
+        else:
+            self._handle_access_error(key, Access.READ_ERR)
+            return 0
+        
+    def set_float(self, key:str, value: float):
+        if key.upper() in self.config:
+            self.config[key.upper()].set_float(value)
+        else:
+            self.config[key.upper()] = ConfigFloat('', key, 0, is_new=True, persist=False)
+            self.set_float(key, value)
 
     """ Email addresses """
 

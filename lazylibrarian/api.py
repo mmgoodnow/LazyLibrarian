@@ -654,8 +654,10 @@ class Api(object):
                         item.set_bool(arg.upper(), val)
                     elif arg.upper() in item:
                         hit.append(arg)
-                        if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED']:
+                        if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED', 'SEEDERS', 'SEED_DURATION']:
                             item.set_int(arg.upper(), kwargs[arg])
+                        elif arg.upper() in ['SEED_RATIO']:
+                            item.set_float(arg.upper(), kwargs[arg])
                         else:
                             item.set_str(arg.upper(), kwargs[arg])
                     elif arg == 'prov_apikey':  # prowlarr
@@ -774,7 +776,12 @@ class Api(object):
                 hit.append(arg)
             elif arg.upper() in providers[0]:
                 hit.append(arg)
-                empty_slot[arg.upper()] = kwargs[arg]
+                if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED', 'SEEDERS', 'SEED_DURATION']:
+                    empty_slot.set_int(arg.upper(), kwargs[arg])
+                elif arg.upper() in ['SEED_RATIO']:
+                    empty_slot.set_float(arg.upper(), kwargs[arg])
+                else:
+                    empty_slot.set_str(arg.upper(), kwargs[arg])
             else:
                 miss.append(arg)
         CONFIG.save_config_and_backup_old(section=section)
