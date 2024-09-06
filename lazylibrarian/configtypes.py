@@ -259,6 +259,53 @@ class ConfigInt(ConfigItem):
             value = 0
         return self.set_int(value)
 
+class ConfigFloat(ConfigItem):
+    """ A config item that is a float """
+
+    def __init__(self, section: str, key: str, default: float, is_new: bool = False, persist: bool = True,
+                 onchange=None):
+        super().__init__(section, key, default, is_new, persist, onchange)
+
+    def get_float(self) -> float:
+        if self._on_read(type(self.value) in [int, float, bool]):
+            return float(self.value)
+        else:
+            return 0
+
+    def set_int(self, value: int) -> bool:
+        return self._on_set(float(value))
+
+    def set_float(self, value: float) -> bool:
+        return self._on_set(value)
+
+    def set_str(self, value: str) -> bool:
+        return self._on_type_mismatch(value, 'float/str')
+
+    def set_from_ui(self, value: str) -> bool:
+        try:
+            ivalue = float(value)
+        except (ValueError, TypeError):
+            ivalue = self.get_default()
+
+        if ivalue != self.value:
+            # Don't trigger a change if it's the same
+            return self.set_float(ivalue)
+        else:
+            return False
+
+    def set_bool(self, value: bool) -> bool:
+        return self._on_type_mismatch(value, 'float/bool')
+
+    def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
+        if tmpsection != self.section:
+            logger = logging.getLogger('special.configread')
+            logger.debug(f'Loading float {name} from section {tmpsection} into section {self.section}')
+        # noinspection PyBroadException
+        try:
+            value = parser.getfloat(tmpsection, name, fallback=0)
+        except Exception:
+            value = 0
+        return self.set_float(value)
 
 class ConfigRangedInt(ConfigInt):
     """ An int config item that must be in a particular range """
