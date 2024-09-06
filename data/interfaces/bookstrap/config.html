@@ -1477,15 +1477,21 @@
                     <div class="input-group">
                       <span class="input-group-addon">Priority</span>
                       <input type="number" id="torznab_${loop.index}_dlpriority" name="torznab_${loop.index}_dlpriority" value="${provider['DLPRIORITY']}" class="form-control" placeholder="0">
-                      <span class="input-group-addon">Seeders</span>
-                      <input type="number" id="torznab_${loop.index}_seeders" name="torznab_${loop.index}_seeders" value="${provider['SEEDERS']}" class="form-control" placeholder="0">
+                      <span class="input-group-addon">Types</span>
+                      <input type="text" id="torznab_${loop.index}_dltypes" name="torznab_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
                       <span class="input-group-addon">
                         <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="torznab_${loop.index}"> Test</button>
                       </span>
                     </div>
                     <div class="input-group">
-                      <span class="input-group-addon">Types</span>
-                      <input type="text" id="torznab_${loop.index}_dltypes" name="torznab_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
+                      <span class="input-group-addon">Seeders</span>
+                      <input type="number" id="torznab_${loop.index}_seeders" name="torznab_${loop.index}_seeders" value="${provider['SEEDERS']}" class="form-control" placeholder="0">
+                      <span class="input-group-addon">Seed Ratio</span>
+                      <input type="number" id="torznab_${loop.index}_seed_ratio" name="torznab_${loop.index}_seed_ratio" value="${provider['SEED_RATIO']}" class="form-control" placeholder="0">
+                    </div>
+                    <div class="input-group">
+                      <span class="input-group-addon">Seed Duration</span>
+                      <input type="number" id="torznab_${loop.index}_seed_duration" name="torznab_${loop.index}_seed_duration" value="${provider['SEED_DURATION']}" class="form-control" placeholder="0">
                     </div>
                     <div class="input-group">
                       <span class="input-group-addon">API Limit</span>

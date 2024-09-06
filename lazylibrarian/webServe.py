@@ -2473,7 +2473,7 @@ class WebInterface(object):
                 if mode == 'direct':
                     snatch, res = direct_dl_method(bookid, bookdata["BookName"], url, library, provider)
                 elif mode in ["torznab", "torrent", "magnet"]:
-                    snatch, res = tor_dl_method(bookid, bookdata["BookName"], url, library)
+                    snatch, res = tor_dl_method(bookid, bookdata["BookName"], url, library, provider=provider)
                 elif mode == 'nzb':
                     snatch, res = nzb_dl_method(bookid, bookdata["BookName"], url, library)
                 elif mode == 'irc':

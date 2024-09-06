@@ -28,7 +28,7 @@ rpc_version = 0
 tr_version = 0
 
 
-def add_torrent(link, directory=None, metainfo=None):
+def add_torrent(link, directory=None, metainfo=None, provider_options=None):
     logger = logging.getLogger(__name__)
     method = 'torrent-add'
     if metainfo:
@@ -56,6 +56,10 @@ def add_torrent(link, directory=None, metainfo=None):
             retid = False
         if retid:
             logger.debug("Torrent sent to Transmission successfully")
+
+            if "seed_ratio" in provider_options:
+                set_seed_ratio(retid, provider_options["seed_ratio"])
+
             return retid, ''
 
     res = 'Transmission returned %s' % response['result']

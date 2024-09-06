@@ -341,7 +341,7 @@ def download_result(match, book):
                                         new_value_dict['NZBprov'])
         elif new_value_dict['NZBmode'] in ["torznab", "torrent", "magnet"]:
             snatch, res = tor_dl_method(new_value_dict["BookID"], new_value_dict["NZBtitle"],
-                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label)
+                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label, new_value_dict['NZBprov'])
         elif new_value_dict['NZBmode'] == 'nzb':
             snatch, res = nzb_dl_method(new_value_dict["BookID"], new_value_dict["NZBtitle"],
                                         control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label)
