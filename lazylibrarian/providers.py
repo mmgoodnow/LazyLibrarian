@@ -447,11 +447,15 @@ def get_capabilities(provider: ConfigDict, force=False):
                             # looks like nZEDb, probably no book-search
                             provider['BOOKSEARCH'] = ''  # but check in case we got some settings back
                         search = data.find('searching/book-search')
-                        if search:
+                        if search is not None:
                             # noinspection PyUnresolvedReferences
                             if 'available' in search.attrib:
                                 # noinspection PyUnresolvedReferences
-                                if search.attrib['available'] == 'yes':
+                                if search.attrib['available'] == 'yes' and (
+                                    'supportedParams' not in search.attrib or (
+                                        'author' in search.attrib['supportedParams'] and 'title' in search.attrib['supportedParams']
+                                    )):
+                                    # only use book search if author and title are supported (if supportedParams are specified)
                                     provider['BOOKSEARCH'] = 'book'
                                 else:
                                     provider['BOOKSEARCH'] = ''
