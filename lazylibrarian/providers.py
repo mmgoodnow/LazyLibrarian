@@ -490,9 +490,9 @@ def get_capabilities(provider: ConfigDict, force=False):
     return provider
 
 
-def iterate_over_newznab_sites(book=None, search_type=None):
+def iterate_over_znab_sites(book=None, search_type=None):
     """
-    Purpose of this function is to read the config file, and loop through all active NewsNab+
+    Purpose of this function is to read the config file, and loop through all active NewsNab+ and Torznab
     sites and return the compiled results list from all sites back to the caller
     We get called with book[] and searchType of "book", "mag", "general" etc
     """

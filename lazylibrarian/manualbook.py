@@ -15,7 +15,7 @@ import logging
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.formatter import get_list, unaccented, plural, date_format
-from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
+from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_znab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from thefuzz import fuzz
 from urllib.parse import quote_plus, quote
@@ -64,7 +64,7 @@ def search_item(item=None, bookid=None, cat=None):
     logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
     if CONFIG.use_nzb():
-        resultlist, nprov = iterate_over_newznab_sites(book, cat)
+        resultlist, nprov = iterate_over_znab_sites(book, cat)
         if nprov:
             results += resultlist
     if CONFIG.use_tor():

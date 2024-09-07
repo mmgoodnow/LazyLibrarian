@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.formatter import plural, check_int, thread_name
-from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
+from lazylibrarian.providers import iterate_over_znab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.resultlist import find_best_result, download_result
 from lazylibrarian.blockhandler import BLOCKHANDLER
@@ -256,7 +256,7 @@ def search_book(books=None, library=None):
                     searchtype = 'book'
 
                 if CONFIG.use_nzb():
-                    resultlist, nprov = iterate_over_newznab_sites(book, searchtype)
+                    resultlist, nprov = iterate_over_znab_sites(book, searchtype)
                     if not nprov:
                         warn_mode('nzb')
                     elif resultlist:
@@ -324,7 +324,7 @@ def search_book(books=None, library=None):
                 # if you can't find the book, try author/title without any "(extended details, series etc)"
                 if not matches and '(' in book['bookName']:
                     if CONFIG.use_nzb():
-                        resultlist, nprov = iterate_over_newznab_sites(book, 'short' + searchtype)
+                        resultlist, nprov = iterate_over_znab_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('nzb')
                         elif resultlist:
@@ -392,7 +392,7 @@ def search_book(books=None, library=None):
                 # if you can't find the book under "books", you might find under general search
                 # general search is the same as booksearch for torrents, irc and rss, no need to check again
                 if not matches and CONFIG.use_nzb():
-                    resultlist, nprov = iterate_over_newznab_sites(book, 'general' + searchtype)
+                    resultlist, nprov = iterate_over_znab_sites(book, 'general' + searchtype)
                     if not nprov:
                         warn_mode('nzb')
                     elif resultlist:
@@ -408,7 +408,7 @@ def search_book(books=None, library=None):
                 # if still not found, try general search again without any "(extended details, series etc)"
                 # shortgeneral is the same as shortbook for torrents, irc and rss, no need to check again
                 if not matches and CONFIG.use_nzb() and '(' in book['searchterm']:
-                    resultlist, nprov = iterate_over_newznab_sites(book, 'shortgeneral' + searchtype)
+                    resultlist, nprov = iterate_over_znab_sites(book, 'shortgeneral' + searchtype)
                     if not nprov:
                         warn_mode('nzb')
                     elif resultlist:
@@ -424,7 +424,7 @@ def search_book(books=None, library=None):
                 # if still not found, try general search again with title only
                 if not matches:
                     if CONFIG.use_nzb():
-                        resultlist, nprov = iterate_over_newznab_sites(book, 'title' + searchtype)
+                        resultlist, nprov = iterate_over_znab_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('nzb')
                         elif resultlist:
