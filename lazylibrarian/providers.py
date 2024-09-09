@@ -1773,24 +1773,28 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     return results
 
 
-def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict):
+def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, errorCode = 0):
     """ See if errorMsg contains a known error response for an unsupported search function
     depending on which searchType. If it does, disable that searchtype for the relevant provider
     return True if cancelled
     """
     logger = logging.getLogger(__name__)
-    errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
-                 'bad request', 'bad_request', 'incorrect parameter', 'does not support']
-
-    errormsg = make_unicode(error_msg).lower()
 
     if (provider['BOOKSEARCH'] and search_type in ["book", "shortbook", 'titlebook']) or \
             (provider['AUDIOSEARCH'] and search_type in ["audio", "shortaudio"]):
-        match = False
-        for item in errorlist:
-            if item in errormsg:
-                match = True
-                break
+        
+        match = (errorCode >= 200 and errorCode < 300) #200-299 are API call specific error codes
+
+        if not match:
+            errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
+                        'bad request', 'bad_request', 'incorrect parameter', 'does not support']
+
+            errormsg = make_unicode(error_msg).lower()
+
+            for item in errorlist:
+                if item in errormsg:
+                    match = True
+                    break
 
         if match:
             if search_type in ["book", "shortbook", 'titlebook']:
@@ -1898,13 +1902,14 @@ def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode
                 # noinspection PyTypeChecker
                 errormsg = rootxml.get('description', default='unknown error')
                 errormsg = errormsg[:200]  # sometimes get huge error messages from jackett
+                errorcode = int(rootxml.get('code', default=900)) # 900 is "Unknown Error"
                 logger.error("%s - %s" % (host, errormsg))
                 # maybe the host doesn't support the search type
-                cancelled = cancel_search_type(search_type, errormsg, provider)
+                cancelled = cancel_search_type(search_type, errormsg, provider, errorcode)
                 if not cancelled:  # it was some other problem
                     BLOCKHANDLER.block_provider(provider['HOST'], errormsg)
 
-                if test and search_type == 'book' and cancelled:
+                if search_type == 'book' and cancelled:
                     return newznab_plus(book, provider, 'generalbook', search_mode, test)
             else:
                 channel = rootxml.find('channel')
