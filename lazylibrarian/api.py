@@ -680,18 +680,6 @@ class Api(object):
                                 bookcat += catnum
                         item.set_str('BOOKCAT', bookcat)
                         item.set_str('AUDIOCAT', audiocat)
-                        if 'DLTYPES' not in kwargs.keys():
-                            # not explicitly passed, so we derive it from available categories
-                            dltypes = []
-                            if audiocat:
-                                dltypes.append('A')
-                            if '7030' in bookcat:
-                                dltypes.append('C')
-                            if bookcat:
-                                dltypes.append('E')
-                            if '7010' in bookcat:
-                                dltypes.append('M')
-                            item.set_str('DLTYPES', ','.join(dltypes))
                     else:
                         miss.append(arg)
 
