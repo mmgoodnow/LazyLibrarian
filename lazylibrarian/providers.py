@@ -447,11 +447,15 @@ def get_capabilities(provider: ConfigDict, force=False):
                             # looks like nZEDb, probably no book-search
                             provider['BOOKSEARCH'] = ''  # but check in case we got some settings back
                         search = data.find('searching/book-search')
-                        if search:
+                        if search is not None:
                             # noinspection PyUnresolvedReferences
                             if 'available' in search.attrib:
                                 # noinspection PyUnresolvedReferences
-                                if search.attrib['available'] == 'yes':
+                                if search.attrib['available'] == 'yes' and (
+                                    'supportedParams' not in search.attrib or (
+                                        'author' in search.attrib['supportedParams'] and 'title' in search.attrib['supportedParams']
+                                    )):
+                                    # only use book search if author and title are supported (if supportedParams are specified)
                                     provider['BOOKSEARCH'] = 'book'
                                 else:
                                     provider['BOOKSEARCH'] = ''
@@ -490,9 +494,9 @@ def get_capabilities(provider: ConfigDict, force=False):
     return provider
 
 
-def iterate_over_newznab_sites(book=None, search_type=None):
+def iterate_over_znab_sites(book=None, search_type=None):
     """
-    Purpose of this function is to read the config file, and loop through all active NewsNab+
+    Purpose of this function is to read the config file, and loop through all active NewsNab+ and Torznab
     sites and return the compiled results list from all sites back to the caller
     We get called with book[] and searchType of "book", "mag", "general" etc
     """
@@ -1769,24 +1773,28 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     return results
 
 
-def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict):
+def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, errorCode = 0):
     """ See if errorMsg contains a known error response for an unsupported search function
     depending on which searchType. If it does, disable that searchtype for the relevant provider
     return True if cancelled
     """
     logger = logging.getLogger(__name__)
-    errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
-                 'bad request', 'bad_request', 'incorrect parameter', 'does not support']
-
-    errormsg = make_unicode(error_msg).lower()
 
     if (provider['BOOKSEARCH'] and search_type in ["book", "shortbook", 'titlebook']) or \
             (provider['AUDIOSEARCH'] and search_type in ["audio", "shortaudio"]):
-        match = False
-        for item in errorlist:
-            if item in errormsg:
-                match = True
-                break
+        
+        match = (errorCode >= 200 and errorCode < 300) #200-299 are API call specific error codes
+
+        if not match:
+            errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
+                        'bad request', 'bad_request', 'incorrect parameter', 'does not support']
+
+            errormsg = make_unicode(error_msg).lower()
+
+            for item in errorlist:
+                if item in errormsg:
+                    match = True
+                    break
 
         if match:
             if search_type in ["book", "shortbook", 'titlebook']:
@@ -1894,13 +1902,14 @@ def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode
                 # noinspection PyTypeChecker
                 errormsg = rootxml.get('description', default='unknown error')
                 errormsg = errormsg[:200]  # sometimes get huge error messages from jackett
+                errorcode = int(rootxml.get('code', default=900)) # 900 is "Unknown Error"
                 logger.error("%s - %s" % (host, errormsg))
                 # maybe the host doesn't support the search type
-                cancelled = cancel_search_type(search_type, errormsg, provider)
+                cancelled = cancel_search_type(search_type, errormsg, provider, errorcode)
                 if not cancelled:  # it was some other problem
                     BLOCKHANDLER.block_provider(provider['HOST'], errormsg)
 
-                if test and search_type == 'book' and cancelled:
+                if search_type == 'book' and cancelled:
                     return newznab_plus(book, provider, 'generalbook', search_mode, test)
             else:
                 channel = rootxml.find('channel')

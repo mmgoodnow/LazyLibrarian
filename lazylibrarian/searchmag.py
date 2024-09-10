@@ -26,7 +26,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
     nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, thread_name
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
+from lazylibrarian.providers import iterate_over_znab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.telemetry import TELEMETRY
 
@@ -100,7 +100,7 @@ def search_magazines(mags=None, reset=False):
             resultlist = []
 
             if CONFIG.use_nzb():
-                resultlist, nproviders = iterate_over_newznab_sites(book, 'mag')
+                resultlist, nproviders = iterate_over_znab_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())

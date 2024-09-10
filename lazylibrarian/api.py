@@ -674,7 +674,7 @@ class Api(object):
                                 if audiocat:
                                     audiocat += ','
                                 audiocat += catnum
-                            else:
+                            elif catnum.startswith('7'):
                                 if bookcat:
                                     bookcat += ','
                                 bookcat += catnum
@@ -682,6 +682,9 @@ class Api(object):
                         item.set_str('AUDIOCAT', audiocat)
                     else:
                         miss.append(arg)
+
+                get_capabilities(item, True)
+                
                 CONFIG.save_config_and_backup_old(section=item['NAME'])
                 self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
                              'Error':  {'Code': 200, 'Message': 'OK'}}
@@ -784,6 +787,9 @@ class Api(object):
                     empty_slot.set_str(arg.upper(), kwargs[arg])
             else:
                 miss.append(arg)
+
+        get_capabilities(empty_slot, True)
+        
         CONFIG.save_config_and_backup_old(section=section)
         self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
                      'Error':  {'Code': 200, 'Message': 'OK'}}
