@@ -704,8 +704,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     logger.debug("Sending %s data to Deluge" % tor_title)
                     download_id, res = deluge.add_torrent(tor_title, data=b64encode(torrent), provider_options=provider_options)
                 else:
-                    logger.debug("Sending %s url to Deluge" % tor_title, provider_options=provider_options)
-                    download_id, res = deluge.add_torrent(tor_url)  # can be link or magnet, returns hash or False
+                    logger.debug("Sending %s url to Deluge" % tor_title)
+                    download_id, res = deluge.add_torrent(tor_url, provider_options=provider_options)  # can be link or magnet, returns hash or False
                 if download_id:
                     if not label:
                         label = use_label(source, library)
