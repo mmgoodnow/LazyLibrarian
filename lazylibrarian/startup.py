@@ -308,6 +308,7 @@ class StartupLazyLibrarian:
 
     def init_build_lists(self, config: ConfigDict):
         lazylibrarian.GRGENRES = self.build_genres()
+        lazylibrarian.DICTS = self.build_dicts()
         lazylibrarian.MONTHNAMES = self.build_monthtable(config)
         lazylibrarian.NEWUSER_MSG = self.build_logintemplate()
         lazylibrarian.NEWFILE_MSG = self.build_filetemplate()
@@ -418,6 +419,25 @@ class StartupLazyLibrarian:
                     self.logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
         self.logger.error('No valid genres.json file found')
         return {"genreLimit": 4, "genreUsers": 10, "genreExclude": [], "genreExcludeParts": [], "genreReplace": {}}
+
+    def build_dicts(self):
+        for json_file in [os.path.join(DIRS.DATADIR, 'dicts.json'),
+                          os.path.join(DIRS.PROG_DIR, 'example.dicts.json')]:
+            if path_isfile(json_file):
+                try:
+                    with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
+                        res = json.load(json_data)
+                    self.logger.info("Loaded dicts from %s" % json_file)
+                    return res
+                except Exception as e:
+                    self.logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
+        self.logger.error('No valid dicts.json file found')
+        return {"filename_dict": {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '', ' + ': ' ',
+                                  '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'},
+                    "umlaut_dict": {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'},
+                    "apostrophe_dict": {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+                }
+
 
     def build_monthtable(self, config: ConfigDict):
         table = []

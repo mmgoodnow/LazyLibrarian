@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, namedic, get_list
+from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, get_list
 
 
 class DirectoryHolder:
@@ -440,7 +440,7 @@ def safe_move(src, dst, action='move'):
                 drive, path = os.path.splitdrive(dst)
                 logger.debug("drive=[%s] path=[%s]" % (drive, path))
                 # strip some characters windows can't handle
-                newpath = replace_all(path, namedic)
+                newpath = replace_all(path, lazylibrarian.DICTS.get('filename_dict', {}))
                 # windows filenames can't end in space or dot
                 while newpath and newpath[-1] in '. ':
                     newpath = newpath[:-1]
