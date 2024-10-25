@@ -92,7 +92,7 @@ def bok_login(sess, headers):
     remix_userid = ''
     remix_userkey = ''
     logger.debug("Logging in to %s" % host)
-    if 'singlelogin' in host:
+    if 'singlelogin' in host or 'z-library' in host:
         try:
             remix_userid = host.split('remix_userid=')[1].split('&')[0]
             remix_userkey = host.split('remix_userkey=')[1].split('&')[0]
@@ -162,7 +162,7 @@ def direct_bok(book=None, prov=None, test=False):
     if not bok_login(s, headers):
         return results, "Login failed"
 
-    if 'singlelogin' in host:
+    if 'singlelogin' in host or 'z-library' in host:
         host = host.replace('singlelogin', 'z-library').split('/?')[0]
         # not sure if this number is important, maybe any referer will do?
         headers['Referer'] = '%s/?ts=1505' % host
@@ -233,10 +233,13 @@ def direct_bok(book=None, prov=None, test=False):
                     url = None
                     prov_page = ''
                     newsoup = BeautifulSoup(str(row), 'html5lib')
-                    name_item = newsoup.find('h3', itemprop='name')
-                    title = name_item.text
+                    name_item = newsoup.find('h3')
+                    if name_item:
+                        title = name_item.text
                     for a in name_item.find_all('a'):
                         prov_page = a['href']
+                        if a.contents:
+                            title = a.contents[0]
                         if prov_page:
                             prov_page = host + prov_page
                             break
@@ -246,7 +249,11 @@ def direct_bok(book=None, prov=None, test=False):
                             if link:
                                 url = host + link
                                 break
-                    author = newsoup.find('a', itemprop='author').text
+                    cover_node = newsoup.find('z-cover')
+                    if cover_node:
+                        author = cover_node["author"]
+                    else:
+                        logger.debug("No cover node found")
                     detail = newsoup.find("div", {"class": "bookProperty property__file"}).text
                     try:
                         res = detail.split('\n')[-1].strip().split(',')
