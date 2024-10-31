@@ -52,35 +52,6 @@ class EmailNotifier:
         text = message
         oversize = False
 
-        if files:
-            if text[:15].lower() == '<!doctype html>':
-                message = MIMEMultipart("related")
-                message.attach(MIMEText(text, 'html'))
-                if 'cid:logo' in text:
-                    image_location = os.path.join(DIRS.PROG_DIR, "data", "images", "ll.png")
-                    with open(image_location, "rb") as fp:
-                        img = MIMEImage(fp.read())
-                    img.add_header("Content-ID", "<logo>")
-                    message.attach(img)
-            else:
-                message = MIMEMultipart()
-                message.attach(MIMEText(text, 'plain', "utf-8"))
-        else:
-            if text[:15].lower() == '<!doctype html>':
-                message = MIMEText(text, 'html')
-            else:
-                message = MIMEText(text, 'plain', "utf-8")
-
-        message['Subject'] = subject
-
-        if is_valid_email(CONFIG['ADMIN_EMAIL']):
-            from_addr = CONFIG['ADMIN_EMAIL']
-        elif is_valid_email(CONFIG['EMAIL_FROM']):
-            from_addr = CONFIG['EMAIL_FROM']
-        else:
-            logger.warning("Invalid FROM address, check config settings")
-            return False
-
         if not to_addr:
             to_addr = CONFIG['EMAIL_TO']
             logger.debug("Using default to_addr=%s" % to_addr)
@@ -88,89 +59,125 @@ class EmailNotifier:
             logger.warning("Invalid TO address, check users email and/or config")
             return False
 
-        message['From'] = formataddr(('LazyLibrarian', from_addr))
-        message['To'] = to_addr
-        message['Date'] = formatdate(localtime=True)
-        message['Message-ID'] = "<%s@%s>" % (uuid.uuid4(), from_addr.split('@')[1])
-
-        logger.debug('Email notification: %s' % message['Subject'])
-        logger.debug('Email from: %s' % message['From'])
-        logger.debug('Email to: %s' % message['To'])
-        logger.debug('Email ID: %s' % message['Message-ID'])
-        if text[:15].lower() == '<!doctype html>':
-            logger.debug('Email text: %s' % text[:15])
+        if ',' in to_addr:
+            toaddrs = get_list(to_addr)
         else:
-            logger.debug('Email text: %s' % text)
-        logger.debug('Files: %s' % files)
+            toaddrs = [to_addr]
 
-        if files:
-            for f in files:
-                fsize = check_int(os.path.getsize(syspath(f)), 0)
-                limit = CONFIG.get_int('EMAIL_LIMIT')
-                title = unaccented(os.path.basename(f))
-                if limit and fsize > limit * 1024 * 1024:
-                    oversize = True
-                    msg = '%s is too large (%s) to email' % (title, fsize)
-                    logger.debug(msg)
-                    if CONFIG['CREATE_LINK']:
-                        logger.debug("Creating link to %s" % f)
-                        params = [CONFIG['CREATE_LINK'], f]
-                        rc, res, err = run_script(params)
-                        if res and res.startswith('http'):
-                            msg = "%s is available to download, %s" % (title, res)
-                            logger.debug(msg)
-                    message.attach(MIMEText(msg))
+        for toaddr in toaddrs:
+            if files:
+                if text[:15].lower() == '<!doctype html>':
+                    message = MIMEMultipart("related")
+                    message.attach(MIMEText(text, 'html'))
+                    if 'cid:logo' in text:
+                        image_location = os.path.join(DIRS.PROG_DIR, "data", "images", "ll.png")
+                        with open(image_location, "rb") as fp:
+                            img = MIMEImage(fp.read())
+                        img.add_header("Content-ID", "<logo>")
+                        message.attach(img)
                 else:
-                    if '@kindle.com' in to_addr:
-                        # send-to-kindle needs embedded metadata
-                        metadata = get_book_info(f)
-                        if 'title' not in metadata or 'creator' not in metadata:
-                            basename, _ = os.path.splitext(f)
-                            if os.path.exists(basename + '.opf'):
-                                lazylibrarian.postprocess.write_meta(os.path.dirname(f), basename + '.opf')
-                    subtype = mime_type(syspath(f)).split('/')[1]
-                    logger.debug('Attaching %s %s' % (subtype, title))
-                    with open(syspath(f), "rb") as fil:
-                        part = MIMEApplication(fil.read(), _subtype=subtype, Name=title)
-                        part['Content-Disposition'] = 'attachment; filename="%s"' % title
-                        message.attach(part)
-
-        try:
-            # Create a secure SSL context
-            context = ssl.create_default_context()
-            # but allow no certificate check so self-signed work
-            if not CONFIG.get_bool('SSL_VERIFY'):
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-
-            if CONFIG.get_bool('EMAIL_SSL'):
-                mailserver = smtplib.SMTP_SSL(CONFIG['EMAIL_SMTP_SERVER'],
-                                              CONFIG.get_int('EMAIL_SMTP_PORT'),
-                                              context=context)
+                    message = MIMEMultipart()
+                    message.attach(MIMEText(text, 'plain', "utf-8"))
             else:
-                mailserver = smtplib.SMTP(CONFIG['EMAIL_SMTP_SERVER'],
-                                          CONFIG.get_int('EMAIL_SMTP_PORT'))
+                if text[:15].lower() == '<!doctype html>':
+                    message = MIMEText(text, 'html')
+                else:
+                    message = MIMEText(text, 'plain', "utf-8")
 
-            if CONFIG.get_bool('EMAIL_TLS'):
-                mailserver.starttls(context=context)
+            message['Subject'] = subject
+
+            if is_valid_email(CONFIG['ADMIN_EMAIL']):
+                from_addr = CONFIG['ADMIN_EMAIL']
+            elif is_valid_email(CONFIG['EMAIL_FROM']):
+                from_addr = CONFIG['EMAIL_FROM']
             else:
-                mailserver.ehlo()
-
-            if CONFIG['EMAIL_SMTP_USER']:
-                mailserver.login(CONFIG['EMAIL_SMTP_USER'],
-                                 CONFIG['EMAIL_SMTP_PASSWORD'])
-
-            logger.debug("Sending email to %s" % to_addr)
-            mailserver.sendmail(from_addr, to_addr, message.as_string())
-            mailserver.quit()
-            if oversize:
+                logger.warning("Invalid FROM address, check config settings")
                 return False
-            return True
 
-        except Exception as e:
-            logger.warning('Error sending Email: %s' % e)
-            logger.error('Email traceback: %s' % traceback.format_exc())
-            return False
+            message['From'] = formataddr(('LazyLibrarian', from_addr))
+            message['To'] = toaddr
+            message['Date'] = formatdate(localtime=True)
+            message['Message-ID'] = "<%s@%s>" % (uuid.uuid4(), from_addr.split('@')[1])
+
+            logger.debug('Email notification: %s' % message['Subject'])
+            logger.debug('Email from: %s' % message['From'])
+            logger.debug('Email to: %s' % message['To'])
+            logger.debug('Email ID: %s' % message['Message-ID'])
+            if text[:15].lower() == '<!doctype html>':
+                logger.debug('Email text: %s' % text[:15])
+            else:
+                logger.debug('Email text: %s' % text)
+            logger.debug('Files: %s' % files)
+
+            if files:
+                for f in files:
+                    fsize = check_int(os.path.getsize(syspath(f)), 0)
+                    limit = CONFIG.get_int('EMAIL_LIMIT')
+                    title = unaccented(os.path.basename(f))
+                    if limit and fsize > limit * 1024 * 1024:
+                        oversize = True
+                        msg = '%s is too large (%s) to email' % (title, fsize)
+                        logger.debug(msg)
+                        if CONFIG['CREATE_LINK']:
+                            logger.debug("Creating link to %s" % f)
+                            params = [CONFIG['CREATE_LINK'], f]
+                            rc, res, err = run_script(params)
+                            if res and res.startswith('http'):
+                                msg = "%s is available to download, %s" % (title, res)
+                                logger.debug(msg)
+                        message.attach(MIMEText(msg))
+                    else:
+                        if '@kindle.com' in toaddr:
+                            # send-to-kindle needs embedded metadata
+                            metadata = get_book_info(f)
+                            if 'title' not in metadata or 'creator' not in metadata:
+                                basename, _ = os.path.splitext(f)
+                                if os.path.exists(basename + '.opf'):
+                                    lazylibrarian.postprocess.write_meta(os.path.dirname(f), basename + '.opf')
+                        subtype = mime_type(syspath(f)).split('/')[1]
+                        logger.debug('Attaching %s %s' % (subtype, title))
+                        with open(syspath(f), "rb") as fil:
+                            part = MIMEApplication(fil.read(), _subtype=subtype, Name=title)
+                            part['Content-Disposition'] = 'attachment; filename="%s"' % title
+                            message.attach(part)
+
+            try:
+                # Create a secure SSL context
+                context = ssl.create_default_context()
+                # but allow no certificate check so self-signed work
+                if not CONFIG.get_bool('SSL_VERIFY'):
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+
+                if CONFIG.get_bool('EMAIL_SSL'):
+                    mailserver = smtplib.SMTP_SSL(CONFIG['EMAIL_SMTP_SERVER'],
+                                                  CONFIG.get_int('EMAIL_SMTP_PORT'),
+                                                  context=context)
+                else:
+                    mailserver = smtplib.SMTP(CONFIG['EMAIL_SMTP_SERVER'],
+                                              CONFIG.get_int('EMAIL_SMTP_PORT'))
+
+                if CONFIG.get_bool('EMAIL_TLS'):
+                    mailserver.starttls(context=context)
+                else:
+                    mailserver.ehlo()
+
+                if CONFIG['EMAIL_SMTP_USER']:
+                    mailserver.login(CONFIG['EMAIL_SMTP_USER'],
+                                     CONFIG['EMAIL_SMTP_PASSWORD'])
+
+                logger.debug("Sending email to %s" % toaddr)
+                mailserver.sendmail(from_addr, toaddr, message.as_string())
+                mailserver.quit()
+                if oversize:
+                    return False
+
+            except Exception as e:
+                logger.warning('Error sending Email: %s' % e)
+                logger.error('Email traceback: %s' % traceback.format_exc())
+                return False
+
+        return True
 
         #
         # Public functions
@@ -317,7 +324,7 @@ class EmailNotifier:
         if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
             db = database.DBConnection()
             try:
-                data = db.match('SELECT bookid from books where bookfile <> ""')
+                data = db.match("SELECT bookid from books where bookfile <> ''")
             finally:
                 db.close()
             if data:
