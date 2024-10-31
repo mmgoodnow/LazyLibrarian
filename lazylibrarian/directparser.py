@@ -206,24 +206,11 @@ def direct_bok(book=None, prov=None, test=False):
         if len(result):
             logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
             try:
-                rows = []
-                if 'class="fuzzyMatchesLine"' in result:
-                    logger.debug("Skipping fuzzy matches for %s" % book['searchterm'])
-                    subset = result.split('class="fuzzyMatchesLine"')[0]
-                    soup = BeautifulSoup(subset, "html5lib")
-                    try:
-                        rows = soup.find_all('table', {"class": "resItemTable"})
-                    except IndexError:
-                        logger.debug("No table found in results")
-                        rows = []
-
-                if not rows and not results:  # nothing found in earlier pages or before the cutoff line
-                    soup = BeautifulSoup(result, "html5lib")
-                    try:
-                        rows = soup.find_all('table', {"class": "resItemTable"})
-                    except IndexError:
-                        logger.debug("No table found in results")
-                        rows = []
+                soup = BeautifulSoup(result, "html5lib")
+                rows = soup.select("div.book-item.exactMatch")
+                if not rows:
+                    logger.debug("No exactmatch book-item divs found in results")
+                    rows = []
 
                 logger.debug("Found %s rows for %s" % (len(rows), book['searchterm']))
                 for row in rows:
@@ -232,39 +219,20 @@ def direct_bok(book=None, prov=None, test=False):
                         break
                     url = None
                     prov_page = ''
-                    newsoup = BeautifulSoup(str(row), 'html5lib')
-                    name_item = newsoup.find('h3')
-                    if name_item:
-                        title = name_item.text
-                    for a in name_item.find_all('a'):
-                        prov_page = a['href']
-                        if a.contents:
-                            title = a.contents[0]
-                        if prov_page:
-                            prov_page = host + prov_page
-                            break
-                    for tr in newsoup.find_all('tr'):
-                        for a in tr.find_all('a'):
-                            link = a['href']
-                            if link:
-                                url = host + link
-                                break
-                    cover_node = newsoup.find('z-cover')
-                    if cover_node:
-                        author = cover_node["author"]
+                    newsoup = BeautifulSoup(str(row), "html5lib")
+                    bookcard = newsoup.find("z-bookcard")
+                    if bookcard:
+                        url = host + bookcard["href"]
+                        filesize = bookcard["filesize"]
+                        if filesize:
+                          size = size_in_bytes(filesize.upper())
+                        extn = bookcard["extension"]
+                        author_div = bookcard.find("div", {"slot": "author"})
+                        author = author_div.contents[0] if author_div.contents else None
+                        title_div = bookcard.find("div", {"slot": "title"})
+                        title = title_div.contents[0] if title_div.contents else None
                     else:
-                        logger.debug("No cover node found")
-                    detail = newsoup.find("div", {"class": "bookProperty property__file"}).text
-                    try:
-                        res = detail.split('\n')[-1].strip().split(',')
-                        extn = res[0].lower()
-                        size = res[-1]
-                        if len(res) == 3:
-                            size = "%s.%s" % (res[1], res[2])
-                        size = size_in_bytes(size.upper())
-                    except (IndexError, ValueError):
-                        extn = ''
-                        size = 0
+                        logger.debug("No z-bookcard found")
 
                     if url:
                         bok_sleep()
