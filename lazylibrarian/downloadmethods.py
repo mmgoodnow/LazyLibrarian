@@ -272,9 +272,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         s.proxies.update(proxies)
     if provider == 'zlibrary':
         # do we need to log in?
-        if CONFIG['BOK_PASS']:
-            if not bok_login(s, headers):
-                return False, 'Login failed'
+        #if CONFIG['BOK_PASS']:
+        if not bok_login(s, headers):
+            return False, 'Login failed'
         # zlibrary needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
         count, oldest = bok_dlcount()
