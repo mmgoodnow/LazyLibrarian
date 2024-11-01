@@ -104,6 +104,7 @@ def bok_login(sess, headers):
                           'remix_userkey': remix_userkey,
                           'siteLanguage': 'en'}
             requests.utils.add_dict_to_cookiejar(sess.cookies, my_cookies)
+            return True
 
     if not CONFIG['BOK_PASS']:
         return True
