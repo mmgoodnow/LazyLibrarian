@@ -61,6 +61,7 @@
             toggleElement("#opds_authentication", "#opdscredentials");
 
             // Importing
+            toggleElement("#hc_sync", "#hcsync_options");
             toggleElement("#gr_sync", "#grsync_options");
             toggleElement("#gr_syncuser", "#gruser_options");
             toggleElement("#gr_syncuser", "#grlibrary_options");
@@ -961,6 +962,14 @@
         $('#ol_api').on('click', function() {
             let status = $("#ol_api").prop("checked") ? 'True' : ''
             $.get('ol_api_changed', {'status': status},
+            function(data) {
+                location.reload();
+            });
+        });
+
+        $('#hc_api').on('change', function() {
+            let apikey = $.trim($("#hc_api").val());
+            $.get('hc_api_changed', {'hc_api': apikey},
             function(data) {
                 location.reload();
             });

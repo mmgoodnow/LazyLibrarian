@@ -505,7 +505,7 @@ def book_rename(bookid):
         return '', msg
 
     old_path = os.path.dirname(fullname)
-    if not CONFIG.get_bool('CALIBRE_RENAME'):
+    if  CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
         try:
             # noinspection PyTypeChecker
             calibreid = old_path.rsplit('(', 1)[1].split(')')[0]

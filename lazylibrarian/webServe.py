@@ -33,7 +33,7 @@ from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian import database, notifiers, versioncheck, magazinescan, comicscan, \
-    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
+    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync, hc
 from lazylibrarian.configtypes import ConfigBool
 from lazylibrarian.auth import AuthController
 from lazylibrarian.bookrename import name_vars, stripspaces
@@ -57,7 +57,8 @@ from lazylibrarian.formatter import unaccented, plural, now, today, check_int, r
     md5_utf8, date_format, check_year, replace_quotes_with, format_author_name, check_float, thread_name, sanitize
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb
+from lazylibrarian.hc import HardCover
+from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, img_id
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
@@ -518,7 +519,7 @@ class WebInterface(object):
                 cmd += "where Status != 'Ignored' "
                 if CONFIG.get_bool('IGNORE_PAUSED'):
                     cmd += "and  Status != 'Paused' "
-
+            cmd += "and AuthorName is not null "
             myauthors = []
             if userid and userprefs & lazylibrarian.pref_myauthors:
                 res = db.select("SELECT WantID from subscribers WHERE Type='author' and UserID=?", (userid,))
@@ -1381,6 +1382,7 @@ class WebInterface(object):
                 loggerserverside.debug("sortcolumn %d" % sortcolumn)
 
                 for row in filtered:
+                    row.append(row[0][:2])  # extract 2 letter source from seriesid
                     if CONFIG.get_bool('SORT_SURNAME'):
                         row[1] = surname_first(row[1], postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     have = check_int(row[6], 0)
@@ -1402,9 +1404,9 @@ class WebInterface(object):
 
                 if sortcolumn == 9:  # sort on percent,-total
                     if sSortDir_0 == "desc":
-                        filtered.sort(key=lambda y: (-int(y[9]), int(y[7])))
+                        filtered.sort(key=lambda y: (-int(y[10]), int(y[7])))
                     else:
-                        filtered.sort(key=lambda y: (int(y[9]), -int(y[7])))
+                        filtered.sort(key=lambda y: (int(y[10]), -int(y[7])))
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                   reverse=sSortDir_0 == "desc")
@@ -1493,6 +1495,8 @@ class WebInterface(object):
                     reading = get_readinglist('Reading', userid)
                     abandoned = get_readinglist('Abandoned', userid)
                     email = res['SendTo']
+                    if not email:
+                        email = ''
         finally:
             db.close()
         # turn the sqlite rowlist into a list of lists
@@ -1834,15 +1838,22 @@ class WebInterface(object):
                     value = kwargs[key.lower()]
                     # validate entries here...
                     if value:
-                        if key.lower() in ['bok_pass', 'bok_host']:
+                        if key.lower() in ['bok_host']:
                             tokens = ['<', '>', '"', "'", '+', '(', ')']
                         elif (key.lower() in ['user_agent', 'fmt_series'] or key.lower().endswith('_folder')
                               or key.lower().endswith('_file')):
                             tokens = ['<', '&', '>', '=', '"', "'", '+']
+                        elif '_pass' in key.lower():
+                            tokens = ['<', '>']
                         else:
                             tokens = ['<', '&', '>', '=', '"', "'", '+', '(', ')']
                         if not self.validate_param(key.lower(), value, tokens, None):
-                            value = item
+                            newvalue = unquote_plus(value)
+                            for token in tokens:
+                                if token in newvalue:
+                                    newvalue = newvalue.replace(token, '')
+                            value = newvalue
+                            logger.warning(f"Invalid Token: Key {key} changed to {value}")
                     CONFIG.set_from_ui(key, value)
                 else:
                     if isinstance(item, ConfigBool) and item.get_read_count() > 0:
@@ -1958,16 +1969,19 @@ class WebInterface(object):
         else:
             db = database.DBConnection()
             try:
-                loadingauthorids = db.select("SELECT AuthorID from authors where status != 'Loading'")
-                authorids = db.select("SELECT AuthorID from authors where status = 'Loading'")
+                authorids = db.select("SELECT AuthorID,gr_id,ol_id,hc_id from authors where status != 'Loading'")
+                loadingauthorids = db.select("SELECT AuthorID from authors where status = 'Loading'")
                 booksearch = db.select("SELECT Status,AudioStatus,BookID from books")
             finally:
                 db.close()
             authorlist = []
-            for item in loadingauthorids:
-                authorlist.append(item['AuthorID'])
-            loadlist = []
             for item in authorids:
+                for src in ['AuthorID', 'ol_id', 'gr_id', 'hc_id']:
+                    if item[src]:
+                        authorlist.append(item[src])
+            authorlist = list(set(authorlist))
+            loadlist = []
+            for item in loadingauthorids:
                 loadlist.append(item['AuthorID'])
             booklist = []
             for item in booksearch:
@@ -2057,14 +2071,19 @@ class WebInterface(object):
                 if res and res['SendTo']:
                     email = res['SendTo']
 
+            author = dict(db.match("SELECT * from authors WHERE AuthorID=?", (authorid,)))
+            if not author:
+                author = dict(db.match("SELECT * from authors WHERE ol_id=? or gr_id=? or hc_id=?",
+                                       (authorid, authorid, authorid,)))
             if ignored:
                 languages = db.select(
-                    "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status ='Ignored'", (authorid,))
+                    "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status ='Ignored'",
+                    (authorid,))
             else:
                 languages = db.select(
-                    "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status !='Ignored'", (authorid,))
+                    "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status !='Ignored'",
+                    (authorid,))
 
-            author = dict(db.match("SELECT * from authors WHERE AuthorID=?", (authorid,)))
         finally:
             db.close()
 
@@ -2169,6 +2188,9 @@ class WebInterface(object):
                 if authorid.startswith('OL'):
                     ol = OpenLibrary(authorid)
                     author = ol.get_author_info(authorid=authorid, refresh=True)
+                elif CONFIG['BOOK_API'] == 'HardCover':  # TODO could be hardcover or goodreads id, can't tell
+                    h_c = HardCover(authorid)
+                    author = h_c.get_author_info(authorid=authorid, refresh=True)
                 else:
                     gr = GoodReads(authorid)
                     author = gr.get_author_info(authorid=authorid)
@@ -2794,6 +2816,8 @@ class WebInterface(object):
 
                     elif 'goodreads' in row[9]:
                         sitelink = '<a href="%s"><small><i>GoodReads</i></small></a>' % row[9]
+                    elif 'hardcover' in row[9]:
+                        sitelink = '<a href="%s"><small><i>HardCover</i></small></a>' % row[9]
                     elif 'books.google.com' in row[9] or 'market.android.com' in row[9]:
                         sitelink = '<a href="%s"><small><i>GoogleBooks</i></small></a>' % row[9]
                     title = row[2]
@@ -2953,6 +2977,11 @@ class WebInterface(object):
                 elif CONFIG['BOOK_API'] == "GoodReads":
                     gr = GoodReads(bookid)
                     t = threading.Thread(target=gr.find_book, name='GR-BOOK',
+                                         args=[bookid, ebook_status, audio_status, "Added by user"])
+                    t.start()
+                elif CONFIG['BOOK_API'] == "HardCover":
+                    h_c = HardCover(bookid)
+                    t = threading.Thread(target=h_c.find_book, name='HC-BOOK',
                                          args=[bookid, ebook_status, audio_status, "Added by user"])
                     t.start()
                 else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
@@ -3551,32 +3580,31 @@ class WebInterface(object):
 
                         rejected = True
 
-                        # Cache file image
-                        if not path_isfile(authorimg):
-                            logger.warning("Failed to find file %s" % authorimg)
-                        else:
-                            extn = os.path.splitext(authorimg)[1].lower()
-                            if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
-                                destfile = os.path.join(DIRS.CACHEDIR, 'author', authorid + '.jpg')
-                                try:
-                                    copyfile(authorimg, destfile)
-                                    logger.debug("%s->%s" % (authorimg, destfile))
-                                    setperm(destfile)
-                                    authorimg = 'cache/author/' + authorid + '.jpg'
-                                    rejected = False
-                                except Exception as why:
-                                    logger.warning("Failed to copy file %s, %s %s" %
-                                                   (authorimg, type(why).__name__, str(why)))
-                            else:
-                                logger.warning("Invalid extension on [%s]" % authorimg)
-
                         if authorimg.startswith('http'):
                             # cache image from url
-                            # extn = os.path.splitext(authorimg)[1].lower()
-                            # if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
-                            authorimg, success, _ = cache_img(ImageType.AUTHOR, authorid, authorimg, refresh=True)
+                            authorimg, success, _ = cache_img(ImageType.AUTHOR, img_id(), authorimg, refresh=True)
                             if success:
                                 rejected = False
+                        else:
+                            # Cache file image
+                            if not path_isfile(authorimg):
+                                logger.warning("Failed to find file %s" % authorimg)
+                            else:
+                                extn = os.path.splitext(authorimg)[1].lower()
+                                if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
+                                    image_id = img_id()
+                                    destfile = os.path.join(DIRS.CACHEDIR, 'author', image_id + '.jpg')
+                                    try:
+                                        copyfile(authorimg, destfile)
+                                        logger.debug("%s->%s" % (authorimg, destfile))
+                                        setperm(destfile)
+                                        authorimg = 'cache/author/' + image_id + '.jpg'
+                                        rejected = False
+                                    except Exception as why:
+                                        logger.warning("Failed to copy file %s, %s %s" %
+                                                       (authorimg, type(why).__name__, str(why)))
+                                else:
+                                    logger.warning("Invalid extension on [%s]" % authorimg)
 
                         if rejected:
                             logger.warning("Author Image [%s] rejected" % authorimg)
@@ -4076,7 +4104,7 @@ class WebInterface(object):
                             authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
                             if authorcheck:
                                 if authorcheck['Status'] not in ['Active', 'Wanted']:
-                                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']:
+                                    for table in ['books', 'wanted', 'readinglists']:
                                         db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                     logger.info('Removed "%s" from database' % bookname)
                                 elif 'eBook' in library:
@@ -4088,7 +4116,7 @@ class WebInterface(object):
                                               {"BookID": bookid})
                                     logger.debug('AudioStatus set to Ignored for "%s"' % bookname)
                             else:
-                                for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']:
+                                for table in ['books', 'wanted', 'readinglists']:
                                     db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                 logger.info('Removed "%s" from database' % bookname)
 
@@ -6859,30 +6887,39 @@ class WebInterface(object):
 
     @cherrypy.expose
     def ol_api_changed(self, **kwargs):
+        # ol_api is true/false, not an api key
         if kwargs['status']:
             CONFIG.set_bool('OL_API', True)
         else:
             CONFIG.set_bool('OL_API', False)
-        if not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['status']
 
     @cherrypy.expose
+    def hc_api_changed(self, **kwargs):
+        self.validate_param("hardcopy api", kwargs['hc_api'], ['<', '>', '='], 404)
+        CONFIG.set_str('HC_API', kwargs['hc_api'])
+        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+            # ensure at least one option is available
+            CONFIG.set_bool('OL_API', True)
+        return kwargs['hc_api']
+
+    @cherrypy.expose
     def gr_api_changed(self, **kwargs):
         self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GR_API', kwargs['gr_api'])
-        if not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gr_api']
 
     @cherrypy.expose
     def gb_api_changed(self, **kwargs):
-        print(kwargs['gb_api'])
         self.validate_param("googlebooks api", kwargs['gb_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GB_API', kwargs['gb_api'])
-        if not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gb_api']
@@ -6995,6 +7032,17 @@ class WebInterface(object):
                 self.label_thread('WEBSERVER')
             else:
                 msg = "No userid found"
+        return msg
+
+    @cherrypy.expose
+    def sync_to_hardcover(self):
+        if 'HCSync' not in [n.name for n in [t for t in threading.enumerate()]]:
+            cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+            self.label_thread('HCSync')
+            msg = hc.hc_sync()
+            self.label_thread('WEBSERVER')
+        else:
+            msg = 'HardCover Sync is already running'
         return msg
 
     @cherrypy.expose
@@ -7276,7 +7324,7 @@ class WebInterface(object):
             else:
                 fail += 'host '
         if 'password' in kwargs:
-            if self.validate_param("growl password", kwargs['password'], ['<', '>', '='], None):
+            if self.validate_param("growl password", kwargs['password'], ['<', '>'], None):
                 CONFIG.set_str('GROWL_PASSWORD', kwargs['password'])
             else:
                 fail += 'password'
@@ -7382,7 +7430,7 @@ class WebInterface(object):
             else:
                 fail += 'user '
         if 'password' in kwargs:
-            if self.validate_param("email password", kwargs['password'], ['<', '>', '='], None):
+            if self.validate_param("email password", kwargs['password'], ['<', '>'], None):
                 CONFIG.set_str('EMAIL_SMTP_PASSWORD', kwargs['password'])
             else:
                 fail += 'password '
@@ -7683,7 +7731,7 @@ class WebInterface(object):
             else:
                 fail += 'user '
         if 'pwd' in kwargs:
-            if self.validate_param("nzbget pass", kwargs['pwd'], ['<', '>', '='], None):
+            if self.validate_param("nzbget pass", kwargs['pwd'], ['<', '>'], None):
                 CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
             else:
                 fail += 'password '

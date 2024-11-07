@@ -159,8 +159,14 @@ def set_series(serieslist=None, bookid=None, reason=""):
             # delete any old series-member entries
             db.action('DELETE from member WHERE BookID=?', (bookid,))
             for item in serieslist:
-                match = db.match('SELECT SeriesID,Status,Source from series where SeriesName=? '
-                                 'COLLATE NOCASE', (item[2],))
+                if item[0]:
+                    cmd = 'SELECT SeriesID,SeriesName,Status from series where SeriesID=?'
+                    key = 0
+                else:
+                    cmd = 'SELECT SeriesID,SeriesName,Status from series where SeriesName=?'
+                    key = 2
+                match = db.match(cmd, (item[key],))
+
                 if match:
                     seriesid = match['SeriesID']
                     debug_msg = "Series %s exists (%s) %s" % (item[2], seriesid, match['Status'])
@@ -168,8 +174,8 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     if match['Status'] in ['Paused', 'Ignored']:
                         members = []
                     else:
-                        members, _api_hits, source = get_series_members(seriesid, item[2])
-                        debug_msg = "Existing %s series %s has %s members" % (source, item[2], len(members))
+                        members, _api_hits = get_series_members(seriesid, item[2])
+                        debug_msg = "Existing series %s has %s members" % (item[2], len(members))
                         logger.info(debug_msg)
                         api_hits += _api_hits
                 else:
@@ -178,20 +184,19 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     logger.info(debug_msg)
                     if item[0]:
                         seriesid = item[0]
-                        members, _api_hits, source = get_series_members(seriesid, item[2])
-                        debug_msg = "New %s series %s:%s has %s members" % (source, item[2], seriesid, len(members))
+                        members, _api_hits = get_series_members(seriesid, item[2])
+                        debug_msg = "New series %s:%s has %s members" % (item[2], seriesid, len(members))
                         logger.info(debug_msg)
                         api_hits += _api_hits
                     else:
                         # no seriesid so generate it (first available unused integer)
-                        source = 'LL'
                         res = 1
                         while True:
                             cnt = db.match('select * from series where seriesid=?', (res,))
                             if not cnt:
                                 break
                             res += 1
-                        seriesid = str(res)
+                        seriesid = 'LL' + str(res)
                         debug_msg = "Series %s set LL seriesid %s" % (item[2], seriesid)
                         logger.info(debug_msg)
                         members = []
@@ -203,10 +208,10 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         reason = "Bookid %s: %s" % (bookid, reason)
                         debug_msg = "Adding new series %s:%s" % (item[2], seriesid)
                         logger.info(debug_msg)
-                        db.action('INSERT into series (SeriesID, SeriesName, Status, Updated, Reason, Source) '
-                                  'VALUES (?, ?, ?, ?, ?, ?)',
+                        db.action('INSERT into series (SeriesID, SeriesName, Status, Updated, Reason) '
+                                  'VALUES (?, ?, ?, ?, ?)',
                                   (seriesid, item[2], CONFIG['NEWSERIES_STATUS'],
-                                   time.time(), reason, source), suppress='UNIQUE')
+                                   time.time(), reason), suppress='UNIQUE')
 
                 book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
                 authorid = book['AuthorID']
@@ -704,7 +709,7 @@ def add_series_members(seriesid, refresh=False):
         entrystatus = series['Status']
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action("UPDATE series SET Status='Active' WHERE SeriesID=?", (seriesid,))
-        members, _, _ = get_series_members(seriesid, seriesname)
+        members, _ = get_series_members(seriesid, seriesname)
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action('UPDATE series SET Status=? WHERE SeriesID=?', (entrystatus, seriesid))
         for member in members:
@@ -720,6 +725,9 @@ def add_series_members(seriesid, refresh=False):
             book = None
             if bookid:
                 book = db.match("select * from books where bookid=?", (bookid,))
+                if book:
+                    db.action("INSERT into member (SeriesID, SeriesNum, WorkID, BookID) VALUES (?, ?, ?, ?)",
+                              (seriesid, member[0], member[3], bookid), suppress='UNIQUE')
             if bookid and not book:
                 # new addition to series, try to import with default newbook/newauthor statuses
                 lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason="Series: %s" % seriesname)
@@ -762,6 +770,17 @@ def add_series_members(seriesid, refresh=False):
         searchlogger = logging.getLogger('special.searching')
         for member in members:
             searchlogger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
+
+        cmd = ("select sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
+               "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
+               "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1 else 0 end) "
+               "as Have from books,member,series where member.bookid=books.bookid and "
+               "member.seriesid = series.seriesid and series.seriesid=?")
+        res = db.match(cmd, (seriesid,))
+        if res:
+            db.action('UPDATE series SET Have=?, Total=? WHERE SeriesID=?',
+                      (check_int(res[1], 0), check_int(res[0], 0), seriesid))
+
     except Exception as e:
         logger.error("%s adding series %s: %s" % (type(e).__name__, seriesid, str(e)))
         logger.error('%s' % traceback.format_exc())
@@ -792,7 +811,7 @@ def get_series_authors(seriesid):
             return 0
 
         seriesname = result['SeriesName']
-        members, api_hits, _ = get_series_members(seriesid, seriesname)
+        members, api_hits = get_series_members(seriesid, seriesname)
 
         if members:
             for member in members:
@@ -896,7 +915,7 @@ def get_series_authors(seriesid):
 
 
 def get_series_members(seriesid=None, seriesname=None):
-    """ Ask librarything or goodreads for details on all books in a series
+    """ Ask librarything, hardcover or goodreads for details on all books in a series
         order, bookname, authorname, workid, authorid, pubyear, pubmonth, pubday, bookid
         (workid, authorid, pubdates, bookid are currently goodreads only)
         Return as a list of lists """
@@ -906,9 +925,9 @@ def get_series_members(seriesid=None, seriesname=None):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        result = db.match('select SeriesName,Status,Source from series where SeriesID=?', (seriesid,))
+        result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
         if result:
-            source = result['source']
+            source = seriesid[:2]
             if result['Status'] in ['Paused', 'Ignored']:
                 logger.debug("Not getting additional series members for %s, status is %s" %
                              (result['SeriesName'], result['Status']))
@@ -916,7 +935,7 @@ def get_series_members(seriesid=None, seriesname=None):
 
         if not source or source == 'GR':
             params = {"format": "xml", "key": CONFIG['GR_API']}
-            url = '/'.join([CONFIG['GR_URL'], 'series/%s?%s' % (seriesid, urlencode(params))])
+            url = '/'.join([CONFIG['GR_URL'], 'series/%s?%s' % (seriesid[2:], urlencode(params))])
             try:
                 rootxml, in_cache = gr_xml_request(url)
                 if not in_cache:
@@ -953,6 +972,15 @@ def get_series_members(seriesid=None, seriesname=None):
                     results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
                                     mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
                                     mydict['pubday'], mydict['bookid']])
+
+        elif not source or source == 'HC':
+            results = []
+            hc = lazylibrarian.hc.HardCover(seriesid)
+            res = hc.get_series_members(seriesid, seriesname)
+            if res:
+                for item in res:
+                    # item[6] is pubdate, can extract y/m/d
+                    results.append([item[0], item[1], item[2], item[4], item[3], item[5], '', '', item[4]])
 
         if not source or source == 'OL':  # googlebooks and openlibrary
             api_hits = 0
@@ -1026,7 +1054,7 @@ def get_series_members(seriesid=None, seriesname=None):
             filtered.append(item)
     if len(filtered) and not first:
         logger.warning("Series %s (%s) has %s members but no book 1" % (seriesid, seriesname, len(filtered)))
-    return filtered, api_hits, source
+    return filtered, api_hits
 
 
 def get_gb_info(isbn=None, author=None, title=None, expire=False):
@@ -1175,9 +1203,39 @@ def google_book_dict(item):
     return mydict
 
 
+def ensure_series_in_db(seriesid, seriesname, bookid, reason):
+    logger = logging.getLogger(__name__)
+    db = database.DBConnection()
+    try:
+        match = db.match('SELECT SeriesID,Status from series WHERE SeriesName=?', (seriesname,))
+        if not match:
+            match = db.match('SELECT SeriesName,Status from series WHERE SeriesID=?', (seriesid,))
+            if not match:
+                reason = "Bookid %s: %s" % (bookid, reason)
+                db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, Reason) VALUES (?, ?, ?, ?, ?)',
+                          (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'], time.time(), reason))
+            else:
+                logger.warning("Name mismatch for series %s, [%s][%s]" % (
+                            seriesid, seriesname, match['SeriesName']))
+        elif str(match['SeriesID']) != str(seriesid):
+            logger.warning("SeriesID mismatch for series %s [%s][%s]" % (
+                        seriesname, seriesid, match['SeriesID']))
+            match = db.match('SELECT SeriesNameStatus from series WHERE SeriesID=?', (seriesid,))
+            if not match:
+                reason = "Bookid %s: %s" % (bookid, reason)
+                db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, '
+                          'Reason) VALUES (?, ?, ?, ?, ?)',
+                          (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'], time.time(), reason))
+        match = db.match('SELECT SeriesName,Status from series WHERE SeriesID=?', (seriesid,))
+        if match['Status'] not in ['Paused', 'Ignored']:
+            add_series_members(seriesid)
+    finally:
+        db.close()
+
+
 def get_work_series(bookid=None, source='GR', reason=""):
     """ Return the series names and numbers in series for the given id as a list of tuples
-        For goodreads the id is a WorkID, for librarything it's a BookID """
+        For goodreads the id is a WorkID, for librarything/hardcover it's a BookID """
     logger = logging.getLogger(__name__)
     serieslist = []
     if not bookid:
@@ -1215,34 +1273,29 @@ def get_work_series(bookid=None, source='GR', reason=""):
                     seriesname = clean_name(seriesname, '&/')
                     if seriesname:
                         seriesnum = clean_name(seriesnum)
-                        serieslist.append((seriesid, seriesnum, seriesname))
-                        db = database.DBConnection()
-                        try:
-                            match = db.match('SELECT SeriesID from series WHERE SeriesName=?', (seriesname,))
-                            if not match:
-                                match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
-                                if not match:
-                                    reason = "Bookid %s: %s" % (bookid, reason)
-                                    db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, '
-                                              'Reason, Source) VALUES (?, ?, ?, ?, ?, ?)',
-                                              (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
-                                               time.time(), reason, source))
-                                else:
-                                    logger.warning("Name mismatch for series %s, [%s][%s]" % (
-                                                seriesid, seriesname, match['SeriesName']))
-                            elif str(match['SeriesID']) != str(seriesid):
-                                logger.warning("SeriesID mismatch for series %s, [%s][%s] assume different series?" % (
-                                            seriesname, seriesid, match['SeriesID']))
-                                match = db.match('SELECT SeriesName from series WHERE SeriesID=?',
-                                                 (seriesid,))
-                                if not match:
-                                    reason = "Bookid %s: %s" % (bookid, reason)
-                                    db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, '
-                                              'Reason, Source) VALUES (?, ?, ?, ?, ?, ?)',
-                                              (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'], time.time(),
-                                               reason, source))
-                        finally:
-                            db.close()
+                        serieslist.append(('GR' + seriesid, seriesnum, seriesname))
+                        ensure_series_in_db('GR' + seriesid, seriesname, bookid, reason)
+
+    elif source == 'HC':
+        hc = lazylibrarian.hc.HardCover(bookid)
+        res = hc.find_book_series(bookid)
+        for item in res:
+            seriesname = item[0]
+            seriesid = item[1]
+            seriesnum = item[2]
+
+            if CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
+                logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
+            elif CONFIG.get_bool('NO_SETS') and seriesnum and (not (not re.search(r'\d+ of \d+', seriesnum)
+                                                                    and not re.search(r'\d+/\d+', seriesnum))
+                                                               or re.search(r'\d+-\d+', seriesnum)):
+                logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
+            elif seriesname and seriesid:
+                seriesname = clean_name(seriesname, '&/')
+                if seriesname:
+                    seriesnum = clean_name(seriesnum)
+                    serieslist.append(('HC' + seriesid, seriesnum, seriesname))
+                    ensure_series_in_db('HC' + seriesid, seriesname, bookid, reason)
     else:
         work = get_bookwork(bookid, "Series")
         if work:
@@ -1261,6 +1314,8 @@ def get_work_series(bookid=None, source='GR', reason=""):
                         seriesnum = clean_name(seriesnum)
                         if seriesname:
                             serieslist.append(('', seriesnum, seriesname))
+                            # don't have a seriesid yet
+                            # ensure_series_in_db(seriesid, seriesname, bookid, reason)
                     except IndexError:
                         pass
             except IndexError:

@@ -10,22 +10,22 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import re
 import time
 import traceback
-import logging
+from urllib.parse import quote_plus
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
+from bs4 import BeautifulSoup
 from lazylibrarian import database
-from lazylibrarian.cache import json_request, html_request, cache_img, ImageType
-from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
-    get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
     thinglang
-
-from bs4 import BeautifulSoup
-from urllib.parse import quote_plus
+from lazylibrarian.cache import json_request, html_request
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
+    get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
+from lazylibrarian.images import cache_bookimg
 from lazylibrarian.images import get_book_cover
 from thefuzz import fuzz
 
@@ -299,7 +299,7 @@ class OpenLibrary:
         if not self.lt_cache:
             librarything_wait()
 
-        data, self.lt_cache = html_request(self.LT_NSERIES + str(series_id))
+        data, self.lt_cache = html_request(self.LT_NSERIES + str(series_id)[2:])
         results = []
         if data:
             try:
@@ -345,7 +345,7 @@ class OpenLibrary:
                                 if onum:  # might not be numeric
                                     order = onum
                                 results.append([order, bookname, authorname, authorlink, workid])
-                        self.logger.debug("Found %s for nseries %s" % (len(results), series_id))
+                        self.logger.debug("Found %s for seriesid %s" % (len(results), series_id))
 
             except IndexError:
                 if b'<table>' in data:  # error parsing, or just no series data available?
@@ -374,7 +374,7 @@ class OpenLibrary:
                     self.logger.debug("Found %s for %s" % (works, series_name))
                     if works:
                         try:
-                            seriesid = data.split(b'/nseries/')[1].split(b'/')[0].decode('utf-8')
+                            seriesid = 'LT' + data.split(b'/nseries/')[1].split(b'/')[0].decode('utf-8')
                         except IndexError:
                             seriesid = ''
                         if seriesid and seriesid != series_id:
@@ -467,7 +467,7 @@ class OpenLibrary:
                     count = int(count)
                 name = name.decode('utf-8')
                 seriesid = seriesid.decode('utf-8').split('/')[2]
-                serieslist.append([name, count, seriesid])
+                serieslist.append([name, count, 'LT' + seriesid])
         except (IndexError, ValueError):
             pass
 
@@ -507,16 +507,15 @@ class OpenLibrary:
         db = database.DBConnection()
         try:
             ol_id = ''
-            match = db.match('SELECT ol_id FROM authors where authorid=?', (authorid,))
+            match = db.match('SELECT authorid,ol_id FROM authors where authorid=? or ol_id=?', (authorid, authorid))
             if match:
                 ol_id = match['ol_id']
+                authorid = match['authorid']
             if not ol_id:
                 ol_id = authorid
 
             # Artist is loading
-            control_value_dict = {"AuthorID": authorid}
-            new_value_dict = {"Status": "Loading"}
-            db.upsert("authors", new_value_dict, control_value_dict)
+            db.action("UPDATE authors SET Status='Loading' WHERE AuthorID=?", (authorid,))
 
             while next_page:
                 loop_count += 1
@@ -642,8 +641,8 @@ class OpenLibrary:
                            "and AudioStatus != 'Ignored'")
                     exists = db.match(cmd, (title, auth_name))
                     if not exists:
-                        if auth_id != authorid:
-                            rejected = 'name', 'Different author (%s/%s/%s)' % (authorid, auth_id, auth_name)
+                        if auth_id != ol_id:
+                            rejected = 'name', 'Different author (%s/%s/%s)' % (ol_id, auth_id, auth_name)
                         else:
                             in_db = lazylibrarian.librarysync.find_book_in_db(auth_name, title, source='ol_id',
                                                                               ignored=False, library='eBook',
@@ -842,22 +841,25 @@ class OpenLibrary:
                                         lang = 'Unknown'
                                     if isinstance(publishers, list):
                                         publishers = ', '.join(publishers)
+                                    cover_link = cover
+                                    if 'nocover' in cover or 'nophoto' in cover:
+                                        start = time.time()
+                                        cover_link, _ = get_book_cover(key)
+                                        cover_time += (time.time() - start)
+                                        cover_count += 1
+                                    elif cover and cover.startswith('http'):
+                                        cover_link = cache_bookimg(cover, key, 'ol')
+
                                     db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
                                               'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
                                               'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
                                               'ScanResult, OriginalPubDate, BookPages, ol_id) ' +
                                               'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                              (authorid, title, bookdesc, genres, isbn, publishers, bookrate, cover,
-                                               link, key, bookdate, lang, now(), book_status, '', audio_status,
-                                               id_librarything, reason, first_publish_year, bookpages, key))
+                                              (authorid, title, bookdesc, genres, isbn, publishers, bookrate,
+                                               cover_link, link, key, bookdate, lang, now(), book_status, '',
+                                               audio_status, id_librarything, reason, first_publish_year, bookpages,
+                                               key))
 
-                                    if 'nocover' in cover or 'nophoto' in cover:
-                                        start = time.time()
-                                        cover = get_cover(key, title)
-                                        cover_time += (time.time() - start)
-                                        cover_count += 1
-                                    if cover and cover.startswith('http'):
-                                        cache_cover(key, cover)
                                 # Leave alone if locked
                                 if locked:
                                     locked_count += 1
@@ -905,20 +907,14 @@ class OpenLibrary:
                                         seriesid = series[2]
                                         exists = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
                                         if not exists:
-                                            exists = db.match("SELECT * from series WHERE seriesname=?", (series[0],))
-                                            if exists:
-                                                db.action('PRAGMA foreign_keys = OFF')
-                                                for table in ['series', 'member', 'seriesauthors']:
-                                                    cmd = "UPDATE " + table + " SET SeriesID=? WHERE SeriesID=?"
-                                                    db.action(cmd, (seriesid, exists['SeriesID']))
-                                                db.action('PRAGMA foreign_keys = ON')
-                                                db.commit()
+                                            exists = db.match("SELECT * from series WHERE seriesname=? "
+                                                              "and seriesid like 'LT%'", (series[0],))
                                         if not exists:
                                             self.logger.debug("New series: %s" % series[0])
                                             db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
-                                                      'Updated, Reason, Source) VALUES (?,?,?,?,?,?)',
+                                                      'Updated, Reason) VALUES (?,?,?,?,?)',
                                                       (seriesid, series[0], 'Paused', time.time(),
-                                                       id_librarything, 'OL'))
+                                                       id_librarything), suppress='UNIQUE')
                                             db.commit()
                                             exists = {'Status': 'Paused'}
                                         seriesmembers = None
@@ -928,8 +924,9 @@ class OpenLibrary:
                                             if seriesid in series_updates:
                                                 self.logger.debug("Series %s already updated" % seriesid)
                                             elif exists['Status'] in ['Paused', 'Ignored']:
-                                                self.logger.debug("Not getting additional series members for %s, "
-                                                                  "status is %s" % (series[0], exists['Status']))
+                                                self.logger.debug("Not getting additional series members for %s:%s, "
+                                                                  "status is %s" % (seriesid, series[0],
+                                                                                    exists['Status']))
                                             else:
                                                 seriesmembers = self.get_series_members(seriesid, series[0])
                                                 series_updates.append(seriesid)
@@ -939,7 +936,7 @@ class OpenLibrary:
                                         if seriesmembers:
                                             if len(seriesmembers) == 1:
                                                 self.logger.debug("Found member %s for series %s" %
-                                                                  (series[1], series[0]))
+                                                                  (seriesmembers[0][0], series[0]))
                                             else:
                                                 self.logger.debug("Found %s members for series %s" %
                                                                   (len(seriesmembers), series[0]))
@@ -963,7 +960,7 @@ class OpenLibrary:
                                                         auth_name = member[2]
                                                     else:
                                                         self.logger.debug("Unable to add %s for %s, "
-                                                                          "author not in database" %
+                                                                          "author not found" %
                                                                           (member[2], member[1]))
                                                         continue
                                                 else:
@@ -1002,7 +999,8 @@ class OpenLibrary:
                                                                           (member[0], series[0]))
                                                         db.action('INSERT INTO member (SeriesID, BookID, ' +
                                                                   'WorkID, SeriesNum) VALUES (?,?,?,?)',
-                                                                  (seriesid, exists['BookID'], member[4], member[0]))
+                                                                  (seriesid, exists['BookID'], member[4], member[0]),
+                                                                  suppress='UNIQUE')
                                                     ser = db.match('select count(*) as counter from member ' +
                                                                    'where seriesid=?', (seriesid,))
                                                     if ser:
@@ -1095,6 +1093,15 @@ class OpenLibrary:
                                                                     added_count += 1
                                                                     if not lang:
                                                                         lang = 'Unknown'
+
+                                                                    if 'nocover' in cover or 'nophoto' in cover:
+                                                                        start = time.time()
+                                                                        cover, _ = get_book_cover(workid)
+                                                                        cover_time += (time.time() - start)
+                                                                        cover_count += 1
+                                                                    elif cover and cover.startswith('http'):
+                                                                        cover = cache_bookimg(cover, workid, 'ol')
+
                                                                     db.action('INSERT INTO books (AuthorID, '
                                                                               'BookName, BookDesc, BookGenre, BookIsbn,'
                                                                               ' BookPub, BookRate, BookImg, BookLink, '
@@ -1108,14 +1115,6 @@ class OpenLibrary:
                                                                                publish_date, lang, '', bookstatus,
                                                                                '', audiostatus, member[4],
                                                                                reason, publish_date, workid))
-
-                                                                    if 'nocover' in cover or 'nophoto' in cover:
-                                                                        start = time.time()
-                                                                        cover = get_cover(workid, title)
-                                                                        cover_time += (time.time() - start)
-                                                                        cover_count += 1
-                                                                    if cover and cover.startswith('http'):
-                                                                        cache_cover(workid, cover)
 
                                                                 match = db.match("SELECT * from seriesauthors WHERE " +
                                                                                  "SeriesID=? AND AuthorID=?",
@@ -1135,9 +1134,9 @@ class OpenLibrary:
                                                                               '(SeriesID, BookID, WorkID, SeriesNum)' +
                                                                               ' VALUES (?,?,?,?)',
                                                                               (seriesid, workid, member[4],
-                                                                               member[0]))
-                                                                    ser = db.match('select count(*) as counter ' +
-                                                                                   'from member where seriesid=?',
+                                                                               member[0]), suppress='UNIQUE')
+                                                                    ser = db.match("select count(*) as counter from " +
+                                                                                   "member where seriesid=?",
                                                                                    (seriesid,))
                                                                     if ser:
                                                                         counter = check_int(ser['counter'], 0)
@@ -1157,19 +1156,19 @@ class OpenLibrary:
                                 added_count += 1
                                 if not lang:
                                     lang = 'Unknown'
+                                if 'nocover' in cover or 'nophoto' in cover:
+                                    start = time.time()
+                                    cover, _ = get_book_cover(key)
+                                    cover_time += (time.time() - start)
+                                    cover_count += 1
+                                elif cover and cover.startswith('http'):
+                                    cover = cache_bookimg(cover, key, 'ol')
                                 db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
                                           'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
                                           'WorkPage, AudioStatus, ScanResult, OriginalPubDate, ol_id) ' +
                                           'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                           (authorid, title, cover, link, key, publish_date, lang, now(),
                                            book_status, '', audio_status, reason, first_publish_year, key))
-                                if 'nocover' in cover or 'nophoto' in cover:
-                                    start = time.time()
-                                    cover = get_cover(key, title)
-                                    cover_time += (time.time() - start)
-                                    cover_count += 1
-                                if cover and cover.startswith('http'):
-                                    cache_cover(key, cover)
 
                         added_count += 1
 
@@ -1383,6 +1382,11 @@ class OpenLibrary:
                     else:
                         bookgenre = 'Unknown'
 
+                if 'nocover' in cover or 'nophoto' in cover:
+                    cover, _ = get_book_cover(bookid)
+                elif cover and cover.startswith('http'):
+                    cover = cache_bookimg(cover, bookid, 'ol')
+
                 reason = "[%s] %s" % (thread_name(), reason)
                 control_value_dict = {"BookID": bookid}
                 new_value_dict = {
@@ -1413,38 +1417,3 @@ class OpenLibrary:
                 db.close()
             self.logger.info("%s by %s added to the books database, %s/%s" % (title, authorname, bookstatus,
                                                                               audiostatus))
-
-            if 'nocover' in cover or 'nophoto' in cover:
-                cover = get_cover(bookid, title)
-            if cover and cover.startswith('http'):
-                cache_cover(bookid, cover)
-
-
-def get_cover(bookid, title):
-    logger = logging.getLogger(__name__)
-    workcover, source = get_book_cover(bookid)
-    if workcover:
-        db = database.DBConnection()
-        try:
-            logger.debug('Updated cover for %s using %s' % (title, source))
-            control_value_dict = {"BookID": bookid}
-            new_value_dict = {"BookImg": workcover}
-            db.upsert("books", new_value_dict, control_value_dict)
-        finally:
-            db.close()
-    return workcover
-
-
-def cache_cover(bookid, cover):
-    logger = logging.getLogger(__name__)
-    link, success, _ = cache_img(ImageType.BOOK, bookid, cover)
-    if success:
-        db = database.DBConnection()
-        try:
-            control_value_dict = {"BookID": bookid}
-            new_value_dict = {"BookImg": link}
-            db.upsert("books", new_value_dict, control_value_dict)
-        finally:
-            db.close()
-    else:
-        logger.debug('Failed to cache image for %s (%s)' % (cover, link))

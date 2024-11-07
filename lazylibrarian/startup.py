@@ -254,11 +254,8 @@ class StartupLazyLibrarian:
         lazylibrarian.TIMERS['SLEEP_LT'] = 0.0
         lazylibrarian.TIMERS['SLEEP_CV'] = 0.0
         lazylibrarian.TIMERS['SLEEP_BOK'] = 0.0
-
-        if config['BOOK_API'] != 'GoodReads':
-            config.set_bool('GR_SYNC', False)
-            config.set_bool('GR_FOLLOW', False)
-            config.set_bool('GR_FOLLOWNEW', False)
+        lazylibrarian.TIMERS['LAST_HC'] = time_now
+        lazylibrarian.TIMERS['SLEEP_HC'] = 0.0
 
     def init_database(self):
         # Initialize the database
@@ -432,12 +429,12 @@ class StartupLazyLibrarian:
                 except Exception as e:
                     self.logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
         self.logger.error('No valid dicts.json file found')
-        return {"filename_dict": {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '', ' + ': ' ',
-                                  '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'},
-                    "umlaut_dict": {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'},
-                    "apostrophe_dict": {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+        return {"filename_dict": {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
+                ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'},
+                "umlaut_dict": {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe',
+                u'\xdc': 'Ue', u'\xdf': 'ss'},
+                "apostrophe_dict": {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
                 }
-
 
     def build_monthtable(self, config: ConfigDict):
         table = []

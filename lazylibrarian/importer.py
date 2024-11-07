@@ -28,8 +28,9 @@ from lazylibrarian.formatter import today, unaccented, format_author_name, make_
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow
-from lazylibrarian.images import get_author_image
+from lazylibrarian.images import get_author_image, img_id
 from lazylibrarian.ol import OpenLibrary
+from lazylibrarian.hc import HardCover
 from lazylibrarian.processcontrol import get_info_on_caller
 from thefuzz import fuzz
 
@@ -40,7 +41,7 @@ def is_valid_authorid(authorid: str, api=None) -> bool:
     if api is None:
         api = CONFIG['BOOK_API']
     # GoogleBooks doesn't provide authorid, so we use one of the other sources
-    if authorid.isdigit() and api in ['GoodReads', 'GoogleBooks']:
+    if authorid.isdigit() and api in ['GoodReads', 'GoogleBooks', 'HardCover']:
         return True
     if authorid.startswith('OL') and authorid.endswith('A') and api in ['OpenLibrary', 'GoogleBooks']:
         return True
@@ -122,70 +123,100 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
         if not exists and (CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
             logger.debug('Author %s not found in database, trying to add' % author)
             # no match for supplied author, but we're allowed to add new ones
-            if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-                if title:
-                    ol = OpenLibrary(author + '<ll>' + title)
-                else:
-                    ol = OpenLibrary(author)
-                try:
-                    author_info = ol.find_author_id()
-                except Exception as e:
-                    logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
-                    return "", "", False
+            if title:
+                search = author + '<ll>' + title
             else:
-                gr = GoodReads(author)
-                try:
-                    author_info = gr.find_author_id()
-                except Exception as e:
-                    logger.warning("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
-                    return "", "", False
+                search = author
 
-            # only try to add if data matches found author data
-            if author_info:
-                authorname = author_info['authorname']
-                # "J.R.R. Tolkien" is the same person as "J. R. R. Tolkien" and "J R R Tolkien"
-                match_auth = author.replace('.', ' ')
-                match_auth = ' '.join(match_auth.split())
+            api_sources = [
+                            ['OL', OpenLibrary(search), 'ol_id', 'OL_API'],
+                            ['GR', GoodReads(search), 'gr_id', 'GR_API'],
+                            ['HC', HardCover(search), 'hc_id', 'HC_API'],
+                            ['GB', None, 'authorid', 'GB_API'],
+                        ]
 
-                match_name = authorname.replace('.', ' ')
-                match_name = ' '.join(match_name.split())
+            # GB doesn't have authorid so we use one of the others...
+            if CONFIG['OL_API']:
+                api_sources[3][1] = api_sources[0][1]
+            elif CONFIG['GR_API']:
+                api_sources[3][1] = api_sources[1][1]
+            elif CONFIG['HC_API']:
+                api_sources[3][1] = api_sources[2][1]
 
-                match_name = unaccented(match_name, only_ascii=False)
-                match_auth = unaccented(match_auth, only_ascii=False)
+            if CONFIG['BOOK_API'] == "GoodReads":
+                api_sources.insert(0, api_sources.pop(1))
+            elif CONFIG['BOOK_API'] == "HardCover":
+                api_sources.insert(0, api_sources.pop(2))
+            elif CONFIG['BOOK_API'] == "GoogleBooks":
+                api_sources.insert(0, api_sources.pop(3))
+            if not CONFIG.get_bool('MULTI_SOURCE'):
+                api_sources = [api_sources[0]]
 
-                # allow a degree of fuzziness to cater for different accented character handling.
-                # filename may have the accented or un-accented version of the character
-                # We stored GoodReads/OpenLibrary author name in author_info, so store in LL db under that
-                # fuzz.ratio doesn't lowercase for us
-                match_fuzz = fuzz.ratio(match_auth.lower(), match_name.lower())
-                if match_fuzz < CONFIG.get_int('NAME_RATIO'):
-                    logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
-                                 (author, match_name, match_fuzz))
+            match_fuzz = 0
+            for api_source in api_sources:
+                if not CONFIG[api_source[3]] or not api_source[1]:
+                    logger.debug("%s is disabled" % api_source[3])
+                else:
+                    logger.debug("Finding %s author ID for %s" % (api_source[0], author))
+                    book_api = api_source[1]
+                    author_info = book_api.find_author_id(refresh=True)
+                    if author_info:
+                        # only try to add if data matches found author data
+                        authorname = author_info['authorname']
+                        # "J.R.R. Tolkien" is the same person as "J. R. R. Tolkien" and "J R R Tolkien"
+                        match_auth = author.replace('.', ' ')
+                        match_auth = ' '.join(match_auth.split())
+                        match_name = authorname.replace('.', ' ')
+                        match_name = ' '.join(match_name.split())
+                        match_name = unaccented(match_name, only_ascii=False)
+                        match_auth = unaccented(match_auth, only_ascii=False)
+                        # allow a degree of fuzziness to cater for different accented character handling.
+                        # filename may have the accented or un-accented version of the character
+                        # We stored GoodReads/OpenLibrary author name in author_info, so store in LL db under that
+                        # fuzz.ratio doesn't lowercase for us
+                        match_fuzz = fuzz.ratio(match_auth.lower(), match_name.lower())
+                        if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+                            break
+                        match_fuzz = fuzz.partial_ratio(match_auth.lower(), match_name.lower())
+                        if match_fuzz >= CONFIG.get_int('NAME_PARTNAME'):
+                            break
+                        else:
+                            logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
+                                         (author, match_name, match_fuzz))
 
-                # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
-                if "unknown" not in author.lower() and 'anonymous' not in author.lower() and \
-                        match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                    # use "intact" name for author that we stored in
-                    # author_dict, not one of the various mangled versions
-                    # otherwise the books appear to be by a different author!
-                    author = author_info['authorname']
-                    authorid = author_info['authorid']
-                    # this new authorname may already be in the
-                    # database, so check again
-                    check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
-                    if check_exist_author:
-                        logger.debug('Found authorname %s in database' % author)
-                        new = False
-                    else:
-                        logger.info("Adding new author [%s] %s addbooks=%s" % (author, reason, addbooks))
-                        try:
-                            add_author_to_db(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
-                                             reason=reason)
-                            check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
-                            if check_exist_author:
-                                new = True
-                        except Exception as e:
-                            logger.error('Failed to add author [%s] to db: %s %s' % (author, type(e).__name__, str(e)))
+            if not author_info:
+                return "", "", False
+
+            # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
+            if "unknown" not in author.lower() and 'anonymous' not in author.lower() and \
+                    match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+                # use "intact" name for author that we stored in
+                # author_dict, not one of the various mangled versions
+                # otherwise the books appear to be by a different author!
+                author = author_info['authorname']
+                authorid = author_info['authorid']
+                # this new authorname may already be in the
+                # database, so check again
+                check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                if check_exist_author:
+                    logger.debug('Found authorname %s in database' % author)
+                    new = False
+                else:
+                    logger.info("Adding new author [%s] %s %s addbooks=%s" % (author, authorid, reason, addbooks))
+                    try:
+                        add_author_to_db(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
+                                         reason=reason)
+                        cmd = 'SELECT * FROM authors where AuthorID=?'
+                        if authorid.startswith('OL'):
+                            cmd += " or ol_id=?"
+                            check_exist_author = db.match(cmd, (authorid, authorid))
+                        else:
+                            cmd += " or gr_id=? or hc_id=?"
+                            check_exist_author = db.match(cmd, (authorid, authorid, authorid))
+                        if check_exist_author:
+                            new = True
+                    except Exception as e:
+                        logger.error('Failed to add author [%s] to db: %s %s' % (author, type(e).__name__, str(e)))
 
         # check author exists in db, either newly loaded or already there
         if check_exist_author:
@@ -211,25 +242,32 @@ def get_all_author_details(authorid=None, authorname=None):
     author = {}
     ol_id = None
     gr_id = None
+    hc_id = None
     gr_name = ''
     ol_name = ''
+    hc_name = ''
     ol_author = {}
     gr_author = {}
+    hc_author = {}
 
     db = database.DBConnection()
-    match = db.match('SELECT ol_id,gr_id,authorname from authors WHERE authorid=?', (authorid,))
+    match = db.match('SELECT ol_id,gr_id,hc_id,authorname from authors WHERE authorid=?', (authorid,))
     if match:
         ol_id = match['ol_id']
         gr_id = match['gr_id']
+        hc_id = match['hc_id']
         if not authorname:
             authorname = match['authorname']
-    db.close()
 
     if CONFIG['OL_API'] and (CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks'] or CONFIG.get_bool('MULTI_SOURCE')):
-        if not ol_id and authorid.startswith('OL'):
+        if not ol_id and not authorname and authorid.startswith('OL'):
             ol_id = authorid
-        if not ol_id and 'unknown' not in authorname and 'anonymous' not in authorname:
-            ol = OpenLibrary(authorname)
+        if not ol_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
+            searchterm = authorname
+            match = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
+            if match:
+                searchterm = f"{authorname}<ll>{match['bookname']}"
+            ol = OpenLibrary(searchterm)
             ol_author = ol.find_author_id()
             if ol_author:
                 ol_id = ol_author['authorid']
@@ -239,11 +277,33 @@ def get_all_author_details(authorid=None, authorname=None):
             if not authorname:
                 authorname = ol_author['authorname']
 
-    if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'GoogleBooks'] or
+    if CONFIG['HC_API'] and (CONFIG['BOOK_API'] in ['HardCover'] or CONFIG.get_bool('MULTI_SOURCE')):
+        if not hc_id and not authorname and authorid.isnumeric():
+            hc_id = authorid
+        if not hc_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
+            searchterm = authorname
+            match = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
+            if match:
+                searchterm = f"{authorname}<ll>{match['bookname']}"
+            hc = HardCover(searchterm)
+            hc_author = hc.find_author_id()
+            if hc_author:
+                hc_id = hc_author['authorid']
+        if hc_id:
+            if authorname:
+                hc = HardCover(authorname)
+            else:
+                hc = HardCover(hc_id)
+            hc_author = hc.get_author_info(authorid=hc_id)
+            if not authorname:
+                authorname = hc_author['authorname']
+
+    if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'GoogleBooks', 'HardCover'] or
                              CONFIG.get_bool('MULTI_SOURCE')):
-        if not gr_id and authorid.isnumeric():
+        if not gr_id and not authorname and authorid.isnumeric():
             gr_id = authorid
-        if not gr_id and CONFIG['GR_API'] and 'unknown' not in authorname and 'anonymous' not in authorname:
+        if (not gr_id and CONFIG['GR_API'] and authorname and 'unknown' not in authorname and
+                'anonymous' not in authorname):
             gr = GoodReads(authorname)
             gr_author = gr.find_author_id()
             if gr_author:
@@ -251,8 +311,9 @@ def get_all_author_details(authorid=None, authorname=None):
         if gr_id:
             gr = GoodReads(gr_id)
             gr_author = gr.get_author_info(authorid=gr_id)
-            if not authorname:
-                authorname = gr_author['authorname']
+            # uncomment the next 2 lines if any additional sources added later
+            # if not authorname:
+            #    authorname = gr_author['authorname']
 
     # which source do we prefer
     if ol_author:
@@ -265,21 +326,33 @@ def get_all_author_details(authorid=None, authorname=None):
         for item in gr_author:
             if not author.get(item) or CONFIG['BOOK_API'] == 'GoodReads':
                 author[item] = gr_author[item]
+    if hc_author:
+        author['hc_id'] = hc_author['authorid']
+        for item in hc_author:
+            if not author.get(item) or CONFIG['BOOK_API'] == 'HardCover':
+                author[item] = hc_author[item]
 
     if author:
+        author['authorid'] = authorid  # keep original entry authorid
         akas = []
-        if gr_name and ol_name and gr_name != ol_name:
-            if author.get('AKA'):
-                akas = get_list(author.get('AKA', ''), ',')
-            if author['authorname'] != gr_name and gr_name not in akas:
-                logger.warning("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
-                               (author['authorid'], author['authorname'], gr_name))
-                akas.append(gr_name)
-            if author['authorname'] != ol_name and ol_name not in akas:
-                logger.warning("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
-                               (author['authorid'], author['authorname'], ol_name))
-                akas.append(ol_name)
-            author['AKA'] = ', '.join(akas)
+        if author.get('AKA'):
+            akas = get_list(author.get('AKA', ''), ',')
+
+        if gr_name and author['authorname'] != gr_name and gr_name not in akas:
+            logger.warning("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
+                           (author['authorid'], author['authorname'], gr_name))
+            akas.append(gr_name)
+        if ol_name and author['authorname'] != ol_name and ol_name not in akas:
+            logger.warning("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
+                           (author['authorid'], author['authorname'], ol_name))
+            akas.append(ol_name)
+        if hc_name and author['authorname'] != hc_name and hc_name not in akas:
+            logger.warning("Conflicting hardcover authorname for %s [%s][%s] setting AKA" %
+                           (author['authorid'], author['authorname'], hc_name))
+            akas.append(hc_name)
+        author['AKA'] = ', '.join(akas)
+
+    db.close()
     return author
 
 
@@ -307,15 +380,18 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         cmd = "SELECT * from authors WHERE AuthorID=?"
         if authorid.startswith('OL'):
             cmd += " or ol_id=?"
+            dbauthor = db.match(cmd, (authorid, authorid))
         else:
-            cmd += " or gr_id=?"
-        dbauthor = db.match(cmd, (authorid, authorid))
+            cmd += " or gr_id=? or hc_id=?"
+            dbauthor = db.match(cmd, (authorid, authorid, authorid))
         if dbauthor:
             new_author = False
+            authorid = dbauthor['AuthorID']
         elif authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
             dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
             if dbauthor:
                 new_author = False
+                authorid = dbauthor['AuthorID']
 
         if new_author or refresh:
             current_author = get_all_author_details(authorid, authorname)
@@ -340,39 +416,26 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             db.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
             return msg
 
-        if authorid and current_author['authorid'] != authorid:
-            logger.warning("Conflicting authorid for %s (new:%s old:%s) Changing to new authorid" %
-                           (current_author['authorname'], current_author['authorid'], authorid))
-            db.action("PRAGMA foreign_keys = OFF")
-            db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
-                      (current_author['authorid'], authorid))
-            db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
-                      (current_author['authorid'], authorid), suppress='UNIQUE')
-            if current_author['authorid'].startswith('OL'):
-                db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
-                          (current_author['authorid'], current_author['ol_id'], authorid), suppress='UNIQUE')
-            else:
-                db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
-                          (current_author['authorid'], current_author['gr_id'], authorid), suppress='UNIQUE')
-            db.action("PRAGMA foreign_keys = ON")
-
         if authorname and current_author['authorname'] != authorname:
             dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (current_author['authorname'],))
             if dbauthor:
                 logger.warning("Authorname %s already exists with id %s" % (current_author['authorname'],
                                                                             dbauthor['authorID']))
                 current_author['authorid'] = dbauthor['authorid']
+                aka = authorname
+                akas = get_list(dbauthor['AKA'], ',')
+                if aka and aka not in akas:
+                    akas.append(aka)
+                    db.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), dbauthor['authorid']))
             else:
                 logger.warning("Updating authorname for %s (new:%s old:%s)" % (current_author['authorid'],
                                                                                current_author['authorname'],
                                                                                authorname))
                 db.action('UPDATE authors SET AuthorName=? WHERE AuthorID=?',
                           (current_author['authorname'], current_author['authorid']))
-
         control_value_dict = {"AuthorID": current_author['authorid']}
         if new_author or not current_author['manual']:
             db.upsert("authors", current_author, control_value_dict)
-
         entry_status = current_author['status']
         new_value_dict = {
                             "Status": "Loading",
@@ -401,17 +464,17 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 authorimg = newimg
                 new_img = True
 
-            # allow caching new image
-            if authorimg and authorimg.startswith('http'):
-                newimg, success, _ = cache_img(ImageType.AUTHOR, authorid, authorimg, refresh=refresh)
-                if success:
-                    authorimg = newimg
-                    new_img = True
-                else:
-                    logger.debug('Failed to cache image for %s (%s)' % (authorimg, newimg))
+        # allow caching new image
+        if authorimg and authorimg.startswith('http'):
+            newimg, success, _ = cache_img(ImageType.AUTHOR, img_id(), authorimg, refresh=refresh)
+            if success:
+                authorimg = newimg
+                new_img = True
+            else:
+                logger.debug('Failed to cache image for %s (%s)' % (authorimg, newimg))
 
-            if new_img:
-                db.action("UPDATE authors SET AuthorIMG=? WHERE AuthorID=?", (authorimg, current_author['authorid']))
+        if new_img:
+            db.action("UPDATE authors SET AuthorIMG=? WHERE AuthorID=?", (authorimg, current_author['authorid']))
 
         if not current_author['manual'] and addbooks:
             if new_author:
@@ -425,82 +488,46 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 entry_status = 'Active'  # default for invalid/unknown or "loading"
             if entry_status not in ['Ignored', 'Paused']:
                 # process books
-                if CONFIG['BOOK_API'] == "GoogleBooks" and CONFIG['GB_API']:
-                    logger.debug("Getting GoogleBooks for %s:%s" % (current_author['authorid'],
-                                                                    current_author['authorname']))
-                    book_api = GoogleBooks()
-                    book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                              bookstatus=bookstatus,
-                                              audiostatus=audiostatus, entrystatus=entry_status,
-                                              refresh=refresh, reason=reason)
-                    if CONFIG.get_bool('MULTI_SOURCE'):
-                        if CONFIG['OL_API']:
-                            book_api = OpenLibrary()
-                            logger.debug("Getting OpenLibrary for %s:%s" % (current_author.get('ol_id', ''),
-                                                                            current_author['authorname']))
-                            book_api.get_author_books(current_author['ol_id'], current_author['authorname'],
-                                                      bookstatus=bookstatus,
-                                                      audiostatus=audiostatus, entrystatus=entry_status,
-                                                      refresh=refresh, reason=reason)
-                        if CONFIG['GR_API']:
-                            logger.debug("Getting GoodReads for %s:%s" % (current_author.get('gr_id', ''),
-                                                                          current_author['authorname']))
-                            book_api = GoodReads(current_author['authorname'])
-                            book_api.get_author_books(current_author['gr_id'], current_author['authorname'],
-                                                      bookstatus=bookstatus,
-                                                      audiostatus=audiostatus, entrystatus=entry_status,
-                                                      refresh=refresh, reason=reason)
-                elif CONFIG['BOOK_API'] == "GoodReads" and CONFIG['GR_API']:
-                    logger.debug("Getting GoodReads for %s:%s" % (current_author.get('gr_id', ''),
+                api_sources = [
+                                ['OL', OpenLibrary(current_author['authorname']), 'ol_id', 'OL_API'],
+                                ['GR', GoodReads(current_author['authorname']), 'gr_id', 'GR_API'],
+                                ['HC', HardCover(current_author['authorname']), 'hc_id', 'HC_API'],
+                                ['GB', GoogleBooks(current_author['authorname']), 'authorid', 'GB_API'],
+                            ]
+
+                if CONFIG['BOOK_API'] == "GoodReads":
+                    api_sources.insert(0, api_sources.pop(1))
+                elif CONFIG['BOOK_API'] == "HardCover":
+                    api_sources.insert(0, api_sources.pop(2))
+                elif CONFIG['BOOK_API'] == "GoogleBooks":
+                    api_sources.insert(0, api_sources.pop(3))
+                if not CONFIG.get_bool('MULTI_SOURCE'):
+                    api_sources = [api_sources[0]]
+
+                for api_source in api_sources:
+                    if not CONFIG[api_source[3]]:
+                        logger.debug("%s is disabled" % api_source[3])
+                    else:
+                        current_id = current_author.get(api_source[2], '')
+                        if not current_id:
+                            if api_source[0] != 'GB':  # GB doesn't have authorid
+                                logger.debug("Finding %s author ID for %s" % (api_source[0],
+                                                                              current_author['authorname']))
+                                book_api = api_source[1]
+                                res = book_api.find_author_id(refresh=True)
+                                if res:
+                                    current_id = res.get('authorid')
+                                    cmd = "UPDATE authors SET %s=? WHERE AuthorName=?"
+                                    db.action(cmd, (api_source[2], current_author['authorname']))
+                        logger.debug("Book query %s for %s:%s" % (api_source[0], current_id,
                                                                   current_author['authorname']))
-                    book_api = GoodReads(current_author['authorname'])
-                    book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                              bookstatus=bookstatus,
-                                              audiostatus=audiostatus, entrystatus=entry_status,
-                                              refresh=refresh, reason=reason)
-                    if CONFIG.get_bool('MULTI_SOURCE'):
-                        if CONFIG['OL_API']:
-                            logger.debug("Getting OpenLibrary for %s:%s" % (current_author.get('ol_id', ''),
-                                                                            current_author['authorname']))
-                            book_api = OpenLibrary()
-                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                                      bookstatus=bookstatus,
-                                                      audiostatus=audiostatus, entrystatus=entry_status,
-                                                      refresh=refresh, reason=reason)
-                        if CONFIG['GB_API']:
-                            logger.debug("Getting GoogleBooks for %s:%s" % (current_author['authorid'],
-                                                                            current_author['authorname']))
-                            book_api = GoogleBooks()
-                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                                      bookstatus=bookstatus,
-                                                      audiostatus=audiostatus, entrystatus=entry_status,
-                                                      refresh=refresh, reason=reason)
-                elif CONFIG['BOOK_API'] == "OpenLibrary" and CONFIG['OL_API']:
-                    logger.debug("Getting OpenLibrary for %s:%s" % (current_author.get('ol_id', ''),
-                                                                    current_author['authorname']))
-                    book_api = OpenLibrary(current_author['authorname'])
-                    book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                              bookstatus=bookstatus,
-                                              audiostatus=audiostatus, entrystatus=entry_status,
-                                              refresh=refresh, reason=reason)
-                    if CONFIG.get_bool('MULTI_SOURCE'):
-                        if CONFIG['GR_API']:
-                            logger.debug("Getting GoodReads for %s:%s" % (current_author.get('gr_id', ''),
-                                                                          current_author['authorname']))
-                            book_api = GoodReads()
-                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                                      bookstatus=bookstatus,
-                                                      audiostatus=audiostatus, entrystatus=entry_status,
-                                                      refresh=refresh, reason=reason)
-                        if CONFIG['GB_API']:
-                            logger.debug("Getting GoogleBooks for %s:%s" % (current_author['authorid'],
-                                                                            current_author['authorname']))
-                            book_api = GoogleBooks()
-                            book_api.get_author_books(current_author['authorid'], current_author['authorname'],
-                                                      bookstatus=bookstatus,
-                                                      audiostatus=audiostatus, entrystatus=entry_status,
-                                                      refresh=refresh, reason=reason)
-                de_duplicate(authorid)
+                        book_api = api_source[1]
+                        book_api.get_author_books(current_id, current_author['authorname'],
+                                                  bookstatus=bookstatus,
+                                                  audiostatus=audiostatus, entrystatus=entry_status,
+                                                  refresh=refresh, reason=reason)
+                de_duplicate(current_author['authorid'])
+                update_totals(current_author['authorid'])
 
             if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                 msg = "[%s] Author update aborted, status %s" % (current_author['authorname'], entry_status)
@@ -524,7 +551,6 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 entry_status = 'Paused'
 
         if current_author:
-            update_totals(current_author['authorid'])
             db.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entry_status,
                                                                        current_author['authorid']))
             msg = "%s [%s] Author update complete, status %s" % (current_author['authorid'],
@@ -593,7 +619,6 @@ def de_duplicate(authorid):
                                                                 plural(dupes, 'title'), authorname))
             for item in res:
                 logger.debug(dict(item))
-            for item in res:
                 favourite = ''
                 copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE NOPUNCTUATION",
                                    (authorid, item[1]))
@@ -619,6 +644,14 @@ def de_duplicate(authorid):
                                                         favourite['AudioStatus']))
                 for copy in copies:
                     if copy['BookID'] != favourite['BookID']:
+                        members = db.select("SELECT SeriesID,SeriesNum from member WHERE BookID=?",
+                                            (copy['BookID'],))
+                        if members:
+                            for member in members:
+                                logger.debug(f"Updating BookID for member {member['SeriesNum']} of series "
+                                             f"{member['SeriesID']}")
+                                db.action("UPDATE member SET BookID=? WHERE BookID=? and SeriesID=?",
+                                          (favourite['BookID'], copy['BookID'], member['SeriesID']), suppress='UNIQUE')
                         for key in ['BookSub', 'BookDesc', 'BookGenre', 'BookIsbn', 'BookPub', 'BookRate',
                                     'BookImg', 'BookPages', 'BookLink', 'BookFile', 'BookDate', 'BookLang',
                                     'BookAdded', 'WorkPage', 'Manual', 'SeriesDisplay', 'BookLibrary',
@@ -638,13 +671,14 @@ def de_duplicate(authorid):
                                         db.action('UPDATE books SET AudioStatus=? WHERE BookID=?',
                                                   (copy['AudioStatus'], favourite['BookID']))
 
-                        if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
+                        if copy['Status'] in ['Ignored'] or copy['AudioStatus'] in ['Ignored']:
+                            logger.debug("Keeping duplicate %s,  %s/%s" % (copy['BookID'], copy['Status'],
+                                                                           copy['AudioStatus']))
+                        else:
                             logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
                             db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
-                            for table in ['HaveRead', 'ToRead', 'Reading', 'Abandoned']:
-                                db.action(f"UPDATE {table} SET Bookid=? WHERE BookID=?",
-                                          (favourite['BookID'], copy['BookID']))
-
+                            db.action("UPDATE readinglists SET Bookid=? WHERE BookID=?",
+                                      (favourite['BookID'], copy['BookID']))
                             total += 1
     except Exception:
         msg = 'Unhandled exception in de_duplicate: %s' % traceback.format_exc()
@@ -725,6 +759,13 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
             threading.Thread(target=ol.find_book, name='OL-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             ol.find_book(bookid, ebook, audio, reason)
+    elif CONFIG['BOOK_API'] == 'HardCover':
+        hc = HardCover(bookid)
+        logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
+        if not wait:
+            threading.Thread(target=hc.find_book, name='HC-IMPORT', args=[bookid, ebook, audio, reason]).start()
+        else:
+            hc.find_book(bookid, ebook, audio, reason)
     else:
         gr = GoodReads(bookid)
         logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
@@ -756,6 +797,11 @@ def search_for(searchterm, source=None):
         myqueue = Queue()
         ol = OpenLibrary(searchterm)
         search_api = threading.Thread(target=ol.find_results, name='OL-RESULTS', args=[searchterm, myqueue])
+        search_api.start()
+    elif source == "HardCover" and CONFIG['HC_API']:
+        myqueue = Queue()
+        hc = HardCover(searchterm)
+        search_api = threading.Thread(target=hc.find_results, name='HC-RESULTS', args=[searchterm, myqueue])
         search_api.start()
     else:
         search_api = None

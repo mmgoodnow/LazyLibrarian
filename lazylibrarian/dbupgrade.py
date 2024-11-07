@@ -119,8 +119,11 @@ from lazylibrarian.common import path_exists
 # 80 Add Unauthorised table
 # 81 Add ol_id and gb_id to books table
 # 82 Add reading list tables, remove from users table
+# 83 Add hc_id to author and book tables
+# 84 merge into readinglists table, remove individual tables
+# 85 change seriesid to include source, to avoid collisions
 
-db_current_version = 82
+db_current_version = 85
 
 
 def upgrade_needed():
@@ -145,7 +148,7 @@ def upgrade_needed():
 
 def get_db_version(db):
     """
-    Returns the current DB version as a numnber
+    Returns the current DB version as a number
     """
     db_version = 0
     result = db.match('PRAGMA user_version')
@@ -354,23 +357,22 @@ def check_db(upgradelog=None):
             cnt = 1
 
         try:
-            # check information provider matches database
-            if not CONFIG.get_bool('MULTI_SOURCE'):
-                info = CONFIG.get_str('BOOK_API')
-                if info in ['OpenLibrary', 'GoogleBooks']:
-                    tot = db.select('SELECT * from authors')
-                    res = db.select("SELECT * from authors WHERE AuthorID LIKE 'OL%A'")
-                    if len(tot) - len(res):
-                        logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - len(res)))
-
-                elif info == 'GoodReads':
-                    tot = db.select('SELECT authorid from authors')
-                    cnt = 0
-                    for item in tot:
-                        if item[0].isdigit():
-                            cnt += 1
-                    if len(tot) - cnt:
-                        logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - cnt))
+            # check author information provider matches database
+            info = CONFIG.get_str('BOOK_API')
+            if info == 'OpenLibrary':
+                source = 'ol_id'
+            elif info == 'GoodReads':
+                source = 'gr_id'
+            elif info == 'HardCover':
+                source = 'hc_id'
+            else:
+                source = ''
+            if source:
+                tot = db.select('SELECT * from authors')
+                res = db.select("SELECT * from authors WHERE %s is not null and %s != ''" % (source, source))
+                if len(tot) - len(res):
+                    logger.warning("Information source is %s but %s author IDs (from %s) do not have %s ID" %
+                                   (info, len(tot) - len(res), len(tot), info))
 
             # correct any invalid/unpadded dates
             lazylibrarian.UPDATE_MSG = 'Checking dates'
@@ -404,8 +406,11 @@ def check_db(upgradelog=None):
                 db.action("UPDATE series SET Status='Paused' WHERE Status='Skipped'")
 
             if CONFIG['NO_SINGLE_BOOK_SERIES']:
-                logger.debug("Deleting single-book series from database")
-                db.action("DELETE from series where source != 'LL' and total=1")
+                cmd = 'SELECT * from series where total=1'
+                res = db.select(cmd)
+                if len(res):
+                    logger.debug(f"Deleting {len(res)} single-book series from database")
+                    db.action("DELETE from series where total=1")
 
             # Extract any librarything workids from workpage url
             cmd = ("SELECT WorkPage,BookID from books WHERE WorkPage like '%librarything.com/work/%' "
@@ -491,7 +496,7 @@ def check_db(upgradelog=None):
                 msg = 'Removing %s %s with no authorid' % (len(books), plural(len(books), "book"))
                 logger.warning(msg)
                 for book in books:
-                    for table in ['books', 'wanted', 'HaveRead', 'ToRead', 'Reading', 'Abandoned']:
+                    for table in ['books', 'wanted', 'readinglists']:
                         db.action(f"DELETE from {table} WHERE BookID=?", (book['BookID'],))
 
             # remove authors with no authorid
@@ -694,9 +699,10 @@ def check_db(upgradelog=None):
                 msg = 'Found %s %s with no books in the library or marked wanted' % (len(authors),
                                                                                      plural(len(authors), "author"))
                 logger.warning(msg)
+                # Don't auto delete them, may be in a reading list?
                 # for author in authors:
                 # name = db.match("SELECT authorname from authors where authorid=?", (author[0],))
-                # logger.warning("%s %s" % (author[0], name[0]))
+                # logger.warning(f"{name[0]} has no active books")
                 # db.action('DELETE from authors where authorid=?', (author[0],))
 
             # update empty bookdate to "0000"
@@ -707,6 +713,16 @@ def check_db(upgradelog=None):
                 msg = 'Found %s %s with no bookdate' % (len(books), plural(len(books), "book"))
                 logger.warning(msg)
                 db.action("UPDATE books SET BookDate='0000' WHERE BookDate is NULL or BookDate=''")
+
+            # delete any duplicate entries in member table and add a unique constraint if not already done
+            cmd = "SELECT * from sqlite_master WHERE type= 'index' and tbl_name = 'member' and name = 'unq'"
+            match = db.match(cmd)
+            if not match:
+                logger.debug("Removing duplicates from member table and adding unique constraint")
+                cmd = ("delete from member where rowid not in (select min(rowid) from member "
+                       "group by seriesid,bookid)")
+                db.action(cmd)
+                db.action("CREATE UNIQUE INDEX unq ON member(seriesid,bookid)")
 
             # check magazine latest cover is correct:
             cmd = ("select magazines.title,magazines.issuedate,latestcover,cover from magazines,issues where "
@@ -751,7 +767,7 @@ def check_db(upgradelog=None):
                 bookids.append(bookid[0])
             bookids = set(bookids)
             read_ids = []
-            reading_lists = ['HaveRead', 'ToRead', 'Reading', 'Abandoned']
+            reading_lists = ['readinglists']
             for table in reading_lists:
                 exists = db.select('PRAGMA table_info(%s)' % table)
                 if exists:
@@ -761,7 +777,8 @@ def check_db(upgradelog=None):
 
             read_ids = set(read_ids)
             no_bookid = read_ids.difference(bookids)
-            logger.info("Found %s missing bookids in reading lists" % len(no_bookid))
+            if len(no_bookid):
+                logger.warning("Found %s unknown bookids in reading lists" % len(no_bookid))
             for item in no_bookid:
                 cmd = 'SELECT BookID from books WHERE ol_id=? OR gr_id=? OR lt_workid=? OR gb_id=?'
                 res = db.match(cmd, (item, item, item, item))
@@ -1057,7 +1074,7 @@ def update_schema(db, upgradelog):
     db_version = get_db_version(db)
     changes = 0
 
-    logger.debug("Schema check v%s, database is v%s" % (db_current_version, db_version))
+    # logger.debug("Schema check v%s, database is v%s" % (db_current_version, db_version))
     if db_current_version != db_version:
         changes += 1
 
@@ -1231,10 +1248,12 @@ def update_schema(db, upgradelog):
                       'users (UserID) ON DELETE CASCADE, Addr TEXT, FileName TEXT)')
 
     if not has_column(db, "series", "Source"):
-        changes += 1
-        lazylibrarian.UPDATE_MSG = 'Adding Source to series table'
-        upgradelog.write("%s v79: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
-        db.action("ALTER TABLE series ADD COLUMN Source TEXT DEFAULT ''")
+        res = db.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='series'")
+        if 'SeriesID INTEGER' in res[0]:
+            changes += 1
+            lazylibrarian.UPDATE_MSG = 'Adding Source to series table'
+            upgradelog.write("%s v79: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+            db.action("ALTER TABLE series ADD COLUMN Source TEXT DEFAULT ''")
 
     if not has_column(db, "unauthorised", "UserID"):
         changes += 1
@@ -1306,6 +1325,71 @@ def update_schema(db, upgradelog):
         db.action('PRAGMA foreign_keys = OFF')
         db.action('DROP TABLE users')
         db.action('ALTER TABLE temp RENAME TO users')
+        db.action('PRAGMA foreign_keys = ON')
+        db.action('vacuum')
+
+    if not has_column(db, "books", "hc_id"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding hc_id to author, books and users tables'
+        upgradelog.write("%s v83: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE books ADD COLUMN hc_id TEXT')
+        db.action('ALTER TABLE authors ADD COLUMN hc_id TEXT')
+        db.action('ALTER TABLE users ADD COLUMN hc_id TEXT')
+        wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
+        for lang in ['en', 'eng', 'en-US', 'en-GB']:
+            if lang in wantedlanguages:
+                wantedlanguages.append('English')
+                wantedlanguages = ', '.join(list(set(wantedlanguages)))
+                CONFIG.set_str('IMP_PREFLANG', wantedlanguages)
+                CONFIG.save_config_and_backup_old()
+                break
+
+    if not has_column(db, "readinglists", "Status"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Updating reading tables'
+        upgradelog.write("%s v84: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('CREATE TABLE readinglists (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, ' +
+                  'BookID TEXT, Status INTEGER DEFAULT 0, Percent INTEGER DEFAULT 0, Msg Text, ' +
+                  'UNIQUE (UserID,BookID))')
+        # status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
+        for tbl in [['toread', 1], ['reading', 2], ['haveread', 3], ['abandoned', 5]]:
+            res = db.select(f"SELECT * from {tbl[0]}")
+            for item in res:
+                db.action("INSERT into readinglists (UserID, BookID, Status) VALUES (?, ?, ?)",
+                          (item['UserID'], item['BookID'], tbl[1]), suppress='UNIQUE')
+        db.action(f"DROP table {tbl[0]}")
+
+    res = db.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='series'")
+    if 'SeriesID INTEGER' in res[0]:
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Updating series,member,seriesauthors tables'
+        upgradelog.write("%s v85: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('PRAGMA foreign_keys = OFF')
+        db.action('DROP TABLE IF EXISTS temp')
+        db.action("CREATE TABLE temp (SeriesID TEXT UNIQUE, SeriesName TEXT, Status TEXT, " +
+                  "Have INTEGER DEFAULT 0, Total INTEGER DEFAULT 0, Updated INTEGER DEFAULT 0, Reason TEXT)")
+        res = db.select("SELECT * from series")
+        for item in res:
+            db.action("INSERT into temp (SeriesID, SeriesName, Status, Have, Total, Updated, Reason) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (item['Source'] + str(item['SeriesID']), item['SeriesName'], item['Status'],
+                       item['Have'], item['Total'], item['Updated'], item['Reason']))
+        db.action("DROP TABLE series")
+        db.action("ALTER TABLE temp RENAME TO series")
+        for table in ['member', 'seriesauthors']:
+            res = db.match(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{table}'")
+            create_new_table = res[0].replace('SeriesID INTEGER', 'SeriesID TEXT').replace(table, 'temp')
+            db.action(create_new_table)
+            db.action(f"INSERT into temp SELECT * from {table}")
+            db.action(f"DROP TABLE {table}")
+            db.action(f"ALTER TABLE temp RENAME TO {table}")
+
+        res = db.select("SELECT SeriesID from series")
+        for item in res:
+            seriesid = item['SeriesID']
+            for table in ['member', 'seriesauthors']:
+                cmd = f"UPDATE {table} SET SeriesID=? WHERE SeriesID=?"
+                db.action(cmd, (seriesid, seriesid[2:]))
         db.action('PRAGMA foreign_keys = ON')
         db.action('vacuum')
 

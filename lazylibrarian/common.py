@@ -59,14 +59,23 @@ def get_readinglist(table, user):
     # return a set of all bookids in a readinglist
     db = database.DBConnection()
     readinglist = []
+    # status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
+    if table.lower() == 'toread':
+        status = 1
+    elif table.lower() == 'reading':
+        status = 2
+    elif table.lower() in ['haveread', 'read']:
+        status = 3
+    elif table.lower() in ['abandoned', 'dnf']:
+        status = 5
+    else:
+        status = 4
     try:
-        cmd = f"SELECT bookid from {table} WHERE userid=?"
-        res = db.select(cmd, (user,))
+        cmd = f"SELECT bookid from readinglists WHERE userid=? and status=?"
+        res = db.select(cmd, (user, status))
         if res:
             for item in res:
                 readinglist.append(item[0])
-            # suppress duplicates, just in case...
-            readinglist = list(set(readinglist))
     finally:
         db.close()
         return readinglist
@@ -75,13 +84,20 @@ def get_readinglist(table, user):
 def set_readinglist(table, user, booklist):
     # set the readinglist for a user
     db = database.DBConnection()
+    if table.lower() == 'toread':
+        status = 1
+    elif table.lower() == 'reading':
+        status = 2
+    elif table.lower() in ['haveread', 'read']:
+        status = 3
+    elif table.lower() in ['abandoned', 'dnf']:
+        status = 5
+    else:
+        status = 4
     try:
         readinglist = set(booklist)
-        cmd = f"DELETE from {table} WHERE userid=?"
-        db.action(cmd, (user,))
-        cmd = f"INSERT into {table} ('UserID', 'BookID') VALUES (?,?)"
         for book in readinglist:
-            db.action(cmd, (user, book))
+            db.upsert("readinglists", {'Status': status}, {'UserID': user, 'BookID': book})
     finally:
         db.close()
 

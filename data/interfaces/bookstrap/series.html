@@ -179,10 +179,17 @@
                     %endif
                     },
                     { targets: [2], 'render': function(data, type, row) {
-                        return '<a href="series_members?seriesid=' + row[5] + '">' + row[2] + '</a>';}
+                        source = row[9]
+                        if (source == 'HC') {source = 'HardCover'}
+                        else if (source == 'OL') {source = 'OpenLibrary'}
+                        else if (source == 'GB') {source = 'GoogleBooks'}
+                        else if (source == 'GR') {source = 'GoodReads'}
+                        else if (source == 'LT') {source = 'LibraryThing'}
+                        else {source = ''}
+                        return '<a href="series_members?seriesid=' + row[5] + '">' + row[2] + '</a>' + ' <small>(' + source + ')</small>';}
                     },
                     { targets: [3], 'render': function(data, type, row) {
-                        percent = row[9]
+                        percent = row[10]
                         if (percent <= 25) {css = 'danger'}
                         else if (percent <= 50) {css = 'warning'}
                         else if (percent <= 75) {css = 'info'}
