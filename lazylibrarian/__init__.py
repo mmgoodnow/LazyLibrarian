@@ -54,6 +54,8 @@ TIMERS = {
             'SLEEP_LT': 0.0,
             'SLEEP_CV': 0.0,
             'SLEEP_BOK': 0.0,
+            'LAST_HC': 0,
+            'SLEEP_HC': 0.0,
         }
 IGNORED_AUTHORS = 0
 CACHE_HIT = 0
@@ -71,6 +73,7 @@ AUTHORS_UPDATE = 0
 SEARCHING = 0
 LOGIN_MSG = ''
 HIST_REFRESH = 1000
+DICTS = {}
 GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
 GRGENRES = {}
 GC_BEFORE = {}

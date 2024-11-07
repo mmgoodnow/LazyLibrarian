@@ -227,7 +227,7 @@
                           <% checked = 'checked="checked"' if LOGCONFIG.is_special_logger_enabled('grsync') else '' %>
                           <label for="log_grsync" class="control-label">
                           <input type="checkbox" id="log_grsync" name="log_grsync" value="1" ${checked} />
-                          Goodreads Sync</label>
+                          ReadingList Sync</label>
                         </div>
                         <div class="col-md-6">
                           <% checked = 'checked="checked"' if LOGCONFIG.is_special_logger_enabled('cache') else '' %>
@@ -617,18 +617,18 @@
                   <legend>Information Sources</legend>
                   <div class="form-group">
                     <%
+                    gb_selected = ''
+                    ol_selected = ''
+                    gr_selected = ''
+                    hc_selected = ''
                     if CONFIG['BOOK_API'] == "GoodReads":
                         gr_selected = 'selected="selected"'
-                        gb_selected = ''
-                        ol_selected = ''
                     elif CONFIG['BOOK_API'] == "GoogleBooks":
-                        gr_selected = ''
                         gb_selected = 'selected="selected"'
-                        ol_selected = ''
                     elif CONFIG['BOOK_API'] == "OpenLibrary":
-                        gr_selected = ''
-                        gb_selected = ''
                         ol_selected = 'selected="selected"'
+                    elif CONFIG['BOOK_API'] == "HardCover":
+                        hc_selected = 'selected="selected"'
                     %>
                     <label for="book_api" class="control-label">Primary Information Source</label>
                     <select id="book_api" name="book_api" class="form-control">
@@ -641,6 +641,9 @@
                       %if CONFIG['OL_API']:
                         <option value = "OpenLibrary" ${ol_selected}>OpenLibrary</option>
                       %endif
+                      %if CONFIG['HC_API']:
+                        <option value = "HardCover" ${hc_selected}>HardCover</option>
+                      %endif
                     </select>
                   </div>
                   <div class="checkbox">
@@ -650,7 +653,7 @@
                       Use multiple sources for book information
                     </label>
                   </div>
-                  <fieldset id="gb_options">
+                  <fieldset id="ol_options">
                   <label class="control-label">OpenLibrary API:</label>
                   <div class="checkbox">
                     <% checked = 'checked="checked"' if CONFIG['OL_API'] else '' %>
@@ -659,6 +662,27 @@
                       Enable OpenLibrary api for book/author information
                     </label>
                   </div>
+                  </fieldset>
+                  <fieldset id="hc_options">
+                  <div class="form-group">
+                    <label for="hc_api" class="control-label">HardCover API:</label>
+                    <input type="text" id="hc_api" name="hc_api" value="${CONFIG['HC_API']}" class="form-control">
+                  </div>
+                  <div class="checkbox">
+                    <% checked = 'checked="checked"' if CONFIG['HC_SYNC'] else '' %>
+                    <label for="hc_sync" class="control-label">
+                      <input type="checkbox" id="hc_sync" name="hc_sync" value="1" ${checked} />
+                      Enable HardCover Sync</label>
+                  </div>
+                  </fieldset>
+                  <fieldset id="hcsync_options">
+                    <div class="form-group">
+                      <label for="hardcover_interval" class="control-label">HardCover Sync Interval:</label>
+                      <div class="input-group">
+                        <input type="number" id="hardcover_interval" name="hardcover_interval" value="${CONFIG['HARDCOVER_INTERVAL']}" class="form-control" placeholder="HardCover Sync interval (hours)" >
+                        <span class="input-group-addon">Hours</span>
+                      </div>
+                    </div>
                   </fieldset>
                   <fieldset id="gb_options">
                   <div class="form-group">
@@ -1474,6 +1498,7 @@
                     <input type="text" placeholder="Torznab API #${loop.index}" id="torznab_${loop.index}_api" name="torznab_${loop.index}_api" value="${provider['API']}" class="form-control">
                     <span class="input-group-addon"></span>
                     </div>
+
                     <div class="input-group">
                       <span class="input-group-addon">Priority</span>
                       <input type="number" id="torznab_${loop.index}_dlpriority" name="torznab_${loop.index}_dlpriority" value="${provider['DLPRIORITY']}" class="form-control" placeholder="0">
@@ -1498,6 +1523,9 @@
                       <input type="number" id="torznab_${loop.index}_apilimit" name="torznab_${loop.index}_apilimit" value="${provider['APILIMIT']}" class="form-control" placeholder="0">
                       <span class="input-group-addon">Used</span>
                       <input type="text" id="torznab_${loop.index}_apicount" name="torznab_${loop.index}_apicount" value="${provider['APICOUNT']}" class="form-control" placeholder="" readonly="true">
+                      <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="torznab_${loop.index}"> Test</button>
+                      </span>
                     </div>
                   </div>
                   %endfor

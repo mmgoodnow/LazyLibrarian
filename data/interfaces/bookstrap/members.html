@@ -26,7 +26,7 @@
   %if multi == "True":
   <h1>${title}</h1>
   %else:
-  <h1>${series['AuthorName']} : ${title}
+  <h1>${series['AuthorName']} : ${title} (${series['SeriesID'][:2]})
   %if perm&lazylibrarian.perm_edit:
     <a href="edit_series?seriesid=${series['SeriesID']}"><small><i> Edit</i></small></a>
   %endif

@@ -583,16 +583,16 @@ def show_stats(json=False):
     resultdict = {}
     cache = {'hit': check_int(lazylibrarian.CACHE_HIT, 0), 'miss': check_int(lazylibrarian.CACHE_MISS, 0)}
     sleep = {'goodreads': lazylibrarian.TIMERS['SLEEP_GR'], 'librarything': lazylibrarian.TIMERS['SLEEP_LT'],
-             'comicvine': lazylibrarian.TIMERS['SLEEP_CV']}
+             'comicvine': lazylibrarian.TIMERS['SLEEP_CV'], 'hardcover': lazylibrarian.TIMERS['SLEEP_HC']}
     resultdict['cache'] = cache
     resultdict['sleep'] = sleep
     result = ["Cache %i %s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
                                           plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
                                           check_int(lazylibrarian.CACHE_MISS, 0)),
-                "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
-                lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
-                lazylibrarian.TIMERS['SLEEP_CV']),
-                "GoogleBooks API %i calls, %s" % (BLOCKHANDLER.get_gb_calls(), gb_status)]
+              "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine, %.3f hardcover" % (
+              lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
+              lazylibrarian.TIMERS['SLEEP_CV'], lazylibrarian.TIMERS['SLEEP_HC']),
+              "GoogleBooks API %i calls, %s" % (BLOCKHANDLER.get_gb_calls(), gb_status)]
 
     db = database.DBConnection()
     try:

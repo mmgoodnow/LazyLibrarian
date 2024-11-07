@@ -35,6 +35,7 @@ from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented
                                      split_title, now, make_unicode)
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.images import img_id
 from lazylibrarian.importer import (update_totals, add_author_name_to_db, search_for, collate_nopunctuation,
                                     title_translates)
 from lazylibrarian.ol import OpenLibrary
@@ -241,6 +242,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     logger = logging.getLogger(__name__)
     loggerfuzz = logging.getLogger('special.fuzz')
     book = book.replace('\n', ' ')
+    book = " ".join(book.split())
+    author = " ".join(author.split())
     logger.debug(f'Searching database for [{book}] by [{author}] {source}')
     db = database.DBConnection()
     db.connection.create_collation('nopunctuation', collate_nopunctuation)
@@ -323,7 +326,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         books = db.select(cmd, (authorid,))
 
         if not len(books):
-            logger.warning(f"No {source} titles by {author} in database")
+            logger.warning(f"No matching titles by {author} in database")
             return 0, ''
 
         loggerfuzz.debug(cmd)
@@ -1274,7 +1277,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     authorid = item['authorid']
                     authorimg = item['authorimg']
                     # authorname = item['authorname']
-                    newimg, success, _ = cache_img(ImageType.AUTHOR, authorid, authorimg)
+                    newimg, success, _ = cache_img(ImageType.AUTHOR, img_id(), authorimg)
                     if success:
                         db.action('update authors set AuthorImg=? where AuthorID=?', (newimg, authorid))
 

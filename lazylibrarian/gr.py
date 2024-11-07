@@ -10,26 +10,26 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import re
 import time
 import traceback
-import logging
 import unicodedata
+from urllib.parse import quote, quote_plus, urlencode
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
+from lazylibrarian.images import cache_bookimg
 from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, isbn_from_words, thinglang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter
-from lazylibrarian.images import get_book_cover
-from lazylibrarian.cache import gr_xml_request, cache_img, ImageType
+from lazylibrarian.cache import gr_xml_request
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name
-
+from lazylibrarian.images import get_book_cover
 from thefuzz import fuzz
-from urllib.parse import quote, quote_plus, urlencode
 
 
 class GoodReads:
@@ -268,12 +268,14 @@ class GoodReads:
 
     def find_author_id(self, refresh=False):
         author = self.name
+        if '<ll>' in author:
+            author, _ = author.split('<ll>')
         author = format_author_name(unaccented(author, only_ascii='_'),
                                     postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         # googlebooks gives us author names with long form unicode characters
         author = make_unicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
-        self.logger.debug("Searching for author with name: %s" % author)
+        self.logger.debug("Getting author id for %s, refresh=%s" % (author, refresh))
         url = '/'.join([CONFIG['GR_URL'], 'api/author_url/'])
         try:
             url += quote(make_utf8bytes(author)[0]) + '?' + urlencode(self.params)
@@ -305,8 +307,11 @@ class GoodReads:
             match = fuzz.ratio(author, authorname)
             if match >= CONFIG.get_int('NAME_RATIO'):
                 return self.get_author_info(authorid)
-            else:
-                self.logger.debug("Fuzz failed: %s [%s][%s]" % (match, author, authorname))
+
+            match = fuzz.partial_ratio(author, authorname)
+            if match >= CONFIG.get_int('NAME_PARTNAME'):
+                return self.get_author_info(authorid)
+            self.logger.debug("Fuzz failed: %s [%s][%s]" % (match, author, authorname))
         return {}
 
     def get_author_info(self, authorid=None):
@@ -393,14 +398,13 @@ class GoodReads:
             not_cached = 0
 
             # Artist is loading
-            control_value_dict = {"AuthorID": authorid}
-            new_value_dict = {"Status": "Loading"}
-            db.upsert("authors", new_value_dict, control_value_dict)
+            db.action("UPDATE authors SET Status='Loading' WHERE AuthorID=?", (authorid,))
 
             gr_id = ''
-            match = db.match('SELECT gr_id FROM authors where authorid=?', (authorid,))
+            match = db.match('SELECT gr_id,authorid FROM authors where authorid=? or gr_id=?', (authorid, authorid))
             if match:
                 gr_id = match['gr_id']
+                authorid = match['authorid']
             if not gr_id:
                 gr_id = authorid
 
@@ -1003,25 +1007,15 @@ class GoodReads:
                                     if 'nocover' in bookimg or 'nophoto' in bookimg:
                                         # try to get a cover from another source
                                         start = time.time()
-                                        workcover, source = get_book_cover(bookid)
+                                        link, source = get_book_cover(bookid)
                                         if source != 'cache':
                                             cover_count += 1
                                             cover_time += (time.time() - start)
-
-                                        if workcover:
-                                            self.logger.debug('Updated cover for %s using %s' % (bookname, source))
-                                            update_value_dict["BookImg"] = workcover
-
-                                    elif bookimg and bookimg.startswith('http'):
-                                        start = time.time()
-                                        link, success, was_already_cached = cache_img(ImageType.BOOK, bookid, bookimg)
-                                        if not was_already_cached:
-                                            cover_count += 1
-                                            cover_time += (time.time() - start)
-                                        if success:
+                                        if link:
                                             update_value_dict["BookImg"] = link
-                                        else:
-                                            self.logger.debug('Failed to cache image for %s' % bookimg)
+                                    elif bookimg and bookimg.startswith('http'):
+                                        link = cache_bookimg(bookimg, bookid, 'gr')
+                                        update_value_dict["BookImg"] = link
 
                                     worklink = get_work_page(bookid)
                                     if worklink:
@@ -1468,28 +1462,18 @@ class GoodReads:
                     "OriginalPubDate": originalpubdate
                 }
 
+                if 'nocover' in bookimg or 'nophoto' in bookimg:
+                    # try to get a cover from another source
+                    link, _ = get_book_cover(bookid)
+                    if link:
+                        new_value_dict = {"BookImg": link}
+                elif bookimg and bookimg.startswith('http'):
+                    link = cache_bookimg(bookimg, bookid, 'gr')
+                    new_value_dict = {"BookImg": link}
+
                 db.upsert("books", new_value_dict, control_value_dict)
                 self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus,
                                                                                   audiostatus))
-
-                if 'nocover' in bookimg or 'nophoto' in bookimg:
-                    # try to get a cover from another source
-                    workcover, source = get_book_cover(bookid)
-                    if workcover:
-                        self.logger.debug('Updated cover for %s using %s' % (bookname, source))
-                        control_value_dict = {"BookID": bookid}
-                        new_value_dict = {"BookImg": workcover}
-                        db.upsert("books", new_value_dict, control_value_dict)
-
-                elif bookimg and bookimg.startswith('http'):
-                    link, success, _ = cache_img(ImageType.BOOK, bookid, bookimg)
-                    if success:
-                        control_value_dict = {"BookID": bookid}
-                        new_value_dict = {"BookImg": link}
-                        db.upsert("books", new_value_dict, control_value_dict)
-                    else:
-                        self.logger.debug('Failed to cache image for %s' % bookimg)
-
                 serieslist = []
                 if series:
                     serieslist = [('', series_num, clean_name(series, '&/'))]

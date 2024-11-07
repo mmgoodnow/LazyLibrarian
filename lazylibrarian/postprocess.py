@@ -34,6 +34,7 @@ from lazylibrarian.telemetry import TELEMETRY
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
+from lazylibrarian.hc import HardCover
 
 from lazylibrarian import database, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
@@ -235,6 +236,9 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
                 elif CONFIG['BOOK_API'] == "OpenLibrary":
                     ol_id = OpenLibrary(bookid)
                     ol_id.find_book(bookid, None, None, "Added by import_book %s" % source_dir)
+                elif CONFIG['BOOK_API'] == "HardCover":
+                    hc_id = HardCover(bookid)
+                    hc_id.find_book(bookid, None, None, "Added by import_book %s" % source_dir)
                 # see if it's there now...
                 book = db.match('SELECT * from books where BookID=?', (bookid,))
             if not book:
@@ -501,6 +505,14 @@ def process_alternate(source_dir=None, library='eBook'):
                         ol = OpenLibrary(authorname)
                         try:
                             author_gr = ol.find_author_id()
+                        except Exception as e:
+                            author_gr = {}
+                            logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
+                    elif CONFIG['BOOK_API'] in ['HardCover']:
+                        logger.debug("Checking HardCover for [%s]" % authorname)
+                        hc = HardCover(authorname)
+                        try:
+                            author_gr = hc.find_author_id()
                         except Exception as e:
                             author_gr = {}
                             logger.warning("No author id for [%s] %s" % (authorname, type(e).__name__))
@@ -1711,7 +1723,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 if source == 'DIRECT':
                     source = book.get('NZBprov')
                 logger.debug('%s was sent to %s %s %s ago. Progress %s %s' %
-                                 (book['NZBtitle'], source, mins, plural(mins, 'minute'), progress, skipped))
+                             (book['NZBtitle'], source, mins, plural(mins, 'minute'), progress, skipped))
 
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         # Check if postprocessor needs to run again
@@ -2755,7 +2767,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             identifier = ''
             if booktype in ['ebook', 'audiobook']:
                 if bookid.isdigit():
+                    # TODO if purely numeric could be goodreads or hardcover, we can't be sure
                     identifier = "goodreads:%s" % bookid
+                    if CONFIG['BOOK_API'] == "HardCover":
+                        identifier = "hardcover:%s" % bookid
                 elif bookid.startswith('OL'):
                     identifier = "OpenLibrary:%s" % bookid
                 else:
@@ -3285,7 +3300,7 @@ def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cac
         if not success:
             logger.error('Error caching cover from %s, %s' % (bookimg, link))
             return
-        cachefile = os.path.join(DIRS.CACHEDIR, cache.value, bookid + '.jpg')
+        cachefile = os.path.join(DIRS.DATADIR, link)
 
     try:
         coverfile = os.path.join(dest_path, global_name + '.jpg')
@@ -3388,7 +3403,10 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
     elif 'Scheme' in data:
         scheme = data['Scheme']
     elif bookid.isdigit():
+        # TODO could be goodreads or hardcover, can't be sure
         scheme = 'goodreads'
+        if CONFIG['BOOK_API'] == "HardCover":
+            scheme = 'HardCover'
     elif bookid.startswith('OL'):
         scheme = 'OpenLibrary'
     else:

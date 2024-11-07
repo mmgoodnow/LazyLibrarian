@@ -14,24 +14,25 @@
 # example
 # https://www.googleapis.com/books/v1/volumes?q=+inauthor:george+martin+intitle:song+ice+fire
 
-import re
-import traceback
-import time
 import logging
+import re
+import time
+import traceback
+from urllib.parse import quote, quote_plus, urlencode
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
+from lazylibrarian.images import cache_bookimg
 from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, thinglang, google_book_dict
-from lazylibrarian.images import get_book_cover
-from lazylibrarian.cache import json_request, cache_img, ImageType
+from lazylibrarian.cache import json_request
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
     get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, check_year, thread_name
+from lazylibrarian.hc import HardCover
+from lazylibrarian.images import get_book_cover
 from lazylibrarian.ol import OpenLibrary
-
 from thefuzz import fuzz
-from urllib.parse import quote, quote_plus, urlencode
 
 
 class GoogleBooks:
@@ -266,9 +267,7 @@ class GoogleBooks:
 
             valid_langs = get_list(CONFIG['IMP_PREFLANG'])
             # Artist is loading
-            control_value_dict = {"AuthorID": authorid}
-            new_value_dict = {"Status": "Loading"}
-            db.upsert("authors", new_value_dict, control_value_dict)
+            db.action("UPDATE authors SET Status='Loading' WHERE AuthorID=?", (authorid,))
 
             try:
                 threadname = thread_name()
@@ -522,25 +521,17 @@ class GoogleBooks:
                                     "gb_id": bookid
                                 }
 
-                                db.upsert("books", new_value_dict, control_value_dict)
-                                self.logger.debug("Book found: " + bookname + " " + book['date'])
                                 if 'nocover' in book['img'] or 'nophoto' in book['img']:
                                     # try to get a cover from another source
-                                    workcover, source = get_book_cover(bookid)
-                                    if workcover:
-                                        self.logger.debug('Updated cover for %s using %s' % (bookname, source))
-                                        control_value_dict = {"BookID": bookid}
-                                        new_value_dict = {"BookImg": workcover}
-                                        db.upsert("books", new_value_dict, control_value_dict)
-
-                                elif book['img'] and book['img'].startswith('http'):
-                                    link, success, _ = cache_img(ImageType.BOOK, bookid, book['img'], refresh=refresh)
-                                    if success:
-                                        control_value_dict = {"BookID": bookid}
+                                    link, _ = get_book_cover(bookid)
+                                    if link:
                                         new_value_dict = {"BookImg": link}
-                                        db.upsert("books", new_value_dict, control_value_dict)
-                                    else:
-                                        self.logger.debug('Failed to cache image for %s' % book['img'])
+                                    elif book['img'] and book['img'].startswith('http'):
+                                        link = cache_bookimg(book['img'], bookid, 'gb')
+                                        new_value_dict = {"BookImg": link}
+
+                                db.upsert("books", new_value_dict, control_value_dict)
+                                self.logger.debug("Book found: " + bookname + " " + book['date'])
 
                                 serieslist = []
                                 if book['series']:
@@ -723,8 +714,12 @@ class GoogleBooks:
         db = database.DBConnection()
         try:
             authorname = book['author']
-            ol = OpenLibrary(authorname)
-            author = ol.find_author_id()
+            if CONFIG['BOOK_API'] == "HardCover":
+                hc = HardCover(f"{authorname}<ll>{bookname}")
+                author = hc.find_author_id()
+            else:
+                ol = OpenLibrary(f"{authorname}<ll>{bookname}")
+                author = ol.find_author_id()
             if author:
                 author_id = author['authorid']
                 match = db.match('SELECT AuthorID from authors WHERE AuthorID=?', (author_id,))
@@ -754,6 +749,10 @@ class GoogleBooks:
                             "Status": newauthor_status,
                             "Reason": reason
                         }
+                        if CONFIG['BOOK_API'] == "HardCover":
+                            new_value_dict['hc_id'] = author_id
+                        else:
+                            new_value_dict['ol_id'] = author_id
                         authorname = author['authorname']
                         db.upsert("authors", new_value_dict, control_value_dict)
                         if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
@@ -786,28 +785,18 @@ class GoogleBooks:
                 "gb_id": bookid
             }
 
+            if 'nocover' in book['img'] or 'nophoto' in book['img']:
+                # try to get a cover from another source
+                link, _ = get_book_cover(bookid)
+                if link:
+                    new_value_dict = {"BookImg": link}
+                elif book['img'] and book['img'].startswith('http'):
+                    link = cache_bookimg(book['img'], bookid, 'gb')
+                    new_value_dict = {"BookImg": link}
+
             db.upsert("books", new_value_dict, control_value_dict)
             self.logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname,
                                                                               bookstatus, audiostatus))
-
-            if 'nocover' in book['img'] or 'nophoto' in book['img']:
-                # try to get a cover from another source
-                workcover, source = get_book_cover(bookid)
-                if workcover:
-                    self.logger.debug('Updated cover for %s using %s' % (bookname, source))
-                    control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"BookImg": workcover}
-                    db.upsert("books", new_value_dict, control_value_dict)
-
-                elif book['img'] and book['img'].startswith('http'):
-                    link, success, _ = cache_img(ImageType.BOOK, bookid, book['img'])
-                    if success:
-                        control_value_dict = {"BookID": bookid}
-                        new_value_dict = {"BookImg": link}
-                        db.upsert("books", new_value_dict, control_value_dict)
-                    else:
-                        self.logger.debug('Failed to cache image for %s' % book['img'])
-
             serieslist = []
             if book['series']:
                 serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]

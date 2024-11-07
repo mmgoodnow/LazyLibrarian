@@ -26,18 +26,9 @@ import lazylibrarian
 from lazylibrarian.configenums import OnChangeReason
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
-# dict to remove/replace characters we don't want in a filename - this might be too strict?
-namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
-           ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
-           '\\\\': '\\'}
-
-#   ä ö ü Ä Ö Ü ß
-umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'}
-
-apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
-
-
 # noinspection PyUnusedLocal
+
+
 class ImportPrefs:
     LANG_LIST = []
     SPLIT_LIST = []
@@ -71,9 +62,9 @@ def sanitize(name):
         return ''
     filename = make_unicode(name)
     # replace non-ascii quotes with regular ones
-    filename = replace_all(filename, apostrophe_dic)
+    filename = replace_all(filename, lazylibrarian.DICTS.get('apostrophe_dict', {}))
     # strip characters we don't want in a filename
-    filename = replace_all(filename, namedic)
+    filename = replace_all(filename, lazylibrarian.DICTS.get('filename_dict', {}))
     # Remove all characters below code point 32
     filename = u"".join(c for c in filename if 31 < ord(c))
     filename = unicodedata.normalize('NFC', filename)
@@ -739,8 +730,11 @@ def format_author_name(author: str, postfix: List[str]) -> str:
     fuzzlogger = logging.getLogger('special.fuzz')
     author = make_unicode(author)
     # if multiple authors assume the first one is primary
+    # except if only one word before '&', e.g. Robert & Gilles Néret Descharnes
     if '& ' in author:
-        author = author.split('& ')[0].strip()
+        words = author.split('& ')[0].strip().split(' ')
+        if len(words) > 1:
+            author = author.split('& ')[0].strip()
     if "," in author:
         words = author.split(',')
         if len(words) == 2:
@@ -808,7 +802,7 @@ def clean_name(name, extras=None):
         return u''
 
     if extras and "'" in extras:
-        name = replace_all(name, apostrophe_dic)
+        name = replace_all(name, lazylibrarian.DICTS.get('apostrophe_dict', {}))
 
     valid_name_chars = u"-_.() %s" % extras
     cleaned = u''.join(c for c in name if c in valid_name_chars or c.isalnum())
@@ -823,7 +817,7 @@ def no_umlauts(s: str) -> str:
     if 'de' not in ImportPrefs.LANG_LIST:
         return s
 
-    s = replace_all(s, umlaut_dict)
+    s = replace_all(s, lazylibrarian.DICTS.get('umlaut_dict', {}))
     res = ''
     # long form to split out the accents
     s = unicodedata.normalize('NFKD', s)
@@ -858,7 +852,7 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])
     # replace all non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-    dic = apostrophe_dic
+    dic = lazylibrarian.DICTS.get('apostrophe_dict', {})
     # Other characters not converted by unicodedata.combining
     # c6 Ae, d0 Eth, d7 multiply, d8 Ostroke, de Thorn, df sharpS
     dic.update({u'\xc6': 'A', u'\xd0': 'D', u'\xd7': '*', u'\xd8': 'O', u'\xde': 'P', u'\xdf': 's'})

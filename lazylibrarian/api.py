@@ -47,6 +47,7 @@ from lazylibrarian.formatter import today, format_author_name, check_int, plural
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
+from lazylibrarian.hc import HardCover
 from lazylibrarian.grsync import grfollow, grsync
 from lazylibrarian.images import get_author_image, get_author_images, get_book_cover, get_book_covers, \
     create_mag_covers, create_mag_cover, shrink_mag
@@ -193,6 +194,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'grFollow': (1, '&id= Follow an author on goodreads'),
             'grFollowAll': (1, 'Follow all lazylibrarian authors on goodreads'),
             'grUnfollow': (1, '&id= Unfollow an author on goodreads'),
+            'hcSync': (1, '[&library=] Sync readinglists to hardcover'),
             'writeOPF': (1, '&id= [&refresh] write out an opf file for a bookid, optionally overwrite existing opf'),
             'writeAllOPF': (1, '[&refresh] write out opf files for all books, optionally overwrite existing opf'),
             'renameAudio': (1, '&id Rename an audiobook using configured pattern'),
@@ -654,7 +656,8 @@ class Api(object):
                         item.set_bool(arg.upper(), val)
                     elif arg.upper() in item:
                         hit.append(arg)
-                        if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED', 'SEEDERS', 'SEED_DURATION']:
+                        if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED',
+                                           'SEEDERS', 'SEED_DURATION']:
                             item.set_int(arg.upper(), kwargs[arg])
                         elif arg.upper() in ['SEED_RATIO']:
                             item.set_float(arg.upper(), kwargs[arg])
@@ -684,7 +687,7 @@ class Api(object):
                         miss.append(arg)
 
                 get_capabilities(item, True)
-                
+
                 CONFIG.save_config_and_backup_old(section=item['NAME'])
                 self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
                              'Error':  {'Code': 200, 'Message': 'OK'}}
@@ -779,7 +782,9 @@ class Api(object):
                 hit.append(arg)
             elif arg.upper() in providers[0]:
                 hit.append(arg)
-                if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED', 'SEEDERS', 'SEED_DURATION']:
+                empty_slot[arg.upper()] = kwargs[arg]
+                if arg.upper() in ['EXTENDED', 'APICOUNT', 'APILIMIT', 'RATELIMIT', 'DLPRIORITY', 'LASTUSED',
+                                   'SEEDERS', 'SEED_DURATION']:
                     empty_slot.set_int(arg.upper(), kwargs[arg])
                 elif arg.upper() in ['SEED_RATIO']:
                     empty_slot.set_float(arg.upper(), kwargs[arg])
@@ -789,7 +794,7 @@ class Api(object):
                 miss.append(arg)
 
         get_capabilities(empty_slot, True)
-        
+
         CONFIG.save_config_and_backup_old(section=section)
         self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
                      'Error':  {'Code': 200, 'Message': 'OK'}}
@@ -1956,6 +1961,11 @@ class Api(object):
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[authorname, myqueue])
             search_api.start()
+        elif CONFIG.get_str('BOOK_API') == "HardCover":
+            hc = HardCover(authorname)
+            myqueue = Queue()
+            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS', args=[authorname, myqueue])
+            search_api.start()
         else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(authorname)
             myqueue = Queue()
@@ -1981,6 +1991,11 @@ class Api(object):
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
+        elif CONFIG.get_str('BOOK_API') == "HardCover":
+            hc = HardCover(kwargs['name'])
+            myqueue = Queue()
+            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS', args=[kwargs['name'], myqueue])
+            search_api.start()
         else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['name'])
             myqueue = Queue()
@@ -2003,6 +2018,10 @@ class Api(object):
         elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(kwargs['id'])
             threading.Thread(target=gr.find_book, name='API-GRRESULTS', args=[kwargs['id'],
+                                                                              None, None, "Added by API"]).start()
+        elif CONFIG.get_str('BOOK_API') == "HardCover":
+            hc = HardCover(kwargs['id'])
+            threading.Thread(target=hc.find_book, name='API-HCRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
         elif CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['id'])
@@ -2149,6 +2168,15 @@ class Api(object):
         finally:
             db.close()
         self.data = "Added follow to %s %s" % (count, plural(count, "author"))
+
+    def _hcsync(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        library = kwargs.get('library', '')
+        userid = kwargs.get('user', None)
+        try:
+            self.data = hc.hc_sync(library=library, userid=userid)
+        except Exception as e:
+            self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _grsync(self, **kwargs):
         TELEMETRY.record_usage_data()

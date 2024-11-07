@@ -29,6 +29,10 @@
               <button class="button btn btn-sm btn-primary" type="button" value="synctogoodreads" id="synctogoodreads">
               <i class="fa fa-link"></i> Goodreads Sync</button>
             %endif
+            %if CONFIG['HC_SYNC']:
+              <button class="button btn btn-sm btn-primary" type="button" value="synctohardcover" id="synctohardcover">
+              <i class="fa fa-link"></i> HardCover Sync</button>
+            %endif
           %endif
           </div>
             %if len(types) > 1:
@@ -219,6 +223,23 @@
                 $("#myAlert").addClass('hidden');
                 bootbox.dialog({
                     title: 'Goodreads Sync Result',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary'
+                        },
+                    }
+                });
+            });
+        });
+
+        $('#synctohardcover').on('click', function(e) {
+            $("#myAlert").removeClass('hidden');
+            $.get('sync_to_hardcover', function(data) {
+                $("#myAlert").addClass('hidden');
+                bootbox.dialog({
+                    title: 'HardCover Sync Result',
                     message: '<pre>'+data+'</pre>',
                     buttons: {
                         primary: {
