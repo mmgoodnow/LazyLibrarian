@@ -331,7 +331,7 @@ def get_book_cover(bookid=None, src=None):
                 return None, src
 
         imgid = img_id()
-        # see if librarything  has a cover
+        # see if librarything has a cover
         if not src or src == 'librarything':
             if CONFIG['LT_DEVKEY']:
                 cmd = "select BookISBN from books where bookID=?"
@@ -344,6 +344,21 @@ def get_book_cover(bookid=None, src=None):
                         return coverlink, 'librarything'
                 else:
                     logger.debug("No isbn for %s" % bookid)
+            if src:
+                return None, src
+
+        # see if hardcover has a cover
+        if not src or src == 'hardcover':
+            cmd = "select hc_id from books where bookID=?"
+            item = db.match(cmd, (bookid,))
+            if item and item['hc_id']:
+                h_c = lazylibrarian.hc.HardCover(item['hc_id'])
+                bookdict = h_c.find_bookdict(item['hc_id'])
+                img = bookdict['cover']
+                if img:
+                    coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)
+                    if coverlink:
+                        return coverlink, 'hardcover'
             if src:
                 return None, src
 
@@ -383,8 +398,6 @@ def get_book_cover(bookid=None, src=None):
         if not item:
             return None, src
 
-        safeparams = ''
-        booklink = ''
         title = safe_unicode(item['BookName'])
         author = safe_unicode(item['AuthorName'])
         booklink = item['BookLink']

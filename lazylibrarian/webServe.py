@@ -3645,7 +3645,8 @@ class WebInterface(object):
                 "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
             cmd = ("SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,books.AuthorID,"
                    "BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile,books.gr_id,"
-                   "books.gb_id,books.ol_id from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?")
+                   "books.gb_id,books.ol_id, books.hc_id from books,authors WHERE books.AuthorID = authors.AuthorID"
+                   " and BookID=?")
             bookdata = db.match(cmd, (bookid,))
             cmd = "SELECT SeriesName, SeriesNum from member,series where series.SeriesID=member.SeriesID and BookID=?"
             seriesdict = db.select(cmd, (bookid,))
@@ -3669,6 +3670,8 @@ class WebInterface(object):
                 # baidu doesn't like bots, message: "Forbid spider access"
                 sources = ['current', 'cover', 'goodreads', 'librarything', 'openlibrary',
                            'googleisbn', 'bing', 'googleimage']
+                if CONFIG['HC_API']:
+                    sources.append('hardcover')
                 if NEW_WHATWORK:
                     sources.append('whatwork')
                 for source in sources:
@@ -3872,6 +3875,12 @@ class WebInterface(object):
 
                     debug_msg = "Old series list for %s: %s" % (bookid, old_list)
                     logger.debug(debug_msg)
+                    clean_list = []
+                    for item in new_list:
+                        if item[1]:
+                            clean_list.append(item)
+                    new_list = clean_list
+
                     debug_msg = "New series list for %s: %s" % (bookid, new_list)
                     logger.debug(debug_msg)
                     series_changed = False

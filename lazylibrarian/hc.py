@@ -17,8 +17,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import md5_utf8, make_unicode, is_valid_isbn, get_list, format_author_name, \
     date_format, thread_name, now, today, plural, unaccented, replace_all, check_year, check_int
-from lazylibrarian.images import cache_bookimg
-from lazylibrarian.images import get_book_cover
+from lazylibrarian.images import cache_bookimg, get_book_cover
 from thefuzz import fuzz
 
 
@@ -128,7 +127,7 @@ def validate_bookdict(bookdict):
                         rejected = 'publisher', bookpub
                         break
 
-            cmd = ("SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+            cmd = ("SELECT BookID,hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
                    "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
                    "and AudioStatus != 'Ignored'")
             exists = db.match(cmd, (bookdict['title'], bookdict['auth_name']))
@@ -143,7 +142,7 @@ def validate_bookdict(bookdict):
                                                                       reason='hc_get_author_books %s,%s' %
                                                                       (bookdict['auth_id'], bookdict['title']))
                 if in_db and in_db[0]:
-                    cmd = "SELECT BookID FROM books WHERE BookID=?"
+                    cmd = "SELECT BookID,hc_id FROM books WHERE BookID=?"
                     exists = db.match(cmd, (in_db[0],))
 
             if exists and not rejected:
@@ -156,6 +155,9 @@ def validate_bookdict(bookdict):
                 # but allow info (dates etc.) to be updated
                 if bookdict['bookid'] != exists['BookID']:
                     rejected = 'dupe', 'Duplicate id (%s/%s)' % (bookdict['bookid'], exists['BookID'])
+                    if not exists['hc_id']:
+                        cmd = "UPDATE books SET hc_id=? WHERE BookID=?"
+                        db.action(cmd, (bookdict['bookid'], exists['BookID']))
 
             if not rejected and bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
                 # try isbn lookup by name
@@ -1236,6 +1238,16 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             bookdict = self.get_bookdict(results['data']['books'][0])
             return bookdict['series']
         return []
+
+    def find_bookdict(self, bookid=None):
+        bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(bookid))
+        results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
+        bookdict = {}
+        if 'errors' in results:
+            self.logger.error(str(results['errors']))
+        if 'data' in results and results['data'].get('books'):
+            bookdict = self.get_bookdict(results['data']['books'][0])
+        return bookdict
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.find_book'):
 
