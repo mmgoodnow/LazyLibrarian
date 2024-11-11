@@ -575,7 +575,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 title_translates = [
     [' & ', ' and '],
     [' + ', ' plus '],
-    ['the ', '']
+    ['the ', ''],
+    [', the', '']
 ]
 
 
@@ -595,19 +596,40 @@ def collate_nopunctuation(string1, string2):
     return 0
 
 
+def collate_fuzzy(string1, string2):
+    string1 = string1.lower()
+    string2 = string2.lower()
+    for entry in title_translates:
+        string1 = string1.replace(entry[0], entry[1])
+        string2 = string2.replace(entry[0], entry[1])
+    # strip all punctuation so things like "it's" matches "its"
+    str1 = string1.translate(str.maketrans('', '', string.punctuation))
+    str2 = string2.translate(str.maketrans('', '', string.punctuation))
+    if str1 == str2:
+        return 0
+    match_fuzz = fuzz.ratio(str1, str2)
+    if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+        return 0
+    if str1 < str2:
+        return -1
+    elif str1 > str2:
+        return 1
+    return 0
+
+
 def de_duplicate(authorid):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
-    db.connection.create_collation('nopunctuation', collate_nopunctuation)
+    db.connection.create_collation('fuzzy', collate_fuzzy)
     total = 0
     dupes = 0
     authorname = ''
     # noinspection PyBroadException
     try:
-        # check/delete any duplicate titles - exact match only, no fuzz
+        # check/delete any duplicate titles - with fuzz
         cmd = ("select count('bookname'),bookname from books where authorid=? "
-               "group by bookname COLLATE NOPUNCTUATION having ( count(bookname) > 1 )")
+               "group by bookname COLLATE FUZZY having ( count(bookname) > 1 )")
         res = db.select(cmd, (authorid,))
         dupes = len(res)
         if author:
@@ -615,12 +637,11 @@ def de_duplicate(authorid):
         if not dupes:
             logger.debug("No duplicates to merge")
         else:
-            logger.warning("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes,
-                                                                plural(dupes, 'title'), authorname))
+            logger.warning(f"There {plural(dupes, 'is')} {dupes} duplicate {plural(dupes, 'title')} for {authorname}")
             for item in res:
-                logger.debug(dict(item))
+                logger.debug(f"{item[1]} has {item[0]} entries")
                 favourite = ''
-                copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE NOPUNCTUATION",
+                copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE FUZZY",
                                    (authorid, item[1]))
                 for copy in copies:
                     if (copy['Status'] in ['Open', 'Have'] or
@@ -640,8 +661,8 @@ def de_duplicate(authorid):
                             break
                 if not favourite:
                     favourite = copies[0]
-                logger.debug("Favourite %s %s %s %s" % (favourite['BookID'], favourite['BookName'], favourite['Status'],
-                                                        favourite['AudioStatus']))
+                logger.debug(f"Favourite {favourite['BookID']} {favourite['BookName']} "
+                             f"({favourite['Status']}/{favourite['AudioStatus']})")
                 for copy in copies:
                     if copy['BookID'] != favourite['BookID']:
                         members = db.select("SELECT SeriesID,SeriesNum from member WHERE BookID=?",
@@ -656,7 +677,7 @@ def de_duplicate(authorid):
                                     'BookImg', 'BookPages', 'BookLink', 'BookFile', 'BookDate', 'BookLang',
                                     'BookAdded', 'WorkPage', 'Manual', 'SeriesDisplay', 'BookLibrary',
                                     'AudioFile', 'AudioLibrary', 'WorkID', 'ScanResult', 'gr_id', 'ol_id', 'gb_id',
-                                    'OriginalPubDate', 'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']:
+                                    'hc_id', 'OriginalPubDate', 'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']:
                             if not favourite[key] and copy[key]:
                                 cmd = "UPDATE books SET %s=? WHERE BookID=?" % key
                                 logger.debug(f"Copy {key} from {copy['BookID']}: {copy['BookName']}")

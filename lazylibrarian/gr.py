@@ -802,7 +802,7 @@ class GoodReads:
                                 not_rejectable = "AudioStatus: %s" % match['AudioStatus']
 
                         if not match and not rejected:
-                            cmd = ("SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                            cmd = ("SELECT BookID,gr_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
                                    "BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE and AuthorName=? "
                                    "COLLATE NOCASE and books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                             match = db.match(cmd, (bookname, booksub, author_name_result))
@@ -813,8 +813,8 @@ class GoodReads:
                                                                                   ignored=False, library='eBook',
                                                                                   reason='gr_get_author_books')
                                 if in_db and in_db[0]:
-                                    cmd = ("SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult "
-                                           "FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?")
+                                    cmd = ("SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult,gr_id"
+                                           " FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?")
                                     match = db.match(cmd, (in_db[0],))
                             if match:
                                 if match['BookID'] != bookid:
@@ -824,6 +824,9 @@ class GoodReads:
                                                           (bookname, bookid, match['BookID'], not_rejectable))
                                     else:
                                         duplicates += 1
+                                        if not match['gr_id']:
+                                            cmd = "UPDATE books SET gr_id=? WHERE BookID=?"
+                                            db.action(cmd, (bookid, match['BookID']))
                                         rejected = 'bookid', 'Got %s under bookid %s' % (bookid, match['BookID'])
                                         self.logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                                           (bookid, author_name_result, bookname, match['BookID']))

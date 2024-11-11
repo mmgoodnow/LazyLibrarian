@@ -636,9 +636,9 @@ class OpenLibrary:
                     if not rejected and not title:
                         rejected = 'name', 'No title'
 
-                    cmd = ("SELECT BookID,LT_WorkID FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
-                           "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
-                           "and AudioStatus != 'Ignored'")
+                    cmd = ("SELECT BookID,LT_WorkID,ol_id FROM books,authors WHERE books.AuthorID = authors.AuthorID "
+                           "and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored'"
+                           " and AudioStatus != 'Ignored'")
                     exists = db.match(cmd, (title, auth_name))
                     if not exists:
                         if auth_id != ol_id:
@@ -649,7 +649,7 @@ class OpenLibrary:
                                                                               reason='ol_get_author_books %s,%s' %
                                                                               (authorid, title))
                             if in_db and in_db[0]:
-                                cmd = "SELECT BookID,LT_WorkID FROM books WHERE BookID=?"
+                                cmd = "SELECT BookID,LT_WorkID,ol_id FROM books WHERE BookID=?"
                                 exists = db.match(cmd, (in_db[0],))
 
                     if exists and id_librarything and not exists['LT_WorkID']:
@@ -666,6 +666,9 @@ class OpenLibrary:
                         if key != exists['BookID']:
                             self.logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                               (key, auth_name, title, exists['BookID']))
+                            if not exists['ol_id']:
+                                cmd = "UPDATE books SET ol_id=? WHERE BookID=?"
+                                db.action(cmd, (key, exists['BookID']))
                             duplicates += 1
                             rejected = 'name', 'Duplicate id (%s/%s)' % (key, exists['BookID'])
                     if not rejected:

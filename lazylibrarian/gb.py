@@ -412,7 +412,7 @@ class GoogleBooks:
                                 rejected = 'isbn', 'No ISBN'
 
                         if not rejected:
-                            cmd = ("SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                            cmd = ("SELECT BookID,gb_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
                                    "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and "
                                    "books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                             match = db.match(cmd, (bookname, authorname))
@@ -421,22 +421,28 @@ class GoogleBooks:
                                                                                   ignored=False, library='eBook',
                                                                                   reason='gb_get_author_books')
                                 if in_db and in_db[0]:
-                                    match = {'BookID': in_db[0]}
+                                    cmd = "SELECT BookID,gb_id FROM books WHERE BookID=?"
+                                    match = db.match(cmd, (in_db[0],))
                             if match:
                                 if match['BookID'] != bookid:  # we have a different book with this author/title already
                                     self.logger.debug(f'Rejecting bookid {bookid} for [{authorname}][{bookname}]'
                                                       f' already got {match["BookID"]}')
                                     rejected = 'bookid', 'Got under different bookid %s' % bookid
+                                    if not match['gb_id']:
+                                        db.action("UPDATE books SET gb_id=? WHERE BookID=?", (bookid, match['BookID']))
                                     duplicates += 1
 
-                        cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult FROM books,authors "
-                               "WHERE authors.AuthorID = books.AuthorID AND BookID=?")
+                        cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult,gb_id,BookID "
+                               "FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?")
                         match = db.match(cmd, (bookid,))
                         if match:  # we have a book with this bookid already
                             if bookname != match['BookName'] or authorname != match['AuthorName']:
                                 self.logger.debug('Rejecting bookid %s for [%s][%s] already got bookid for [%s][%s]' %
                                                   (bookid, authorname, bookname, match['AuthorName'],
                                                    match['BookName']))
+                                if not match['gb_id']:
+                                    cmd = "UPDATE books SET gb_id=? WHERE BookID=?"
+                                    db.action(cmd, (bookid, match['BookID']))
                                 duplicates += 1
                                 rejected = 'got', 'Already got this bookid in database'
                             else:
