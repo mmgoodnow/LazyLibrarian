@@ -636,7 +636,7 @@ class OpenLibrary:
                     if not rejected and not title:
                         rejected = 'name', 'No title'
 
-                    cmd = ("SELECT BookID,LT_WorkID,ol_id FROM books,authors WHERE books.AuthorID = authors.AuthorID "
+                    cmd = ("SELECT BookID,LT_WorkID,books.ol_id FROM books,authors WHERE books.AuthorID = authors.AuthorID "
                            "and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored'"
                            " and AudioStatus != 'Ignored'")
                     exists = db.match(cmd, (title, auth_name))
@@ -667,8 +667,7 @@ class OpenLibrary:
                             self.logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                               (key, auth_name, title, exists['BookID']))
                             if not exists['ol_id']:
-                                cmd = "UPDATE books SET ol_id=? WHERE BookID=?"
-                                db.action(cmd, (key, exists['BookID']))
+                                db.action("UPDATE books SET ol_id=? WHERE BookID=?", (key, exists['BookID']))
                             duplicates += 1
                             rejected = 'name', 'Duplicate id (%s/%s)' % (key, exists['BookID'])
                     if not rejected:

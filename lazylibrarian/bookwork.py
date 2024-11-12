@@ -1277,9 +1277,12 @@ def get_work_series(bookid=None, source='GR', reason=""):
                         ensure_series_in_db('GR' + seriesid, seriesname, bookid, reason)
 
     elif source == 'HC':
+        series_results = []
         hc = lazylibrarian.hc.HardCover(bookid)
-        res = hc.find_book_series(bookid)
-        for item in res:
+        res = hc.find_bookdict(bookid)
+        if 'series' in res:
+            series_results = res['series']
+        for item in series_results:
             seriesname = item[0]
             seriesid = item[1]
             seriesnum = item[2]

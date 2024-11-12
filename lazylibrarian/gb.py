@@ -441,8 +441,7 @@ class GoogleBooks:
                                                   (bookid, authorname, bookname, match['AuthorName'],
                                                    match['BookName']))
                                 if not match['gb_id']:
-                                    cmd = "UPDATE books SET gb_id=? WHERE BookID=?"
-                                    db.action(cmd, (bookid, match['BookID']))
+                                    db.action("UPDATE books SET gb_id=? WHERE BookID=?", (bookid, match['BookID']))
                                 duplicates += 1
                                 rejected = 'got', 'Already got this bookid in database'
                             else:

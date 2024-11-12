@@ -802,7 +802,7 @@ class GoodReads:
                                 not_rejectable = "AudioStatus: %s" % match['AudioStatus']
 
                         if not match and not rejected:
-                            cmd = ("SELECT BookID,gr_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                            cmd = ("SELECT BookID,books.gr_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
                                    "BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE and AuthorName=? "
                                    "COLLATE NOCASE and books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                             match = db.match(cmd, (bookname, booksub, author_name_result))
@@ -813,7 +813,7 @@ class GoodReads:
                                                                                   ignored=False, library='eBook',
                                                                                   reason='gr_get_author_books')
                                 if in_db and in_db[0]:
-                                    cmd = ("SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult,gr_id"
+                                    cmd = ("SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult,books.gr_id"
                                            " FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?")
                                     match = db.match(cmd, (in_db[0],))
                             if match:

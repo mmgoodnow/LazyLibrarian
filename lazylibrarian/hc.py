@@ -127,7 +127,7 @@ def validate_bookdict(bookdict):
                         rejected = 'publisher', bookpub
                         break
 
-            cmd = ("SELECT BookID,hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+            cmd = ("SELECT BookID,books.hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
                    "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
                    "and AudioStatus != 'Ignored'")
             exists = db.match(cmd, (bookdict['title'], bookdict['auth_name']))
@@ -156,8 +156,7 @@ def validate_bookdict(bookdict):
                 if bookdict['bookid'] != exists['BookID']:
                     rejected = 'dupe', 'Duplicate id (%s/%s)' % (bookdict['bookid'], exists['BookID'])
                     if not exists['hc_id']:
-                        cmd = "UPDATE books SET hc_id=? WHERE BookID=?"
-                        db.action(cmd, (bookdict['bookid'], exists['BookID']))
+                        db.action("UPDATE books SET hc_id=? WHERE BookID=?", (bookdict['bookid'], exists['BookID']))
 
             if not rejected and bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
                 # try isbn lookup by name
@@ -513,7 +512,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                         position = 0
                     book_title = entry['book']['title']
                     workid = entry['book']['id']
-                    author_title = entry['book']['contributions'][0]['author']['name']
+                    authorname = entry['book']['contributions'][0]['author']['name']
                     authorlink = entry['book']['contributions'][0]['author']['id']
                     pubyear = entry['book']['release_year']
                     pubdate = entry['book']['release_date']
@@ -526,7 +525,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                     languages = set(languages)
 
                     if not author_name:
-                        author_name = author_title
+                        author_name = authorname
 
                     if position and (position not in resultdict or resultdict[position][1] != author_name):
                         valid_lang = False
@@ -539,7 +538,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                     valid_lang = True
                                     break
                         if valid_lang:
-                            resultdict[position] = [book_title, author_title, authorlink, workid, pubyear, pubdate]
+                            resultdict[position] = [book_title, authorname, authorlink, workid, pubyear, pubdate]
             for item in resultdict:
                 res = [item]
                 res.extend(resultdict[item])
@@ -679,15 +678,15 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
     def find_author_id(self, refresh=False):
         cache_hits = 0
         api_hits = 0
-        author_title = self.name.replace('#', '').replace('/', '_')
+        authorname = self.name.replace('#', '').replace('/', '_')
 
-        self.logger.debug("Getting author id for %s, refresh=%s" % (author_title, refresh))
+        self.logger.debug("Getting author id for %s, refresh=%s" % (authorname, refresh))
         title = self.title
-        author_title = format_author_name(author_title, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
+        authorname = format_author_name(authorname, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         if title:
-            searchcmd = self.HC_AUTHOR_TITLE_SEARCH.replace('[authorname]', author_title).replace('[title]', title)
+            searchcmd = self.HC_AUTHOR_TITLE_SEARCH.replace('[authorname]', authorname).replace('[title]', title)
         else:
-            searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', author_title)
+            searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', authorname)
         self.searchinglogger.debug(searchcmd)
 
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
@@ -702,21 +701,21 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                     author_name = author['author']['name']
                     authorid = str(author['author']['id'])
 
-                    match = fuzz.ratio(author_name, author_title)
+                    match = fuzz.ratio(author_name, authorname)
                     if match >= CONFIG.get_int('NAME_RATIO'):
                         res = self.get_author_info(authorid)
                     if not res:
-                        match = fuzz.partial_ratio(author_name, author_title)
+                        match = fuzz.partial_ratio(author_name, authorname)
                         if match >= CONFIG.get_int('NAME_PARTNAME'):
                             res = self.get_author_info(authorid)
-                    if res and res['authorname'] != author_title:
-                        res['aka'] = author_title
+                    if res and res['authorname'] != authorname:
+                        res['aka'] = authorname
                     if res:
                         break
                 self.logger.debug("Author/book search used %s api hit, %s in cache" % (api_hits, cache_hits))
                 return res
         if title:  # no results using author/title, try author only
-            searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', author_title)
+            searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', authorname)
             results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
             api_hits += not in_cache
             cache_hits += in_cache
@@ -728,10 +727,10 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                     for author in book_data['contributions']:
                         author_name = author['author']['name']
                         authorid = str(author['author']['id'])
-                        if fuzz.token_set_ratio(author_name, author_title) >= CONFIG.get_int('NAME_RATIO'):
+                        if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
                             res = self.get_author_info(authorid)
-                            if res and res['authorname'] != author_title:
-                                res['aka'] = author_title
+                            if res and res['authorname'] != authorname:
+                                res['aka'] = authorname
                             break
                     self.logger.debug("Authorname used %s api hit, %s in cache" % (api_hits, cache_hits))
                     return res
@@ -879,7 +878,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         bookdict['id_librarything'] = ""
         return bookdict
 
-    def get_author_books(self, authorid=None, author_title=None, bookstatus="Skipped", audiostatus='Skipped',
+    def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
                          entrystatus='Active', refresh=False, reason='hc.get_author_books'):
 
         cache_hits = 0
@@ -898,7 +897,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         auth_start = time.time()
         series_updates = []
         hc_id = ''
-        entry_title = author_title
+        entry_name = authorname
 
         # these are reject reasons we might want to override, so optionally add to database as "ignored"
         ignorable = ['future', 'date', 'isbn', 'word', 'set']
@@ -930,11 +929,11 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             self.logger.debug(f"HC found {len(results['data']['books'])} results")
             for book_data in results['data']['books']:
                 bookdict = self.get_bookdict(book_data)
-                if bookdict['auth_name'] != entry_title:
+                if bookdict['auth_name'] != entry_name:
                     # not our author, might be a contributor to an anthology?
                     if 'contributions' in book_data and len(book_data['contributions']):
                         for author in book_data['contributions']:
-                            if (fuzz.token_set_ratio(author['author']['name'], author_title) >=
+                            if (fuzz.token_set_ratio(author['author']['name'], entry_name) >=
                                     CONFIG.get_int('NAME_RATIO')):
                                 bookdict['auth_name'] = " ".join(author['author']['name'].split())
                                 bookdict['auth_id'] = str(author['author']['id'])
@@ -1212,7 +1211,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                 self.logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count,
                                                                                      "cover"), cover_time))
 
-            control_value_dict = {"authorname": author_title.replace('"', '""')}
+            control_value_dict = {"authorname": entry_name.replace('"', '""')}
             new_value_dict = {
                               "GR_book_hits": 0,
                               "GR_lang_hits": 0,
@@ -1228,17 +1227,6 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         finally:
             db.close()
 
-    def find_book_series(self, bookid=None):
-
-        bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(bookid))
-        results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
-        if 'data' in results and results['data'].get('books'):
-            bookdict = self.get_bookdict(results['data']['books'][0])
-            return bookdict['series']
-        return []
-
     def find_bookdict(self, bookid=None):
         bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
@@ -1250,7 +1238,6 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         return bookdict
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.find_book'):
-
         bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
         bookdict = {}
