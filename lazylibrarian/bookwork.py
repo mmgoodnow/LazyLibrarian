@@ -1220,7 +1220,7 @@ def ensure_series_in_db(seriesid, seriesname, bookid, reason):
         elif str(match['SeriesID']) != str(seriesid):
             logger.warning("SeriesID mismatch for series %s [%s][%s]" % (
                         seriesname, seriesid, match['SeriesID']))
-            match = db.match('SELECT SeriesNameStatus from series WHERE SeriesID=?', (seriesid,))
+            match = db.match('SELECT SeriesName,Status from series WHERE SeriesID=?', (seriesid,))
             if not match:
                 reason = "Bookid %s: %s" % (bookid, reason)
                 db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, '
