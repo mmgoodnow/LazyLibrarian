@@ -274,7 +274,7 @@ def get_all_author_details(authorid=None, authorname=None):
         if ol_id:
             ol = OpenLibrary(ol_id)
             ol_author = ol.get_author_info(authorid=ol_id)
-            if not authorname:
+            if not authorname and 'authorname' in ol_author:
                 authorname = ol_author['authorname']
 
     if CONFIG['HC_API'] and (CONFIG['BOOK_API'] in ['HardCover'] or CONFIG.get_bool('MULTI_SOURCE')):
@@ -295,7 +295,7 @@ def get_all_author_details(authorid=None, authorname=None):
             else:
                 hc = HardCover(hc_id)
             hc_author = hc.get_author_info(authorid=hc_id)
-            if not authorname:
+            if not authorname and 'authorname' in hc_author:
                 authorname = hc_author['authorname']
 
     if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'GoogleBooks', 'HardCover'] or
@@ -517,8 +517,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                 res = book_api.find_author_id(refresh=True)
                                 if res:
                                     current_id = res.get('authorid')
-                                    cmd = "UPDATE authors SET %s=? WHERE AuthorName=?"
-                                    db.action(cmd, (api_source[2], current_author['authorname']))
+                                    cmd = "UPDATE authors SET %s=? WHERE AuthorName=?" % api_source[2]
+                                    db.action(cmd, (current_id, current_author['authorname']))
                         logger.debug("Book query %s for %s:%s" % (api_source[0], current_id,
                                                                   current_author['authorname']))
                         book_api = api_source[1]

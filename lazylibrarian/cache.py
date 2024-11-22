@@ -150,19 +150,21 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
         if raw:
             return r.content, True
         return r.text, True
-    elif r.status_code == 403 and 'googleapis' in url:
+    elif r.status_code in [403, 429] and 'googleapis' in url:
         # noinspection PyBroadException
         try:
             source = r.json()
             msg = source['error']['message']
         except Exception:
-            msg = "Error 403: see debug log"
+            msg = f"Error {r.status_code}: see debug log"
 
         if 'Limit Exceeded' in msg:
             # how long until midnight Pacific Time when google reset the quotas
             delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
             if delay > 86400:
                 delay -= 86400  # no roll-over to next day
+        elif r.status_code == 429:  # too many requests
+            delay = 10
         else:
             # might be forbidden for a different reason where midnight might not matter
             # eg "Cannot determine user location for geographically restricted operation"

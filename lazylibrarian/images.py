@@ -284,7 +284,7 @@ def get_book_cover(bookid=None, src=None):
     try:
         cachedir = DIRS.CACHEDIR
         item = db.match('select BookImg from books where bookID=?', (bookid,))
-        if item:
+        if item and item['BookImg']:
             coverlink = item['BookImg']
             coverfile = os.path.join(cachedir, coverlink.replace('cache/', ''))
             if coverlink != 'images/nocover.png' and 'nocover' in coverlink or 'nophoto' in coverlink:

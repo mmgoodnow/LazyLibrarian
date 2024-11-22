@@ -636,9 +636,10 @@ class OpenLibrary:
                     if not rejected and not title:
                         rejected = 'name', 'No title'
 
-                    cmd = ("SELECT BookID,LT_WorkID,books.ol_id FROM books,authors WHERE books.AuthorID = authors.AuthorID "
-                           "and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored'"
-                           " and AudioStatus != 'Ignored'")
+                    cmd = ("SELECT BookID,LT_WorkID,books.ol_id FROM books,authors "
+                           "WHERE books.AuthorID = authors.AuthorID "
+                           "and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE "
+                           "and books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                     exists = db.match(cmd, (title, auth_name))
                     if not exists:
                         if auth_id != ol_id:
@@ -851,6 +852,8 @@ class OpenLibrary:
                                         cover_count += 1
                                     elif cover and cover.startswith('http'):
                                         cover_link = cache_bookimg(cover, key, 'ol')
+                                    if not cover_link:  # no results on search or failed to cache it
+                                        cover_link = 'images/nocover.png'
 
                                     db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
                                               'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
@@ -1103,7 +1106,8 @@ class OpenLibrary:
                                                                         cover_count += 1
                                                                     elif cover and cover.startswith('http'):
                                                                         cover = cache_bookimg(cover, workid, 'ol')
-
+                                                                    if not cover:  # no results or failed to cache it
+                                                                        cover = 'images/nocover.png'
                                                                     db.action('INSERT INTO books (AuthorID, '
                                                                               'BookName, BookDesc, BookGenre, BookIsbn,'
                                                                               ' BookPub, BookRate, BookImg, BookLink, '
@@ -1165,6 +1169,9 @@ class OpenLibrary:
                                     cover_count += 1
                                 elif cover and cover.startswith('http'):
                                     cover = cache_bookimg(cover, key, 'ol')
+                                if not cover:  # no results on search or failed to cache it
+                                    cover = 'images/nocover.png'
+
                                 db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
                                           'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
                                           'WorkPage, AudioStatus, ScanResult, OriginalPubDate, ol_id) ' +

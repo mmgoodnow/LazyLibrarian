@@ -876,6 +876,8 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         if pubs:
             bookdict['publishers'] = ', '.join(set(pubs))
         bookdict['id_librarything'] = ""
+        if not bookdict['cover']:
+            bookdict['cover'] = 'images/nocover.png'
         return bookdict
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
@@ -964,9 +966,6 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                 if rejected:
                     reason = rejected[1]
                 else:
-                    if not bookdict.get('cover'):
-                        bookdict['cover'] = 'images/nocover.png'
-
                     update_value_dict = {}
                     exists = db.match("SELECT * from books WHERE BookID=?", (bookdict['bookid'],))
                     if exists:
@@ -996,13 +995,15 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                             bookdict['languages'] = 'Unknown'
 
                         cover_link = bookdict['cover']
-                        if 'nocover' in bookdict['cover'] or 'nophoto' in bookdict['cover']:
+                        if 'nocover' in cover_link or 'nophoto' in cover_link:
                             start = time.time()
                             cover_link, _ = get_book_cover(bookdict['bookid'])
                             cover_time += (time.time() - start)
                             cover_count += 1
-                        if bookdict['cover'] and bookdict['cover'].startswith('http'):
-                            cover_link = cache_bookimg(bookdict['cover'], bookdict['bookid'], 'hc')
+                        elif cover_link and cover_link.startswith('http'):
+                            cover_link = cache_bookimg(cover_link, bookdict['bookid'], 'hc')
+                        if not cover_link:  # no results on search or failed to cache it
+                            cover_link = 'images/nocover.png'
 
                         db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
                                   'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
@@ -1143,13 +1144,25 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                                         if 'data' in results and results['data'].get('books'):
                                                             newbookdict = self.get_bookdict(results['data']['books'][0])
                                                         if newbookdict:
+                                                            cover_link = newbookdict['cover']
+                                                            if 'nocover' in cover_link or 'nophoto' in cover_link:
+                                                                start = time.time()
+                                                                cover_link, _ = get_book_cover(newbookdict['bookid'])
+                                                                cover_time += (time.time() - start)
+                                                                cover_count += 1
+                                                            elif cover_link and cover_link.startswith('http'):
+                                                                cover_link = cache_bookimg(cover_link,
+                                                                                           newbookdict['bookid'], 'hc')
+                                                            if not cover_link:  # no results or failed to cache it
+                                                                cover_link = 'images/nocover.png'
+
                                                             cmd = ('INSERT INTO books (AuthorID, BookName, BookImg, '
                                                                    'BookLink, BookID, BookDate, BookLang, BookAdded, '
                                                                    'Status, WorkPage, AudioStatus, ScanResult, '
                                                                    'OriginalPubDate, hc_id) '
                                                                    'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
                                                             db.action(cmd, (authorid, newbookdict['title'],
-                                                                            newbookdict['cover'], newbookdict['link'],
+                                                                            cover_link, newbookdict['link'],
                                                                             newbookdict['bookid'],
                                                                             newbookdict['publish_date'],
                                                                             newbookdict['languages'], now(),
@@ -1314,11 +1327,18 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                                                                        bookdict['bookid']))
             else:
                 auth_id = exists['AuthorID']
+                cover_link = bookdict['cover']
+                if 'nocover' in cover_link or 'nophoto' in cover_link:
+                    cover_link, _ = get_book_cover(bookdict['bookid'])
+                elif cover_link and cover_link.startswith('http'):
+                    cover_link = cache_bookimg(cover_link, bookdict['bookid'], 'hc')
+                if not cover_link:  # no results on search or failed to cache it
+                    cover_link = 'images/nocover.png'
                 db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
                           'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
                           'WorkPage, AudioStatus, ScanResult, OriginalPubDate, hc_id) ' +
                           'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                          (auth_id, bookdict['title'], bookdict['cover'], bookdict['link'],
+                          (auth_id, bookdict['title'], cover_link, bookdict['link'],
                            bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
                            bookdict['book_status'], '', bookdict['audio_status'], reason,
                            bookdict['first_publish_year'], bookdict['bookid']))

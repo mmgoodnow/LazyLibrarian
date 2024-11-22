@@ -1207,28 +1207,29 @@ def ensure_series_in_db(seriesid, seriesname, bookid, reason):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        match = db.match('SELECT SeriesID,Status from series WHERE SeriesName=?', (seriesname,))
-        if not match:
+        match = db.match('SELECT Status from series WHERE SeriesName=? and seriesid=?', (seriesname, seriesid))
+        if match:
+            if match['Status'] not in ['Paused', 'Ignored']:
+                add_series_members(seriesid)
+        else:
             match = db.match('SELECT SeriesName,Status from series WHERE SeriesID=?', (seriesid,))
-            if not match:
-                reason = "Bookid %s: %s" % (bookid, reason)
-                db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, Reason) VALUES (?, ?, ?, ?, ?)',
-                          (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'], time.time(), reason))
+            if match:
+                logger.warning("Ignoring name mismatch for series %s, [%s][%s]" % (seriesid, seriesname,
+                                                                                   match['SeriesName']))
+                if match['Status'] not in ['Paused', 'Ignored']:
+                    add_series_members(seriesid)
             else:
-                logger.warning("Name mismatch for series %s, [%s][%s]" % (
-                            seriesid, seriesname, match['SeriesName']))
-        elif str(match['SeriesID']) != str(seriesid):
-            logger.warning("SeriesID mismatch for series %s [%s][%s]" % (
-                        seriesname, seriesid, match['SeriesID']))
-            match = db.match('SELECT SeriesName,Status from series WHERE SeriesID=?', (seriesid,))
-            if not match:
+                match = db.match('SELECT SeriesID,Status from series WHERE SeriesName=?', (seriesname,))
+                if match:
+                    logger.warning("SeriesID mismatch for series %s [%s][%s]" % (seriesname, seriesid,
+                                                                                 match['SeriesID']))
+                # new series or series with new provider
                 reason = "Bookid %s: %s" % (bookid, reason)
-                db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, '
-                          'Reason) VALUES (?, ?, ?, ?, ?)',
+                db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, Reason) '
+                          'VALUES (?, ?, ?, ?, ?)',
                           (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'], time.time(), reason))
-        match = db.match('SELECT SeriesName,Status from series WHERE SeriesID=?', (seriesid,))
-        if match['Status'] not in ['Paused', 'Ignored']:
-            add_series_members(seriesid)
+                if CONFIG['NEWSERIES_STATUS'] not in ['Paused', 'Ignored']:
+                    add_series_members(seriesid)
     finally:
         db.close()
 
