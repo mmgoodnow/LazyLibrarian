@@ -258,6 +258,7 @@ def find_best_result(resultlist, book, searchtype, source):
                 elif new_value_dict['AuxInfo'] == 'AudioBook':
                     words = [x for x in words if x not in get_list(CONFIG['AUDIOBOOK_TYPE'])]
                     typelist = get_list(CONFIG['AUDIOBOOK_TYPE'])
+
                 score -= len(words)
                 # prioritise titles that include the ebook types we want
                 # add more points for booktypes nearer the left in the list
@@ -267,6 +268,14 @@ def find_best_result(resultlist, book, searchtype, source):
                     typelist = list(reversed(typelist))
                     for item in booktypes:
                         for i in [i for i, x in enumerate(typelist) if x == item]:
+                            score += i + 1
+
+                # now do the same for words in the "preferred words" list"
+                preferwords = get_list(CONFIG['PREFER_WORDS'])
+                if preferwords:
+                    preferwords = list(reversed(preferwords))
+                    for word in wordlist:
+                        for i in [i for i, x in enumerate(preferwords) if x == word]:
                             score += i + 1
 
                 matches.append([score, new_value_dict, control_value_dict, res['priority']])
@@ -341,7 +350,8 @@ def download_result(match, book):
                                         new_value_dict['NZBprov'])
         elif new_value_dict['NZBmode'] in ["torznab", "torrent", "magnet"]:
             snatch, res = tor_dl_method(new_value_dict["BookID"], new_value_dict["NZBtitle"],
-                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label, new_value_dict['NZBprov'])
+                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label,
+                                        new_value_dict['NZBprov'])
         elif new_value_dict['NZBmode'] == 'nzb':
             snatch, res = nzb_dl_method(new_value_dict["BookID"], new_value_dict["NZBtitle"],
                                         control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label)

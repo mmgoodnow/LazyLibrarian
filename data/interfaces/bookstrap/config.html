@@ -3372,17 +3372,6 @@
                   </span>
                 </div>
                 </div>
-                <div class="col-md-6">
-                <legend>Publisher Reject List</legend>
-                <div class="form-group">
-                  <input type="text" id="reject_publisher" name="reject_publisher" value="${CONFIG['REJECT_PUBLISHER']}" class="form-control" placeholder="Reject publishers">
-                  <span class="help-block">Comma separated list of publishers to reject:<br/>
-                    Libraryscan will ignore books by these publishers on import<br>
-                    if found in opf files or goodreads info<br/>
-                  </span>
-                </div>
-                </div>
-                <br>
                 %endif
                 %if CONFIG['AUDIO_TAB']:
                 <div class="col-md-6">
@@ -3396,6 +3385,27 @@
                 </div>
                 </div>
                 %endif
+                <div class="col-md-6">
+                <legend>Preferred Words List</legend>
+                <div class="form-group">
+                  <input type="text" id="prefer_words" name="prefer_words" value="${CONFIG['PREFER_WORDS']}" class="form-control" placeholder="Prefer word list">
+                  <span class="help-block">Comma separated list of words to prefer:<br/>
+                    Search results with any of these words in the title or filenames<br>
+                    (where available) will be preferred<br/>
+                  </span>
+                </div>
+                </div>
+                <div class="col-md-6">
+                <legend>Publisher Reject List</legend>
+                <div class="form-group">
+                  <input type="text" id="reject_publisher" name="reject_publisher" value="${CONFIG['REJECT_PUBLISHER']}" class="form-control" placeholder="Reject publishers">
+                  <span class="help-block">Comma separated list of publishers to reject:<br/>
+                    Libraryscan will ignore books by these publishers on import<br>
+                    if found in opf files or providers info<br/>
+                  </span>
+                </div>
+                </div>
+                <br>
                 %if CONFIG['MAG_TAB']:
                 <div class="col-md-6">
                 <legend>Magazine Reject/Allow Lists (all titles)</legend>
