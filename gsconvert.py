@@ -6,7 +6,7 @@ import platform
 import subprocess
 
 if len(sys.argv) != 3:
-    print "Usage: gsconvert input.pdf output.jpg"
+    print("Usage: gsconvert input.pdf output.jpg")
 else:
     GS = ""
     if platform.system() == "Windows":

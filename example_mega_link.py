@@ -9,7 +9,7 @@ import sys
 #
 link = ''
 if len(sys.argv) != 2:
-    print "Usage: link = megalink /path/to/file.pdf"
+    print("Usage: link = megalink /path/to/file.pdf")
 else:
     f = sys.argv[1]
     params = ["/usr/bin/mega-login", "user@email.com", "megapassword"]

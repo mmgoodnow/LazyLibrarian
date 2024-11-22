@@ -245,9 +245,9 @@ def direct_bok(book=None, prov=None, test=False):
                         else:
                             try:
                                 newsoup = BeautifulSoup(result, "html5lib")
-                                a = newsoup.find('a', {"class": "dlButton"})
-                                if not a:
-                                    a = newsoup.find('a', {"class": "addDownloadedBook"})
+                                #a = newsoup.find('a', {"class": "dlButton"})
+                                #if not a:
+                                a = newsoup.find('a', {"class": "addDownloadedBook"})
                                 if not a:
                                     link = ''
                                     if 'WARNING' in result and '24 hours' in result:
