@@ -239,6 +239,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'newAuthorid': (1, '&id= &newid= update an authorid'),
             'telemetryShow': (0, 'show the current telemetry data'),
             'telemetrySend': (1, 'send the latest telemetry data, if configured'),
+            'backupdb': (1, '&name= Backup db to optional filename'),
             }
 
 
@@ -358,6 +359,14 @@ class Api(object):
             rows_as_dic.append(row_as_dic)
 
         return rows_as_dic
+
+    def _backupdb(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'name' not in kwargs:
+            name = ''
+            db = database.DBConnection()
+            fname, err = db.backup(name)
+            self.data = {'Success': fname != '', 'Data': fname, 'Error':  {'Code': 200, 'Message': err}}
 
     def _renamebook(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2174,7 +2183,7 @@ class Api(object):
         library = kwargs.get('library', '')
         userid = kwargs.get('user', None)
         try:
-            self.data = hc.hc_sync(library=library, userid=userid)
+            self.data = lazylibrarian.hc.hc_sync(library=library, userid=userid)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 

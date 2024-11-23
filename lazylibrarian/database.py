@@ -89,6 +89,31 @@ class DBConnection:
         with db_lock:
             return self._action(query, args, suppress)
 
+    def progress(self, status, remaining, total):
+        self.logger.debug(f'Copied {total-remaining} of {total} pages...')
+
+    def backup(self, filename):
+        if filename == DIRS.DBFILENAME:
+            # dont overwrite original database
+            filename = ''
+        if not filename:
+            filename = f"lazylibrarian_{time.asctime().replace(' ', '_').replace(':', '_')}.db"
+        if not filename.endswith('.db'):
+            filename += '.db'
+        filename = os.path.join(DIRS.DATADIR, filename)  # only save here, no random directories
+        _ = self.connection.execute('vacuum')
+        bck = sqlite3.connect(filename)
+        msg = ''
+        with db_lock:
+            try:
+                self.connection.backup(bck, pages=1, progress=self.progress)
+            except Exception as err:
+                msg = str(err)
+        bck.close()
+        if msg:
+            return '', msg
+        return filename, msg
+
     # do not use directly, use through action() or upsert() which add lock
     def _action(self, query: str, args=None, suppress=None):
         sql_result = None
