@@ -126,9 +126,14 @@ class StartupLazyLibrarian:
             except ValueError as e:
                 self.logger.warning(f'loglevel parameter must be a valid log level, error {str(e)}')
 
-        if options.debug:
+        elif options.debug:
             LOGCONFIG.change_root_loglevel('DEBUG')
-            self.logger.debug(f'Enabled DEBUG level logging.')
+            self.logger.debug(f'Enabled option DEBUG level logging.')
+
+        else:
+            loglevel = CONFIG['LOGLEVEL']
+            LOGCONFIG.change_root_loglevel(loglevel)
+            self.logger.debug(f'Enabled configured {LOGCONFIG.get_loglevel_name('root')} level logging.')
 
         if options.noipv6:
             # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
