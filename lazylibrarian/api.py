@@ -15,6 +15,8 @@ import json
 import os
 import shutil
 import sys
+import tarfile
+import time
 import threading
 import logging
 import dateutil.parser as dp
@@ -39,7 +41,7 @@ from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import log_header, create_support_zip, docker, get_readinglist
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm, remove_file
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
     author_update, series_update, show_stats, SchedulerCommand
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
@@ -239,7 +241,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'newAuthorid': (1, '&id= &newid= update an authorid'),
             'telemetryShow': (0, 'show the current telemetry data'),
             'telemetrySend': (1, 'send the latest telemetry data, if configured'),
-            'backupdb': (1, '&name= Backup db to optional filename'),
+            'backup': (1, '&name= Backup database and config files'),
             }
 
 
@@ -360,13 +362,22 @@ class Api(object):
 
         return rows_as_dic
 
-    def _backupdb(self, **kwargs):
+    def _backup(self, **kwargs):
         TELEMETRY.record_usage_data()
-        if 'name' not in kwargs:
-            name = ''
-            db = database.DBConnection()
-            fname, err = db.backup(name)
-            self.data = {'Success': fname != '', 'Data': fname, 'Error':  {'Code': 200, 'Message': err}}
+        db = database.DBConnection()
+        fname, err = db.backup()
+        backup_file = 'None'
+        if fname:
+            backup_file = f"lazylibrarian_{time.asctime().replace(' ', '_').replace(':', '_')}.tgz"
+            backup_file = os.path.join(DIRS.DATADIR, backup_file)
+            zf = tarfile.open(backup_file, mode='w:gz')
+            zf.add(fname, arcname=DIRS.DBFILENAME)
+            remove_file(fname)
+            for f in ['config.ini', 'dicts.json', 'genres.json', 'filetemplate.text', 'logintemplate.text']:
+                target = os.path.join(DIRS.DATADIR, f)
+                if path_isfile(target):
+                    zf.add(target, arcname=f)
+        self.data = {'Success': fname != '', 'Data': backup_file, 'Error':  {'Code': 200, 'Message': err}}
 
     def _renamebook(self, **kwargs):
         TELEMETRY.record_usage_data()

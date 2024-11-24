@@ -92,15 +92,9 @@ class DBConnection:
     def progress(self, status, remaining, total):
         self.logger.debug(f'Copied {total-remaining} of {total} pages...')
 
-    def backup(self, filename):
-        if filename == DIRS.DBFILENAME:
-            # dont overwrite original database
-            filename = ''
-        if not filename:
-            filename = f"lazylibrarian_{time.asctime().replace(' ', '_').replace(':', '_')}.db"
-        if not filename.endswith('.db'):
-            filename += '.db'
-        filename = os.path.join(DIRS.DATADIR, filename)  # only save here, no random directories
+    def backup(self):
+        filename = f"lazylibrarian_{time.asctime().replace(' ', '_').replace(':', '_')}.db"
+        filename = os.path.join(DIRS.DATADIR, filename)
         _ = self.connection.execute('vacuum')
         bck = sqlite3.connect(filename)
         msg = ''
