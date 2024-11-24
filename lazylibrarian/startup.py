@@ -128,12 +128,12 @@ class StartupLazyLibrarian:
 
         elif options.debug:
             LOGCONFIG.change_root_loglevel('DEBUG')
-            self.logger.debug(f'Enabled option DEBUG level logging.')
+            self.logger.info(f'Enabled option DEBUG level logging.')
 
         else:
             loglevel = CONFIG['LOGLEVEL']
             LOGCONFIG.change_root_loglevel(loglevel)
-            self.logger.debug(f'Enabled configured {LOGCONFIG.get_loglevel_name('root')} level logging.')
+            self.logger.info(f"Enabled configured {LOGCONFIG.get_loglevel_name('root')} level logging.")
 
         if options.noipv6:
             # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
@@ -142,7 +142,7 @@ class StartupLazyLibrarian:
         if options.daemon:
             if os.name != 'nt':
                 lazylibrarian.DAEMON = True
-                # lazylibrarian.daemonize()
+            # lazylibrarian.daemonize()
             else:
                 print("Daemonize not supported under Windows, starting normally")
 
@@ -435,9 +435,10 @@ class StartupLazyLibrarian:
                     self.logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
         self.logger.error('No valid dicts.json file found')
         return {"filename_dict": {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
-                ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'},
+                                  ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
+                                  '\\\\': '\\'},
                 "umlaut_dict": {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe',
-                u'\xdc': 'Ue', u'\xdf': 'ss'},
+                                u'\xdc': 'Ue', u'\xdf': 'ss'},
                 "apostrophe_dict": {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
                 }
 
@@ -586,7 +587,7 @@ class StartupLazyLibrarian:
                     self.logger.debug('Setting update timestamp to now')
 
         # if gitlab doesn't recognise a hash it returns 0 commits
-        if not CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION'])\
+        if not CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']) \
                 and CONFIG.get_int('COMMITS_BEHIND') == 0:
             if CONFIG['INSTALL_TYPE'] == 'git':
                 res, _ = versioncheck.run_git('remote -v')
@@ -728,7 +729,7 @@ class StartupLazyLibrarian:
                         # updating a running instance, not an --update
                         # wait for the new instance to open the httpserver
                         cherrypy.engine.stop()
-                        cherrypy.server.httpserver = None                
+                        cherrypy.server.httpserver = None
                         host = CONFIG['HTTP_HOST']
                         if '0.0.0.0' in host:
                             host = 'localhost'  # windows doesn't like 0.0.0.0

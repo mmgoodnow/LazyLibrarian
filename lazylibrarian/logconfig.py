@@ -311,6 +311,7 @@ class LogConfig:
                     logger.warning(f"Translating prior LOGLEVEL of {oldlevel} to {level}, which is the new value.")
             except ValueError:
                 level = logging.getLevelName(value.upper())
+            logger.info(f"Changing loglevel to {level}")
             logger.setLevel(level)
 
         if value.isdigit() and int(value) > 10 or value.isupper() and value != 'DEBUG':
