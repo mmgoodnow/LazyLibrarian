@@ -24,7 +24,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 import requests
 from lazylibrarian import version, database
-from lazylibrarian.common import get_user_agent, proxy_list, docker
+from lazylibrarian.common import get_user_agent, proxy_list, docker, dbbackup
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, listdir, walk
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 from lazylibrarian.telemetry import TELEMETRY
@@ -494,6 +494,8 @@ def update():
             msg = 'Backing up prior to upgrade'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
+            if CONFIG.get_int('BACKUP_DB'):
+                dbbackup('upgrade')
             zf = tarfile.open(backup_file, mode='w:gz')
             prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 
                             'telemetryserver', 'unittests']

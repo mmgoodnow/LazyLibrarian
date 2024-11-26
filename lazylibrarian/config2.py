@@ -437,6 +437,8 @@ class LLConfigHandler(ConfigDict):
             for _, item in self.config.items():
                 schedule = item.get_schedule_name()
                 if schedule and isinstance(item, ConfigScheduler):
+                    if schedule in ['clean_cache', 'backup']:
+                        item.set_int(30)  # dummy value for now, adjusted later
                     if self.scheduler_can_run(item):
                         self.logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
                         schedule_job(SchedulerCommand.RESTART, schedule)

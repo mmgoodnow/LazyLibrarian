@@ -33,6 +33,7 @@ import cherrypy
 import httplib2
 import urllib3
 import requests
+import tarfile
 import webencodings
 import bs4
 import html5lib
@@ -43,7 +44,7 @@ from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configdefs import CONFIG_GIT
 from lazylibrarian.formatter import get_list, make_unicode
-from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm
+from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm, remove_file, path_isfile
 from lazylibrarian.logconfig import LOGCONFIG
 
 
@@ -553,3 +554,31 @@ def only_punctuation(value):
         if c not in string.punctuation and c not in string.whitespace:
             return False
     return True
+
+
+def cron_dbbackup():
+    db = database.DBConnection()
+    try:
+        db.upsert("jobs", {'Start': time.time()}, {'Name': 'BACKUP'})
+        dbbackup('scheduled')
+    finally:
+        db.upsert("jobs", {'Finish': time.time()}, {'Name': 'BACKUP'})
+        db.close()
+
+
+def dbbackup(source='lazylibrarian'):
+    db = database.DBConnection()
+    fname, err = db.backup()
+    backup_file = ''
+    err = ''
+    if fname:
+        backup_file = f"{source}_{time.asctime().replace(' ', '_').replace(':', '_')}.tgz"
+        backup_file = os.path.join(DIRS.DATADIR, backup_file)
+        zf = tarfile.open(backup_file, mode='w:gz')
+        zf.add(fname, arcname=DIRS.DBFILENAME)
+        remove_file(fname)
+        for f in ['config.ini', 'dicts.json', 'genres.json', 'filetemplate.text', 'logintemplate.text']:
+            target = os.path.join(DIRS.DATADIR, f)
+            if path_isfile(target):
+                zf.add(target, arcname=f)
+    return backup_file, err

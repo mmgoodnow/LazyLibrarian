@@ -90,7 +90,7 @@ class DBConnection:
             return self._action(query, args, suppress)
 
     def progress(self, status, remaining, total):
-        self.logger.debug(f'Copied {total-remaining} of {total} pages...')
+        self.dbcommslogger.debug(f'Copied {total-remaining} of {total} pages...')
 
     def backup(self):
         filename = f"lazylibrarian_{time.asctime().replace(' ', '_').replace(':', '_')}.db"

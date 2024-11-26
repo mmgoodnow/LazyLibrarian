@@ -11,25 +11,22 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import configparser
 import json
+import logging
 import os
 import shutil
 import sys
-import tarfile
-import time
 import threading
-import logging
-import dateutil.parser as dp
-
-import configparser
 from queue import Queue
 from urllib.parse import urlsplit, urlunsplit
+
+import dateutil.parser as dp
+
 import cherrypy
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG, wishlist_type
-from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import database
-from lazylibrarian.configtypes import ConfigBool, ConfigInt
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
@@ -39,18 +36,16 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header, create_support_zip, docker, get_readinglist
-from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm, remove_file
-from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
-    author_update, series_update, show_stats, SchedulerCommand
+from lazylibrarian.common import log_header, create_support_zip, docker, get_readinglist, dbbackup
+from lazylibrarian.config2 import CONFIG, wishlist_type
+from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.ol import OpenLibrary
-from lazylibrarian.hc import HardCover
 from lazylibrarian.grsync import grfollow, grsync
+from lazylibrarian.hc import HardCover
 from lazylibrarian.images import get_author_image, get_author_images, get_book_cover, get_book_covers, \
     create_mag_covers, create_mag_cover, shrink_mag
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate
@@ -58,11 +53,15 @@ from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan
 from lazylibrarian.manualbook import search_item
+from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
     process_book_from_dir, process_mag_from_file
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
+from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import gen_feed
+from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
+    author_update, series_update, show_stats, SchedulerCommand
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
@@ -362,22 +361,11 @@ class Api(object):
 
         return rows_as_dic
 
-    def _backup(self, **kwargs):
+    def _backup(self):
         TELEMETRY.record_usage_data()
-        db = database.DBConnection()
-        fname, err = db.backup()
-        backup_file = 'None'
-        if fname:
-            backup_file = f"lazylibrarian_{time.asctime().replace(' ', '_').replace(':', '_')}.tgz"
-            backup_file = os.path.join(DIRS.DATADIR, backup_file)
-            zf = tarfile.open(backup_file, mode='w:gz')
-            zf.add(fname, arcname=DIRS.DBFILENAME)
-            remove_file(fname)
-            for f in ['config.ini', 'dicts.json', 'genres.json', 'filetemplate.text', 'logintemplate.text']:
-                target = os.path.join(DIRS.DATADIR, f)
-                if path_isfile(target):
-                    zf.add(target, arcname=f)
-        self.data = {'Success': fname != '', 'Data': backup_file, 'Error':  {'Code': 200, 'Message': err}}
+        backup_file, err = dbbackup('api')
+        success = backup_file != ''
+        self.data = {'Success': success != '', 'Data': backup_file, 'Error':  {'Code': 200, 'Message': err}}
 
     def _renamebook(self, **kwargs):
         TELEMETRY.record_usage_data()

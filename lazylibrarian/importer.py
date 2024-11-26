@@ -515,17 +515,18 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                                                               current_author['authorname']))
                                 book_api = api_source[1]
                                 res = book_api.find_author_id(refresh=True)
-                                if res:
+                                if res and res.get('authorid'):
                                     current_id = res.get('authorid')
                                     cmd = "UPDATE authors SET %s=? WHERE AuthorName=?" % api_source[2]
                                     db.action(cmd, (current_id, current_author['authorname']))
-                        logger.debug("Book query %s for %s:%s" % (api_source[0], current_id,
-                                                                  current_author['authorname']))
-                        book_api = api_source[1]
-                        book_api.get_author_books(current_id, current_author['authorname'],
-                                                  bookstatus=bookstatus,
-                                                  audiostatus=audiostatus, entrystatus=entry_status,
-                                                  refresh=refresh, reason=reason)
+                        if current_id:
+                            logger.debug("Book query %s for %s:%s" % (api_source[0], current_id,
+                                                                      current_author['authorname']))
+                            book_api = api_source[1]
+                            book_api.get_author_books(current_id, current_author['authorname'],
+                                                      bookstatus=bookstatus,
+                                                      audiostatus=audiostatus, entrystatus=entry_status,
+                                                      refresh=refresh, reason=reason)
                 de_duplicate(current_author['authorid'])
                 update_totals(current_author['authorid'])
 

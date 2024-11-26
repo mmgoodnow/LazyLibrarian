@@ -181,9 +181,14 @@ def adjust_schedule(scheduler: ConfigScheduler):
 
     logger = logging.getLogger(__name__)
     name = scheduler.get_schedule_name()
-    if name in ['cache_update']:
+    if name in ['clean_cache']:
         # Override the interval with the value from CACHE_AGE
         cdays = CONFIG.get_int('CACHE_AGE')
+        scheduler.set_int(cdays)
+
+    elif name in ['backup']:
+        # Override the interval with the value from BACKUP_DB
+        cdays = CONFIG.get_int('BACKUP_DB')
         scheduler.set_int(cdays)
 
     elif name in ['author_update', 'series_update']:
@@ -241,7 +246,11 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
             if CONFIG.scheduler_can_run(schedule):
                 # Perform local adjustments to the schedule before proceeding
                 adjust_schedule(schedule)
-                startjob = schedule
+                # only start job if interval is > 0 after adjustment
+                if schedule.get_int():
+                    startjob = schedule
+                else:
+                    logger.warning(f'Scheduler for job {target} is disabled')
         else:
             logger.error(f'Could not find scheduler for job {target}')
 
