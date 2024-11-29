@@ -2705,7 +2705,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                                             (mode in ['torrent', 'magnet', 'torznab'] and
                                              CONFIG.get_bool('KEEP_SEEDING'))):
         logger.debug("Copying to target %s" % pp_path + '.unpack')
-        shutil.copytree(pp_path, pp_path + '.unpack')
+        shutil.copytree(pp_path, pp_path + '.unpack', dirs_exist_ok=True)
         pp_path += '.unpack'
 
     if preprocess:
