@@ -23,7 +23,7 @@ import traceback
 import logging
 
 # DO NOT import from common in this module, circular import
-from lazylibrarian.filesystem import DIRS, syspath
+from lazylibrarian.filesystem import DIRS
 from lazylibrarian.processcontrol import get_info_on_caller
 
 db_lock = threading.Lock()
@@ -43,7 +43,11 @@ class DBConnection:
             self.connection.execute("PRAGMA foreign_keys = ON")
             self.connection.execute("PRAGMA temp_store = 2")  # memory
             self.connection.row_factory = sqlite3.Row
-            self.dblog = syspath(DIRS.get_logfile('database.log'))
+            try:
+                self.dblog = DIRS.get_logfile('database.log')
+            except Exception:
+                self.dblog = DIRS.ensure_data_subdir('Logs')
+                self.dblog = os.path.join(self.dblog, 'database.log')
             self.logger = logging.getLogger(__name__)
             self.dbcommslogger = logging.getLogger('special.dbcomms')
             self.dbcommslogger.debug('open')

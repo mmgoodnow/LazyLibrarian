@@ -174,7 +174,7 @@ class StartupLazyLibrarian:
             # Set up some dummy values for the update as we have not read the config file yet
             CONFIG.reset_to_default([
                 'GIT_PROGRAM', 'GIT_USER', 'GIT_REPO', 'GIT_REPO', 'USER_AGENT', 'HTTP_TIMEOUT', 'PROXY_HOST',
-                'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT',
+                'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT', 'BACKUP_DB',
             ])
             DIRS.ensure_cache_dir()
             CONFIG['LOGDIR'] = DIRS.ensure_data_subdir('Logs')
@@ -672,7 +672,9 @@ class StartupLazyLibrarian:
                     rmtree(makocache)
                     os.makedirs(makocache)
                     CONFIG.set_int('GIT_UPDATED', int(time.time()))
-                    CONFIG.save_config_and_backup_old(section='Git')
+                    if CONFIG.configfilename:
+                        # won't have one if  --update
+                        CONFIG.save_config_and_backup_old(section='Git')
             except Exception as e:
                 self.logger.warning('LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
                 self.logger.error(str(traceback.format_exc()))

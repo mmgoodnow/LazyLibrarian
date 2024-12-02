@@ -240,7 +240,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'newAuthorid': (1, '&id= &newid= update an authorid'),
             'telemetryShow': (0, 'show the current telemetry data'),
             'telemetrySend': (1, 'send the latest telemetry data, if configured'),
-            'backup': (1, '&name= Backup database and config files'),
+            'backup': (1, 'Backup database and config files'),
             }
 
 

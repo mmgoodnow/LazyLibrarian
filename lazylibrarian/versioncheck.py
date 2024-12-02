@@ -494,7 +494,7 @@ def update():
             msg = 'Backing up prior to upgrade'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
-            if CONFIG.get_int('BACKUP_DB'):
+            if CONFIG['BACKUP_DB']:
                 dbbackup('upgrade')
             zf = tarfile.open(backup_file, mode='w:gz')
             prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 
