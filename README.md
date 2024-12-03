@@ -1,6 +1,6 @@
 ## LazyLibrarian
 LazyLibrarian is a program to follow authors and grab metadata for all your digital reading needs.
-It uses a combination of [HardCover] (https://hardcover.app) [OpenLibrary](https://openlibrary.org/) [Librarything](https://www.librarything.com/) [GoodReads](https://www.goodreads.com) and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
+It uses a combination of [HardCover](https://hardcover.app) [OpenLibrary](https://openlibrary.org/) [Librarything](https://www.librarything.com/) [GoodReads](https://www.goodreads.com) and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
 
 ## IMPORTANT NOTE
 LazyLibrarian used GoodReads extensively for author and book info, but they have now shut down their api. If you have an existing,working goodreads api key you can continue using it until they close completely, otherwise I suggest using HardCover and/or OpenLibrary.
