@@ -326,7 +326,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         books = db.select(cmd, (authorid,))
 
         if not len(books):
-            logger.warning(f"No matching titles by {author} in database")
+            logger.warning(f"No matching titles by {authorid}:{author} in database (source={source},library={library},ignored={ignored})")
             return 0, ''
 
         loggerfuzz.debug(cmd)
