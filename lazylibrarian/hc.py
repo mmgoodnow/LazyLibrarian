@@ -41,7 +41,13 @@ def hc_sync(library='', userid=None):
         user = db.match("select distinct userid from sync where label like 'hc_%'")
         db.close()
         if not user or not user[0]:
-            msg = 'No users with HardCover sync enabled'
+            msg = 'No users with HardCover sync enabled, trying current userid'
+            cookie = cherrypy.request.cookie
+            if 'll_uid' in list(cookie.keys()):
+                userid = cookie['ll_uid'].value
+            else:
+                userid = ''
+                msg = 'No current userid'
         else:
             userid = user[0]
     if userid:
@@ -1366,255 +1372,265 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         if msg:
             return msg
 
+        thread_name('HCSync')
         db = database.DBConnection()
-        # we currently don't use local hc_id as the apikey is linked to the hc_id
-        # which is requested using a "whoami" command
-        # but this will need to change so we can sync lists from multiple users
-        res = db.match("SELECT hc_id from users where userid=?", (userid,))
-        if res and not res['hc_id']:
-            msg = f"No hc_id for user {userid}"
-            self.logger.error(msg)
-            db.close()
-            return msg
+        try:
+            # we currently don't use local hc_id as the apikey is linked to the hc_id
+            # which is requested using a "whoami" command
+            # but this will need to change so we can sync lists from multiple users
+            res = db.match("SELECT hc_id from users where userid=?", (userid,))
+            if res and not res['hc_id']:
+                msg = f"No hc_id for user {userid}, first sync?"
+                self.logger.warning(msg)
 
-        ll_haveread = get_readinglist('haveread', userid)
-        self.syncinglogger.debug(f"ll have read contains {len(ll_haveread)}")
-        ll_toread = get_readinglist('toread', userid)
-        self.syncinglogger.debug(f"ll to read contains {len(ll_toread)}")
-        ll_reading = get_readinglist('reading', userid)
-        self.syncinglogger.debug(f"ll reading contains {len(ll_reading)}")
-        ll_dnf = get_readinglist('dnf', userid)
-        self.syncinglogger.debug(f"ll have dnf contains {len(ll_dnf)}")
-        ll_owned = []
-        if library == 'eBook':
-            for item in db.select("SELECT bookid from books where status in ('Open', 'Have')"):
-                ll_owned.append(item['bookid'])
-        elif library == 'AudioBook':
-            for item in db.select("SELECT bookid from books where audiostatus in ('Open', 'Have')"):
-                ll_owned.append(item['bookid'])
-        else:
-            for item in db.select("SELECT bookid from books where status in ('Open', 'Have') "
-                                  "or audiostatus in ('Open', 'Have')"):
-                ll_owned.append(item['bookid'])
-        self.syncinglogger.debug(f"ll owned contains {len(ll_owned)}")
-        searchcmd = self.HC_WHOAMI
-        results, _ = self.result_from_cache(searchcmd, refresh=True)
-        whoami = 0
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
-        elif 'data' in results and 'me' in results['data']:
-            # this is the hc_id tied to the api bearer token
-            res = results['data']['me']
-            whoami = res[0]['id']
-            if not whoami:
-                self.logger.error(f"No hc_id for user {userid}")
-                db.close()
-                return msg
-
-        hc_toread = []
-        hc_reading = []
-        hc_read = []
-        hc_dnf = []
-        hc_owned = []
-        remapped = []
-        sync_dict = {}
-        hc_mapping = [[hc_dnf, 5, 'DNF'], [hc_reading, 2, 'Reading'], [hc_read, 3, 'Read'], [hc_toread, 1, 'ToRead'],
-                      [hc_owned, 4, 'Owned']]
-        for mapp in hc_mapping:
-            searchcmd = self.HC_USERBOOKS.replace('[whoami]', str(whoami)).replace('[status]', str(mapp[1]))
+            self.logger.debug(f"HCsync starting for {userid}")
+            db.upsert("jobs", {"Start": time.time()}, {"Name": "HCSYNC"})
+            ll_haveread = get_readinglist('haveread', userid)
+            self.syncinglogger.debug(f"ll have read contains {len(ll_haveread)}")
+            ll_toread = get_readinglist('toread', userid)
+            self.syncinglogger.debug(f"ll to read contains {len(ll_toread)}")
+            ll_reading = get_readinglist('reading', userid)
+            self.syncinglogger.debug(f"ll reading contains {len(ll_reading)}")
+            ll_dnf = get_readinglist('dnf', userid)
+            self.syncinglogger.debug(f"ll have dnf contains {len(ll_dnf)}")
+            ll_owned = []
+            if library == 'eBook':
+                for item in db.select("SELECT bookid from books where status in ('Open', 'Have')"):
+                    ll_owned.append(item['bookid'])
+            elif library == 'AudioBook':
+                for item in db.select("SELECT bookid from books where audiostatus in ('Open', 'Have')"):
+                    ll_owned.append(item['bookid'])
+            else:
+                for item in db.select("SELECT bookid from books where status in ('Open', 'Have') "
+                                      "or audiostatus in ('Open', 'Have')"):
+                    ll_owned.append(item['bookid'])
+            self.syncinglogger.debug(f"ll owned contains {len(ll_owned)}")
+            searchcmd = self.HC_WHOAMI
             results, _ = self.result_from_cache(searchcmd, refresh=True)
+            whoami = 0
             if 'errors' in results:
                 self.logger.error(str(results['errors']))
-            elif 'data' in results and 'user_books' in results['data']:
-                self.syncinglogger.debug(f"HardCover {mapp[2]} contains {len(results['data']['user_books'])}")
-                for item in results['data']['user_books']:
-                    hc_id = item['book']['id']
-                    res = db.match("SELECT bookid from books WHERE hc_id=?", (hc_id,))
-                    if res and res['bookid']:
-                        if res['bookid'] in remapped:
-                            self.logger.debug(f"Duplicated entry {hc_id} in {mapp[2]} for {res['bookid']}")
-                            delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
-                            results, _ = self.result_from_cache(delcmd, refresh=True)
-                            if 'errors' in results:
-                                self.logger.error(str(results['errors']))
-                        else:
-                            remapped.append(res['bookid'])
-                            mapp[0].append(res['bookid'])
-                            sync_dict[res['bookid']] = item['id']
-                    else:
-                        self.logger.warning(f"{mapp[2]} {hc_id} not found in database")
-                        bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(hc_id))
-                        results, _ = self.result_from_cache(bookidcmd, refresh=False)
-                        if 'errors' in results:
-                            self.logger.error(str(results['errors']))
-                        elif 'data' in results and results['data'].get('books'):
-                            newbookdict = self.get_bookdict(results['data']['books'][0])
-                            in_db = lazylibrarian.librarysync.find_book_in_db(newbookdict['auth_name'],
-                                                                              newbookdict['title'],
-                                                                              source='',
-                                                                              ignored=False,
-                                                                              library='eBook',
-                                                                              reason='hc_sync %s' % hc_id)
-                            if in_db and in_db[0]:
-                                cmd = "SELECT BookID,hc_id,bookname FROM books WHERE BookID=?"
-                                exists = db.match(cmd, (in_db[0],))
-                                # hc_id in database doesn't match the one in hardcover user list,
-                                # assume new hardcover id is correct and amend book table to match
-                                self.logger.debug(f"Found {mapp[2]} {hc_id} for bookid {exists['BookID']}, "
-                                                  f"current hc_id {exists['hc_id']}")
-                                if exists['BookID'] in remapped:
-                                    self.logger.debug(f"Duplicated entry {hc_id} in {mapp[2]} for {exists['BookID']}")
-                                    delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
-                                    results, _ = self.result_from_cache(delcmd, refresh=True)
-                                    if 'errors' in results:
-                                        self.logger.error(str(results['errors']))
-                                else:
-                                    remapped.append(exists['BookID'])
-                                    mapp[0].append(exists['BookID'])
-                                    sync_dict[exists['BookID']] = item['id']
-                                    bookstatus = CONFIG['NEWBOOK_STATUS']
-                                    audiostatus = CONFIG['NEWAUDIO_STATUS']
-                                    if mapp[1] == 1:  # if ToRead, add as Wanted
-                                        if not library or library == 'eBook':
-                                            bookstatus = 'Wanted'
-                                        if not library or 'Audio' in library:
-                                            audiostatus = 'Wanted'
-                                    if mapp[1] in [2, 3, 4]:  # if reading, read, owned add as Have
-                                        if not library or library == 'eBook':
-                                            bookstatus = 'Have'
-                                        if not library or 'Audio' in library:
-                                            audiostatus = 'Have'
-                                    db.action("UPDATE books SET hc_id=?,status=?,audiostatus=? WHERE bookid=?",
-                                              (str(hc_id), bookstatus, audiostatus, exists['BookID']))
-                            else:
-                                self.logger.debug(f"Adding {hc_id} {newbookdict['auth_name']} {newbookdict['title']}")
-                                self.find_book(str(hc_id))
-                        else:
-                            self.logger.debug(results)
-        last_toread = []
-        last_reading = []
-        last_read = []
-        last_dnf = []
-        res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_toread"))
-        if res:
-            last_toread = get_list(res['SyncList'])
-            self.syncinglogger.debug(f"last to_read contains {len(last_toread)}")
-        res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_reading"))
-        if res:
-            last_reading = get_list(res['SyncList'])
-            self.syncinglogger.debug(f"last reading contains {len(last_reading)}")
-        res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_read"))
-        if res:
-            last_read = get_list(res['SyncList'])
-            self.syncinglogger.debug(f"last read contains {len(last_read)}")
-        res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_dnf"))
-        if res:
-            last_dnf = get_list(res['SyncList'])
-            self.syncinglogger.debug(f"last dnf contains {len(last_dnf)}")
+            elif 'data' in results and 'me' in results['data']:
+                # this is the hc_id tied to the api bearer token
+                res = results['data']['me']
+                whoami = res[0]['id']
+                db.upsert("users", {'hc_id': whoami}, {'UserID': userid})
+                if not whoami:
+                    self.logger.error(f"No hc_id for user {userid}")
+                    return msg
 
-        mapping = [[hc_toread, last_toread, ll_toread, 'toread'], [hc_read, last_read, ll_haveread, 'read'],
-                   [hc_reading, last_reading, ll_reading, 'reading'], [hc_dnf, last_dnf, ll_dnf, 'dnf']]
-
-        for mapp in mapping:
-            added_to_shelf = list(set(mapp[0]) - set(mapp[1]))
-            removed_from_shelf = list(set(mapp[1]) - set(mapp[0]))
-            added_to_ll = list(set(mapp[2]) - set(mapp[0]))
-            removed_from_ll = list(set(mapp[1]) - set(mapp[2]))
-            self.syncinglogger.debug(f"added_to_shelf {mapp[3]} {len(added_to_shelf)}")
-            self.syncinglogger.debug(f"removed_from_shelf {mapp[3]} {len(removed_from_shelf)}")
-            self.syncinglogger.debug(f"added_to_ll {mapp[3]} {len(added_to_ll)}")
-            self.syncinglogger.debug(f"removed_from_ll {mapp[3]} {len(removed_from_ll)}")
-            additions = set(added_to_shelf + added_to_ll)
-            removals = set(removed_from_shelf + removed_from_ll)
-            cnt = 0
-            for item in additions:
-                if item not in mapp[2]:
-                    mapp[2].append(item)
-                    cnt += 1
-            msg += f"Added {cnt} to {mapp[3]}" + '\n'
-            cnt = 0
-            for item in removals:
-                if item in mapp[2]:
-                    mapp[2].remove(item)
-                    cnt += 1
-            msg += f"Removed {cnt} from {mapp[3]}" + '\n'
-
-        #
-        # sync changes to HC
-        #
-        # Use readinglist for user as master list
-        # new master list for HC is set(all books in readinglists for userid)
-        # old masterlist was set(all books in hc_toread, hc_reading etc)
-        # Anything in old set not in new set should be deleted from hc
-        # Others in new_set may have changed status
-        # Books in user lists have their own id for this, not the regular id,
-        # but we need the regular id for adding new books to user lists
-
-        cmd = f"SELECT books.bookid from readinglists,books WHERE books.bookid=readinglists.bookid and userid=?"
-        res = db.select(cmd, (userid,))
-        new_set = set()
-        for item in res:
-            new_set.add(item[0])
-        old_set = set(hc_toread + hc_reading + hc_read + hc_dnf)
-        deleted_items = old_set - new_set
-        self.logger.debug(f"Deleting {len(deleted_items)} from HardCover")
-        for item in deleted_items:
-            book = db.match("SELECT hc_id from books WHERE bookid=?", (item,))
-            if book and book[0] and item in sync_dict:
-                delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(sync_dict[item]))
-                results, _ = self.result_from_cache(delcmd, refresh=True)
+            hc_toread = []
+            hc_reading = []
+            hc_read = []
+            hc_dnf = []
+            hc_owned = []
+            remapped = []
+            sync_dict = {}
+            hc_mapping = [[hc_dnf, 5, 'DNF'], [hc_reading, 2, 'Reading'], [hc_read, 3, 'Read'],
+                          [hc_toread, 1, 'ToRead'], [hc_owned, 4, 'Owned']]
+            for mapp in hc_mapping:
+                searchcmd = self.HC_USERBOOKS.replace('[whoami]', str(whoami)).replace('[status]',
+                                                                                       str(mapp[1]))
+                results, _ = self.result_from_cache(searchcmd, refresh=True)
                 if 'errors' in results:
                     self.logger.error(str(results['errors']))
+                elif 'data' in results and 'user_books' in results['data']:
+                    self.syncinglogger.debug(f"HardCover {mapp[2]} contains {len(results['data']['user_books'])}")
+                    for item in results['data']['user_books']:
+                        hc_id = item['book']['id']
+                        res = db.match("SELECT bookid from books WHERE hc_id=?", (hc_id,))
+                        if res and res['bookid']:
+                            if res['bookid'] in remapped:
+                                self.logger.debug(f"Duplicated entry {hc_id} in {mapp[2]} for {res['bookid']}")
+                                delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
+                                results, _ = self.result_from_cache(delcmd, refresh=True)
+                                if 'errors' in results:
+                                    self.logger.error(str(results['errors']))
+                            else:
+                                remapped.append(res['bookid'])
+                                mapp[0].append(res['bookid'])
+                                sync_dict[res['bookid']] = item['id']
+                        else:
+                            self.logger.warning(f"{mapp[2]} {hc_id} not found in database")
+                            bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(hc_id))
+                            results, _ = self.result_from_cache(bookidcmd, refresh=False)
+                            if 'errors' in results:
+                                self.logger.error(str(results['errors']))
+                            elif 'data' in results and results['data'].get('books'):
+                                newbookdict = self.get_bookdict(results['data']['books'][0])
+                                in_db = lazylibrarian.librarysync.find_book_in_db(newbookdict['auth_name'],
+                                                                                  newbookdict['title'],
+                                                                                  source='',
+                                                                                  ignored=False,
+                                                                                  library='eBook',
+                                                                                  reason='hc_sync %s' % hc_id)
+                                if in_db and in_db[0]:
+                                    cmd = "SELECT BookID,hc_id,bookname FROM books WHERE BookID=?"
+                                    exists = db.match(cmd, (in_db[0],))
+                                    # hc_id in database doesn't match the one in hardcover user list,
+                                    # assume new hardcover id is correct and amend book table to match
+                                    self.logger.debug(f"Found {mapp[2]} {hc_id} for bookid {exists['BookID']}, "
+                                                      f"current hc_id {exists['hc_id']}")
+                                    if exists['BookID'] in remapped:
+                                        self.logger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
+                                                          f"for {exists['BookID']}")
+                                        delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
+                                        results, _ = self.result_from_cache(delcmd, refresh=True)
+                                        if 'errors' in results:
+                                            self.logger.error(str(results['errors']))
+                                    else:
+                                        remapped.append(exists['BookID'])
+                                        mapp[0].append(exists['BookID'])
+                                        sync_dict[exists['BookID']] = item['id']
+                                        bookstatus = CONFIG['NEWBOOK_STATUS']
+                                        audiostatus = CONFIG['NEWAUDIO_STATUS']
+                                        if mapp[1] == 1:  # if ToRead, add as Wanted
+                                            if not library or library == 'eBook':
+                                                bookstatus = 'Wanted'
+                                            if not library or 'Audio' in library:
+                                                audiostatus = 'Wanted'
+                                        if mapp[1] in [2, 3, 4]:  # if reading, read, owned add as Have
+                                            if not library or library == 'eBook':
+                                                bookstatus = 'Have'
+                                            if not library or 'Audio' in library:
+                                                audiostatus = 'Have'
+                                        db.action("UPDATE books SET hc_id=?,status=?,audiostatus=? WHERE bookid=?",
+                                                  (str(hc_id), bookstatus, audiostatus, exists['BookID']))
+                                else:
+                                    self.logger.debug(f"Adding {hc_id} {newbookdict['auth_name']} "
+                                                      f"{newbookdict['title']}")
+                                    self.find_book(str(hc_id))
+                            else:
+                                self.logger.debug(results)
+            last_toread = []
+            last_reading = []
+            last_read = []
+            last_dnf = []
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_toread"))
+            if res:
+                last_toread = get_list(res['SyncList'])
+                self.syncinglogger.debug(f"last to_read contains {len(last_toread)}")
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_reading"))
+            if res:
+                last_reading = get_list(res['SyncList'])
+                self.syncinglogger.debug(f"last reading contains {len(last_reading)}")
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_read"))
+            if res:
+                last_read = get_list(res['SyncList'])
+                self.syncinglogger.debug(f"last read contains {len(last_read)}")
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_dnf"))
+            if res:
+                last_dnf = get_list(res['SyncList'])
+                self.syncinglogger.debug(f"last dnf contains {len(last_dnf)}")
 
-        cmd = (f"SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
-               f"books.bookid=readinglists.bookid and userid=? and books.bookid=?")
-        cnt = 0
-        status_ids = {1: 'want-to-read', 2: 'currently-reading', 3: 'read', 4: 'owned', 5: 'dnf'}
-        for item in new_set:
-            res = db.match(cmd, (userid, item))
-            if res and res[0]:
-                old_status = 0
-                if item in hc_toread:
-                    old_status = 1
-                if item in hc_reading:
-                    old_status = 2
-                elif item in hc_read:
-                    old_status = 3
-                elif item in hc_dnf:
-                    old_status = 5
-                if res[1] != old_status:
-                    if old_status:
-                        self.logger.debug(f"Setting status of HardCover {res[0]} to {status_ids[res[1]]}, "
-                                          f"(was {status_ids[old_status]})")
-                        sync_id = sync_dict[item]
-                    else:
-                        self.logger.debug(f"Adding new entry {res[0]} {res[2]} to HardCover, "
-                                          f"status {status_ids[res[1]]}")
-                        sync_id = res[0]
-                    addcmd = self.HC_ADDUSERBOOK.replace('[bookid]',
-                                                         str(sync_id)).replace('[status]', str(res[1]))
-                    results, _ = self.result_from_cache(addcmd, refresh=True)
-                    if 'errors' in results:
-                        self.logger.error(str(results['errors']))
-            else:
-                self.syncinglogger.error(f"Unable to update bookid {item} ({res[2]}) at HardCover, no hc_id")
-                cnt += 1
-                for mapp in mapping:
+            mapping = [[hc_toread, last_toread, ll_toread, 'toread'], [hc_read, last_read, ll_haveread, 'read'],
+                       [hc_reading, last_reading, ll_reading, 'reading'], [hc_dnf, last_dnf, ll_dnf, 'dnf']]
+
+            for mapp in mapping:
+                added_to_shelf = list(set(mapp[0]) - set(mapp[1]))
+                removed_from_shelf = list(set(mapp[1]) - set(mapp[0]))
+                added_to_ll = list(set(mapp[2]) - set(mapp[0]))
+                removed_from_ll = list(set(mapp[1]) - set(mapp[2]))
+                self.syncinglogger.debug(f"added_to_shelf {mapp[3]} {len(added_to_shelf)}")
+                self.syncinglogger.debug(f"removed_from_shelf {mapp[3]} {len(removed_from_shelf)}")
+                self.syncinglogger.debug(f"added_to_ll {mapp[3]} {len(added_to_ll)}")
+                self.syncinglogger.debug(f"removed_from_ll {mapp[3]} {len(removed_from_ll)}")
+                additions = set(added_to_shelf + added_to_ll)
+                removals = set(removed_from_shelf + removed_from_ll)
+                cnt = 0
+                for item in additions:
+                    if item not in mapp[2]:
+                        mapp[2].append(item)
+                        cnt += 1
+                msg += f"Added {cnt} to {mapp[3]}" + '\n'
+                cnt = 0
+                for item in removals:
                     if item in mapp[2]:
                         mapp[2].remove(item)
+                        cnt += 1
+                msg += f"Removed {cnt} from {mapp[3]}" + '\n'
 
-        msg += f"Unable to update {cnt} items at HardCover as no hc_id\n"
+            #
+            # sync changes to HC
+            #
+            # Use readinglist for user as master list
+            # new master list for HC is set(all books in readinglists for userid)
+            # old masterlist was set(all books in hc_toread, hc_reading etc)
+            # Anything in old set not in new set should be deleted from hc
+            # Others in new_set may have changed status
+            # Books in user lists have their own id for this, not the regular id,
+            # but we need the regular id for adding new books to user lists
 
-        for mapp in mapping:
-            # mapp[2] is now the definitive list to store as last sync for status mapp[3]
-            listmsg = f"HardCover {mapp[3]} contains {len(mapp[2])}"
-            self.syncinglogger.debug(listmsg)
-            msg += listmsg + '\n'
-            set_readinglist(mapp[3], userid, mapp[2])
-            label = 'hc_' + mapp[3]
-            booklist = ','.join(mapp[2])
-            db.upsert("sync", {'SyncList': booklist}, {'UserID': userid, 'Label': label})
+            cmd = f"SELECT books.bookid from readinglists,books WHERE books.bookid=readinglists.bookid and userid=?"
+            res = db.select(cmd, (userid,))
+            new_set = set()
+            for item in res:
+                new_set.add(item[0])
+            old_set = set(hc_toread + hc_reading + hc_read + hc_dnf)
+            deleted_items = old_set - new_set
+            self.logger.debug(f"Deleting {len(deleted_items)} from HardCover")
+            for item in deleted_items:
+                book = db.match("SELECT hc_id from books WHERE bookid=?", (item,))
+                if book and book[0] and item in sync_dict:
+                    delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(sync_dict[item]))
+                    results, _ = self.result_from_cache(delcmd, refresh=True)
+                    if 'errors' in results:
+                        self.logger.error(str(results['errors']))
 
-        # maybe sync ll_owned to hc_owned, but only add/delete to ll using status HAVE, not OPEN
-        # and use hc_id for admin user, not ll userid and not current user
-        return msg
+            cmd = (f"SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
+                   f"books.bookid=readinglists.bookid and userid=? and books.bookid=?")
+            cnt = 0
+            status_ids = {1: 'want-to-read', 2: 'currently-reading', 3: 'read', 4: 'owned', 5: 'dnf'}
+            for item in new_set:
+                res = db.match(cmd, (userid, item))
+                if res and res[0]:
+                    old_status = 0
+                    if item in hc_toread:
+                        old_status = 1
+                    if item in hc_reading:
+                        old_status = 2
+                    elif item in hc_read:
+                        old_status = 3
+                    elif item in hc_dnf:
+                        old_status = 5
+                    if res[1] != old_status:
+                        if old_status:
+                            self.logger.debug(f"Setting status of HardCover {res[0]} to {status_ids[res[1]]}, "
+                                              f"(was {status_ids[old_status]})")
+                            sync_id = sync_dict[item]
+                        else:
+                            self.logger.debug(f"Adding new entry {res[0]} {res[2]} to HardCover, "
+                                              f"status {status_ids[res[1]]}")
+                            sync_id = res[0]
+                        addcmd = self.HC_ADDUSERBOOK.replace('[bookid]',
+                                                             str(sync_id)).replace('[status]', str(res[1]))
+                        results, _ = self.result_from_cache(addcmd, refresh=True)
+                        if 'errors' in results:
+                            self.logger.error(str(results['errors']))
+                else:
+                    self.syncinglogger.error(f"Unable to update bookid {item} ({res[2]}) at HardCover, no hc_id")
+                    cnt += 1
+                    for mapp in mapping:
+                        if item in mapp[2]:
+                            mapp[2].remove(item)
+
+            msg += f"Unable to update {cnt} items at HardCover as no hc_id\n"
+
+            for mapp in mapping:
+                # mapp[2] is now the definitive list to store as last sync for status mapp[3]
+                listmsg = f"HardCover {mapp[3]} contains {len(mapp[2])}"
+                self.syncinglogger.debug(listmsg)
+                msg += listmsg + '\n'
+                set_readinglist(mapp[3], userid, mapp[2])
+                label = 'hc_' + mapp[3]
+                booklist = ','.join(mapp[2])
+                db.upsert("sync", {'SyncList': booklist}, {'UserID': userid, 'Label': label})
+
+            # maybe sync ll_owned to hc_owned, but only add/delete to ll using status HAVE, not OPEN
+            # and use hc_id for admin user, not ll userid and not current user
+        finally:
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": "HCSYNC"})
+            db.close()
+            self.logger.debug(f"HCsync completed for {userid}")
+            thread_name('WEBSERVER')
+            return msg
