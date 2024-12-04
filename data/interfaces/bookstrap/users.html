@@ -81,6 +81,10 @@
                 <input id="userid" name="userid" class="form-control" value="" readonly>
               </div>
               <div class="form-group col-md-6">
+                <label for="hc_id">HardCoverID</label>
+                <input id="hc_id" name="hc_id" class="form-control" value="" readonly>
+              </div>
+              <div class="form-group col-md-6">
                 <label for="lastlogin">Last Login</label>
                 <input id="lastlogin" name="lastlogin" class="form-control" value="" readonly>
               </div>
@@ -151,6 +155,7 @@
             $("#lltheme").val(obj['theme']);
             $("#summernote").val(obj['subs']);
             $("#password").val("");
+            $("#hc_id").val(obj['hc_id']);
             });
         });
 
