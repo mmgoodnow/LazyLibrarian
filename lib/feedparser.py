@@ -139,7 +139,6 @@ ACCEPTABLE_URI_SCHEMES = (
 # ACCEPTABLE_URI_SCHEMES = ()
 
 # ---------- required modules (should come with any Python distribution) ----------
-import cgi
 import codecs
 import copy
 import datetime
@@ -154,6 +153,7 @@ import urllib.parse
 import warnings
 
 from html.entities import name2codepoint, codepoint2name, entitydefs
+from email.message import Message
 
 try:
     from io import BytesIO as _StringIO
@@ -3738,8 +3738,14 @@ def convert_to_utf8(http_headers, data):
     # XML declaration encoding, and HTTP encoding, following the
     # heuristic defined in RFC 3023.
     http_content_type = http_headers.get('content-type') or ''
-    http_content_type, params = cgi.parse_header(http_content_type)
-    http_encoding = params.get('charset', '').replace("'", "")
+    # cgi is deprecated in python3.13
+    # http_content_type, params = cgi.parse_header(http_content_type)
+    # http_encoding = params.get('charset', '').replace("'", "")
+    m = Message()
+    m['content-type'] = http_content_type
+    http_content_type = m.get_content_type()
+    http_encoding = m.get_param('charset').replace("'", "")
+
     if not isinstance(http_encoding, str):
         http_encoding = http_encoding.decode('utf-8', 'ignore')
 
