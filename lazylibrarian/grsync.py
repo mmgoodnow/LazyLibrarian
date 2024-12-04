@@ -582,10 +582,10 @@ def sync_to_gr():
                         msg += "%s %s to Audio Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
 
         logger.info(msg.strip('\n').replace('\n', ', '))
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": "GRSYNC"})
     except Exception:
         logger.error("Exception in sync_to_gr: %s" % traceback.format_exc())
     finally:
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": "GRSYNC"})
         db.close()
         if new_books:
             threading.Thread(target=lazylibrarian.searchrss.search_rss_book, name='GRSYNCRSSBOOKS',
@@ -666,17 +666,17 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             new_list = []
             cmd = "SELECT gr_id from books WHERE BookID=?"
             for item in ll_list:
-                item = str(item).strip('"')
-                if item.isnumeric():
-                    new_list.append(item)
+                nitem = str(item).strip('"')
+                if nitem.isnumeric():
+                    new_list.append(nitem)
                 else:
                     # not a goodreads ID
-                    match = db.match(cmd, (item,))
+                    match = db.match(cmd, (nitem,))
                     if match and match[0]:
                         new_list.append(match[0])
-                        logger.debug("Bookid %s is goodreads %s" % (item, match[0]))
+                        logger.debug("Bookid %s is goodreads %s" % (nitem, match[0]))
                     else:
-                        logger.debug("No GoodReads ID for Bookid %s, removed" % item)
+                        logger.debug("No GoodReads ID for Bookid %s, removed" % nitem)
             ll_list = new_list
 
         else:
