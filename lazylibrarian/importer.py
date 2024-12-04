@@ -124,7 +124,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             logger.debug('Author %s not found in database, trying to add' % author)
             # no match for supplied author, but we're allowed to add new ones
             if title:
-                search = author + '<ll>' + title
+                search = f"{author}<ll>{title}"
             else:
                 search = author
 
