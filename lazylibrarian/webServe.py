@@ -982,7 +982,7 @@ class WebInterface(object):
                                   'lastlogin': datetime.datetime.fromtimestamp(last_login).ctime()
                                   if last_login else '',
                                   'logins': match['Login_Count'], 'downloads': cnt['counter'], 'subs': subscriptions,
-                                  'theme': match['Theme']})
+                                  'theme': match['Theme'], 'hc_id': match['hc_id']})
             else:
                 res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '', 'sendto': '',
                                   'booktype': '', 'userid': '', 'lastlogin': '', 'logins': '0', 'subs': '',
@@ -6189,8 +6189,8 @@ class WebInterface(object):
                 message += "Update needs manual installation"
         else:
             message = "unknown version"
-            messages = "Your version is not recognized at<br>https://%s/%s/%s  Branch: %s" % (
-                CONFIG['GIT_HOST'], CONFIG['GIT_USER'],
+            messages = "Your version (%s) is not recognized at<br>https://%s/%s/%s  Branch: %s" % (
+                CONFIG['CURRENT_VERSION'], CONFIG['GIT_HOST'], CONFIG['GIT_USER'],
                 CONFIG['GIT_REPO'], CONFIG['GIT_BRANCH'])
             message = message + '<br><small>' + messages
 

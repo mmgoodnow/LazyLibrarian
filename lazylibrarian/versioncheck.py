@@ -373,7 +373,6 @@ def get_commit_difference_from_git() -> (int, str):
     commit_list = ''
     commits = -1
     if CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
-        commits = -1
         CONFIG['LATEST_VERSION'] = 'HEAD'
         commit_list = 'Unable to get latest version from %s' % CONFIG['GIT_HOST']
         logger.info(commit_list)
