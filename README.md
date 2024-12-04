@@ -1,13 +1,13 @@
 ## LazyLibrarian
 LazyLibrarian is a program to follow authors and grab metadata for all your digital reading needs.
-It uses a combination of [OpenLibrary](https://openlibrary.org/) [Librarything](https://www.librarything.com/) [GoodReads](https://www.goodreads.com) and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
+It uses a combination of [HardCover](https://hardcover.app) [OpenLibrary](https://openlibrary.org/) [Librarything](https://www.librarything.com/) [GoodReads](https://www.goodreads.com) and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
 
 ## IMPORTANT NOTE
-LazyLibrarian used GoodReads extensively for author and book info, but they have now shut down their api. If you have an existing,working goodreads api key you can continue using it until they close completely, otherwise I suggest using OpenLibrary.
+LazyLibrarian used GoodReads extensively for author and book info, but they have now shut down their api. If you have an existing,working goodreads api key you can continue using it until they close completely, otherwise I suggest using HardCover and/or OpenLibrary.
 
 ## Description
 Right now it's capable of the following:
-* Import an existing calibre library (optional)
+* Import an existing calibre library (optional, you dont need calibre)
 * Find authors and add them to the database
 * List all books of an author and mark ebooks or audiobooks as 'wanted'.
 * LazyLibrarian will search for a nzb-file or a torrent or magnet link for that book
@@ -48,21 +48,6 @@ Config tutorial  http://sasquatters.com/lazylibrarian-configuration/
 
 ## Update
 Auto update available via interface from master for git and source installs
-
-## Packages
-rpm deb flatpak and snap packages here : https://gitlab.com/LazyLibrarian/LazyLibrarian/tags
-These packages do not use the lazylibrarian internal update mechanism.
-You can check version from inside lazylibrarian, but to upgrade use the appropriate package manager.
-The packages are not updated as regularly as the git/source installations.
-NOTE: the smaller flatpak package does not include ghostscript (for magazine cover generation) or calibredb (for calibre communication)
-If you need these features, install from source or git, or use the flatpak+ file.
-The flatpak+ file includes both ghostscript and calibredb but is considerably larger because of this.
-To install: flatpak install lazylibrarian_1.x.x.flatpak. To run: flatpak run org.flatpak.LazyLibrarian
-The snap package is confined to users home directory, so all books and downloads need to be accessible from there too.
-It should be able to use system installed versions of ghostscript and calibredb provided they are in the system path.
-Install the snap package with --devmode eg snap install lazylibrarian_1.7.2_amd64.snap --devmode
-AUR package available here: https://aur.archlinux.org/packages/lazylibrarian/
-QNAP LazyLibrarian is now available for the QNAP NAS via sherpa. https://forum.qnap.com/viewtopic.php?f=320&t=132373v
 
 ## Docker packages
 LinuxServer : https://hub.docker.com/r/linuxserver/lazylibrarian/
