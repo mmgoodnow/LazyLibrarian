@@ -375,6 +375,8 @@ def audio_rename(bookid, rename=False, playlist=False):
     dest_path = seriesinfo['AudioFolderName']
     dest_dir = get_directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
+    old_path = old_path.rstrip(os.path.sep)
+    dest_path = dest_path.rstrip(os.path.sep)
 
     # check for windows case-insensitive
     if os.name == 'nt' and old_path.lower() == dest_path.lower():
@@ -392,7 +394,7 @@ def audio_rename(bookid, rename=False, playlist=False):
                 dest_path = safe_move(old_path, dest_path)
             book_filename = os.path.join(dest_path, os.path.basename(book_filename))
         except Exception as why:
-            msg = f'Rename failed: {why}'
+            msg = f'Rename failed: {str(why)}'
             logger.error(msg)
             return ''
 
@@ -505,7 +507,7 @@ def book_rename(bookid):
         return '', msg
 
     old_path = os.path.dirname(fullname)
-    if  CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
+    if CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
         try:
             # noinspection PyTypeChecker
             calibreid = old_path.rsplit('(', 1)[1].split(')')[0]
