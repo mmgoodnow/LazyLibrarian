@@ -1441,7 +1441,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                         res = db.match("SELECT bookid from books WHERE hc_id=?", (hc_id,))
                         if res and res['bookid']:
                             if res['bookid'] in remapped:
-                                self.logger.debug(f"Duplicated entry {hc_id} in {mapp[2]} for {res['bookid']}")
+                                self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} for {res['bookid']}")
                                 delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
                                 results, _ = self.result_from_cache(delcmd, refresh=True)
                                 if 'errors' in results:
@@ -1451,7 +1451,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                 mapp[0].append(res['bookid'])
                                 sync_dict[res['bookid']] = item['id']
                         else:
-                            self.logger.warning(f"{mapp[2]} {hc_id} not found in database")
+                            self.syncinglogger.warning(f"{mapp[2]} {hc_id} not found in database")
                             bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(hc_id))
                             results, _ = self.result_from_cache(bookidcmd, refresh=False)
                             if 'errors' in results:
@@ -1469,11 +1469,11 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                     exists = db.match(cmd, (in_db[0],))
                                     # hc_id in database doesn't match the one in hardcover user list,
                                     # assume new hardcover id is correct and amend book table to match
-                                    self.logger.debug(f"Found {mapp[2]} {hc_id} for bookid {exists['BookID']}, "
-                                                      f"current hc_id {exists['hc_id']}")
+                                    self.syncinglogger.debug(f"Found {mapp[2]} {hc_id} for bookid {exists['BookID']}, "
+                                                             f"current hc_id {exists['hc_id']}")
                                     if exists['BookID'] in remapped:
-                                        self.logger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
-                                                          f"for {exists['BookID']}")
+                                        self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
+                                                                 f"for {exists['BookID']}")
                                         delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
                                         results, _ = self.result_from_cache(delcmd, refresh=True)
                                         if 'errors' in results:
@@ -1482,26 +1482,14 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                         remapped.append(exists['BookID'])
                                         mapp[0].append(exists['BookID'])
                                         sync_dict[exists['BookID']] = item['id']
-                                        bookstatus = CONFIG['NEWBOOK_STATUS']
-                                        audiostatus = CONFIG['NEWAUDIO_STATUS']
-                                        if mapp[1] == 1:  # if ToRead, add as Wanted
-                                            if not library or library == 'eBook':
-                                                bookstatus = 'Wanted'
-                                            if not library or 'Audio' in library:
-                                                audiostatus = 'Wanted'
-                                        if mapp[1] in [2, 3, 4]:  # if reading, read, owned add as Have
-                                            if not library or library == 'eBook':
-                                                bookstatus = 'Have'
-                                            if not library or 'Audio' in library:
-                                                audiostatus = 'Have'
-                                        db.action("UPDATE books SET hc_id=?,status=?,audiostatus=? WHERE bookid=?",
-                                                  (str(hc_id), bookstatus, audiostatus, exists['BookID']))
+                                        db.action("UPDATE books SET hc_id=? WHERE bookid=?",
+                                                  (str(hc_id), exists['BookID']))
                                 else:
-                                    self.logger.debug(f"Adding {hc_id} {newbookdict['auth_name']} "
-                                                      f"{newbookdict['title']}")
+                                    self.syncinglogger.debug(f"Adding to library {hc_id} {newbookdict['auth_name']} "
+                                                             f"{newbookdict['title']}")
                                     self.find_book(str(hc_id))
                             else:
-                                self.logger.debug(results)
+                                self.syncinglogger.debug(results)
             last_toread = []
             last_reading = []
             last_read = []
@@ -1568,7 +1556,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                 new_set.add(item[0])
             old_set = set(hc_toread + hc_reading + hc_read + hc_dnf)
             deleted_items = old_set - new_set
-            self.logger.debug(f"Deleting {len(deleted_items)} from HardCover")
+            self.syncinglogger.debug(f"Deleting {len(deleted_items)} from HardCover")
             for item in deleted_items:
                 book = db.match("SELECT hc_id from books WHERE bookid=?", (item,))
                 if book and book[0] and item in sync_dict:
@@ -1595,12 +1583,12 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                         old_status = 5
                     if res[1] != old_status:
                         if old_status:
-                            self.logger.debug(f"Setting status of HardCover {res[0]} to {status_ids[res[1]]}, "
-                                              f"(was {status_ids[old_status]})")
+                            self.syncinglogger.debug(f"Setting status of HardCover {res[0]} to {status_ids[res[1]]}, "
+                                                     f"(was {status_ids[old_status]})")
                             sync_id = sync_dict[item]
                         else:
-                            self.logger.debug(f"Adding new entry {res[0]} {res[2]} to HardCover, "
-                                              f"status {status_ids[res[1]]}")
+                            self.syncinglogger.debug(f"Adding new entry {res[0]} {res[2]} to HardCover, "
+                                                     f"status {status_ids[res[1]]}")
                             sync_id = res[0]
                         addcmd = self.HC_ADDUSERBOOK.replace('[bookid]',
                                                              str(sync_id)).replace('[status]', str(res[1]))
