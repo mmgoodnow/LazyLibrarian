@@ -23,7 +23,7 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, \
+from lazylibrarian.formatter import today, unaccented, format_author_name, \
     get_list, check_int, thread_name, plural
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -71,14 +71,15 @@ def get_preferred_author_name(author: str) -> (str, bool):
                         author = item['AuthorName']
                         match = True
                         break
-                aka = item['AKA']
-                if aka:
-                    match_fuzz = fuzz.ratio(aka.lower().replace('.', ''), match_name)
-                    if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                        logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
-                        author = item['AuthorName']
-                        match = True
-                        break
+                akas = get_list(item['AKA'], ',')
+                if akas:
+                    for aka in akas:
+                        match_fuzz = fuzz.token_set_ratio(aka.lower().replace('.', ''), match_name)
+                        if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+                            logger.debug("Fuzzy AKA match [%s] %s%% for [%s]" % (aka, match_fuzz, author))
+                            author = item['AuthorName']
+                            match = True
+                            break
     finally:
         db.close()
     return author, match
@@ -115,7 +116,8 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     db = database.DBConnection()
     try:
         # Check if the author exists, and import the author if not,
-        author, exists = get_preferred_author_name(author)
+        req_author = author
+        author, exists = get_preferred_author_name(req_author)
         if exists:
             check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
         else:
@@ -218,12 +220,18 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                     except Exception as e:
                         logger.error('Failed to add author [%s] to db: %s %s' % (author, type(e).__name__, str(e)))
 
-        # check author exists in db, either newly loaded or already there
+        # check author exists in db, either newly loaded or already there, maybe under aka
         if check_exist_author:
-            aka = author_info.get('aka', '')
             akas = get_list(check_exist_author['AKA'], ',')
+            new_aka = False
+            aka = author_info.get('aka', '')
             if aka and aka not in akas:
                 akas.append(aka)
+                new_aka = True
+            if author != req_author and req_author not in akas:
+                akas.append(req_author)
+                new_aka = True
+            if new_aka:
                 db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
                           (', '.join(akas), check_exist_author['AuthorID']))
         else:
@@ -231,8 +239,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             return "", "", False
     finally:
         db.close()
-    author = make_unicode(author)
-    return author, check_exist_author['AuthorID'], new
+    return check_exist_author['AuthorName'], check_exist_author['AuthorID'], new
 
 
 def get_all_author_details(authorid=None, authorname=None):
