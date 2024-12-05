@@ -13,9 +13,10 @@ import sys
 import traceback
 from datetime import datetime
 from typing import Optional
-
+import lazylibrarian
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, get_list
+from lazylibrarian.processcontrol import get_info_on_caller
 
 
 class DirectoryHolder:
@@ -477,7 +478,8 @@ def opf_file(search_dir: str) -> str:
     """ Look for .opf files in search_dir, returning the file name.
     If metadata.opf exists and no other opf file does, return metatadata.
     If metadata.opf and another .opf file exists, return the other one.
-    If two or more other .opf files exist, return '' - we don't know which one to use. """
+    If two or more other .opf files exist, we don't know which one to use.
+    Warn and return any"""
     cnt = 0
     res = ''
     meta = ''
@@ -491,8 +493,8 @@ def opf_file(search_dir: str) -> str:
                 cnt += 1
         if cnt > 2 or cnt == 2 and not meta:
             logger = logging.getLogger(__name__)
-            logger.debug("Found %d conflicting opf in %s" % (cnt, search_dir))
-            res = ''
+            program, method, lineno = get_info_on_caller(depth=1)
+            logger.debug(f"{program}:{method}{lineno} Found {cnt} conflicting opf in {search_dir}")
         elif res:  # prefer bookname.opf over metadata.opf
             return res
         elif meta:
