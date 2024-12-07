@@ -381,7 +381,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             extn = os.path.splitext(outfile)[1]
             params = [ffmpeg, '-i', os.path.join(bookfolder, outfile),
                       '-y', '-c:a', 'copy',
-                      '-metadata', 'track="1/1"']
+                      '-metadata', 'track=0']
 
             db = database.DBConnection()
             try:

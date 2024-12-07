@@ -139,6 +139,9 @@ class DirectoryHolder:
 """ Global access to directories """
 DIRS = DirectoryHolder()
 
+""" Global to suppress repeat warnings """
+_OPFWARN = ''
+
 
 # PATH FUNCTIONS
 
@@ -475,6 +478,7 @@ def any_file(search_dir: str, extn: str) -> str:
 
 
 def opf_file(search_dir: str) -> str:
+    global _OPFWARN
     """ Look for .opf files in search_dir, returning the file name.
     If metadata.opf exists and no other opf file does, return metatadata.
     If metadata.opf and another .opf file exists, return the other one.
@@ -494,7 +498,10 @@ def opf_file(search_dir: str) -> str:
         if cnt > 2 or cnt == 2 and not meta:
             logger = logging.getLogger(__name__)
             program, method, lineno = get_info_on_caller(depth=1)
-            logger.debug(f"{program}:{method}{lineno} Found {cnt} conflicting opf in {search_dir}")
+            warn = f"{program}:{method}{lineno} Found {cnt} conflicting opf in {search_dir}"
+            if _OPFWARN != warn:
+                logger.debug(warn)
+                _OPFWARN = warn
         elif res:  # prefer bookname.opf over metadata.opf
             return res
         elif meta:

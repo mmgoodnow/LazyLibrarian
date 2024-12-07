@@ -16,6 +16,7 @@ import re
 import shutil
 import logging
 import traceback
+from thefuzz import fuzz
 
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
@@ -170,79 +171,136 @@ def audio_parts(folder, bookname, authorname):
     audio_file = ''
     abridged = ''
     tokmatch = ''
-    total = 0
+    total_parts = 0
     wholebook = ''
+    partlist = []
+    # there seem to be two common numbering systems x-y
+    # for single-part audiobooks, x=part, y=total
+    # for multi-part, x=chapter, y=part_in_chapter
     for f in listdir(folder):
         if CONFIG.is_valid_booktype(f, booktype='audiobook'):
-            # if no number_period or number_space in filename assume its whole-book
-            if not re.findall(r'\d+\b', f):
-                wholebook = f
-            else:
+            res = re.search(r'([0-9-]+\-[0-9]+)', f)
+            if res and res.group():
+                entry = res.group().split('-')
+                chap = entry[0]
+                prt = entry[-1]
+                partlist.append([chap, prt, f])
+                parts.append(prt)
+                if not abridged:
+                    # unabridged is sometimes shortened to unabr.
+                    if 'unabr' in f.lower():
+                        abridged = 'Unabridged'
+                if not abridged:
+                    if 'abridged' in f.lower():
+                        abridged = 'Abridged'
+
+    parts = list(set(parts))
+    if len(parts) > 1:
+        multi_chapter = True
+        logger.debug(f"Multi chapter found {len(partlist)} parts")
+    else:
+        multi_chapter = False
+    parts = []
+
+    if not multi_chapter:
+        # scan again using tags first
+        for f in listdir(folder):
+            if CONFIG.is_valid_booktype(f, booktype='audiobook'):
+                # if no number_period or number_space in filename assume its whole-book
+                if not re.findall(r'\d+\b', f):
+                    wholebook = f
+                else:
+                    cnt += 1
+                    audio_file = f
+
+                    try:
+                        audio_path = os.path.join(folder, audio_file)
+                        id3r = id3read(audio_path)
+                        # artist = id3r['artist']
+                        # composer = id3r['composer']
+                        # albumartist = id3r['albumartist']
+                        book = id3r['album']
+                        # title = id3r['title']
+                        # comment = id3r['comment']
+                        track = id3r['track']
+                        total = id3r['track_total']
+                        if track:
+                            track = check_int(track.strip('\x00'), 0)
+                        else:
+                            track = 0
+                        if total:
+                            total = check_int(total.strip('\x00'), 0)
+                        else:
+                            total = 0
+
+                        author = id3r['author']
+                        if not book:
+                            book = id3r['title']
+
+                        if author and book:
+                            # ignore part0 and part1of1
+                            if track != 0 and not (track == 1 and total == 1):
+                                parts.append([track, book, author, f])
+
+                    except Exception as e:
+                        logger.error("id3tag %s %s" % (type(e).__name__, str(e)))
+                        pass
+        logger.debug(f"ID3read found {len(parts)}")
+        total_parts = cnt
+
+    failed = False
+    if multi_chapter:
+        chapters = []
+        for part in partlist:
+            chapters.append(int(part[0]))
+        chapters = sorted(list(set(chapters)))
+        num_chapters = len(chapters)
+        cnt = 1
+        while cnt <= num_chapters:
+            if cnt not in chapters:
+                logger.warning(f"No chapter {cnt} found")
+                failed = True
+                return parts, failed, '', abridged
+            cnt += 1
+
+        cnt = 1
+        total_parts = 0
+        for chapter in chapters:
+            chapterparts = []
+            for part in partlist:
+                if int(part[0]) == chapter:
+                    chapterparts.append([int(part[1]), part[2]])
+            num_chapterparts = len(chapterparts)
+            chapterparts = sorted(chapterparts)
+            total_parts += len(chapterparts)
+            ccnt = 1
+            while ccnt <= num_chapterparts:
+                match = [x for x in chapterparts if x[0] == ccnt]
+                if not match:
+                    logger.warning(f"No chapter {chapter} part {ccnt} found")
+                    failed = True
+                    return parts, failed, '', abridged
+                ccnt += 1
+
+            for entry in chapterparts:
+                parts.append([cnt, bookname, authorname, entry[1]])
                 cnt += 1
-                audio_file = f
-                try:
-                    audio_path = os.path.join(folder, f)
-                    id3r = id3read(audio_path)
-                    artist = id3r['artist']
-                    composer = id3r['composer']
-                    albumartist = id3r['albumartist']
-                    book = id3r['album']
-                    title = id3r['title']
-                    comment = id3r['comment']
-                    track = id3r['track']
-                    total = id3r['track_total']
+        cnt -= 1
 
-                    track = check_int(track, 0)
-                    total = check_int(total, 0)
-
-                    author = id3r['author']
-                    if not book:
-                        book = id3r['title']
-
-                    if author and book:
-                        parts.append([track, book, author, f])
-                    if not abridged:
-                        # unabridged is sometimes shortened to unabr.
-                        for tag in [book, title, albumartist, artist, composer, comment]:
-                            if tag and 'unabr' in tag.lower():
-                                abridged = 'Unabridged'
-                                break
-                    if not abridged:
-                        for tag in [book, title, albumartist, artist, composer, comment]:
-                            if tag and 'abridged' in tag.lower():
-                                abridged = 'Abridged'
-                                break
-
-                except Exception as e:
-                    logger.error("id3tag %s %s" % (type(e).__name__, str(e)))
-                    pass
-                finally:
-                    if not abridged:
-                        if audio_file and 'unabr' in audio_file.lower():
-                            abridged = 'Unabridged'
-                            break
-                    if not abridged:
-                        if audio_file and 'abridged' in audio_file.lower():
-                            abridged = 'Abridged'
-                            break
-
-    if cnt == 1 and not parts:  # single file audiobook with number but no tags
+    if cnt < 2 and not parts:  # single file audiobook with number but no tags
         parts = [[1, bookname, authorname, audio_file]]
-
-    logger.debug("Audiobook found %s %s" % (cnt, plural(cnt, "part")))
 
     if cnt == 0 and wholebook:  # only single file audiobook, no part files
         cnt = 1
         parts = [[1, bookname, authorname, wholebook]]
 
-    failed = False
     try:
         if cnt != len(parts):
             logger.warning("%s: Incorrect number of parts (found %i from %i)" % (bookname, len(parts), cnt))
             failed = True
 
-        if total and total != cnt:
-            logger.warning("%s: Reported %i parts, got %i" % (bookname, total, cnt))
+        if total_parts and total_parts != cnt:
+            logger.warning("%s: Reported %i parts, got %i" % (bookname, total_parts, cnt))
             failed = True
 
         # check all parts have the same author and title
@@ -250,73 +308,86 @@ def audio_parts(folder, bookname, authorname):
             book = parts[0][1]
             author = parts[0][2]
             for part in parts:
-                if part[1] != book:
-                    logger.warning("%s: Inconsistent title: [%s][%s]" % (bookname, part[1], book))
+                match = fuzz.partial_ratio(part[1], book)
+                if match < 95:
+                    logger.warning(f"{bookname}: Inconsistent title: [{part[1]}][{book}] ({match}%)")
                     failed = True
 
-                if part[2] != author:
-                    logger.warning("%s: Inconsistent author: [%s][%s]" % (bookname, part[2], author))
+                match = fuzz.partial_ratio(part[2], author)
+                if match < 95:
+                    logger.warning(f"{bookname}: Inconsistent author: [{part[2]}][{author} ({match}%)]")
                     failed = True
 
-        # do we have any track info from id3 tags
-        if failed or parts[0][0] == 0:
-            if failed:
-                logger.debug("No usable track info from id3")
-            else:
+        # do we have any usable track info from id3 tags
+        partlist = []
+        for part in parts:
+            partlist.append(part[0])
+        if failed or parts[0][0] == 0 or len(partlist) != len(set(partlist)):
+            if parts[0][0] == 0:
                 logger.debug("No track info from id3")
+            else:
+                logger.debug("No usable track info from id3")
 
             if len(parts) == 1:
                 return parts, failed, '', abridged
-
-            failed = False
-            # try to extract part information from filename. Search for token style of part 1 in this order...
-            for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
-                if tokmatch:
-                    break
-                for part in parts:
-                    if token in part[3]:
-                        tokmatch = token
+            else:
+                # try to extract part information from filename. Search for token style of part 1 in this order...
+                for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
+                    if tokmatch:
                         break
-            if tokmatch:  # we know the numbering style, get numbers for the other parts
-                cnt = 0
-                while cnt < len(parts):
-                    cnt += 1
-                    if tokmatch == ' 001.':
-                        pattern = ' %s.' % str(cnt).zfill(3)
-                    elif tokmatch == ' 01.':
-                        pattern = ' %s.' % str(cnt).zfill(2)
-                    elif tokmatch == ' 1.':
-                        pattern = ' %s.' % str(cnt)
-                    elif tokmatch == ' 001 ':
-                        pattern = ' %s ' % str(cnt).zfill(3)
-                    elif tokmatch == ' 01 ':
-                        pattern = ' %s ' % str(cnt).zfill(2)
-                    elif tokmatch == ' 1 ':
-                        pattern = ' %s ' % str(cnt)
-                    elif tokmatch == '001':
-                        pattern = '%s' % str(cnt).zfill(3)
-                    else:
-                        pattern = '%s' % str(cnt).zfill(2)
-                    # standardise numbering of the parts
                     for part in parts:
-                        if pattern in part[3]:
-                            part[0] = cnt
+                        if token in part[3]:
+                            tokmatch = token
                             break
+                if tokmatch:  # we know the numbering style, get numbers for the other parts
+                    cnt = 0
+                    while cnt < len(parts):
+                        cnt += 1
+                        if tokmatch == ' 001.':
+                            pattern = ' %s.' % str(cnt).zfill(3)
+                        elif tokmatch == ' 01.':
+                            pattern = ' %s.' % str(cnt).zfill(2)
+                        elif tokmatch == ' 1.':
+                            pattern = ' %s.' % str(cnt)
+                        elif tokmatch == ' 001 ':
+                            pattern = ' %s ' % str(cnt).zfill(3)
+                        elif tokmatch == ' 01 ':
+                            pattern = ' %s ' % str(cnt).zfill(2)
+                        elif tokmatch == ' 1 ':
+                            pattern = ' %s ' % str(cnt)
+                        elif tokmatch == '001':
+                            pattern = '%s' % str(cnt).zfill(3)
+                        else:
+                            pattern = '%s' % str(cnt).zfill(2)
+                        # standardise numbering of the parts
+                        for part in parts:
+                            if pattern in part[3]:
+                                part[0] = cnt
+                                break
+
     except Exception as e:
         logger.error(str(e))
 
     logger.debug("Checking numbering of %s %s" % (len(parts), plural(len(parts), 'part')))
-    parts.sort(key=lambda x: x[0])
-    # check all parts are present
+    parts.sort(key=lambda x: int(x[0]))
+
+    # check all parts are present, ignore any part 0
+    nparts = []
+    for part in parts:
+        if part[0]:
+            nparts.append(part)
+    parts = nparts
+
     cnt = 0
     while cnt < len(parts):
         if cnt and parts[cnt][0] == cnt:
-            logger.error("%s: Duplicate part %i found" % (bookname, cnt))
+            logger.error(f"{bookname}: Duplicate part {cnt} found")
+            logger.error(f"{parts[cnt][3]} : {parts[cnt-1][3]}")
             failed = True
             break
         if parts[cnt][0] != cnt + 1:
-            logger.warning('%s: No part %i found, "%s" for token "%s" %s' % (bookname, cnt + 1, parts[cnt][0],
-                                                                             tokmatch, parts[cnt][3]))
+            logger.warning(f'{bookname}: No part {cnt + 1} found, "{parts[cnt][0]}" '
+                           f'for token "{tokmatch}" {parts[cnt][3]}')
             failed = True
             break
         cnt += 1
@@ -371,7 +442,6 @@ def audio_rename(bookid, rename=False, playlist=False):
         abridged = ' (%s)' % abridged
     # if we get here, looks like we have all the parts needed to rename properly
     seriesinfo = name_vars(bookid, abridged)
-    logger.debug(str(seriesinfo))
     dest_path = seriesinfo['AudioFolderName']
     dest_dir = get_directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
