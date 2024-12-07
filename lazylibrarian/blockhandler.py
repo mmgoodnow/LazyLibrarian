@@ -32,28 +32,6 @@ class BlockHandler:
         self._newznab = newznab
         self._torznab = torznab
 
-    def add_gb_call(self) -> (str, bool):
-        """ Check if it's ok to make a gb call
-
-        Returns:
-        status (str): A status message indicating whether the gb call is allowed or blocked.
-        success (bool): A boolean indicating whether the gb call is allowed (True) or blocked (False).
-        """
-        self._gb_calls += 1
-        name = 'googleapis'
-        entry = self._provider_list.pop(name, None)
-        if entry:
-            timenow = time.time()
-            if int(timenow) < entry['resume']:
-                self._provider_list[name] = entry  # Put it back, still blocked
-                return "Blocked", False
-            else:
-                self._gb_calls = 0
-        return "Ok", True
-
-    def get_gb_calls(self) -> int:
-        return self._gb_calls
-
     def remove_provider_entry(self, name: str) -> None:
         self._provider_list.pop(name, None)
 

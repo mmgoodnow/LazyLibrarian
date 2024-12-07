@@ -26,7 +26,6 @@ from lib.apscheduler.scheduler import Scheduler
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookwork import add_series_members
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configtypes import ConfigScheduler
@@ -588,7 +587,6 @@ def show_jobs(json=False):
 
 def show_stats(json=False):
     """ Return status of activity suitable for display, or json if requested """
-    gb_status = "Blocked" if BLOCKHANDLER.is_blocked('googleapis') else "Active"
     resultdict = {}
     cache = {'hit': check_int(lazylibrarian.CACHE_HIT, 0), 'miss': check_int(lazylibrarian.CACHE_MISS, 0)}
     sleep = {'goodreads': lazylibrarian.TIMERS['SLEEP_GR'], 'librarything': lazylibrarian.TIMERS['SLEEP_LT'],
@@ -600,8 +598,7 @@ def show_stats(json=False):
                                           check_int(lazylibrarian.CACHE_MISS, 0)),
               "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine, %.3f hardcover" % (
               lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
-              lazylibrarian.TIMERS['SLEEP_CV'], lazylibrarian.TIMERS['SLEEP_HC']),
-              "GoogleBooks API %i calls, %s" % (BLOCKHANDLER.get_gb_calls(), gb_status)]
+              lazylibrarian.TIMERS['SLEEP_CV'], lazylibrarian.TIMERS['SLEEP_HC'])]
 
     db = database.DBConnection()
     try:
