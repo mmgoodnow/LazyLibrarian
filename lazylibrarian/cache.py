@@ -92,9 +92,11 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
 
     url = make_unicode(url)
     if 'googleapis' in url:
-        msg, ok = BLOCKHANDLER.add_gb_call()
-        if not ok:
-            return msg, ok
+        if BLOCKHANDLER.is_blocked('googleapis'):
+            return 'Blocked', False
+    elif 'goodreads' in url:
+        if BLOCKHANDLER.is_blocked('goodreads'):
+            return 'Blocked', False
 
     if headers is None:
         # some sites insist on having a user-agent, default is to add one
@@ -151,7 +153,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
             return r.content, True
         return r.text, True
 
-    if r.status_code in [403, 429]:
+    if r.status_code in [403, 503, 429]:
         # noinspection PyBroadException
         try:
             source = r.json()
@@ -159,7 +161,12 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
         except Exception:
             msg = f"Error {r.status_code}"
 
-        if 'googleapis' in url:
+        if 'goodreads' in url and '503' in msg:
+            delay = 2
+            logger.debug(f'Request denied, blocking goodreads for {delay} seconds: {msg}')
+            BLOCKHANDLER.replace_provider_entry('goodreads', delay, msg)
+            logger.debug(BLOCKHANDLER.get_text_list_of_blocks())
+        elif 'googleapis' in url:
             if 'Limit Exceeded' in msg:
                 # how long until midnight Pacific Time when google reset the quotas
                 delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
@@ -174,6 +181,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
 
             logger.debug(f'Request denied, blocking googleapis for {delay} seconds: {msg}')
             BLOCKHANDLER.replace_provider_entry('googleapis', delay, msg)
+            logger.debug(BLOCKHANDLER.get_text_list_of_blocks())
         else:
             logger.debug(f"Error {r.status_code} url={url} headers={headers}")
     elif r.status_code in responses:
@@ -291,7 +299,7 @@ class CacheRequest(ABC):
 
         if valid_cache:
             lazylibrarian.CACHE_HIT += 1
-            self.cachelogger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename, self.url))
+            self.cachelogger.debug(f"CacheHandler: Returning CACHED response {hashfilename} for {self.url}")
             source, ok = self.read_from_cache(hashfilename)
             if not ok:
                 return None, False
@@ -299,12 +307,11 @@ class CacheRequest(ABC):
             lazylibrarian.CACHE_MISS += 1
             result, success = self.fetch_data()
             if success:
-                self.cachelogger.debug("CacheHandler: Storing %s %s for %s" % (self.name(), myhash, self.url))
+                self.cachelogger.debug(f"CacheHandler: Storing {self.name()} {myhash} for {self.url}")
                 source, result = self.load_from_result_and_cache(result, hashfilename, expire_older_than)
             else:
-                self.logger.debug("Got error response for %s: %s" % (self.url, result.split('<')[0]))
-                if 'goodreads' in self.url and '503' in result:  # TODO: Is this the right place for this code?
-                    time.sleep(1)
+                self.logger.debug(f"Got error response for {self.url}: {result.split('<')[0]}")
+                self.logger.debug(BLOCKHANDLER.get_text_list_of_blocks())
                 return None, False
         return source, valid_cache
 
