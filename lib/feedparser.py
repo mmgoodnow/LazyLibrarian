@@ -3743,8 +3743,11 @@ def convert_to_utf8(http_headers, data):
     # http_encoding = params.get('charset', '').replace("'", "")
     m = Message()
     m['content-type'] = http_content_type
-    http_content_type = m.get_content_type()
-    http_encoding = m.get_param('charset').replace("'", "")
+    http_encoding = m.get_param('charset')
+    if not http_encoding:
+        http_encoding = ''
+    else:
+        http_encoding = http_encoding.replace("'", "")
 
     if not isinstance(http_encoding, str):
         http_encoding = http_encoding.decode('utf-8', 'ignore')
