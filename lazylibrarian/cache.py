@@ -91,11 +91,9 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
     logging.getLogger('chardet').setLevel(logging.CRITICAL)
 
     url = make_unicode(url)
-    if 'googleapis' in url:
-        if BLOCKHANDLER.is_blocked('googleapis'):
-            return 'Blocked', False
-    elif 'goodreads' in url:
-        if BLOCKHANDLER.is_blocked('goodreads'):
+    check_block = ['goodreads', 'librarything', 'googleapis']
+    for blk in check_block:
+        if blk in url and BLOCKHANDLER.is_blocked(blk):
             return 'Blocked', False
 
     if headers is None:
@@ -153,38 +151,46 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
             return r.content, True
         return r.text, True
 
-    if r.status_code in [403, 503, 429]:
-        # noinspection PyBroadException
-        try:
-            source = r.json()
-            msg = source['error']['message']
-        except Exception:
-            msg = f"Error {r.status_code}"
+    # we got an error response...
+    # noinspection PyBroadException
+    try:
+        source = r.json()
+        msg = source['error']['message']
+    except Exception:
+        msg = f"Error {r.status_code}"
 
-        if 'goodreads' in url and '503' in msg:
-            delay = 2
-            logger.debug(f'Request denied, blocking goodreads for {delay} seconds: {msg}')
-            BLOCKHANDLER.replace_provider_entry('goodreads', delay, msg)
-            logger.debug(BLOCKHANDLER.get_text_list_of_blocks())
-        elif 'googleapis' in url:
-            if 'Limit Exceeded' in msg:
-                # how long until midnight Pacific Time when google reset the quotas
-                delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
-                if delay > 86400:
-                    delay -= 86400  # no roll-over to next day
-            elif r.status_code == 429:  # too many requests
-                delay = 10
-            else:
-                # might be forbidden for a different reason where midnight might not matter
-                # eg "Cannot determine user location for geographically restricted operation"
-                delay = 3600
-
-            logger.debug(f'Request denied, blocking googleapis for {delay} seconds: {msg}')
-            BLOCKHANDLER.replace_provider_entry('googleapis', delay, msg)
-            logger.debug(BLOCKHANDLER.get_text_list_of_blocks())
+    if '503' in msg:
+        to_block = ''
+        for blk in check_block:
+            if blk in url:
+                to_block = blk
+                break
+        if to_block:
+            delay = 10
+            logger.debug(f'Request denied, {r.status_code}, blocking {to_block} for {delay} seconds')
+            BLOCKHANDLER.replace_provider_entry(to_block, delay, msg)
         else:
             logger.debug(f"Error {r.status_code} url={url} headers={headers}")
-    elif r.status_code in responses:
+
+    elif 'googleapis' in url:
+        if 'Limit Exceeded' in msg:
+            # how long until midnight Pacific Time when google reset the quotas
+            delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
+            if delay > 86400:
+                delay -= 86400  # no roll-over to next day
+        elif r.status_code == 429:  # too many requests
+            delay = 10
+        else:
+            # might be forbidden for a different reason where midnight might not matter
+            # eg "Cannot determine user location for geographically restricted operation"
+            delay = 3600
+
+        logger.debug(f'Request denied, {r.status_code}, blocking googleapis for {delay} seconds: {msg}')
+        BLOCKHANDLER.replace_provider_entry('googleapis', delay, msg)
+    else:
+        logger.debug(f"Error {r.status_code} url={url} headers={headers}")
+
+    if r.status_code in responses:
         msg = responses[r.status_code]
     else:
         msg = r.text
