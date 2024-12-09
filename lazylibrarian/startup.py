@@ -173,7 +173,7 @@ class StartupLazyLibrarian:
             # This is the "emergency recovery" update in case lazylibrarian won't start.
             # Set up some dummy values for the update as we have not read the config file yet
             CONFIG.reset_to_default([
-                'GIT_PROGRAM', 'GIT_USER', 'GIT_REPO', 'GIT_REPO', 'USER_AGENT', 'HTTP_TIMEOUT', 'PROXY_HOST',
+                'GIT_PROGRAM', 'GIT_USER', 'GIT_REPO', 'USER_AGENT', 'HTTP_TIMEOUT', 'PROXY_HOST',
                 'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT', 'BACKUP_DB',
             ])
             DIRS.ensure_cache_dir()

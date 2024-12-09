@@ -148,7 +148,7 @@ def get_current_version() -> str:
         version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
 
         if not os.path.isfile(version_file):
-            version_string = 'Missing Version File'
+            version_string = 'Missing Version file'
             logger.debug('Version file [%s] missing.' % version_file)
             return version_string
         else:
@@ -376,7 +376,7 @@ def get_commit_difference_from_git() -> (int, str):
         CONFIG['LATEST_VERSION'] = 'HEAD'
         commit_list = 'Unable to get latest version from %s' % CONFIG['GIT_HOST']
         logger.info(commit_list)
-    if CONFIG['CURRENT_VERSION'] and commits != 0:
+    if re.match('^[a-z0-9]+$', CONFIG['CURRENT_VERSION']):  # does it look like a hash, not an error message
         url = 'https://%s/api/v4/projects/%s%%2F%s/repository/compare?from=%s&to=%s' % (
             lazylibrarian.GITLAB_TOKEN, CONFIG['GIT_USER'],
             CONFIG['GIT_REPO'], CONFIG['CURRENT_VERSION'],
@@ -435,8 +435,9 @@ def get_commit_difference_from_git() -> (int, str):
             commit_list = ''
             CONFIG.set_str('LATEST_VERSION', CONFIG['CURRENT_VERSION'])
     else:
-        logger.info('Unknown version of lazylibrarian. Run the updater to identify your version')
-
+        commit_list = (f"Unknown version of lazylibrarian ({CONFIG['CURRENT_VERSION']})\n"
+                       f"Run lazylibrarian with --update to identify your version")
+        logger.info(commit_list)
     return commits, commit_list
 
 
@@ -493,8 +494,9 @@ def update():
             msg = 'Backing up prior to upgrade'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
+            dbbackup_file = ''
             if CONFIG['BACKUP_DB']:
-                dbbackup('upgrade')
+                dbbackup_file, _ = dbbackup('upgrade')
             zf = tarfile.open(backup_file, mode='w:gz')
             prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 
                             'telemetryserver', 'unittests']
@@ -545,6 +547,10 @@ def update():
                     msg = 'No update available: ' + str(output)
                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
                     logger.info(msg)
+                    if os.path.exists(backup_file):
+                        os.remove(backup_file)
+                    if os.path.exists(dbbackup_file):
+                        os.remove(dbbackup_file)
                     break
                 elif 'Aborting' in line or 'local changes' in line:
                     msg = 'Unable to update: ' + str(output)
@@ -552,18 +558,7 @@ def update():
                     logger.error(msg)
                     return False
 
-            # Update version.txt and timestamp
-            if 'LATEST_VERSION' not in CONFIG:
-                CONFIG.set_str('LATEST_VERSION', 'Unknown')
-                url = 'https://lazylibrarian.gitlab.io/version.json'
-                if CONFIG.get_bool('SSL_VERIFY'):
-                    r = requests.get(url, timeout=30, verify=CONFIG['SSL_CERTS']
-                                     if CONFIG['SSL_CERTS'] else True)
-                else:
-                    r = requests.get(url, timeout=30, verify=False)
-                if str(r.status_code).startswith('2'):
-                    CONFIG.set_str('LATEST_VERSION', r.json())
-
+            get_latest_version()
             update_version_file(CONFIG['LATEST_VERSION'])
             upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                                           CONFIG['LATEST_VERSION']))
@@ -668,6 +663,7 @@ def update():
                         os.renames(syspath(old_path), syspath(new_path))
 
             # Update version.txt and timestamp
+            get_latest_version()
             update_version_file(CONFIG['LATEST_VERSION'])
             upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                                           CONFIG['LATEST_VERSION']))
