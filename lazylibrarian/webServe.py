@@ -3825,9 +3825,15 @@ class WebInterface(object):
                         coverlink = 'cache/book/' + coverid + '.jpg'
                         coverfile = os.path.join(cachedir, "book", coverid + '.jpg')
                         newcoverfile = os.path.join(cachedir, "book", bookid + covertype + '.jpg')
-                        if path_exists(newcoverfile):
-                            copyfile(newcoverfile, coverfile)
-                        edited += 'Cover (%s)' % cover
+                        if not path_exists(newcoverfile):
+                            logger.error(f"Coverfile {newcoverfile} for {bookid} is missing")
+                        else:
+                            try:
+                                edited += 'Cover (%s)' % cover
+                                dest = copyfile(newcoverfile, coverfile)
+                                logger.debug(f"{newcoverfile} {coverlink} {dest}")
+                            except Exception as e:
+                                logger.error(str(e))
                     else:
                         coverlink = bookdata['BookImg']
 
