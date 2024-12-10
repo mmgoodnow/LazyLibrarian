@@ -322,7 +322,7 @@ def get_latest_version_from_git():
             if branch.lower() == 'package':  # check packages against master
                 branch = 'master'
 
-            url = 'https://gitlab.com/api/v4/projects/9317860/repository/commits'
+            url = f'https://gitlab.com/api/v4/projects/{CONFIG['GIT_PROJECT']}/repository/commits'
             # Get the latest commit available from git
             logger.debug('Retrieving latest version information from git command=[%s]' % url)
 

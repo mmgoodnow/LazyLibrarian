@@ -162,6 +162,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('Git', 'GIT_HOST', 'gitlab.com'),
     ConfigStr('Git', 'GIT_USER', 'LazyLibrarian'),
     ConfigStr('Git', 'GIT_REPO', 'lazylibrarian'),
+    ConfigStr('Git', 'GIT_PROJECT', '9317860'),
     ConfigStr('Git', 'GIT_BRANCH', 'master'),
     ConfigInt('Git', 'GIT_UPDATED', 0),
     ConfigStr('Git', 'INSTALL_TYPE', ''),
