@@ -244,7 +244,10 @@ class StartupLazyLibrarian:
         _ = init_hex_caches()
         makocache = DIRS.get_mako_cachedir()
         self.logger.debug("Clearing mako cache")
-        rmtree(makocache)
+        try:
+            rmtree(makocache)
+        except FileNotFoundError:
+            pass
         os.makedirs(makocache)
         remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
         # keep track of last api calls so we don't call more than once per second
@@ -669,7 +672,10 @@ class StartupLazyLibrarian:
                 if updated:
                     self.logger.info('Lazylibrarian version updated')
                     makocache = os.path.join(DIRS.CACHEDIR, 'mako')
-                    rmtree(makocache)
+                    try:
+                        rmtree(makocache)
+                    except FileNotFoundError:
+                        pass
                     os.makedirs(makocache)
                     CONFIG.set_int('GIT_UPDATED', int(time.time()))
                     if CONFIG.configfilename:
