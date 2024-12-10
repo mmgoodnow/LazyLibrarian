@@ -18,7 +18,7 @@ import subprocess
 import tarfile
 import threading
 import time
-from shutil import rmtree
+from shutil import rmtree, move
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
@@ -144,8 +144,14 @@ def get_current_version() -> str:
         version_string = cur_commit_hash
 
     elif CONFIG['INSTALL_TYPE'] in ['source']:
-
         version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
+        if not version_file.startswith(DIRS.PROG_DIR):
+            old_location = os.path.join(DIRS.PROG_DIR, 'version.txt')
+            if os.path.isfile(old_location):
+                # we did an --update with no --datadir,
+                # so move version.txt into the right cache folder
+                logger.debug(f'Moving {old_location} to {version_file}')
+                move(old_location, version_file)
 
         if not os.path.isfile(version_file):
             version_string = 'Missing Version file'
@@ -315,9 +321,9 @@ def get_latest_version_from_git():
         else:
             if branch.lower() == 'package':  # check packages against master
                 branch = 'master'
-            # Get the latest commit available from git
-            url = 'https://lazylibrarian.gitlab.io/version.json'
 
+            url = 'https://gitlab.com/api/v4/projects/9317860/repository/commits'
+            # Get the latest commit available from git
             logger.debug('Retrieving latest version information from git command=[%s]' % url)
 
             timestamp = CONFIG.get_int('GIT_UPDATED')
@@ -347,19 +353,22 @@ def get_latest_version_from_git():
                     r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
 
                 if str(r.status_code).startswith('2'):
-                    latest_version = r.json()
-                    logger.debug('Branch [%s] Latest Version has been set to [%s]' % (
-                        branch, latest_version))
+                    try:
+                        latest_version = r.json()[0]['id']
+                        logger.debug('Branch [%s] Latest Version has been set to [%s]' % (branch, latest_version))
+                    except Exception as err:
+                        logger.warning(f'Error {type(err).__name__} reading json response')
+                        logger.error(f'{r.json()}')
                 elif str(r.status_code) == '304':
                     latest_version = CONFIG['CURRENT_VERSION']
                     logger.debug('Not modified, currently on Latest Version')
                 else:
-                    logger.warning('Could not get the latest commit from git')
-                    logger.debug('git latest version returned %s' % r.status_code)
+                    logger.warning(f'Could not get the latest commit from git ({r.status_code})')
+                    logger.error(f'{url}: ({headers})')
                     latest_version = 'Not_Available_From_Git'
             except Exception as err:
-                logger.warning('Could not get the latest commit from git')
-                logger.debug('git %s for %s: %s' % (type(err).__name__, url, str(err)))
+                logger.warning(f'Could not get the latest commit from git: {type(err).__name__}')
+                logger.error(f'for {url}: {str(err)}')
                 latest_version = 'Not_Available_From_Git'
 
     return latest_version
