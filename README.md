@@ -40,7 +40,7 @@ Linux / Mac OS X:
 
 
 ## Documentation:
-There is extensive documentation at https://lazylibrarian.gitlab.io/
+There is extensive documentation at https://lazylibrarian.gitlab.io/lazylibrarian.gitlab.io/
 and a reddit at https://www.reddit.com/r/LazyLibrarian/
 
 Docker tutorial  http://sasquatters.com/lazylibrarian-docker/
