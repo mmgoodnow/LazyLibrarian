@@ -646,8 +646,8 @@ class WebInterface(object):
                                 page = 'config_' + tabs[tab - 1]
                             except IndexError:
                                 pass
-                    raise cherrypy.HTTPRedirect("https://lazylibrarian.gitlab.io/" + page)
-        raise cherrypy.HTTPRedirect("https://lazylibrarian.gitlab.io/")
+                    raise cherrypy.HTTPRedirect("https://lazylibrarian.gitlab.io/lazylibrarian.gitlab.io/" + page)
+        raise cherrypy.HTTPRedirect("https://lazylibrarian.gitlab.io/lazylibrarian.gitlab.io/")
 
     @cherrypy.expose
     def logout(self):
