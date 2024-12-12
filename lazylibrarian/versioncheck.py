@@ -365,11 +365,11 @@ def get_latest_version_from_git():
                 else:
                     logger.warning(f'Could not get the latest commit from git ({r.status_code})')
                     logger.error(f'{url}: ({headers})')
-                    latest_version = 'Not_Available_From_Git'
+                    latest_version = f'Not_Available_From_Git : {r.status_code} : {url}'
             except Exception as err:
                 logger.warning(f'Could not get the latest commit from git: {type(err).__name__}')
                 logger.error(f'for {url}: {str(err)}')
-                latest_version = 'Not_Available_From_Git'
+                latest_version = f'Not_Available_From_Git : {type(err).__name__} : {url}'
 
     return latest_version
 
@@ -381,7 +381,7 @@ def get_commit_difference_from_git() -> (int, str):
     logger = logging.getLogger(__name__)
     commit_list = ''
     commits = -1
-    if CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
+    if CONFIG['LATEST_VERSION'] and CONFIG['LATEST_VERSION'].startswith('Not_Available_From_Git'):
         CONFIG['LATEST_VERSION'] = 'HEAD'
         commit_list = 'Unable to get latest version from %s' % CONFIG['GIT_HOST']
         logger.info(commit_list)
