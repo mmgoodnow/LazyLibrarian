@@ -273,7 +273,7 @@ def check_for_updates():
     # lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
     # lazylibrarian.CONFIG['CURRENT_VERSION'] = 'testing'
 
-    logger.debug('Update check complete')
+    logger.debug(f"Update check complete. Behind {CONFIG['COMMITS_BEHIND']}")
     # noinspection PyBroadException
     db = database.DBConnection()
     try:
@@ -322,7 +322,11 @@ def get_latest_version_from_git():
             if branch.lower() == 'package':  # check packages against master
                 branch = 'master'
 
-            url = f"https://gitlab.com/api/v4/projects/{CONFIG['GIT_PROJECT']}/repository/commits"
+            project = CONFIG['GIT_PROJECT']
+            if not project:
+                project = '9317860'  # default lazylibrarian
+
+            url = f"https://gitlab.com/api/v4/projects/{project}/repository/commits"
             # Get the latest commit available from git
             logger.debug('Retrieving latest version information from git command=[%s]' % url)
 
@@ -382,7 +386,7 @@ def get_commit_difference_from_git() -> (int, str):
     commit_list = ''
     commits = -1
     if CONFIG['LATEST_VERSION'] and CONFIG['LATEST_VERSION'].startswith('Not_Available_From_Git'):
-        CONFIG['LATEST_VERSION'] = 'HEAD'
+        CONFIG.set_str('LATEST_VERSION', 'HEAD')
         commit_list = 'Unable to get latest version from %s' % CONFIG['GIT_HOST']
         logger.info(commit_list)
     if re.match('^[a-z0-9]+$', CONFIG['CURRENT_VERSION']):  # does it look like a hash, not an error message
@@ -429,6 +433,8 @@ def get_commit_difference_from_git() -> (int, str):
             else:
                 logger.warning('Could not get difference status from git: %s' % str(git))
             if commits > 0:
+                if CONFIG['LATEST_VERSION'] == 'HEAD':
+                    CONFIG.set_str('LATEST_VERSION', git['commit']['id'])
                 for item in git['commits']:
                     commit_list = "%s\n%s" % (item['title'], commit_list)
         except Exception as err:
