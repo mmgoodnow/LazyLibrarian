@@ -91,8 +91,10 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
     logging.getLogger('chardet').setLevel(logging.CRITICAL)
 
     url = make_unicode(url)
-    check_block = ['goodreads', 'librarything', 'googleapis']
-    for blk in check_block:
+
+    service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary']
+
+    for blk in service_blocked:
         if blk in url and BLOCKHANDLER.is_blocked(blk):
             return 'Blocked', False
 
@@ -161,7 +163,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
 
     if '503' in msg:
         to_block = ''
-        for blk in check_block:
+        for blk in service_blocked:
             if blk in url:
                 to_block = blk
                 break
