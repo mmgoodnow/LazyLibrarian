@@ -650,10 +650,10 @@ class StartupLazyLibrarian:
     def shutdown(self, restart=False, update=False, doquit=False, testing=False):
         shutdownscheduler()
         if not testing:
-            if self.logger.isEnabledFor(logging.DEBUG):  # TODO add a separate setting
-                CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
-            CONFIG.add_access_errors_to_log()
             if not (update and doquit):  # commandline update, don't save config as no filename
+                if self.logger.isEnabledFor(logging.DEBUG):  # TODO add a separate setting
+                    CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
+                CONFIG.add_access_errors_to_log()
                 CONFIG.save_config_and_backup_old(restart_jobs=False)
 
         if not restart and not update:
