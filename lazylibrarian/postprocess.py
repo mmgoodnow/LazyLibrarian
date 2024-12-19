@@ -3288,6 +3288,9 @@ def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cac
     if not overwrite and coverfile:
         logger.debug('Cover %s already exists' % coverfile)
         return
+    if not bookimg:
+        logger.debug(f'No cover to cache for {bookid}')
+        return
 
     TELEMETRY.record_usage_data('Process/Image')
     if bookimg.startswith('cache/'):
