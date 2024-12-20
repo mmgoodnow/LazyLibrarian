@@ -326,7 +326,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         books = db.select(cmd, (authorid,))
 
         if not len(books):
-            logger.warning(f"No matching titles by {authorid}:{author} in database (source={source},library={library},ignored={ignored})")
+            logger.warning(f"No matching titles by {authorid}:{author} in database "
+                           f"(source={source},library={library},ignored={ignored})")
             return 0, ''
 
         loggerfuzz.debug(cmd)
@@ -1068,35 +1069,32 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                                                          book_filename))[0],
                                                                                      overwrite=False)
 
-                                            # check and store book location so we can check if it gets (re)moved
-                                            book_basename = os.path.splitext(book_filename)[0]
-                                            booktype_list = get_list(CONFIG['EBOOK_TYPE'])
-                                            for book_type in booktype_list:
-                                                preferred_type = "%s.%s" % (book_basename, book_type)
-                                                if path_exists(preferred_type):
-                                                    book_filename = preferred_type
-                                                    logger.debug("Librarysync link to preferred type %s: %s" %
-                                                                 (book_type, book_filename))
-                                                    break
-
-                                            db.action('UPDATE books set BookFile=? where BookID=?',
+                                            old_filename = book_filename
+                                            db.action("UPDATE books SET BookFile=? where BookID=?",
                                                       (book_filename, bookid))
-
+                                                      
                                             if CONFIG.get_bool('IMP_RENAME'):
                                                 book_filename, _ = book_rename(bookid)
 
+                                            # check preferred type and store book location
+                                            # so we can check if it gets (re)moved
+                                            book_basename = os.path.splitext(book_filename)[0]
+                                            booktype_list = get_list(CONFIG['EBOOK_TYPE'])
+                                            for book_type in booktype_list:
+                                                preferred_type = f"{book_basename}.{book_type}"
+                                                if path_exists(preferred_type):
+                                                    book_filename = preferred_type
+                                                    logger.debug(f"Librarysync link to preferred type {book_type}")
+                                                    break
+
                                             # location may have changed on rename
-                                            if book_filename and book_filename != check_status['BookFile']:
-                                                if check_status['BookFile'] and check_status['BookFile'] != 'None':
-                                                    modified_count += 1
-                                                    logger.warning("Updating book location for %s %s from %s to %s" %
-                                                                   (author, book, check_status['BookFile'],
-                                                                    book_filename))
-                                                logger.debug("%s %s matched %s BookID %s, [%s][%s]" %
-                                                             (author, book, check_status['Status'], bookid,
-                                                              check_status['AuthorName'], check_status['BookName']))
-                                                db.action('UPDATE books set BookFile=? where BookID=?',
+                                            if book_filename != old_filename:
+                                                db.action('UPDATE books SET BookFile=? WHERE BookID=?',
                                                           (book_filename, bookid))
+                                                if (check_status['BookFile'] and check_status['BookFile'] != 'None'
+                                                        and check_status['BookFile' != book_filename]):
+                                                    modified_count += 1
+
                                                 if 'unknown' in check_status['AuthorName'].lower():
                                                     oldauth = db.match("SELECT * from authors WHERE AuthorName=?",
                                                                        (author,))
