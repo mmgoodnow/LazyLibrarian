@@ -1962,22 +1962,26 @@ class Api(object):
         if CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(authorname)
             myqueue = Queue()
-            search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[authorname, myqueue])
+            search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS',
+                                          args=[' <ll> ' + authorname, myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(authorname)
             myqueue = Queue()
-            search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[authorname, myqueue])
+            search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS',
+                                          args=[' <ll> ' + authorname, myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "HardCover":
             hc = HardCover(authorname)
             myqueue = Queue()
-            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS', args=[authorname, myqueue])
+            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS',
+                                          args=[' <ll> ' + authorname, myqueue])
             search_api.start()
         else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(authorname)
             myqueue = Queue()
-            search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[authorname, myqueue])
+            search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS',
+                                          args=[' <ll> ' + authorname, myqueue])
             search_api.start()
 
         search_api.join()
@@ -1992,22 +1996,26 @@ class Api(object):
         if CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(kwargs['name'])
             myqueue = Queue()
-            search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[kwargs['name'], myqueue])
+            search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS',
+                                          args=[kwargs['name'] + ' <ll> ', myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(kwargs['name'])
             myqueue = Queue()
-            search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[kwargs['name'], myqueue])
+            search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS',
+                                          args=[kwargs['name'] + ' <ll> ', myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "HardCover":
             hc = HardCover(kwargs['name'])
             myqueue = Queue()
-            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS', args=[kwargs['name'], myqueue])
+            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS',
+                                          args=[kwargs['name'] + ' <ll> ', myqueue])
             search_api.start()
         else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['name'])
             myqueue = Queue()
-            search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[kwargs['name'], myqueue])
+            search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS',
+                                          args=[kwargs['name'] + ' <ll> ', myqueue])
             search_api.start()
 
         search_api.join()

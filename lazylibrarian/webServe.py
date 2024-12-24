@@ -81,12 +81,22 @@ from lazylibrarian.blockhandler import BLOCKHANDLER
 from deluge_client import DelugeRPCClient
 from mako import exceptions
 from mako.lookup import TemplateLookup
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
-from thefuzz import fuzz
 
 lastauthor = ''
 lastmagazine = ''
 lastcomic = ''
+
+api_sources = [  # source, authorid, bookid
+                ['HardCover', 'hc_id', 'hc_id'],
+                ['OpenLibrary', 'ol_id', 'ol_id'],
+                ['GoodReads', 'gr_id', 'gr_id'],
+                ['GoogleBooks', 'AuthorID', 'gb_id'],
+            ]
 
 
 def clear_mako_cache(userid=0):
@@ -1967,27 +1977,39 @@ class WebInterface(object):
         elif searchfor.lower().startswith('bookid:'):
             self.add_book(searchfor[7:])
         else:
+            authid_key = 'AuthorID'
+            bookid_key = 'BookID'
+            for item in api_sources:
+                if CONFIG['BOOK_API'] == item[0]:
+                    authid_key = item[1]
+                    bookid_key = item[2]
+                    break
+
             db = database.DBConnection()
             try:
-                authorids = db.select("SELECT AuthorID,gr_id,ol_id,hc_id from authors where status != 'Loading'")
-                loadingauthorids = db.select("SELECT AuthorID from authors where status = 'Loading'")
-                booksearch = db.select("SELECT Status,AudioStatus,BookID from books")
+                authorids = db.select(f"SELECT {authid_key} as AuthorID from authors where status != 'Loading'")
+                loadingauthorids = db.select(f"SELECT {authid_key} as AuthorID from authors where status = 'Loading'")
+                booksearch = db.select(f"SELECT Status,AudioStatus,{bookid_key} as BookID from books")
             finally:
                 db.close()
+
             authorlist = []
             for item in authorids:
-                for src in ['AuthorID', 'ol_id', 'gr_id', 'hc_id']:
-                    if item[src]:
-                        authorlist.append(item[src])
+                if item['AuthorID']:
+                    authorlist.append(item['AuthorID'])
             authorlist = list(set(authorlist))
             loadlist = []
             for item in loadingauthorids:
-                loadlist.append(item['AuthorID'])
+                if item['AuthorID']:
+                    loadlist.append(item['AuthorID'])
+            loadlist = list(set(loadlist))
             booklist = []
             for item in booksearch:
-                booklist.append(item['BookID'])
-
-            searchresults = search_for(searchfor)
+                if item['BookID']:
+                    booklist.append(item['BookID'])
+            booklist = list(set(booklist))
+            # we don't know if searchfor is an author, book or isbn
+            searchresults = search_for(searchfor, CONFIG['BOOK_API'])
             lazylibrarian.SEARCHING = 0
             return serve_template(templatename="searchresults.html", title='Search Results: "' + searchfor + '"',
                                   searchresults=searchresults, authorlist=authorlist, loadlist=loadlist,
@@ -3324,9 +3346,15 @@ class WebInterface(object):
             if booktype is not None:
                 preftype = booktype
 
-            cmd = ("SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE BookID=? and "
-                   "books.AuthorID = authors.AuthorID")
-            bookdata = db.match(cmd, (bookid,))
+            bookid_key = 'BookID'
+            for item in api_sources:
+                if CONFIG['BOOK_API'] == item[0]:
+                    bookid_key = item[2]
+                    break
+
+            cmd = (f"SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE books.{bookid_key}=? or "
+                   "BookID=? and books.AuthorID = authors.AuthorID")
+            bookdata = db.match(cmd, (bookid, bookid))
         finally:
             db.close()
         if not bookdata:
@@ -3480,6 +3508,11 @@ class WebInterface(object):
                     raise cherrypy.HTTPRedirect("books")
             else:
                 return self.request_book(library=library, bookid=bookid, redirect=redirect)
+
+        if library == 'AudioBook':
+            raise cherrypy.HTTPRedirect("audio")
+        else:
+            raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
     def edit_author(self, authorid=None, images=False):

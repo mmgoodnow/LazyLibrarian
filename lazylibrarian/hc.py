@@ -18,14 +18,17 @@ from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import md5_utf8, make_unicode, is_valid_isbn, get_list, format_author_name, \
     date_format, thread_name, now, today, plural, unaccented, replace_all, check_year, check_int
 from lazylibrarian.images import cache_bookimg, get_book_cover
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 def hc_api_sleep():
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_HC']
-    if delay < 1.0:
-        sleep_time = 1.0 - delay
+    if delay < 2.0:
+        sleep_time = 2.0 - delay
         lazylibrarian.TIMERS['SLEEP_HC'] += sleep_time
         cachelogger = logging.getLogger('special.cache')
         cachelogger.debug("HardCover sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_HC']))
@@ -250,9 +253,9 @@ class HardCover:
         self.hc_url = 'https://api.hardcover.app/'
         self.graphql_url = self.hc_url + 'v1/graphql'
         self.book_url = self.hc_url.replace('api.', '') + 'books/'
+        self.auth_url = self.hc_url.replace('api.', '') + 'authors/'
         self.HC_WHOAMI = 'query whoami { me { id } }'
 
-        self.HC_USERID = 'query find_userid { users (where: {username: {_eq: "ppbb1961"}}) { id }}'
 #       user_id = result of whoami/userid
 #       status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
         self.HC_USERBOOKS = '''
@@ -309,26 +312,40 @@ query FindBook { books([order] where: [where])
 }
 '''
 
-        self.HC_AUTHORNAME_SEARCH = self.HC_FINDBOOK.replace('[where]',
-                                                             '{contributions: {author: {name: {_ilike: '
-                                                             '"%[authorname]%"}}}}').replace('[order]', '')
-        self.HC_AUTHORID_SEARCH = self.HC_FINDBOOK.replace('[where]',
-                                                           '{contributions: {author: {id: {_eq: "[authorid]"}}}}'
-                                                           ).replace('[order]', '')
-        self.HC_TITLE_SEARCH = self.HC_FINDBOOK.replace('[where]', '{title: {_ilike: "%[title]%"}}'
-                                                        ).replace('[order]', 'order_by: {users_read_count: desc}')
-        self.HC_ISBN13_SEARCH = self.HC_FINDBOOK.replace('[where]', '{isbn_13: {_eq: "[isbn]"}}'
-                                                         ).replace('[order]', '')
-        self.HC_ISBN10_SEARCH = self.HC_FINDBOOK.replace('[where]', '{isbn_10: {_eq: "[isbn]"}}'
-                                                         ).replace('[order]', '')
-        self.HC_AUTHOR_TITLE_SEARCH = self.HC_FINDBOOK.replace('[where]', '{title: {_ilike: "%[title]%"}, '
-                                                               'contributions: {author: {name: {_ilike: '
-                                                               '"%[authorname]%"}}}}'
-                                                               ).replace('[order]',
-                                                                         'order_by: {users_read_count: desc}')
-        self.HC_BOOKID_SEARCH = self.HC_FINDBOOK.replace('[where]', '{id: {_eq: [bookid]}}'
-                                                         ).replace('[order]', '')
-        self.HC_SERIESID_SEARCH = '''
+        self.HC_FINDAUTHORID = '''
+query FindAuthorID {
+  authors(order_by: {books_count: desc} where: {name: {_eq: "[authorname]"}}) {
+    id
+    name
+    books_count
+  }
+}
+'''
+        self.HC_FINDAUTHORBYNAME = '''
+query FindAuthorByName {
+    search(query: "[authorname]", query_type: "author") {
+    results
+  }
+}
+'''
+        self.HC_FINDBOOKBYNAME = '''
+query FindBookByName {
+    search(query: "[title]", query_type: "book") {
+    results
+  }
+}
+'''
+
+        self.HC_ISBN13_BOOKS = self.HC_FINDBOOK.replace('[where]', '{isbn_13: {_eq: "[isbn]"}}'
+                                                        ).replace('[order]', '')
+        self.HC_ISBN10_BOOKS = self.HC_FINDBOOK.replace('[where]', '{isbn_10: {_eq: "[isbn]"}}'
+                                                        ).replace('[order]', '')
+        self.HC_BOOKID_BOOKS = self.HC_FINDBOOK.replace('[where]', '{id: {_eq: [bookid]}}'
+                                                        ).replace('[order]', '')
+        self.HC_AUTHORID_BOOKS = self.HC_FINDBOOK.replace('[where]',
+                                                          '{contributions: {author: {id: {_eq: "[authorid]"}}}}'
+                                                          ).replace('[order]', '')
+        self.HC_BOOK_SERIES = '''
 query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
     {
       position
@@ -356,7 +373,7 @@ query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
     }
 }
 '''
-        self.HC_EDITION_SEARCH = '''
+        self.HC_EDITIONS = '''
 query FindEdition { editions(where: {book_id: {_eq: [bookid]}})
   {
     isbn_10
@@ -372,7 +389,7 @@ query FindEdition { editions(where: {book_id: {_eq: [bookid]}})
 }
 '''
 # cached_image in authors is a book image, not author??
-        self.HC_AUTHORINFO_SEARCH = '''
+        self.HC_AUTHORINFO = '''
 query FindAuthor { authors(where: {id: {_eq: [authorid]}})
   {
     id
@@ -477,7 +494,11 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             else:
                 res = {}
                 self.logger.error('Access forbidden. Please wait a while before trying %s again.' % self.provider)
-                BLOCKHANDLER.block_provider(self.provider, r.reason)
+                try:
+                    msg = str(r.status_code)
+                except Exception:
+                    msg = "Unknown reason"
+                BLOCKHANDLER.block_provider(self.provider, msg, delay=10)
         return res, valid_cache
 
     def get_series_members(self, series_ident=None, series_title='', queue=None, refresh=False):
@@ -488,7 +509,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         author_name = ''
         api_hits = 0
         cache_hits = 0
-        searchcmd = self.HC_SERIESID_SEARCH.replace('[seriesid]', str(series_ident)[2:])
+        searchcmd = self.HC_BOOK_SERIES.replace('[seriesid]', str(series_ident)[2:])
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
         api_hits += not in_cache
         cache_hits += in_cache
@@ -568,61 +589,80 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             searchtitle = ''
             searchauthorname = ''
             searchcmd = ''
-            if ' <ll> ' in searchterm:  # special token separates title from author
-                searchtitle, searchauthorname = searchterm.split(' <ll> ')
-                searchterm = searchterm.replace(' <ll> ', ' ')
-                searchtitle = searchtitle.split(' (')[0]  # without any series info
-
-            if searchtitle and searchauthorname:
-                searchcmd = self.HC_AUTHOR_TITLE_SEARCH.replace('[authorname]', searchauthorname).replace(
-                    '[title]', searchtitle)
-            elif searchtitle:
-                searchcmd = self.HC_TITLE_SEARCH.replace('[title]', searchtitle)
-            elif searchauthorname:
-                searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', searchauthorname)
-
+            resultbooks = []
+            authids = []
             if is_valid_isbn(searchterm):
                 if len(searchterm) == 13:
-                    searchcmd = self.HC_ISBN13_SEARCH.replace('[isbn]', searchterm)
+                    searchcmd = self.HC_ISBN13_BOOKS.replace('[isbn]', searchterm)
                 else:
-                    searchcmd = self.HC_ISBN10_SEARCH.replace('[isbn]', searchterm)
-            if not searchcmd:
-                # Might be wanting author or title, don't know which, looks like we need two searches
-                searchcmd = self.HC_TITLE_SEARCH.replace('[title]', searchterm)
+                    searchcmd = self.HC_ISBN10_BOOKS.replace('[isbn]', searchterm)
                 results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
                 api_hits += not in_cache
                 cache_hits += in_cache
-                searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', searchterm)
-                results2, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
-                api_hits += not in_cache
-                cache_hits += in_cache
-                combined = []
-                if results and "data" in results:
-                    books = results['data']['books']
-                    for book in books:
-                        if book not in combined:
-                            combined.append(book)
-                if results2 and "data" in results2:
-                    books = results2['data']['books']
-                    for book in books:
-                        if book not in combined:
-                            combined.append(book)
-                resultbooks = combined
-            else:
-                results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
-                api_hits += not in_cache
-                cache_hits += in_cache
-                if 'errors' in results:
-                    self.logger.error(str(results['errors']))
-                if not results or 'data' not in results:
-                    if queue:
-                        queue.put(resultlist)
-                        return
-                    return resultlist
-                resultbooks = results['data']['books']
+                try:
+                    resultbooks = results['data']['books']
+                except (IndexError, KeyError):
+                    pass
+
+            if not searchcmd:  # not isbn search, could be author, title, both
+                if ' <ll> ' in searchterm:  # special token separates title from author
+                    searchtitle, searchauthorname = searchterm.split(' <ll> ')
+                    searchterm = searchterm.replace(' <ll> ', ' ').strip()
+                    searchtitle = searchtitle.split(' (')[0].strip()  # without any series info
+                else:
+                    # could be either... At the moment the HardCover book search covers both
+                    # author and title, but in future we may need two searches
+                    searchtitle = searchterm
+                    searchauthorname = None
+
+                if searchtitle:
+                    searchcmd = self.HC_FINDBOOKBYNAME.replace('[title]', searchtitle)
+                    bookresults, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
+                    api_hits += not in_cache
+                    cache_hits += in_cache
+                    try:
+                        for item in bookresults['data']['search']['results']['hits']:
+                            resultbooks.append(item['document'])
+                    except (IndexError, KeyError):
+                        pass
+
+                if searchauthorname:
+                    searchcmd = self.HC_FINDAUTHORBYNAME.replace('[authorname]', searchauthorname)
+                    authresults, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
+                    api_hits += not in_cache
+                    cache_hits += in_cache
+                    try:
+                        for item in authresults['data']['search']['results']['hits']:
+                            authids.append(item['document']['id'])
+                    except (IndexError, KeyError):
+                        pass
+
+                if authids:
+                    for authid in authids:
+                        searchcmd = self.HC_AUTHORID_BOOKS.replace('[authorid]', authid)
+                        results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
+                        api_hits += not in_cache
+                        cache_hits += in_cache
+                        if 'errors' in results:
+                            self.logger.error(str(results['errors']))
+                        if "data" in results:
+                            books = results['data']['books']
+                            for book in books:
+                                if book not in resultbooks:
+                                    resultbooks.append(book)
+
+            if not resultbooks:
+                if queue:
+                    queue.put(resultlist)
+                    return
+                return resultlist
 
             for book_data in resultbooks:
-                bookdict = self.get_bookdict(book_data)
+                if 'users_count' in book_data:
+                    # search results return a different layout to books
+                    bookdict = self.get_searchdict(book_data)
+                else:
+                    bookdict = self.get_bookdict(book_data)
 
                 if searchauthorname:
                     author_fuzz = fuzz.token_set_ratio(bookdict['auth_name'], searchauthorname)
@@ -647,7 +687,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                     isbn_fuzz = 100
                     bookdict['isbn'] = searchterm
 
-                highest_fuzz = max((author_fuzz + book_fuzz) / 2, isbn_fuzz)
+                highest_fuzz = max(author_fuzz + book_fuzz, isbn_fuzz)
 
                 resultlist.append({
                         'authorname': bookdict['auth_name'],
@@ -667,10 +707,10 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                         'bookgenre': bookdict['genres'],
                         'bookdesc': bookdict['bookdesc'],
                         'workid': bookdict['bookid'],  # TODO should this be canonical id?
-                        'author_fuzz': author_fuzz,
-                        'book_fuzz': book_fuzz,
-                        'isbn_fuzz': isbn_fuzz,
-                        'highest_fuzz': highest_fuzz,
+                        'author_fuzz': round(author_fuzz, 2),
+                        'book_fuzz': round(book_fuzz, 2),
+                        'isbn_fuzz': round(isbn_fuzz, 2),
+                        'highest_fuzz': round(highest_fuzz, 2),
                         'source': "HardCover"
                     })
                 resultcount += 1
@@ -682,66 +722,102 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             self.logger.error('Unhandled exception in HC.find_results: %s' % traceback.format_exc())
 
     def find_author_id(self, refresh=False):
-        cache_hits = 0
         api_hits = 0
         authorname = self.name.replace('#', '').replace('/', '_')
-
-        self.logger.debug("Getting author id for %s, refresh=%s" % (authorname, refresh))
-        title = self.title
         authorname = format_author_name(authorname, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        if title:
-            searchcmd = self.HC_AUTHOR_TITLE_SEARCH.replace('[authorname]', authorname).replace('[title]', title)
-        else:
-            searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', authorname)
-        self.searchinglogger.debug(searchcmd)
+        title = self.title
 
-        results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
-        api_hits += not in_cache
-        cache_hits += in_cache
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
-        if results and results.get('data'):
-            res = {}
-            for book_data in results['data']['books']:
-                for author in book_data['contributions']:
-                    author_name = author['author']['name']
-                    authorid = str(author['author']['id'])
-
-                    match = fuzz.ratio(author_name, authorname)
-                    if match >= CONFIG.get_int('NAME_RATIO'):
-                        res = self.get_author_info(authorid)
-                    if not res:
-                        match = fuzz.partial_ratio(author_name, authorname)
-                        if match >= CONFIG.get_int('NAME_PARTNAME'):
-                            res = self.get_author_info(authorid)
-                    if res and res['authorname'] != authorname:
-                        res['aka'] = authorname
-                    if res:
-                        break
-                self.logger.debug("Author/book search used %s api hit, %s in cache" % (api_hits, cache_hits))
-                return res
-        if title:  # no results using author/title, try author only
-            searchcmd = self.HC_AUTHORNAME_SEARCH.replace('[authorname]', authorname)
+        if not title:
+            # we only have an authorname. Return id of matching author with the most books
+            self.logger.debug("Searching for author %s, refresh=%s" % (authorname, refresh))
+            searchcmd = self.HC_FINDAUTHORBYNAME.replace('[authorname]', authorname)
             results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
             api_hits += not in_cache
-            cache_hits += in_cache
-            if 'errors' in results:
-                self.logger.error(str(results['errors']))
-            if results and results.get('data'):
-                res = {}
-                for book_data in results['data']['books']:
-                    for author in book_data['contributions']:
-                        author_name = author['author']['name']
-                        authorid = str(author['author']['id'])
-                        if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
-                            res = self.get_author_info(authorid)
-                            if res and res['authorname'] != authorname:
-                                res['aka'] = authorname
-                            break
-                    self.logger.debug("Authorname used %s api hit, %s in cache" % (api_hits, cache_hits))
+            authorid = None
+            matches = []
+            if results:
+                try:
+                    for item in results['data']['search']['results']['hits']:
+                        name = item['document']['name']
+                        altnames = item['document']['alternate_names']
+                        books_count = item['document']['books_count']
+                        author_id = item['document']['id']
+                        if authorname == name or authorname in altnames:
+                            matches.append([books_count, author_id, name, altnames])
+                    matches = sorted(matches, reverse=True)
+                    authorid = matches[0][1]
+                except (IndexError, KeyError):
+                    pass
+            if authorid:
+                res = self.get_author_info(authorid)
+                if res:
+                    if res['authorname'] != authorname:
+                        res['aka'] = authorname
+                    self.logger.debug("Authorname search used %s api hit" % api_hits)
                     return res
+        else:
+            # search for the title and then check the authorname matches
+            self.logger.debug("Searching for title %s, refresh=%s" % (title, refresh))
+            searchcmd = self.HC_FINDBOOKBYNAME.replace('[title]', title)
+            results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
+            api_hits += not in_cache
+            bookid = None
+            if results:
+                try:
+                    for item in results['data']['search']['results']['hits']:
+                        if authorname in item['document']['author_names']:
+                            bookid = item['document']['id']
+                            break
+                except (IndexError, KeyError):
+                    pass
 
-        self.logger.debug("No results. Used %s api hit, %s in cache" % (api_hits, cache_hits))
+            if bookid:
+                url = None
+                try:
+                    for item in results['data']['search']['results']['hits']:
+                        if 'cachedImage' in item['contributions'][0]['author']:
+                            url = item['contributions'][0]['author']['cachedImage']['url']
+                            break
+                except (IndexError, KeyError):
+                    pass
+
+                if url:
+                    # try to extract the authorid from the image url
+                    parts = url.split('/')
+                    if len(parts) == 6:
+                        authorid = parts[4]
+                        res = self.get_author_info(authorid)
+                        if res:
+                            if res['authorname'] != authorname:
+                                res['aka'] = authorname
+                            self.logger.debug("Title search used %s api hit" % api_hits)
+                            return res
+
+                # get the authorid from the book page as it's not in the title search results
+                bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', bookid)
+                results, in_cache = self.result_from_cache(bookidcmd, refresh=refresh)
+                api_hits += not in_cache
+                if 'data' in results and results['data'].get('books'):
+                    for book_data in results['data']['books']:
+                        for author in book_data['contributions']:
+                            # might be more than one author listed
+                            author_name = author['author']['name']
+                            authorid = str(author['author']['id'])
+                            res = None
+                            match = fuzz.ratio(author_name.lower(), authorname.lower())
+                            if match >= CONFIG.get_int('NAME_RATIO'):
+                                res = self.get_author_info(authorid)
+                            if not res:
+                                match = fuzz.partial_ratio(author_name.lower(), authorname.lower())
+                                if match >= CONFIG.get_int('NAME_PARTNAME'):
+                                    res = self.get_author_info(authorid)
+                            if res:
+                                if res['authorname'] != authorname:
+                                    res['aka'] = authorname
+                                self.logger.debug("Author/book search used %s api hit" % api_hits)
+                                return res
+
+        self.logger.debug("No results. Used %s api hit" % api_hits)
         return {}
 
     def get_author_info(self, authorid=None, refresh=False):
@@ -755,7 +831,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         cache_hits = 0
 
         self.logger.debug("Getting author info for %s, refresh=%s" % (authorid, refresh))
-        searchcmd = self.HC_AUTHORINFO_SEARCH.replace('[authorid]', str(authorid))
+        searchcmd = self.HC_AUTHORINFO.replace('[authorid]', str(authorid))
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
         api_hits += not in_cache
         cache_hits += in_cache
@@ -800,7 +876,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             'totalbooks': totalbooks,
             'authorname': format_author_name(author_name, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         }
-        self.logger.debug("Authorinfo used %s api hit, %s in cache" % (api_hits, cache_hits))
+        self.logger.debug("AuthorInfo used %s api hit, %s in cache" % (api_hits, cache_hits))
         return author_dict
 
     def get_bookdict(self, book_data):
@@ -886,6 +962,71 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             bookdict['cover'] = 'images/nocover.png'
         return bookdict
 
+    def get_searchdict(self, book_data):
+        bookdict = {'auth_id': '0', 'auth_name': 'Unknown'}
+        if 'contributions' in book_data and len(book_data['contributions']):
+            author = book_data['contributions'][0]
+            bookdict['auth_name'] = " ".join(author['author']['name'].split())
+            try:
+                url = author['author']['cachedImage']['url']
+                if url:
+                    # try to extract the authorid from the author image url
+                    parts = url.split('/')
+                    if len(parts) == 6:
+                        bookdict['auth_id'] = str(parts[4])
+            except (KeyError, IndexError):
+                pass
+
+        bookdict['title'] = book_data.get('title', '')
+        bookdict['subtitle'] = book_data.get('subtitle', '')
+        bookdict['cover'] = ""
+        if 'image' in book_data and book_data['image'].get('url'):
+            bookdict['cover'] = book_data['image']['url']
+        isbns = book_data.get('isbns', [])
+        bookdict['isbn'] = ""
+        if isbns:
+            bookdict['isbn'] = isbns[0]
+        bookdict['series'] = []
+        bookdict['link'] = book_data.get('slug', '')
+        if bookdict['link']:
+            bookdict['link'] = self.book_url + bookdict['link']
+        bookdict['bookrate'] = book_data.get('rating', 0)
+        bookdict['bookrate_count'] = book_data.get('ratings_count', 0)
+        if bookdict['bookrate'] is None:
+            bookdict['bookrate'] = 0
+
+        bookdict['bookpages'] = book_data.get('pages', 0)
+        if bookdict['bookpages'] is None:
+            bookdict['bookpages'] = 0
+        bookdict['bookdesc'] = book_data.get('description', '')
+        bookdict['bookid'] = str(book_data.get('id', ''))
+        bookdict['publish_date'] = book_data.get('release_date', '')
+        if bookdict['publish_date']:
+            bookdict['publish_date'] = date_format(bookdict['publish_date'],
+                                                   context=f"{bookdict['auth_name']}/{bookdict['title']}")
+        bookdict['first_publish_year'] = book_data.get('release_year', '')
+        bookgenre = ''
+        genres = []
+        cached_tags = book_data['tags']
+        if 'Genre' in cached_tags:
+            book_genres = cached_tags['Genre']
+            for genre in book_genres:
+                genres.append(genre['tag'])
+        if genres:
+            if lazylibrarian.GRGENRES:
+                genre_limit = lazylibrarian.GRGENRES.get('genreLimit', 3)
+            else:
+                genre_limit = 3
+            genres = list(set(genres))
+            bookgenre = ', '.join(genres[:genre_limit])
+        bookdict['genres'] = bookgenre
+        bookdict['languages'] = ""
+        bookdict['publishers'] = ""
+        bookdict['id_librarything'] = ""
+        if not bookdict['cover']:
+            bookdict['cover'] = 'images/nocover.png'
+        return bookdict
+
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
                          entrystatus='Active', refresh=False, reason='hc.get_author_books'):
 
@@ -924,7 +1065,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             # Artist is loading
             db.action("UPDATE authors SET Status='Loading' WHERE AuthorID=?", (authorid,))
 
-            searchcmd = self.HC_AUTHORID_SEARCH.replace('[authorid]', hc_id)
+            searchcmd = self.HC_AUTHORID_BOOKS.replace('[authorid]', hc_id)
             results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
             api_hits += not in_cache
             cache_hits += in_cache
@@ -1138,8 +1279,8 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                                     # make sure bookid is in database, if not, add it
                                                     match = db.match(cmd, (str(member[4]),))
                                                     if not match:
-                                                        bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]',
-                                                                                                  str(member[4]))
+                                                        bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]',
+                                                                                                 str(member[4]))
                                                         results, in_cache = self.result_from_cache(bookidcmd,
                                                                                                    refresh=refresh)
                                                         api_hits += not in_cache
@@ -1247,7 +1388,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             db.close()
 
     def find_bookdict(self, bookid=None):
-        bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(bookid))
+        bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
         bookdict = {}
         if 'errors' in results:
@@ -1257,7 +1398,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         return bookdict
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.find_book'):
-        bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(bookid))
+        bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
         bookdict = {}
         if 'errors' in results:
@@ -1313,7 +1454,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                         self.logger.debug("Allow %s, looks like a date range" % m.group(1))
                         msg = ''
             if msg:
-                self.logger.warning(msg)
+                self.logger.warning(msg + ' : adding anyway')
 
         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
         if not exists:
@@ -1452,7 +1593,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                 sync_dict[res['bookid']] = item['id']
                         else:
                             self.syncinglogger.warning(f"{mapp[2]} {hc_id} not found in database")
-                            bookidcmd = self.HC_BOOKID_SEARCH.replace('[bookid]', str(hc_id))
+                            bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(hc_id))
                             results, _ = self.result_from_cache(bookidcmd, refresh=False)
                             if 'errors' in results:
                                 self.logger.error(str(results['errors']))

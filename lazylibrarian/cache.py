@@ -45,6 +45,9 @@ class ImageType(Enum):
     TEST = 'test'
 
 
+service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary', 'hardcover']
+
+
 def gr_api_sleep():
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_GR']
@@ -91,8 +94,6 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
     logging.getLogger('chardet').setLevel(logging.CRITICAL)
 
     url = make_unicode(url)
-
-    service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary']
 
     for blk in service_blocked:
         if blk in url and BLOCKHANDLER.is_blocked(blk):
@@ -313,13 +314,26 @@ class CacheRequest(ABC):
                 return None, False
         else:
             lazylibrarian.CACHE_MISS += 1
+            for blk in service_blocked:
+                if blk in self.url and BLOCKHANDLER.is_blocked(blk):
+                    return None, False
+
             result, success = self.fetch_data()
             if success:
                 self.cachelogger.debug(f"CacheHandler: Storing {self.name()} {myhash} for {self.url}")
                 source, result = self.load_from_result_and_cache(result, hashfilename, expire_older_than)
             else:
-                self.logger.debug(f"Got error response for {self.url}: {result.split('<')[0]}")
-                self.logger.debug(BLOCKHANDLER.get_text_list_of_blocks())
+                msg = f"Got error response for {self.url}: {result.split('<')[0]}"
+                self.logger.debug(msg)
+                to_block = ''
+                for blk in service_blocked:
+                    if blk in self.url:
+                        to_block = blk
+                        break
+                if to_block:
+                    delay = 10
+                    self.logger.debug(f'Blocking {to_block} for {delay} seconds')
+                    BLOCKHANDLER.replace_provider_entry(to_block, delay, msg)
                 return None, False
         return source, valid_cache
 
