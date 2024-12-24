@@ -41,7 +41,10 @@ from lazylibrarian.importer import (update_totals, add_author_name_to_db, search
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.preprocessor import preprocess_audio
 from lib.mobi import Mobi
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 # noinspection PyBroadException

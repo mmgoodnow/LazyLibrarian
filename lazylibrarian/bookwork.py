@@ -28,10 +28,11 @@ from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, quotes
 from lazylibrarian.processcontrol import get_info_on_caller
-
-from thefuzz import fuzz
-
 import requests
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 def set_all_book_authors():

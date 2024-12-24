@@ -16,7 +16,10 @@ import re
 import shutil
 import logging
 import traceback
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database

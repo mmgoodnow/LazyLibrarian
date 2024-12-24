@@ -32,7 +32,10 @@ from lazylibrarian.images import get_author_image, img_id
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.hc import HardCover
 from lazylibrarian.processcontrol import get_info_on_caller
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 def is_valid_authorid(authorid: str, api=None) -> bool:

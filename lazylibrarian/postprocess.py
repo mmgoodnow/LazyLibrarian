@@ -57,7 +57,10 @@ from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, prepr
 from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch,  custom_notify_snatch
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from deluge_client import DelugeRPCClient
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 def update_downloads(provider):

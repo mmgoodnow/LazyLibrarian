@@ -37,6 +37,7 @@ ll_dependencies = (
     ('PyPDF3', '', ''),
     ('python_magic', 'magic', 'magic'),
     ('thefuzz', '', ''),
+    ('RapidFuzz', '', ''),
     ('Levenshtein', '', ''),
     ('deluge_client', '', ''),
     ('irc', '', ''),
@@ -138,7 +139,8 @@ class ModuleUnbundler:
         return distro
 
     @staticmethod
-    def _calc_libraries_to_delete(dependencies: DependencyList, bundled: Dict[str, str], distro: Dict[str, str]) -> List[str]:
+    def _calc_libraries_to_delete(dependencies: DependencyList, bundled: Dict[str, str],
+                                  distro: Dict[str, str]) -> List[str]:
         """ Returns a list of libraries from dependencies that can be deleted, because
         they can be satisfied by a library in the distro list. """
         deletable = []

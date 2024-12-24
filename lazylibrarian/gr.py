@@ -29,7 +29,10 @@ from lazylibrarian.formatter import plural, today, replace_all, book_series, una
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name
 from lazylibrarian.images import get_book_cover
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 class GoodReads:
@@ -802,7 +805,8 @@ class GoodReads:
                                 not_rejectable = "AudioStatus: %s" % match['AudioStatus']
 
                         if not match and not rejected:
-                            cmd = ("SELECT BookID,books.gr_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                            cmd = ("SELECT BookID,books.gr_id FROM books,authors WHERE "
+                                   "books.AuthorID = authors.AuthorID and "
                                    "BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE and AuthorName=? "
                                    "COLLATE NOCASE and books.Status != 'Ignored' and AudioStatus != 'Ignored'")
                             match = db.match(cmd, (bookname, booksub, author_name_result))
@@ -813,8 +817,9 @@ class GoodReads:
                                                                                   ignored=False, library='eBook',
                                                                                   reason='gr_get_author_books')
                                 if in_db and in_db[0]:
-                                    cmd = ("SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult,books.gr_id"
-                                           " FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?")
+                                    cmd = ("SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,"
+                                           "ScanResult,books.gr_id FROM books,authors WHERE "
+                                           "authors.AuthorID = books.AuthorID AND BookID=?")
                                     match = db.match(cmd, (in_db[0],))
                             if match:
                                 if match['BookID'] != bookid:

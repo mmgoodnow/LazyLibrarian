@@ -17,8 +17,11 @@ from lazylibrarian import database
 from lazylibrarian.formatter import get_list, unaccented, plural, date_format
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_znab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
-from thefuzz import fuzz
 from urllib.parse import quote_plus, quote
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 def search_item(item=None, bookid=None, cat=None):

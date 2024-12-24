@@ -27,7 +27,10 @@ from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, 
     get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
 from lazylibrarian.images import cache_bookimg
 from lazylibrarian.images import get_book_cover
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 class OpenLibrary:

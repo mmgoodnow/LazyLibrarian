@@ -32,7 +32,10 @@ from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_v
 from lazylibrarian.hc import HardCover
 from lazylibrarian.images import get_book_cover
 from lazylibrarian.ol import OpenLibrary
-from thefuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+except ModuleNotFoundError:
+    from thefuzz import fuzz
 
 
 class GoogleBooks:
