@@ -498,7 +498,7 @@ def opf_file(search_dir: str) -> str:
         if cnt > 2 or cnt == 2 and not meta:
             logger = logging.getLogger(__name__)
             program, method, lineno = get_info_on_caller(depth=1)
-            warn = f"{program}:{method}{lineno} Found {cnt} conflicting opf in {search_dir}"
+            warn = f"{program}:{method}:{lineno} Found {cnt} conflicting opf in {search_dir}"
             if _OPFWARN != warn:
                 logger.debug(warn)
                 _OPFWARN = warn
