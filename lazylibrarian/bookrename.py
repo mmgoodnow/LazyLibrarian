@@ -326,11 +326,7 @@ def audio_parts(folder, bookname, authorname):
         for part in parts:
             partlist.append(part[0])
         if failed or parts[0][0] == 0 or len(partlist) != len(set(partlist)):
-            if parts[0][0] == 0:
-                logger.debug("No track info from id3")
-            else:
-                logger.debug("No usable track info from id3")
-
+            logger.debug("No usable track info from id3")
             if len(parts) == 1:
                 return parts, failed, '', abridged
             else:
@@ -394,6 +390,7 @@ def audio_parts(folder, bookname, authorname):
             failed = True
             break
         cnt += 1
+    logger.debug(f"Numbering of {len(parts)} {plural(len(parts), 'part')} {not failed}")
     return parts, failed, tokmatch, abridged
 
 
@@ -449,7 +446,7 @@ def audio_rename(bookid, rename=False, playlist=False):
     dest_dir = get_directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
     old_path = old_path.rstrip(os.path.sep)
-    dest_path = dest_path.rstrip(os.path.sep)
+    dest_path = dest_path.replace(f'{os.path.sep}{os.path.sep}', f'{os.path.sep}').rstrip(os.path.sep)
 
     # check for windows case-insensitive
     if os.name == 'nt' and old_path.lower() == dest_path.lower():
