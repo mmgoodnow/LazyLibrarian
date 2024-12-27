@@ -152,7 +152,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
 
         maginfo = db.match("SELECT CoverPage from magazines WHERE Title=?", (title,))
         # create a thumbnail cover for the new issue
-        coverfile = create_mag_cover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
+        coverfile = create_mag_cover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1), refresh=True)
         if coverfile:
             myhash = uuid.uuid4().hex
             hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
@@ -1425,7 +1425,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 coverpage = 1
                             else:
                                 coverpage = check_int(maginfo['CoverPage'], 1)
-                            coverfile = create_mag_cover(dest_file, pagenum=coverpage)
+                            coverfile = create_mag_cover(dest_file, pagenum=coverpage, refresh=True)
                             if coverfile:
                                 myhash = uuid.uuid4().hex
                                 hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
@@ -2796,7 +2796,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 elif magfile:
                     if cover == 0:
                         cover = 1  # if not set, default to page 1
-                    jpgfile = create_mag_cover(magfile, pagenum=cover, refresh=False)
+                    jpgfile = create_mag_cover(magfile, pagenum=cover, refresh=True)
                     if jpgfile:
                         coverfile = os.path.basename(jpgfile)
                         jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
