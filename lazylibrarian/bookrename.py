@@ -336,6 +336,7 @@ def audio_parts(folder, bookname, authorname):
                         break
                     for part in parts:
                         if token in part[3]:
+                            logger.debug(f"Using token '{token}' from {part[3]}")
                             tokmatch = token
                             break
                 if tokmatch:  # we know the numbering style, get numbers for the other parts
@@ -446,7 +447,7 @@ def audio_rename(bookid, rename=False, playlist=False):
     dest_dir = get_directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
     old_path = old_path.rstrip(os.path.sep)
-    dest_path = dest_path.replace(f'{os.path.sep}{os.path.sep}', f'{os.path.sep}').rstrip(os.path.sep)
+    dest_path = os.path.normpath(dest_path)
 
     # check for windows case-insensitive
     if os.name == 'nt' and old_path.lower() == dest_path.lower():
@@ -539,14 +540,14 @@ def audio_rename(bookid, rename=False, playlist=False):
 def stripspaces(pathname):
     # windows doesn't allow directory names to end in a space or a period
     # but allows starting with a period (not sure about starting with a space, but it looks messy anyway)
-    parts = pathname.split(os.sep)
+    parts = pathname.split(os.path.sep)
     new_parts = []
     for part in parts:
         while part and part[-1] in ' .':
             part = part[:-1]
         part = part.lstrip(' ')
         new_parts.append(part)
-    pathname = os.sep.join(new_parts)
+    pathname = os.path.sep.join(new_parts)
     return pathname
 
 
@@ -601,7 +602,7 @@ def book_rename(bookid):
     dest_path = namevars['FolderName']
     dest_dir = get_directory('eBook')
     dest_path = os.path.join(dest_dir, dest_path)
-    dest_path = stripspaces(dest_path.rstrip(os.sep))
+    dest_path = stripspaces(dest_path.rstrip(os.path.sep))
 
     new_basename = namevars['BookFile']
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
@@ -863,7 +864,7 @@ def replacevars(base, mydict):
                  '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total',
                  '$Abridged']:
         if item[1:] in mydict:
-            base = base.replace(item, mydict[item[1:]].replace(os.sep, '_'))
+            base = base.replace(item, mydict[item[1:]].replace(os.path.sep, '_'))
     base = base.replace('$$', ' ')
     loggermatching.debug(base)
     return base
