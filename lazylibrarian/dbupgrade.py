@@ -369,7 +369,7 @@ def check_db(upgradelog=None):
                 source = ''
             if source:
                 tot = db.select('SELECT * from authors')
-                res = db.select("SELECT * from authors WHERE %s is not null and %s != '' and Status in ('Wanted'. 'Active')" % (source, source))
+                res = db.select("SELECT * from authors WHERE %s is not null and %s != '' and Status in ('Wanted', 'Active')" % (source, source))
                 if len(tot) - len(res):
                     logger.warning("Information source is %s but %s active authors (from %s) do not have %s ID" %
                                    (info, len(tot) - len(res), len(tot), info))
