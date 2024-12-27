@@ -867,9 +867,11 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
 
         self.logger.debug("[%s] Returning HC info for authorID: %s" % (author_name, authorid))
         # return authorimg in this dict once we get a reliable one from hc
+        # need to uncomment cached_image lines above
         author_dict = {
             'authorid': str(authorid),
             'authorlink': author_link,
+            # 'authorimg': author_img,
             'authorborn': author_born,
             'authordeath': author_died,
             'about': about,

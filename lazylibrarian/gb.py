@@ -531,7 +531,7 @@ class GoogleBooks:
 
                                 if 'nocover' in book['img'] or 'nophoto' in book['img']:
                                     # try to get a cover from another source
-                                    link, _ = get_book_cover(bookid)
+                                    link, _ = get_book_cover(bookid, ignore='googleapis')
                                     if link:
                                         new_value_dict = {"BookImg": link}
                                     elif book['img'] and book['img'].startswith('http'):
@@ -795,7 +795,7 @@ class GoogleBooks:
 
             if 'nocover' in book['img'] or 'nophoto' in book['img']:
                 # try to get a cover from another source
-                link, _ = get_book_cover(bookid)
+                link, _ = get_book_cover(bookid, ignore='googleapis')
                 if link:
                     new_value_dict = {"BookImg": link}
                 elif book['img'] and book['img'].startswith('http'):

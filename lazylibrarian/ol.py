@@ -850,7 +850,7 @@ class OpenLibrary:
                                     cover_link = cover
                                     if 'nocover' in cover or 'nophoto' in cover:
                                         start = time.time()
-                                        cover_link, _ = get_book_cover(key)
+                                        cover_link, _ = get_book_cover(key, ignore='openlibrary')
                                         cover_time += (time.time() - start)
                                         cover_count += 1
                                     elif cover and cover.startswith('http'):
@@ -1104,7 +1104,8 @@ class OpenLibrary:
 
                                                                     if 'nocover' in cover or 'nophoto' in cover:
                                                                         start = time.time()
-                                                                        cover, _ = get_book_cover(workid)
+                                                                        cover, _ = get_book_cover(workid,
+                                                                                                  ignore='openlibrary')
                                                                         cover_time += (time.time() - start)
                                                                         cover_count += 1
                                                                     elif cover and cover.startswith('http'):
@@ -1167,7 +1168,7 @@ class OpenLibrary:
                                     lang = 'Unknown'
                                 if 'nocover' in cover or 'nophoto' in cover:
                                     start = time.time()
-                                    cover, _ = get_book_cover(key)
+                                    cover, _ = get_book_cover(key, ignore='openlibrary')
                                     cover_time += (time.time() - start)
                                     cover_count += 1
                                 elif cover and cover.startswith('http'):
@@ -1395,7 +1396,7 @@ class OpenLibrary:
                         bookgenre = 'Unknown'
 
                 if 'nocover' in cover or 'nophoto' in cover:
-                    cover, _ = get_book_cover(bookid)
+                    cover, _ = get_book_cover(bookid, ignore='openlibrary')
                 elif cover and cover.startswith('http'):
                     cover = cache_bookimg(cover, bookid, 'ol')
 

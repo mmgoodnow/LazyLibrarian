@@ -1015,7 +1015,7 @@ class GoodReads:
                                     if 'nocover' in bookimg or 'nophoto' in bookimg:
                                         # try to get a cover from another source
                                         start = time.time()
-                                        link, source = get_book_cover(bookid)
+                                        link, source = get_book_cover(bookid, ignore='goodreads')
                                         if source != 'cache':
                                             cover_count += 1
                                             cover_time += (time.time() - start)
@@ -1472,7 +1472,7 @@ class GoodReads:
 
                 if 'nocover' in bookimg or 'nophoto' in bookimg:
                     # try to get a cover from another source
-                    link, _ = get_book_cover(bookid)
+                    link, _ = get_book_cover(bookid, ignore='goodreads')
                     if link:
                         new_value_dict = {"BookImg": link}
                 elif bookimg and bookimg.startswith('http'):

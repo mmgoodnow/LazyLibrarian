@@ -258,7 +258,7 @@ def cache_bookimg(img, bookid, src, suffix='', imgid=None):
     return ''
 
 
-def get_book_cover(bookid=None, src=None):
+def get_book_cover(bookid=None, src=None, ignore=None):
     """ Return link to a local file containing a book cover image for a bookid, and which source used.
         Try 1. Local file cached from goodreads/googlebooks when book was imported
             2. cover.jpg if we have the book
@@ -270,6 +270,7 @@ def get_book_cover(bookid=None, src=None):
             8. Google images search (if lazylibrarian config allows)
 
         src = cache, cover, goodreads, librarything, whatwork, googleisbn, openlibrary, googleimage
+        ignore = list of sources to skip
         Return None if no cover available. """
     logger = logging.getLogger(__name__)
     if not bookid:
@@ -302,7 +303,7 @@ def get_book_cover(bookid=None, src=None):
                 lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
                 return None, src
 
-        if not src or src == 'cover':
+        if not src or src == 'cover' and 'cover' not in ignore:
             item = db.match('select BookFile from books where bookID=?', (bookid,))
             if item:
                 bookfile = item['BookFile']
@@ -332,7 +333,7 @@ def get_book_cover(bookid=None, src=None):
 
         imgid = img_id()
         # see if librarything has a cover
-        if not src or src == 'librarything':
+        if not src or src == 'librarything' and 'librarything' not in ignore:
             if CONFIG['LT_DEVKEY']:
                 cmd = "select BookISBN from books where bookID=?"
                 item = db.match(cmd, (bookid,))
@@ -348,7 +349,7 @@ def get_book_cover(bookid=None, src=None):
                 return None, src
 
         # see if hardcover has a cover
-        if not src or src == 'hardcover':
+        if not src or src == 'hardcover' and 'hardcover' not in ignore:
             cmd = "select hc_id from books where bookID=?"
             item = db.match(cmd, (bookid,))
             if item and item['hc_id']:
@@ -363,9 +364,9 @@ def get_book_cover(bookid=None, src=None):
                 return None, src
 
         # see if librarything workpage has a cover
-        if NEW_WHATWORK and (not src or src == 'whatwork'):
+        if NEW_WHATWORK and (not src or src == 'whatwork' and 'whatwork' not in ignore):
             work = get_bookwork(bookid, "Cover")
-            if work:
+            if work and 'whatwork' not in ignore:
                 try:
                     img = work.split('workCoverImage')[1].split('="')[1].split('"')[0]
                     if img:
@@ -404,7 +405,7 @@ def get_book_cover(bookid=None, src=None):
         safeparams = quote_plus(make_utf8bytes("%s %s" % (author, title))[0])
 
         # try to get a cover from goodreads
-        if not src or src == 'goodreads':
+        if not src or src == 'goodreads' and 'goodreads' not in ignore:
             if booklink and 'goodreads' in booklink:
                 # if the bookID is a goodreads one, we can call https://www.goodreads.com/book/show/{bookID}
                 # and scrape the page for og:image
@@ -432,8 +433,8 @@ def get_book_cover(bookid=None, src=None):
                 return None, src
 
         # try to get a cover from openlibrary
-        if not src or src == 'openlibrary':
-            if not BLOCKHANDLER.is_blocked("openlibrary") and item and item['BookISBN']:
+        if not src or src == 'openlibrary' and 'openlibrary' not in ignore:
+            if item and item['BookISBN']:
                 baseurl = '/'.join([CONFIG['OL_URL'],
                                    'api/books?format=json&jscmd=data&bibkeys=ISBN:'])
                 result, success = fetch_url(baseurl + item['BookISBN'])
@@ -466,7 +467,7 @@ def get_book_cover(bookid=None, src=None):
             if src:
                 return None, src
 
-        if not src or src == 'googleisbn':
+        if not src or src == 'googleisbn' and 'googleapis' not in ignore:
             # try a google isbn page search...
             if item and item['BookISBN']:
                 url = "https://www.googleapis.com/books/v1/volumes?q=isbn:" + item['BookISBN']
@@ -495,13 +496,13 @@ def get_book_cover(bookid=None, src=None):
                 return None, src
 
         if PIL and safeparams:
-            if src == 'baidu' or not src:
+            if not src or src == 'baidu' and 'baidu' not in ignore:
                 return crawl_image('baidu', src, cachedir, bookid, safeparams)
-            if src == 'bing' or not src:
+            if not src or src == 'bing' and 'bing' not in ignore:
                 return crawl_image('bing', src, cachedir, bookid, safeparams)
-            if src == 'flickr' or not src:
+            if not src or src == 'flikr' and 'flikr' not in ignore:
                 return crawl_image('flickr', src, cachedir, bookid, safeparams)
-            if src == 'googleimage' or not src:
+            if not src or src == 'googleimage' and 'googleapis' not in ignore:
                 return crawl_image('google', src, cachedir, bookid, safeparams)
 
         logger.debug("No image found from any configured source")
@@ -893,27 +894,27 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 logger.warning("Failed to create jpg for %s" % issuefile)
         else:  # not windows
             try:
-                # noinspection PyUnresolvedReferences
-                from wand.image import Image
+                # noinspection PyUnresolvedReferences,PyPep8Naming
+                from wand.image import Image as wand_image
                 interface = "wand"
             except ImportError:
-                Image = None
+                wand_image = None
                 try:
                     # No PythonMagick in python3
-                    # noinspection PyUnresolvedReferences
-                    import PythonMagick
+                    # noinspection PyUnresolvedReferences,PyPep8Naming
+                    from PythonMagick import Image as pythonmagick_image
                     interface = "pythonmagick"
                 except ImportError:
                     interface = ""
             try:
                 if interface == 'wand':
                     generator = "wand interface"
-                    with Image(filename=issuefile + '[' + str(check_int(pagenum, 1) - 1) + ']') as img:
+                    with wand_image(filename=issuefile + '[' + str(check_int(pagenum, 1) - 1) + ']') as img:
                         img.save(filename=coverfile)
 
                 elif interface == 'pythonmagick':
                     generator = "pythonmagick interface"
-                    img = PythonMagick.Image()
+                    img = pythonmagick_image()
                     # PythonMagick requires filenames to be bytestr, not unicode
                     if type(issuefile) is str:
                         issuefile = make_bytestr(issuefile)
