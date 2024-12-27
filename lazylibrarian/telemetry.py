@@ -130,7 +130,7 @@ class LazyTelemetry(object):
             'TOR_DOWNLOADER_QBITTORRENT', 'TOR_DOWNLOADER_BLACKHOLE',
             # Providers
             # Processing
-            'CALIBRE_USE_SERVER', 'OPF_TAGS',
+            'CALIBRE_USE_SERVER', 'OPF_TAGS', 'MULTI_SOURCE',
             # Notifiers
             'USE_TWITTER', 'USE_BOXCAR', 'USE_PUSHBULLET', 'USE_PUSHOVER',
             'USE_ANDROIDPN', 'USE_TELEGRAM', 'USE_PROWL', 'USE_GROWL',
@@ -141,8 +141,14 @@ class LazyTelemetry(object):
                 cfg_telemetry['switches'] += f"{key} "
 
         # Record the actual config of these features
-        for key in ['BOOK_API']:
-            cfg_telemetry[key] = _config[key]
+        if _config['BOOK_API'] == 'GoodReads':
+            cfg_telemetry["params"] += f"PRIMARY_GR "
+        elif _config['BOOK_API'] == 'GoogleBookss':
+            cfg_telemetry["params"] += f"PRIMARY_GB "
+        elif _config['BOOK_API'] == 'HardCover':
+            cfg_telemetry["params"] += f"PRIMARY_HC "
+        elif _config['BOOK_API'] == 'OpenLibrary':
+            cfg_telemetry["params"] += f"PRIMARY_OL "
 
         # Record whether these are configured differently from the default
         for key in ['GR_API', 'GB_API', 'OL_API', 'HC_API', 'GR_SYNC', 'HC_SYNC', 'LT_DEVKEY', 'IMP_PREFLANG',
