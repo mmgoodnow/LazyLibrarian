@@ -311,6 +311,7 @@ class CacheRequest(ABC):
             self.cachelogger.debug(f"CacheHandler: Returning CACHED response {hashfilename} for {self.url}")
             source, ok = self.read_from_cache(hashfilename)
             if not ok:
+                self.logger.debug(f"CacheHandler: Failed to read {hashfilename} for {self.url}")
                 return None, False
         else:
             lazylibrarian.CACHE_MISS += 1
