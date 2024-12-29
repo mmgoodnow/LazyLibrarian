@@ -81,7 +81,7 @@
                         value = "Loading"
                         but_class = "btn-warning"
                     elif result['authorid']:
-                        destination = "add_author_id?authorid="+result['authorid']
+                        destination = "add_author_id?authorid="+result['authorid']+"&authorname="+result['authorname']
                         value = "Add Author"
                         but_class = "btn-success"
                     else:
@@ -170,7 +170,7 @@
                         but_class3 = "btn-info hidden"
                     %>
 <tr>
-  <td class="bookart text-center"><a href="${result['bookimg']}" target="_blank" rel="noreferrer"><img src="${result['bookimg']}" alt="Cover"></a></td>
+  <td class="bookart text-center"><a href="${result['bookimg']}" target="_blank" rel="noreferrer"><img src="${result['bookimg']}" alt="Cover" width=200></a></td>
   <td class="authorname">${result['authorname']}</td>
   <td class="bookname"><a href="${result['booklink']}" target="_blank" rel="noreferrer">${result['bookname']}</a></td>
   <td class="date text-center">${result['bookdate']}</td>
