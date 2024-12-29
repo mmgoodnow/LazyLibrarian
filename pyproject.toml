@@ -31,7 +31,7 @@ dependencies = [
     'apprise',
     'PyPDF3',
     'python_magic',
-    'rapidfuzz'
+    'rapidfuzz',
     'deluge_client',
     'pyparsing',
     'irc',
