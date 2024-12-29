@@ -21,7 +21,7 @@ import lazylibrarian
 from lazylibrarian.images import cache_bookimg
 from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
-    set_series, get_status, isbn_from_words, thinglang, get_book_pubdate, get_gb_info, \
+    set_series, get_status, isbn_from_words, isbnlang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter
 from lazylibrarian.cache import gr_xml_request
 from lazylibrarian.config2 import CONFIG
@@ -278,7 +278,7 @@ class GoodReads:
         # googlebooks gives us author names with long form unicode characters
         author = make_unicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
-        self.logger.debug("Getting author id for %s, refresh=%s" % (author, refresh))
+        self.logger.debug("Getting GR author id for %s, refresh=%s" % (author, refresh))
         url = '/'.join([CONFIG['GR_URL'], 'api/author_url/'])
         try:
             url += quote(make_utf8bytes(author)[0]) + '?' + urlencode(self.params)
@@ -329,7 +329,7 @@ class GoodReads:
             self.logger.error("%s getting author info: %s" % (type(e).__name__, str(e)))
             return {}
         if rootxml is None:
-            self.logger.debug("Error requesting author info")
+            self.logger.debug(f"Failed to get author info for {authorid}")
             return {}
 
         resultxml = rootxml.find('author')
@@ -524,47 +524,18 @@ class GoodReads:
                             if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
                                 bookimg = 'images/nocover.png'
 
-                            if isbn13:
-                                find_field = "isbn13"
-                                bookisbn = isbn13
-                                isbnhead = bookisbn[3:6]
-                            elif isbn10:
-                                find_field = "isbn"
-                                bookisbn = isbn10
-                                isbnhead = bookisbn[0:3]
-
-                            # Try to use shortcut of ISBN identifier codes described here...
-                            # http://en.wikipedia.org/wiki/List_of_ISBN_identifier_groups
-                            if isbnhead:
-                                if find_field == "isbn13" and bookisbn.startswith('979'):
-                                    for item in lazylibrarian.isbn_979_dict:
-                                        if isbnhead.startswith(item):
-                                            book_language = lazylibrarian.isbn_979_dict[item]
-                                            break
-                                    if book_language != "Unknown":
-                                        self.logger.debug("ISBN979 returned %s for %s" % (book_language, isbnhead))
-                                elif (find_field == "isbn") or (find_field == "isbn13" and
-                                                                bookisbn.startswith('978')):
-                                    for item in lazylibrarian.isbn_978_dict:
-                                        if isbnhead.startswith(item):
-                                            book_language = lazylibrarian.isbn_978_dict[item]
-                                            break
-                                    if book_language != "Unknown":
-                                        self.logger.debug("ISBN978 returned %s for %s" % (book_language, isbnhead))
-
-                            if book_language == "Unknown" and isbnhead:
-                                # Nothing in the isbn dictionary, try any cached results
-                                match = db.match('SELECT lang FROM languages where isbn=?', (isbnhead,))
-                                if match:
-                                    book_language = match['lang']
-                                    cache_hits += 1
-                                    self.logger.debug("Found cached language [%s] for %s [%s]" %
-                                                      (book_language, find_field, isbnhead))
-                                else:
-                                    book_language = thinglang(bookisbn)
-                                    lt_lang_hits += 1
-                                    if book_language:
-                                        db.action('insert into languages values (?, ?)', (isbnhead, book_language))
+                            if book_language == "Unknown":
+                                book_language = ""
+                                if isbn13:
+                                    find_field = 'isbn13'
+                                    book_language, cache_hit, thing_hit = isbnlang(isbn13)
+                                    if thing_hit:
+                                        lt_lang_hits += 1
+                                if not book_language and isbn10:
+                                    find_field = 'isbn'
+                                    book_language, cache_hit, thing_hit = isbnlang(isbn10)
+                                    if thing_hit:
+                                        lt_lang_hits += 1
 
                             if not book_language or book_language == "Unknown":
                                 # still  no earlier match, we'll have to search the goodreads api
@@ -578,8 +549,7 @@ class GoodReads:
                                         try:
                                             book_rootxml, in_cache = gr_xml_request(book_url)
                                             if book_rootxml is None:
-                                                self.logger.debug('Error requesting book page for [%s]'
-                                                                  % book.find(find_field).text)
+                                                self.logger.debug(f'Failed to get book page for {find_field} {book.find(find_field).text}')
                                             else:
                                                 try:
                                                     book_language = book_rootxml.find('./book/language_code').text
@@ -1057,7 +1027,7 @@ class GoodReads:
                             self.loggersearching.debug(url)
                             rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
                             if rootxml is None:
-                                self.logger.debug('Error requesting next page of results')
+                                self.logger.debug('Failed to get next page of results')
                             else:
                                 resultxml = rootxml.iter('book')
                                 if not in_cache:
@@ -1182,7 +1152,7 @@ class GoodReads:
                     self.loggersearching.debug(url)
                     rootxml, _ = gr_xml_request(url, use_cache=False)
                     if rootxml is None:
-                        self.logger.debug("Error requesting id_to_work_id page")
+                        self.logger.debug(f"Failed to get id_to_work_id page {page}")
                     else:
                         resultxml = rootxml.find('work-ids')
                         if len(resultxml):
@@ -1240,7 +1210,7 @@ class GoodReads:
             self.loggersearching.debug(url)
             rootxml, _ = gr_xml_request(url)
             if rootxml is None:
-                self.logger.debug("Error requesting book")
+                self.logger.debug(f"Failed to get book info for {bookid}")
                 return
         except Exception as e:
             self.logger.error("%s finding book: %s" % (type(e).__name__, str(e)))
@@ -1418,7 +1388,7 @@ class GoodReads:
                     res = isbn_from_words(bookname + ' ' + unaccented(authorname, only_ascii=False))
                 except Exception as e:
                     res = None
-                    self.logger.warning("Error from isbn: %s" % e)
+                    self.logger.warning("Failed to get isbn: %s" % e)
                 if res:
                     self.logger.debug("isbn found %s for %s" % (res, bookname))
                     bookisbn = res

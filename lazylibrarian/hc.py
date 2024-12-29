@@ -11,7 +11,7 @@ import lazylibrarian
 import requests
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian.bookwork import get_status, isbn_from_words, thinglang
+from lazylibrarian.bookwork import get_status, isbn_from_words, isbnlang
 from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
@@ -86,41 +86,7 @@ def validate_bookdict(bookdict):
                 if not lang:
                     rejected = 'lang', 'Invalid language: %s' % str(languages)
             elif bookdict.get('isbn'):
-                # Try to use shortcut of ISBN identifier codes described here...
-                # http://en.wikipedia.org/wiki/List_of_ISBN_identifier_groups
-                if len(bookdict['isbn']) == 10:
-                    isbnhead = bookdict['isbn'][0:3]
-                elif len(bookdict['isbn']) == 13:
-                    isbnhead = bookdict['isbn'][3:6]
-                else:
-                    isbnhead = ''
-
-                if isbnhead == '979':
-                    for item in lazylibrarian.isbn_979_dict:
-                        if isbnhead.startswith(item):
-                            lang = lazylibrarian.isbn_979_dict[item]
-                            break
-                        if lang != "Unknown":
-                            logger.debug("ISBN979 returned %s for %s" % (lang, isbnhead))
-                elif isbnhead == '978':
-                    for item in lazylibrarian.isbn_978_dict:
-                        if isbnhead.startswith(item):
-                            lang = lazylibrarian.isbn_978_dict[item]
-                            break
-                    if lang != "Unknown":
-                        logger.debug("ISBN978 returned %s for %s" % (lang, isbnhead))
-                    if lang == "Unknown" and isbnhead:
-                        # Nothing in the isbn dictionary, try any cached results
-                        match = db.match('SELECT lang FROM languages where isbn=?', (isbnhead,))
-                        if match:
-                            lang = match['lang']
-                            logger.debug("Found cached language [%s] for %s [%s]" %
-                                         (lang, bookdict['title'], isbnhead))
-                    else:
-                        lang = thinglang(bookdict['isbn'])
-                        if lang:
-                            db.action('insert into languages values (?, ?)', (isbnhead, lang))
-
+                lang, _, _ = isbnlang(bookdict['isbn'])
                 if lang and lang not in wantedlanguages:
                     rejected = 'lang', 'Invalid language: %s' % lang
 
@@ -830,7 +796,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         api_hits = 0
         cache_hits = 0
 
-        self.logger.debug("Getting author info for %s, refresh=%s" % (authorid, refresh))
+        self.logger.debug("Getting HC author info for %s, refresh=%s" % (authorid, refresh))
         searchcmd = self.HC_AUTHORINFO.replace('[authorid]', str(authorid))
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
         api_hits += not in_cache
@@ -1034,9 +1000,11 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
 
         cache_hits = 0
         api_hits = 0
+        lt_lang_hits = 0
         book_ignore_count = 0
         bad_lang = 0
         added_count = 0
+        not_cached = 0
         entryreason = reason
         cover_time = 0
         cover_count = 0
@@ -1142,6 +1110,12 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                         added_count += 1
                         if not bookdict['languages']:
                             bookdict['languages'] = 'Unknown'
+                            if bookdict['isbn']:
+                                booklang, cache_hit, thing_hit = isbnlang(bookdict['isbn'])
+                                if thing_hit:
+                                    lt_lang_hits += 1
+                                if booklang:
+                                    bookdict['languages'] = booklang
 
                         cover_link = bookdict['cover']
                         if 'nocover' in cover_link or 'nophoto' in cover_link:
@@ -1375,14 +1349,14 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
 
             control_value_dict = {"authorname": entry_name.replace('"', '""')}
             new_value_dict = {
-                              "GR_book_hits": 0,
+                              "GR_book_hits": api_hits,
                               "GR_lang_hits": 0,
-                              "LT_lang_hits": 0,
+                              "LT_lang_hits": lt_lang_hits,
                               "GB_lang_change": 0,
                               "cache_hits": cache_hits,
                               "bad_lang": bad_lang,
                               "bad_char": removed_results,
-                              "uncached": api_hits,
+                              "uncached": not_cached,
                               "duplicates": duplicates
                               }
             db.upsert("stats", new_value_dict, control_value_dict)

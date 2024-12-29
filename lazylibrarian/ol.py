@@ -20,7 +20,7 @@ import lazylibrarian
 from bs4 import BeautifulSoup
 from lazylibrarian import database
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
-    thinglang
+    isbnlang
 from lazylibrarian.cache import json_request, html_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
@@ -193,7 +193,7 @@ class OpenLibrary:
 
     def find_author_id(self, refresh=False):
         authorname = self.name.replace('#', '').replace('/', '_')
-        self.logger.debug("Getting author id for %s, refresh=%s" % (authorname, refresh))
+        self.logger.debug("Getting OL author id for %s, refresh=%s" % (authorname, refresh))
         title = ''
         if '<ll>' in authorname:
             authorname, title = authorname.split('<ll>')
@@ -238,7 +238,7 @@ class OpenLibrary:
         return {}
 
     def get_author_info(self, authorid=None, refresh=False):
-        self.logger.debug("Getting author info for %s, refresh=%s" % (authorid, refresh))
+        self.logger.debug("Getting OL author info for %s, refresh=%s" % (authorid, refresh))
         authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', use_cache=not refresh)
         if not authorinfo:
             self.logger.debug("No info found for %s" % authorid)
@@ -484,6 +484,7 @@ class OpenLibrary:
         removed_results = 0
         duplicates = 0
         bad_lang = 0
+        not_cached = 0
         added_count = 0
         updated_count = 0
         book_ignore_count = 0
@@ -553,6 +554,10 @@ class OpenLibrary:
                     cover = book.get('cover_i')
                     isbns = book.get('isbn')
                     link = book.get('key')
+                    isbn = ''
+                    lang = ''
+                    if isbns:
+                        isbn = isbns[0]
                     bookpages = 0
                     bookdesc = ''
                     if title.endswith(')') and '(' not in title:  # openlibrary oddity, "book title )"
@@ -568,18 +573,6 @@ class OpenLibrary:
                         id_librarything = id_librarything[0]
                     if publish_date:
                         publish_date = date_format(publish_date[0], context=f"{auth_name}/{title}")
-                    lang = ''
-                    if isbns:
-                        isbn = isbns[0]
-                        if len(isbn) == 10:
-                            isbnhead = isbn[0:3]
-                        elif len(isbn) == 13:
-                            isbnhead = isbn[3:6]
-                        else:
-                            isbnhead = ''
-                    else:
-                        isbn = ''
-                        isbnhead = ''
 
                     rejected = False
                     wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
@@ -592,49 +585,11 @@ class OpenLibrary:
                             if not lang:
                                 rejected = 'lang', 'Invalid language: %s' % str(languages)
                                 bad_lang += 1
-                        else:
 
-                            # Try to use shortcut of ISBN identifier codes described here...
-                            # http://en.wikipedia.org/wiki/List_of_ISBN_identifier_groups
-                            if isbnhead == '979':
-                                for item in lazylibrarian.isbn_979_dict:
-                                    if isbnhead.startswith(item):
-                                        lang = lazylibrarian.isbn_979_dict[item]
-                                        break
-                                    if lang != "Unknown":
-                                        self.logger.debug("ISBN979 returned %s for %s" % (lang, isbnhead))
-                            elif isbnhead == '978':
-                                for item in lazylibrarian.isbn_978_dict:
-                                    if isbnhead.startswith(item):
-                                        lang = lazylibrarian.isbn_978_dict[item]
-                                        break
-                                if lang != "Unknown":
-                                    self.logger.debug("ISBN978 returned %s for %s" % (lang, isbnhead))
-
-                            if lang == "Unknown" and isbnhead:
-                                # Nothing in the isbn dictionary, try any cached results
-                                match = db.match('SELECT lang FROM languages where isbn=?', (isbnhead,))
-                                if match:
-                                    lang = match['lang']
-                                    cache_hits += 1
-                                    self.logger.debug("Found cached language [%s] for %s [%s]" %
-                                                      (lang, title, isbnhead))
-                                else:
-                                    lang = thinglang(isbn)
-                                    lt_lang_hits += 1
-                                    if lang:
-                                        db.action('insert into languages values (?, ?)', (isbnhead, lang))
-
-                            if lang and lang not in wantedlanguages:
-                                rejected = 'lang', 'Invalid language: %s' % lang
-                                bad_lang += 1
-
-                            if not lang:
-                                if "Unknown" not in wantedlanguages:
-                                    rejected = 'lang', 'No language'
-                                    bad_lang += 1
-                                else:
-                                    lang = "Unknown"
+                        if not lang and isbn:
+                            lang, cache_hit, thing_hit = isbnlang(isbn)
+                            if thing_hit:
+                                lt_lang_hits += 1
 
                     if not rejected and not title:
                         rejected = 'name', 'No title'
@@ -685,7 +640,7 @@ class OpenLibrary:
                                 rejected = 'publisher', bookpub
                                 break
 
-                    if not rejected and not isbnhead and CONFIG.get_bool('ISBN_LOOKUP'):
+                    if not rejected and not isbn and CONFIG.get_bool('ISBN_LOOKUP'):
                         # try lookup by name
                         if title:
                             try:
@@ -700,12 +655,8 @@ class OpenLibrary:
                             if res:
                                 self.logger.debug("isbn found %s for %s" % (res, key))
                                 isbn = res
-                                if len(res) == 13:
-                                    isbnhead = res[3:6]
-                                else:
-                                    isbnhead = res[0:3]
 
-                    if not rejected and isbnhead and CONFIG.get_bool('NO_ISBN'):
+                    if not rejected and not isbn and CONFIG.get_bool('NO_ISBN'):
                         rejected = 'isbn', 'No ISBN'
 
                     if not rejected:
@@ -1245,7 +1196,7 @@ class OpenLibrary:
                               "cache_hits": cache_hits,
                               "bad_lang": bad_lang,
                               "bad_char": removed_results,
-                              "uncached": api_hits,
+                              "uncached": not_cached,
                               "duplicates": duplicates
                               }
             db.upsert("stats", new_value_dict, control_value_dict)

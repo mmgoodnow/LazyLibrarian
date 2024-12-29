@@ -24,7 +24,7 @@ import lazylibrarian
 from lazylibrarian.images import cache_bookimg
 from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
-    set_series, get_status, thinglang, google_book_dict
+    set_series, get_status, google_book_dict, isbnlang
 from lazylibrarian.cache import json_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
@@ -314,12 +314,6 @@ class GoogleBooks:
                             self.logger.debug('Skipped a result without authorfield.')
                             continue
 
-                        isbnhead = ""
-                        if len(book['isbn']) == 10:
-                            isbnhead = book['isbn'][0:3]
-                        elif len(book['isbn']) == 13:
-                            isbnhead = book['isbn'][3:6]
-
                         booklang = book['lang']
                         # do we care about language?
                         if "All" not in valid_langs:
@@ -328,43 +322,12 @@ class GoogleBooks:
                                 if booklang == "Unknown" or booklang == "en":
                                     googlelang = booklang
                                     match = False
-                                    lang = db.match('SELECT lang FROM languages where isbn=?', (isbnhead,))
-                                    if lang:
-                                        booklang = lang['lang']
-                                        cache_hits += 1
-                                        self.logger.debug("Found cached language [%s] for [%s]" % (booklang, isbnhead))
-                                        match = True
-                                    if not match:  # no match in cache, try lookup dict
-                                        if isbnhead:
-                                            if len(book['isbn']) == 13 and book['isbn'].startswith('979'):
-                                                for lang in lazylibrarian.isbn_979_dict:
-                                                    if isbnhead.startswith(lang):
-                                                        booklang = lazylibrarian.isbn_979_dict[lang]
-                                                        self.logger.debug("ISBN979 returned %s for %s" % (booklang,
-                                                                                                          isbnhead))
-                                                        match = True
-                                                        break
-                                            elif (len(book['isbn']) == 10) or \
-                                                    (len(book['isbn']) == 13 and book['isbn'].startswith('978')):
-                                                for lang in lazylibrarian.isbn_978_dict:
-                                                    if isbnhead.startswith(lang):
-                                                        booklang = lazylibrarian.isbn_978_dict[lang]
-                                                        self.logger.debug("ISBN979 returned %s for %s" %
-                                                                          (booklang, isbnhead))
-                                                        match = True
-                                                        break
-                                            if match:
-                                                control_value_dict = {"isbn": isbnhead}
-                                                new_value_dict = {"lang": booklang}
-                                                db.upsert("languages", new_value_dict, control_value_dict)
-
-                                    if not match:
-                                        booklang = thinglang(book['isbn'])
-                                        lt_lang_hits += 1
+                                    if book['isbn']:
+                                        booklang, cache_hit, thing_hit = isbnlang(book['isbn'])
+                                        if thing_hit:
+                                            lt_lang_hits += 1
                                         if booklang:
                                             match = True
-                                            db.action('insert into languages values (?, ?)', (isbnhead, booklang))
-
                                     if match:
                                         # We found a better language match
                                         if googlelang == "en" and booklang not in ["en-US", "en-GB", "eng"]:
@@ -410,7 +373,7 @@ class GoogleBooks:
                                 rejected = 'date', 'No publication date'
 
                         if not rejected and CONFIG.get_bool('NO_ISBN'):
-                            if not isbnhead:
+                            if not book['isbn']:
                                 self.logger.debug('Rejecting %s, no isbn' % bookname)
                                 rejected = 'isbn', 'No ISBN'
 

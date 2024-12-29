@@ -2378,10 +2378,10 @@ class WebInterface(object):
         raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
-    def add_author_id(self, authorid):
+    def add_author_id(self, authorid, authorname=''):
         self.check_permitted(lazylibrarian.perm_search)
         threading.Thread(target=add_author_to_db, name='ADDAUTHORID',
-                         args=['', False, authorid, True, 'WebServer add_author_id %s' % authorid]).start()
+                         args=[authorname, False, authorid, True, 'WebServer add_author_id %s' % authorid]).start()
         time.sleep(2)  # so we get some data before going to authorpage
         raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
 

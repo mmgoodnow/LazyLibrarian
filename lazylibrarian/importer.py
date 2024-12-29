@@ -11,6 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import sqlite3
 import string
 import threading
 import time
@@ -387,13 +388,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     # noinspection PyBroadException
     try:
         new_author = True
-        cmd = "SELECT * from authors WHERE AuthorID=?"
-        if authorid.startswith('OL'):
-            cmd += " or ol_id=?"
-            dbauthor = db.match(cmd, (authorid, authorid))
-        else:
-            cmd += " or gr_id=? or hc_id=?"
-            dbauthor = db.match(cmd, (authorid, authorid, authorid))
+        cmd = "SELECT * from authors WHERE AuthorID=? or ol_id=? or gr_id=? or hc_id=?"
+        dbauthor = db.match(cmd, (authorid, authorid, authorid, authorid))
         if dbauthor:
             new_author = False
             authorid = dbauthor['AuthorID']
@@ -443,14 +439,39 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                                                                authorname))
                 db.action('UPDATE authors SET AuthorName=? WHERE AuthorID=?',
                           (current_author['authorname'], current_author['authorid']))
+
         control_value_dict = {"AuthorID": current_author['authorid']}
-        if new_author or not current_author['manual']:
-            db.upsert("authors", current_author, control_value_dict)
+        if not current_author['manual']:
+            new_value_dict = current_author
+            new_value_dict.pop('authorid')
+            try:
+                db.upsert("authors", new_value_dict, control_value_dict)
+            except sqlite3.IntegrityError as err:
+                # Had a report of authorname constraint failed here but currently can't see why. Need more info
+                logger.error(str(err))
+                logger.error(str(new_value_dict))
+                logger.error(str(control_value_dict))
+                logger.error(f"{authorname}, {new_author}")
+                logger.error(traceback.format_exc())
+                # retry using authorname instead of authorid
+                control_value_dict = {"AuthorName": current_author['authorname']}
+                new_value_dict = current_author
+                new_value_dict.pop('authorname')
+                try:
+                    db.upsert("authors", new_value_dict, control_value_dict)
+                    logger.debug(f"Retry {current_author['authorid']} using authorname "
+                                 f"{current_author['authorname']} succeeded")
+                except sqlite3.IntegrityError as err:
+                    logger.error(str(err))
+                    logger.error(traceback.format_exc())
+
         entry_status = current_author['status']
         new_value_dict = {
                             "Status": "Loading",
                             "Updated": int(time.time())
                         }
+        if not current_author.get('authorid'):
+            current_author['authorid'] = authorid
         if new_author:
             new_value_dict["AuthorImg"] = "images/nophoto.png"
             new_value_dict['Reason'] = reason

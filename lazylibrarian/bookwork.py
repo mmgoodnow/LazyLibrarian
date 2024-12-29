@@ -1541,6 +1541,54 @@ def thinglang(isbn):
         return booklang
 
 
+def isbnlang(isbn):
+    # Try to use shortcut of ISBN identifier codes described here...
+    # http://en.wikipedia.org/wiki/List_of_ISBN_identifier_groups
+    isbnhead = ""
+    cache_hit = False
+    thing_hit = False
+    book_language = ""
+    if len(isbn) == 10:
+        isbnhead = isbn[0:3]
+    elif len(isbn) == 13:
+        isbnhead = isbn[3:6]
+
+    logger = logging.getLogger(__name__)
+    db = database.DBConnection()
+    try:
+        if isbnhead:
+            if len(isbn) == 13 and isbn.startswith('979'):
+                for item in lazylibrarian.isbn_979_dict:
+                    if isbnhead.startswith(item):
+                        book_language = lazylibrarian.isbn_979_dict[item]
+                        break
+                if book_language:
+                    logger.debug("ISBN979 returned %s for %s" % (book_language, isbnhead))
+            elif len(isbn) == 10 or (len(isbn) == 13 and isbn.startswith('978')):
+                for item in lazylibrarian.isbn_978_dict:
+                    if isbnhead.startswith(item):
+                        book_language = lazylibrarian.isbn_978_dict[item]
+                        break
+                if book_language:
+                    logger.debug("ISBN978 returned %s for %s" % (book_language, isbnhead))
+
+            if not book_language:
+                # Nothing in the isbn dictionary, try any cached results
+                match = db.match('SELECT lang FROM languages where isbn=?', (isbnhead,))
+                if match:
+                    book_language = match['lang']
+                    cache_hit = True
+                    logger.debug(f"Found cached language [{book_language}] for  {isbnhead}")
+            if not book_language:
+                book_language = thinglang(isbn)
+                thing_hit = True
+                if book_language:
+                    db.action('insert into languages values (?, ?)', (isbnhead, book_language))
+    finally:
+        db.close()
+    return book_language, cache_hit, thing_hit
+
+
 def isbn_from_words(words):
     """ Use Google to get an ISBN for a book from words in title and authors name.
         Store the results in the database """

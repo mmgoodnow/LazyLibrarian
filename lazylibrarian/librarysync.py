@@ -986,6 +986,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         # Since we have the book anyway, try and reload it
                                         if "OpenLibrary" not in sources and CONFIG['OL_API']:
                                             sources.append("OpenLibrary")
+                                        if "HardCover" not in sources and CONFIG['HC_API']:
+                                            sources.append("HardCover")
                                         if "GoodReads" not in sources and CONFIG['GR_API']:
                                             sources.append("GoodReads")
                                         if "GoogleBooks" not in sources and CONFIG['GB_API']:
@@ -1228,6 +1230,12 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                              (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
                 logger.debug("GoogleBooks language was changed %s %s" %
                              (st['GB_lang_change'], plural(st['GB_lang_change'], "time")))
+            elif CONFIG['BOOK_API'] == "OpenLibrary":
+                logger.debug("OpenLibrary was hit %s %s for books" %
+                             (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
+            elif CONFIG['BOOK_API'] == "HardCover":
+                logger.debug("HardCover was hit %s %s for books" %
+                             (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
             elif CONFIG['BOOK_API'] == "GoodReads":
                 logger.debug("GoodReads was hit %s %s for books" %
                              (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
