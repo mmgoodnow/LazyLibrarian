@@ -7,7 +7,7 @@ where = ["lazylibrarian"]
 
 [project]
 name = "LazyLibrarian"
-version = "2024.05.06"
+version = "2024.12.28"
 description = "LazyLibrarian is a SickBeard, CouchPotato, Headphones-like application for ebooks, audiobooks and magazines"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -31,7 +31,7 @@ dependencies = [
     'apprise',
     'PyPDF3',
     'python_magic',
-    'thefuzz[speedup]',
+    'rapidfuzz'
     'deluge_client',
     'pyparsing',
     'irc',
