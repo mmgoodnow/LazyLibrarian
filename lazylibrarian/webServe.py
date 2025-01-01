@@ -81,10 +81,7 @@ from lazylibrarian.blockhandler import BLOCKHANDLER
 from deluge_client import DelugeRPCClient
 from mako import exceptions
 from mako.lookup import TemplateLookup
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 
 lastauthor = ''
@@ -622,7 +619,7 @@ class WebInterface(object):
             thread_name(name)
         else:
             threadname = thread_name()
-            if "Thread-" in threadname:
+            if "Thread" in threadname:
                 thread_name("WEBSERVER")
 
     # USERS ############################################################

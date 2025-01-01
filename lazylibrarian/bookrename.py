@@ -16,11 +16,7 @@ import re
 import shutil
 import logging
 import traceback
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
-
+from rapidfuzz import fuzz
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation

@@ -276,7 +276,7 @@ def record_usage_data(counter: Optional[str] = None):
 def telemetry_send() -> str:
     """ Routine called by scheduler, to regularly send telemetry data """
     threadname = thread_name()
-    if "Thread-" in threadname:
+    if "Thread" in threadname:
         thread_name("TELEMETRYSEND")
     logger = logging.getLogger(__name__)
     db = database.DBConnection()

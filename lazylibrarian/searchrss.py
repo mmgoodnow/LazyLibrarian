@@ -316,7 +316,7 @@ def search_rss_book(books=None, library=None):
         schedule_job(action=SchedulerCommand.STOP, target='search_rss_book')
         return
     threadname = thread_name()
-    if "Thread-" in threadname:
+    if "Thread" in threadname:
         if not books:
             thread_name("SEARCHALLRSS")
         else:

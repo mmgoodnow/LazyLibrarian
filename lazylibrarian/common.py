@@ -31,6 +31,7 @@ import ssl
 import sqlite3
 import cherrypy
 import httplib2
+import apscheduler
 import urllib3
 import requests
 import tarfile
@@ -302,6 +303,7 @@ def log_header(online=True) -> str:
         header += "mac_ver: %s\n" % str(platform.mac_ver())
     elif uname[0] == 'Windows':
         header += "win_ver: %s\n" % str(platform.win32_ver())
+    header += "apscheduler: %s\n" % getattr(apscheduler, '__version__', None)
     header += "httplib2: %s\n" % getattr(httplib2, '__version__', None)
     if 'urllib3' in globals():
         header += "urllib3: %s\n" % getattr(urllib3, '__version__', None)
@@ -412,28 +414,15 @@ def log_header(online=True) -> str:
         except ImportError:
             header += "cryptography Extensions: not found\n"
 
-    import thefuzz as fuzz
-    vers = getattr(fuzz, '__version__', None)
-    header += "fuzz: %s\n" % vers if vers else 'not found'
-    if vers:
-        # noinspection PyBroadException
-        try:
-            import Levenshtein
-            vers = getattr(Levenshtein, "__version__", None)
-            if not vers:
-                vers = "installed"
-        except Exception:
-            vers = "not found"
-        header += "Levenshtein: %s\n" % vers
-        # noinspection PyBroadException
-        try:
-            import rapidfuzz
-            vers = getattr(rapidfuzz, "__version__", None)
-            if not vers:
-                vers = "installed"
-        except Exception:
-            vers = "not found"
-        header += "Rapidfuzz: %s\n" % vers
+    # noinspection PyBroadException
+    try:
+        import rapidfuzz
+        vers = getattr(rapidfuzz, "__version__", None)
+        if not vers:
+            vers = "installed"
+    except Exception:
+        vers = "not found"
+    header += "Rapidfuzz: %s\n" % vers
     try:
         import magic
         try:

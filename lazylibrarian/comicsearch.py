@@ -27,10 +27,7 @@ from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.comicid import cv_identify, cx_identify
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 
 # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
@@ -203,15 +200,15 @@ def cron_search_comics():
 def search_comics(comicid=None):
     logger = logging.getLogger(__name__)
     loggersearching = logging.getLogger('special.searching')
-    # noinspection PyBroadException
     threadname = thread_name()
-    if "Thread-" in threadname:
+    if "Thread" in threadname:
         if not comicid:
             thread_name("SEARCHALLCOMICS")
         else:
             thread_name("SEARCHCOMIC")
 
     db = database.DBConnection()
+    # noinspection PyBroadException
     try:
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         cmd = "SELECT ComicID,Title, aka from comics WHERE Status='Active'"

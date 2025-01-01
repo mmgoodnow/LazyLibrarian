@@ -35,10 +35,16 @@ import threading
 import time
 import zipfile
 
-import irc.bot
-import irc.client
-import irc.strings
-from jaraco.stream import buffer
+try:
+    import irc.bot as irc_bot
+    import irc.client as irc_client
+    import irc.strings as irc_strings
+    from jaraco.stream import buffer
+except ModuleNotFoundError:
+    irc_bot = None
+    irc_client = None
+    irc_strings = None
+    buffer = None
 
 import lazylibrarian
 from lazylibrarian.blockhandler import BLOCKHANDLER
@@ -47,95 +53,103 @@ from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
 from lazylibrarian.formatter import today, size_in_bytes, md5_utf8, check_int
 
 # Prevents a common UnicodeDecodeError when downloading from many sources that don't use utf-8
-irc.client.ServerConnection.buffer_class = buffer.LenientDecodingLineBuffer
+if irc_client:
+    irc_client.ServerConnection.buffer_class = buffer.LenientDecodingLineBuffer
 
 searchtimeout = 180
 dltimeout = 360
 
+try:
+    class IrcBot(irc_bot.SingleServerIRCBot):
+        def __init__(self, searchterm,  localfolder, channel, nickname, filename, server, port=6667,
+                     searchtype="@search",):
+            port = check_int(port, 6667)
+            irc_bot.SingleServerIRCBot.__init__(
+                self, [(server, port)], nickname, nickname)
+            self.channel = channel
+            self.searchterm = searchterm
+            self.received_bytes = 0
+            self.havebook = False
+            self.localfolder = localfolder
+            self.logger = logging.getLogger(__name__)
+            self.dlcommslogger = logging.getLogger('special.dlcomms')
+            self.searchtype = searchtype
+            self.timer = None
+            self.filename = filename
+            self.file = None
+            self.my_dcc = None
 
-class IrcBot(irc.bot.SingleServerIRCBot):
-    def __init__(self, searchterm,  localfolder, channel, nickname, filename, server, port=6667, searchtype="@search",):
-        port = check_int(port, 6667)
-        irc.bot.SingleServerIRCBot.__init__(
-            self, [(server, port)], nickname, nickname)
-        self.channel = channel
-        self.searchterm = searchterm
-        self.received_bytes = 0
-        self.havebook = False
-        self.localfolder = localfolder
-        self.logger = logging.getLogger(__name__)
-        self.dlcommslogger = logging.getLogger('special.dlcomms')
-        self.searchtype = searchtype
-        self.timer = None
-        self.filename = filename
-        self.file = None
-        self.my_dcc = None
+        def on_nicknameinuse(self, c, e):
+            # handle username conflicts
+            c.nick(c.get_nickname() + "_")
 
-    def on_nicknameinuse(self, c, e):
-        # handle username conflicts
-        c.nick(c.get_nickname() + "_")
+        def on_welcome(self, c, e):
+            self.dlcommslogger.debug("on_welcome")
+            c.join(self.channel)
+            self.timer = threading.Timer(searchtimeout, self.handle_timeout)
+            self.timer.start()
+            self.connection.privmsg(self.channel, self.searchtype + " " + self.searchterm)
 
-    def on_welcome(self, c, e):
-        self.dlcommslogger.debug("on_welcome")
-        c.join(self.channel)
-        self.timer = threading.Timer(searchtimeout, self.handle_timeout)
-        self.timer.start()
-        self.connection.privmsg(self.channel, self.searchtype + " " + self.searchterm)
+            if self.searchtype.startswith('!'):
+                self.logger.debug("Downloading " + self.filename + " ...\n")
+            else:
+                self.logger.debug("Searching for " + self.searchterm + " ...\n")
 
-        if self.searchtype.startswith('!'):
-            self.logger.debug("Downloading " + self.filename + " ...\n")
-        else:
-            self.logger.debug("Searching for " + self.searchterm + " ...\n")
+        def handle_timeout(self):
+            self.logger.debug("No search results found")
+            self.timer.cancel()
+            self.die()
 
-    def handle_timeout(self):
-        self.logger.debug("No search results found")
-        self.timer.cancel()
-        self.die()
+        def on_ctcp(self, connection, event):
+            self.dlcommslogger.debug("on_ctcp")
+            # Handle the actual download
+            payload = event.arguments[1]
+            parts = shlex.split(payload)
 
-    def on_ctcp(self, connection, event):
-        self.dlcommslogger.debug("on_ctcp")
-        # Handle the actual download
-        payload = event.arguments[1]
-        parts = shlex.split(payload)
+            if len(parts) != 5:  # Check if it's a DCC SEND
+                return  # If not, we don't care what it is
 
-        if len(parts) != 5:  # Check if it's a DCC SEND
-            return  # If not, we don't care what it is
+            self.dlcommslogger.debug("Receiving Data:")
+            self.timer.cancel()
 
-        self.dlcommslogger.debug("Receiving Data:")
-        self.timer.cancel()
+            self.logger.debug(payload)
+            command, filename, peer_address, peer_port, size = parts
+            if command != "SEND":
+                return
+            self.logger.debug("peer sending file on port " + str(peer_port))
+            self.filename = self.localfolder + "/" + self.filename
+            self.logger.debug("writing file " + self.filename)
+            self.file = open(self.filename, "wb")
+            peer_address = irc_client.ip_numstr_to_quad(peer_address)
+            peer_port = int(peer_port)
+            self.my_dcc = self.dcc("raw")
+            self.my_dcc.connect(peer_address, peer_port)
 
-        self.logger.debug(payload)
-        command, filename, peer_address, peer_port, size = parts
-        if command != "SEND":
-            return
-        self.logger.debug("peer sending file on port " + str(peer_port))
-        self.filename = self.localfolder + "/" + self.filename
-        self.logger.debug("writing file " + self.filename)
-        self.file = open(self.filename, "wb")
-        peer_address = irc.client.ip_numstr_to_quad(peer_address)
-        peer_port = int(peer_port)
-        self.my_dcc = self.dcc("raw")
-        self.my_dcc.connect(peer_address, peer_port)
+        def on_dccmsg(self, connection, event):
+            data = event.arguments[0]
+            self.file.write(data)
+            self.received_bytes = self.received_bytes + len(data)
+            self.my_dcc.send_bytes(struct.pack("!I", self.received_bytes))
 
-    def on_dccmsg(self, connection, event):
-        data = event.arguments[0]
-        self.file.write(data)
-        self.received_bytes = self.received_bytes + len(data)
-        self.my_dcc.send_bytes(struct.pack("!I", self.received_bytes))
+        def on_dcc_disconnect(self, connection, event):
+            self.file.close()
+            self.logger.debug("Received file %s (%d bytes).\n" % (self.filename, self.received_bytes))
+            self.timer.cancel()
+            self.die()  # exit when the download finishes
 
-    def on_dcc_disconnect(self, connection, event):
-        self.file.close()
-        self.logger.debug("Received file %s (%d bytes).\n" % (self.filename, self.received_bytes))
-        self.timer.cancel()
-        self.die()  # exit when the download finishes
-
-    def search(self, searchterm):
-        self.connection.privmsg(self.channel, searchterm)
+        def search(self, searchterm):
+            self.connection.privmsg(self.channel, searchterm)
+except Exception as e:
+    logger = logging.getLogger(__name__)
+    logger.debug(f"IRC module is disabled: {str(e)}")
+    pass
 
 
 def irc_query(provider: ConfigDict, filename, searchterm, searchtype, cache=True):
     logger = logging.getLogger(__name__)
     cachelogger = logging.getLogger('special.cache')
+    if not irc_client:
+        BLOCKHANDLER.block_provider(provider['SERVER'], 'IRC module not loaded')
     if BLOCKHANDLER.is_blocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
         logger.warning(msg)

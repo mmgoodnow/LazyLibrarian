@@ -25,10 +25,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, \
 from lazylibrarian.formatter import unaccented, replace_all, get_list, now, check_int
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import get_searchterm
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 
 def process_result_list(resultlist, book, searchtype, source):

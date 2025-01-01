@@ -25,10 +25,7 @@ from lazylibrarian.formatter import unaccented, get_list
 from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 # calibredb custom_columns
 # calibredb add_custom_column label name bool

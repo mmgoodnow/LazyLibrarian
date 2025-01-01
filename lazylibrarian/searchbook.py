@@ -91,7 +91,7 @@ def search_book(books=None, library=None):
         else:
             force = False
 
-        if "Thread-" in threadname:
+        if "Thread" in threadname:
             if not books:
                 thread_name("SEARCHALLBOOKS")
                 threadname = "SEARCHALLBOOKS"

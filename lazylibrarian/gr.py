@@ -29,10 +29,7 @@ from lazylibrarian.formatter import plural, today, replace_all, book_series, una
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name
 from lazylibrarian.images import get_book_cover
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 
 class GoodReads:
@@ -549,7 +546,8 @@ class GoodReads:
                                         try:
                                             book_rootxml, in_cache = gr_xml_request(book_url)
                                             if book_rootxml is None:
-                                                self.logger.debug(f'Failed to get book page for {find_field} {book.find(find_field).text}')
+                                                self.logger.debug(f'Failed to get book page for {find_field} '
+                                                                  f'{book.find(find_field).text}')
                                             else:
                                                 try:
                                                     book_language = book_rootxml.find('./book/language_code').text

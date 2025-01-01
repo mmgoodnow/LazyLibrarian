@@ -18,10 +18,7 @@ from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import md5_utf8, make_unicode, is_valid_isbn, get_list, format_author_name, \
     date_format, thread_name, now, today, plural, unaccented, replace_all, check_year, check_int
 from lazylibrarian.images import cache_bookimg, get_book_cover
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 
 def hc_api_sleep():

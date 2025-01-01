@@ -466,7 +466,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('API', 'BOOK_API', 'OpenLibrary'),
     ConfigStr('API', 'LT_DEVKEY', ''),
     ConfigBool('API', 'CV_WEBSEARCH', 0),
-    ConfigBool('API', 'OL_API', 1),
+    ConfigBool('API', 'OL_API', 0),
     ConfigStr('API', 'HC_API', ''),
     ConfigBool('API', 'HC_SYNC', 0),
     ConfigStr('API', 'GR_API', 'ckvsiSDsuqh7omh74ZZ6Q'),

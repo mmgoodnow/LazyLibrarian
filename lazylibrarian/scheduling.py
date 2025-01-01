@@ -22,14 +22,14 @@ import traceback
 import logging
 from enum import Enum
 from typing import Optional
-from lib.apscheduler.scheduler import Scheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookwork import add_series_members
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configtypes import ConfigScheduler
-from lazylibrarian.formatter import thread_name, plural, check_int
+from lazylibrarian.formatter import plural, check_int
 from lazylibrarian.importer import add_author_to_db
 
 # Notification Types
@@ -40,7 +40,7 @@ NOTIFY_FAIL = 3
 notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to Library", NOTIFY_FAIL: "Download failed"}
 
 # Scheduler
-SCHED: Scheduler
+SCHED: BackgroundScheduler
 
 
 class SchedulerCommand(Enum):
@@ -54,7 +54,12 @@ class SchedulerCommand(Enum):
 
 def initscheduler():
     global SCHED
-    SCHED = Scheduler(misfire_grace_time=30)
+    job_defaults = {
+        'missfire_grace_time': 30,
+        'max_instances': 1,
+        'replace_existing': True,
+    }
+    SCHED = BackgroundScheduler(job_defaults=job_defaults)
 
 
 def startscheduler():
@@ -77,7 +82,7 @@ def next_run_time(when_run: str, test_now: Optional[datetime.datetime] = None):
     """
     logger = logging.getLogger(__name__)
     try:
-        when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S')
+        when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S %Z')
         timenow = datetime.datetime.now() if not test_now else test_now
         td = when_run - timenow
         diff = td.total_seconds()  # time difference in seconds
@@ -255,40 +260,39 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
 
     if stopjob and startjob:
         # Make sure we only stop and start jobs where the interval has changed
-        hours, minutes = startjob.get_hour_min_interval()
+        res = startjob.get_hour_min_interval()
+        hours = res[0]
+        minutes = res[1]
         if stopjob.trigger.interval_length - 60*(hours*60+minutes) < 2:
             stopjob = startjob = None  # 2 seconds tolerance: No change
 
     if stopjob:
         logger.debug(f"Stop {target} job")
-        SCHED.unschedule_job(stopjob)
+        SCHED.remove_job(target)
+        print('stopped')
     if startjob:
         method = startjob.get_method()
         if method:
             hours, minutes = startjob.get_hour_min_interval()
             startdate = get_next_run_time(startjob.run_name, minutes + hours * 60, action)
-            SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
+            SCHED.add_job(method, "interval", hours=hours, minutes=minutes, next_run_time=startdate, id=target)
         else:
             logger.error(f'Cannot find method {startjob.method_name} for scheduled job {target}')
 
 
-def add_interval_job(method, hours, minutes, startdate):
+def add_interval_job(method, hours, minutes, startdate, target):
     """ Add a scheduled job """
-    SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
+    SCHED.add_job(method, "interval", hours=hours, minutes=minutes, next_run_time=startdate, id=target)
 
 
 def author_update(restart=True, only_overdue=True):
-    threadname = thread_name()
-    if threadname and "Thread-" in threadname:
-        thread_name("AUTHORUPDATE")
-
     logger = logging.getLogger(__name__)
     msg = ''
 
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": "AUTHORUPDATE"})
         if CONFIG.get_int('CACHE_AGE'):
             overdue, total, name, ident, days = is_overdue('author')
             if not total:
@@ -302,7 +306,7 @@ def author_update(restart=True, only_overdue=True):
                 if lazylibrarian.STOPTHREADS:
                     return ''
                 msg = 'Updated author %s' % name
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": "AUTHORUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "author_update")
     except Exception:
@@ -314,17 +318,13 @@ def author_update(restart=True, only_overdue=True):
 
 
 def series_update(restart=True, only_overdue=True):
-    threadname = thread_name()
-    if threadname and "Thread-" in threadname:
-        thread_name("SERIESUPDATE")
-
     logger = logging.getLogger(__name__)
     msg = ''
 
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": "SERIESUPDATE"})
         if CONFIG.get_int('CACHE_AGE'):
             overdue, total, name, ident, days = is_overdue('series')
             if not total:
@@ -338,7 +338,7 @@ def series_update(restart=True, only_overdue=True):
                 msg = 'Updated series %s' % name
             logger.debug(msg)
 
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": "SERIESUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "series_update")
     except Exception:
@@ -518,8 +518,9 @@ def show_jobs(json=False):
         job = str(job)
         jobname = ''
         threadname = ''
-        for _, scheduler in CONFIG.get_schedulers():
-            if scheduler.method_name in job:
+        for key, scheduler in CONFIG.get_schedulers():
+            method_name = scheduler.method_name.split('.')[-1]
+            if method_name in job:
                 jobname = scheduler.friendly_name
                 threadname = scheduler.run_name
                 break

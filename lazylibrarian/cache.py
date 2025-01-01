@@ -482,7 +482,7 @@ def clean_cache():
         and change database entry if missing, expire old pastissues table entries """
 
     threadname = thread_name()
-    if "Thread-" in threadname:
+    if "Thread" in threadname:
         thread_name("CLEANCACHE")
 
     logger = logging.getLogger(__name__)

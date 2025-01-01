@@ -42,7 +42,7 @@ def search_magazines(mags=None, reset=False):
     logger = logging.getLogger(__name__)
     loggersearching = logging.getLogger('special.searching')
     threadname = thread_name()
-    if "Thread-" in threadname:
+    if "Thread" in threadname:
         if not mags:
             thread_name("SEARCHALLMAG")
             threadname = "SEARCHALLMAG"

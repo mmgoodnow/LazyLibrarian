@@ -33,10 +33,7 @@ from lazylibrarian.images import get_author_image, img_id
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.hc import HardCover
 from lazylibrarian.processcontrol import get_info_on_caller
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 
 def is_valid_authorid(authorid: str, api=None) -> bool:
@@ -382,7 +379,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             reason = "Unknown reason in add_author_to_db"
 
     threadname = thread_name()
-    if "Thread-" in threadname:
+    if "Thread" in threadname:
         thread_name("AddAuthorToDB")
     db = database.DBConnection()
     # noinspection PyBroadException
@@ -691,10 +688,11 @@ def de_duplicate(authorid):
                         if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
                             favourite = copy
                             break
-                if not favourite:
+                if not favourite and copies:
                     favourite = copies[0]
-                logger.debug(f"Favourite {favourite['BookID']} {favourite['BookName']} "
-                             f"({favourite['Status']}/{favourite['AudioStatus']})")
+                if favourite:
+                    logger.debug(f"Favourite {favourite['BookID']} {favourite['BookName']} "
+                                 f"({favourite['Status']}/{favourite['AudioStatus']})")
                 for copy in copies:
                     if copy['BookID'] != favourite['BookID']:
                         members = db.select("SELECT SeriesID,SeriesNum from member WHERE BookID=?",

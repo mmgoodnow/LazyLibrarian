@@ -29,10 +29,7 @@ from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_aut
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, quotes
 from lazylibrarian.processcontrol import get_info_on_caller
 import requests
-try:
-    from rapidfuzz import fuzz
-except ModuleNotFoundError:
-    from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 
 def set_all_book_authors():

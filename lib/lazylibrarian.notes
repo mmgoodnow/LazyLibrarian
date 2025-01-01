@@ -1,22 +1,5 @@
-cherrypy is patched to allow utf-8 responses in forms (eg accented magazine names)
-there is probably a proper way to do it without patching 
-also newer versions pull in other libraries that we don't use in this version
-(more_itertools, jaraco.xxxx, inflect, pydantic, ...) so better to pip install
-As cherrypy is in the top level folder of lazylibrarian the user can install a newer 
-version using pip and delete the supplied cherrypy folder
-
-bs4 html5lib webencodings (as a set) are top level folders and can be handled the same way 
-(bs4 uses html5lib but it's not flagged as a requirement, html5lib uses webencodings)
-
-similarly requests and urllib3, but beware some mac versions ship requests without urllib3
-
-cherrpy_cors uses httpagentparser, both top level so replaceable
-
-mako is fairly recent, top level folder again so user replaceable
-Later versions pull in extra libraries so better to pip install
 
 oauth2 is old, but the last known working version with goodreads auth.
-It uses httplib2 which is top level and user replaceable
 
 zipfile is normally part of a standard install, but some cut-down nas systems do not include it
 
@@ -43,16 +26,3 @@ can be removed to use a pip installed version
 
 rfeed has been modified to include atom/media/webfeeds and thumbnails added to Feed and Item
 Changes not pushed to upstream version
-
-six is used in lazylibrarian and some addon libraries, but is not part of standard library
-
-apprise pulls in lots of other libraries, too many to keep track of manually, and as it's optional
-probably not worth the effort. User can pip install it if wanted
-
-PyPDF3 is also unmodified, top level
-
-deluge_client is also unmodified, top level
-
-thefuzz is also unmodified, top level, and is installed with [speedup] which includes Levenshtein
-
-python_magic is also unmodified, top level
