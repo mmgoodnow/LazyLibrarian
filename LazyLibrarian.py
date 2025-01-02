@@ -32,7 +32,9 @@ if sys.version_info < MIN_PYTHON_VERSION:
     sys.stderr.write("This version of Lazylibrarian requires Python %d.%d or later.\n" % MIN_PYTHON_VERSION)
     exit(0)
 
-# args required for issue #2547, we get passed (signum, stack)
+
+# args required for issue #2547, we get passed (signum, stack) but don't use them
+# noinspection PyUnusedLocal
 def sig_shutdown(*args):
     lazylibrarian.SIGNAL = 'shutdown'
 
