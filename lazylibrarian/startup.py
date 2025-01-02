@@ -24,7 +24,7 @@ import sys
 import tarfile
 import time
 import traceback
-from shutil import rmtree
+from shutil import rmtree, move
 from typing import Any
 
 import cherrypy
@@ -821,7 +821,15 @@ class StartupLazyLibrarian:
                                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
                                     self.logger.warning(msg)
                                 if success:
-                                    msg = "Restarting from backup"
+                                    current_version = ''
+                                    version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
+                                    old_location = os.path.join(DIRS.PROG_DIR, 'version.txt')
+                                    if os.path.isfile(old_location):
+                                        with open(old_location, 'r') as fp:
+                                            current_version = fp.read().strip(' \n\r')
+                                        self.logger.debug(f'Moving {old_location} to {version_file}')
+                                        move(old_location, version_file)
+                                    msg = f"Restarting {current_version} from backup"
                                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
                                     self.logger.info(msg)
                                     subprocess.Popen(popen_list, cwd=os.getcwd())

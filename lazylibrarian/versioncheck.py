@@ -158,9 +158,8 @@ def get_current_version() -> str:
             logger.debug('Version file [%s] missing.' % version_file)
             return version_string
         else:
-            fp = open(version_file, 'r')
-            current_version = fp.read().strip(' \n\r')
-            fp.close()
+            with open(version_file, 'r') as fp:
+                current_version = fp.read().strip(' \n\r')
 
             if current_version:
                 version_string = current_version
@@ -513,8 +512,7 @@ def update():
             if CONFIG['BACKUP_DB']:
                 dbbackup_file, _ = dbbackup('upgrade')
             zf = tarfile.open(backup_file, mode='w:gz')
-            prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 
-                            'telemetryserver', 'unittests']
+            prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 'unittests']
             for folder in prog_folders:
                 path = os.path.join(DIRS.PROG_DIR, folder)
                 for root, _, files in walk(path):
@@ -529,8 +527,15 @@ def update():
                 path = os.path.join(DIRS.PROG_DIR, item)
                 if os.path.exists(path):
                     zf.add(path, arcname=item)
+
+            current_version = ''
+            version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
+            if os.path.isfile(version_file):
+                with open(version_file, 'r') as fp:
+                    current_version = fp.read().strip(' \n\r')
+                zf.add(version_file, arcname='version.txt')
             zf.close()
-            msg = 'Saved current version to %s' % backup_file
+            msg = f'Saved current version {current_version} to {backup_file}'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
         except Exception as err:
