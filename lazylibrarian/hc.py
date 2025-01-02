@@ -21,11 +21,11 @@ from lazylibrarian.images import cache_bookimg, get_book_cover
 from rapidfuzz import fuzz
 
 
-def hc_api_sleep():
+def hc_api_sleep(limit=1.1):  # official limit is 60 requests per minute. limit=1.1 gives us about 55
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_HC']
-    if delay < 2.0:
-        sleep_time = 2.0 - delay
+    if delay < limit:
+        sleep_time = limit - delay
         lazylibrarian.TIMERS['SLEEP_HC'] += sleep_time
         cachelogger = logging.getLogger('special.cache')
         cachelogger.debug("HardCover sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_HC']))
