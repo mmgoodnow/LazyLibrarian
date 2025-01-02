@@ -5897,41 +5897,13 @@ class WebInterface(object):
                     if issue:
                         issue = dict(issue)
                         title = issue['Title']
-                        if 'reCover' in action:
-                            coverfile = create_mag_cover(issue['IssueFile'], refresh=True,
+                        issuefile = issue['IssueFile']
+                        if not issuefile or not path_exists(issuefile):
+                            logger.error(f"No IssueFile found for IssueID {item}")
+                            issuefile = ''
+                        if 'reCover' in action and issuefile:
+                            coverfile = create_mag_cover(issuefile, refresh=True,
                                                          pagenum=check_int(action[-1], 1))
-                            myhash = uuid.uuid4().hex
-                            hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                            copyfile(coverfile, hashname)
-                            setperm(hashname)
-                            control_value_dict = {"IssueFile": issue['IssueFile']}
-                            newcover = 'cache/magazine/%s.jpg' % myhash
-                            new_value_dict = {"Cover": newcover}
-                            db.upsert("Issues", new_value_dict, control_value_dict)
-                            latest = db.match("select LatestCover,IssueDate from magazines where title=?", (title,))
-                            if latest:
-                                if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
-                                    db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
-                            issue['Cover'] = newcover
-                            issue['CoverFile'] = coverfile  # for updating calibre cover
-                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                self.update_calibre_issue_cover(issue)
-
-                        if action == 'coverswap':
-                            coverfile = None
-                            if CONFIG['MAG_COVERSWAP']:
-                                params = [CONFIG['MAG_COVERSWAP'], issue['IssueFile']]
-                                logger.debug("Coverswap %s" % params)
-                                try:
-                                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                                    logger.info(res)
-                                    coverfile = create_mag_cover(issue['IssueFile'], refresh=True, pagenum=1)
-                                except subprocess.CalledProcessError as e:
-                                    logger.warning(e.output)
-                            else:
-                                res = coverswap(issue['IssueFile'])
-                                if res:
-                                    coverfile = create_mag_cover(issue['IssueFile'], refresh=True, pagenum=1)
                             if coverfile:
                                 myhash = uuid.uuid4().hex
                                 hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
@@ -5949,9 +5921,46 @@ class WebInterface(object):
                                 issue['CoverFile'] = coverfile  # for updating calibre cover
                                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                                     self.update_calibre_issue_cover(issue)
+                            else:
+                                logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
 
-                        if action == "Delete":
-                            result = self.delete_issue(issue['IssueFile'])
+                        if action == 'coverswap' and issuefile:
+                            coverfile = None
+                            if CONFIG['MAG_COVERSWAP']:
+                                params = [CONFIG['MAG_COVERSWAP'], issuefile]
+                                logger.debug(f"Coverswap {params}")
+                                try:
+                                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                                    logger.info(res)
+                                    coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
+                                except subprocess.CalledProcessError as e:
+                                    logger.warning(e.output)
+                            else:
+                                res = coverswap(issuefile)
+                                if res:
+                                    coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
+                            if coverfile:
+                                myhash = uuid.uuid4().hex
+                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                                copyfile(coverfile, hashname)
+                                setperm(hashname)
+                                control_value_dict = {"IssueFile": issuefile}
+                                newcover = 'cache/magazine/%s.jpg' % myhash
+                                new_value_dict = {"Cover": newcover}
+                                db.upsert("Issues", new_value_dict, control_value_dict)
+                                latest = db.match("select LatestCover,IssueDate from magazines where title=?", (title,))
+                                if latest:
+                                    if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
+                                        db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
+                                issue['Cover'] = newcover
+                                issue['CoverFile'] = coverfile  # for updating calibre cover
+                                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                                    self.update_calibre_issue_cover(issue)
+                            else:
+                                logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
+
+                        if action == "Delete" and issuefile:
+                            result = self.delete_issue(issuefile)
                             if result:
                                 logger.info('Issue %s of %s deleted from disc' % (issue['IssueDate'], issue['Title']))
                                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
