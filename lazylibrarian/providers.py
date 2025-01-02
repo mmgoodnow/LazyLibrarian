@@ -1783,7 +1783,7 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, e
     if (provider['BOOKSEARCH'] and search_type in ["book", "shortbook", 'titlebook']) or \
             (provider['AUDIOSEARCH'] and search_type in ["audio", "shortaudio"]):
         
-        match = (errorCode >= 200 and errorCode < 300) #200-299 are API call specific error codes
+        match = (200 <= errorCode < 300) #200-299 are API call specific error codes
 
         if not match:
             errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',

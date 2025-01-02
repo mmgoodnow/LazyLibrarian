@@ -234,6 +234,10 @@ def direct_bok(book=None, prov=None, test=False):
                         title = title_div.contents[0] if title_div.contents else None
                     else:
                         logger.debug("No z-bookcard found")
+                        author = None
+                        title = None
+                        extn = None
+                        size = 0
 
                     if url:
                         bok_sleep()

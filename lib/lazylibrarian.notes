@@ -1,7 +1,4 @@
-
 oauth2 is old, but the last known working version with goodreads auth.
-
-zipfile is normally part of a standard install, but some cut-down nas systems do not include it
 
 There is a python module on synology called csv that is not compatible, we only import the
 local copy of csv if the system one does not contain the functions we use
@@ -11,18 +8,16 @@ feedparser is patched to use a local copy of sgmllib as this is not available fo
 tinytag has "composer" field added as we need it for audiobooks, m4b added as equivalent filetype to m4a,
 fix for zero padded comment fields. Changes were requested upstream but not accepted
 
-apscheduler - there is a much more recent version available, should maybe update
-
 bencode  - there are several different bencode libraries available, easier to use the same one for consistency
 
 mobi is not available from pip, sources https://github.com/kroo/mobi-python
 
-pythontwitter - there is a much more recent version, but I am unable to test so leaving as not broken,
-and it may get dropped eventually as apprise notifier also provides twitter
+pythontwitter - there is a much more recent version, but I dont have twitter account so am unable to test.
+leaving it as not broken, and it may get dropped eventually as apprise notifier also provides twitter
 
 icrawler is patched as the upstream version doesn't work (at the time of writing)
-and hasn't been updated for ages, pull requests ignored, again it's a top level folder so 
-can be removed to use a pip installed version
+and hasn't been updated for ages, pull requests ignored.
+it's a top level folder so can be removed to use a pip installed version if the upstream version improves
 
 rfeed has been modified to include atom/media/webfeeds and thumbnails added to Feed and Item
 Changes not pushed to upstream version

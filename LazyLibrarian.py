@@ -26,29 +26,14 @@ from lazylibrarian import startup, webStart
 from lazylibrarian.formatter import thread_name
 from lazylibrarian.cleanup import UNBUNDLER
 
-# The following should probably be made configurable at the settings level
-# This fix is put in place for systems with broken SSL (like QNAP)
-opt_out_of_certificate_verification = True
-if opt_out_of_certificate_verification:
-    # noinspection PyBroadException
-    try:
-        import ssl
-
-        # noinspection PyProtectedMember
-        ssl._create_default_https_context = ssl._create_unverified_context
-    except Exception:
-        pass
-
-# ==== end block (should be configurable at settings level)
-
 MIN_PYTHON_VERSION = (3, 7)
 
 if sys.version_info < MIN_PYTHON_VERSION:
     sys.stderr.write("This version of Lazylibrarian requires Python %d.%d or later.\n" % MIN_PYTHON_VERSION)
     exit(0)
 
-
-def sig_shutdown():
+# args required for issue #2547, we get passed (signum, stack)
+def sig_shutdown(*args):
     lazylibrarian.SIGNAL = 'shutdown'
 
 

@@ -20,12 +20,12 @@ else:
     params = ["/usr/bin/mega-put", "-c", f]
     print(3,params, file=sys.stderr)
     p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    res, err = p.communicate()
+    res, _ = p.communicate()
     print(4,res, file=sys.stderr)
     params = ["/usr/bin/mega-export", "-a", "-f", os.path.basename(f)]
     print(5,params, file=sys.stderr)
     p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    res, err = p.communicate()
+    res, _ = p.communicate()
     print(6,res, file=sys.stderr)
     res = res.decode('utf-8')
     if 'http' in res:

@@ -10,7 +10,7 @@ if len(sys.argv) != 3:
 else:
     GS = ""
     if platform.system() == "Windows":
-        logger.error("This version of gsconvert does not run under Windows")
+        print("This version of gsconvert does not run under Windows")
     else:
         GS = os.path.join(os.getcwd(), "gs")
         if not os.path.isfile(GS):
@@ -20,7 +20,7 @@ else:
             except Exception as e:
                 sys.exit("which gs failed: %s" % str(e))
             if not os.path.isfile(GS):
-                sys.exit("Cannot find gs, %s" % str(e))
+                sys.exit("Cannot find gs")
 
     try:
         params = [GS, "--version"]
