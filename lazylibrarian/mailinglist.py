@@ -169,11 +169,11 @@ def mailing_list(book_type, global_name, book_id):
                 result = None
                 if not link:
                     link = ''
+                if ',' in res['SendTo']:
+                    addrs = get_list(res['SendTo'])
+                else:
+                    addrs = [res['SendTo']]
                 if filename:
-                    if ',' in res['SendTo']:
-                        addrs = get_list(res['SendTo'])
-                    else:
-                        addrs = [res['SendTo']]
                     for addr in addrs:
                         logger.debug("Emailing %s to %s" % (filename, addr))
                         msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
@@ -183,12 +183,14 @@ def mailing_list(book_type, global_name, book_id):
                         if not result:
                             break
                 else:
-                    logger.debug("Notifying %s available to %s" % (global_name, res['SendTo']))
-                    if not msg:
-                        msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
-                            '{link}', link).replace('{method}', ' is available for download ')
-                    result = email_notifier.email_file(subject="Message from LazyLibrarian",
-                                                       message=msg, to_addr=res['SendTo'], files=[])
+                    for addr in addrs:
+                        if not addr.endswith('@kindle.com'):  # don't send to kindle if no attachment
+                            logger.debug("Notifying %s available to %s" % (global_name, res['SendTo']))
+                            if not msg:
+                                msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
+                                    '{link}', link).replace('{method}', ' is available for download ')
+                            result = email_notifier.email_file(subject="Message from LazyLibrarian",
+                                                               message=msg, to_addr=res['SendTo'], files=[])
                 if result:
                     count += 1
                     db.action("DELETE from subscribers WHERE UserID=? and Type=? and WantID=?",
