@@ -668,11 +668,16 @@
                     <label for="hc_api" class="control-label">HardCover API:</label>
                     <input type="text" id="hc_api" name="hc_api" value="${CONFIG['HC_API']}" class="form-control">
                   </div>
-                  <div class="checkbox">
-                    <% checked = 'checked="checked"' if CONFIG['HC_SYNC'] else '' %>
-                    <label for="hc_sync" class="control-label">
-                      <input type="checkbox" id="hc_sync" name="hc_sync" value="1" ${checked} />
-                      Enable HardCover Sync</label>
+                  <div class row>
+                    <div class="form-group">
+                      <input type="button" value="Test Authorization" id="test_hcauth" class="btn btn-default" />
+                    </div>
+                    <div class="checkbox">
+                      <% checked = 'checked="checked"' if CONFIG['HC_SYNC'] else '' %>
+                      <label for="hc_sync" class="control-label">
+                        <input type="checkbox" id="hc_sync" name="hc_sync" value="1" ${checked} />
+                        Enable HardCover Sync</label>
+                    </div>
                   </div>
                   </fieldset>
                   <fieldset id="hcsync_options">
@@ -766,7 +771,7 @@
                         <input type="button" value="Request oAuth2" id="grauth_step2" class="btn btn-default" />
                       </div>
                       <div class="form-group">
-                        <input type="button" value="Test Authorization" id="testgrauth" class="btn btn-default" />
+                        <input type="button" value="Test Authorization" id="test_grauth" class="btn btn-default" />
                       </div>
                     </fieldset>
                   </div>

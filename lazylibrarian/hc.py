@@ -21,6 +21,16 @@ from lazylibrarian.images import cache_bookimg, get_book_cover
 from rapidfuzz import fuzz
 
 
+def test_auth(userid=None):
+    msg = ''
+    if not userid:
+        userid, msg = get_current_userid()
+    if userid:
+        h_c = HardCover(userid)
+        msg = h_c.hc_whoami()
+    return msg
+
+
 def hc_api_sleep(limit=1.1):  # official limit is 60 requests per minute. limit=1.1 gives us about 55
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_HC']
@@ -33,23 +43,33 @@ def hc_api_sleep(limit=1.1):  # official limit is 60 requests per minute. limit=
     lazylibrarian.TIMERS['LAST_HC'] = time_now
 
 
-def hc_sync(library='', userid=None):
+def get_current_userid():
+    userid = ''
     msg = ''
-    # TODO currently this only syncs one user as hardcover doesn't yet allow access to other users lists
-    if not userid:
+    logger = logging.getLogger(__name__)
+    cookie = cherrypy.request.cookie
+    if 'll_uid' in list(cookie.keys()):
+        userid = cookie['ll_uid'].value
+    else:
+        msg = 'No current userid'
+    if userid:
+        # need to collect the users apikey from the database
         db = database.DBConnection()
         user = db.match("select distinct userid from sync where label like 'hc_%'")
         db.close()
         if not user or not user[0]:
-            msg = 'No users with HardCover sync enabled, trying current userid'
-            cookie = cherrypy.request.cookie
-            if 'll_uid' in list(cookie.keys()):
-                userid = cookie['ll_uid'].value
-            else:
-                userid = ''
-                msg = 'No current userid'
+            msg = 'No users with HardCover sync enabled'
         else:
             userid = user[0]
+    if msg:
+        logger.debug(msg)
+    return userid, msg
+
+
+def hc_sync(library='', userid=None):
+    msg = ''
+    if not userid:
+        userid, msg = get_current_userid()
     if userid:
         hc = HardCover(userid)
         msg = hc.sync(library, userid)
@@ -218,6 +238,8 @@ class HardCover:
         self.book_url = self.hc_url.replace('api.', '') + 'books/'
         self.auth_url = self.hc_url.replace('api.', '') + 'authors/'
         self.HC_WHOAMI = 'query whoami { me { id } }'
+        # this will need changing when we get access to other users book lists
+        self.apikey = CONFIG.get_str('HC_API')
 
 #       user_id = result of whoami/userid
 #       status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
@@ -419,7 +441,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
     def result_from_cache(self, searchcmd: str, refresh=False) -> (str, bool):
         headers = {'Content-Type': 'application/json',
                    'User-Agent': self.user_agent,
-                   'authorization': CONFIG.get_str('HC_API')
+                   'authorization': self.apikey
                    }
         query = {'query': searchcmd}
         cache_location = DIRS.get_cachedir('JSONCache')
@@ -439,7 +461,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         else:
             lazylibrarian.CACHE_MISS += 1
             if BLOCKHANDLER.is_blocked(self.provider):
-                return {}, False
+                return {}, 'Blocked'
             hc_api_sleep()
             try:
                 http.client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
@@ -455,13 +477,51 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                 with open(syspath(hashfilename), "w") as cachefile:
                     cachefile.write(json.dumps(res))
             else:
-                res = {}
-                self.logger.error('Access forbidden. Please wait a while before trying %s again.' % self.provider)
+                # expected failure codes...
+                # 401 expired or invalid api token
+                # 403 blocked action (invalid query type, depth limit exceeded, multiple queries)
+                # 429 rate limit of 60 per minute exceeded
+                # 500 internal server error
+                # On 429 error we should get headers
+                # RateLimit-Limit 60 (requests per minute)
+                # RateLimit-Remaining 0 (none left)
+                # RateLimit-Reset 1735843440 (unix seconds count when reset)
+                delay = 0
+                if r.status_code == 429:
+                    limit = r.headers.get('RateLimit-Limit', 'Unknown')
+                    remaining = r.headers.get('RateLimit-Remaining', 'Unknown')
+                    reset = r.headers.get('RateLimit-Reset', 'Unknown')
+                    sleep_time = 0.0
+                    if str(reset).isdigit():
+                        sleep_time = reset - time.time()
+                        reset = time.strftime("%H:%M:%S", time.localtime(reset))
+                    self.logger.debug(f"429 error. Limit {limit}, Remaining {remaining}, Reset {reset}")
+                    if sleep_time > 0.0:
+                        if sleep_time < 5.0:  # short waits just sleep a bit
+                            time.sleep(sleep_time)
+                            lazylibrarian.TIMERS['SLEEP_HC'] += sleep_time
+                        else:  # longer waits block provider and continue
+                            delay = int(sleep_time)
+                elif r.status_code in [401, 403]:
+                    # allow time for user to update
+                    delay = 24 * 3600
+                elif r.status_code == 500:
+                    # time for hardcover to fix error
+                    delay = 2 * 3600
+                else:
+                    # unexpected error code, short delay
+                    delay = 60
                 try:
+                    res = r.json()
                     msg = str(r.status_code)
                 except Exception:
+                    res = {}
                     msg = "Unknown reason"
-                BLOCKHANDLER.block_provider(self.provider, msg, delay=10)
+                if 'errors' in res:
+                    msg = str(res['errors'])
+                    self.logger.error(msg)
+                if delay:
+                    BLOCKHANDLER.block_provider(self.provider, msg, delay=delay)
         return res, valid_cache
 
     def get_series_members(self, series_ident=None, series_title='', queue=None, refresh=False):
@@ -1465,6 +1525,30 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             db.close()
 
         return
+
+    def hc_whoami(self, userid=None):
+        msg = ''
+        if not userid:
+            userid, msg = get_current_userid()
+        if msg:
+            return msg
+
+        #   Read the users bearer token here and pass to self.apikey
+
+        searchcmd = self.HC_WHOAMI
+        results, _ = self.result_from_cache(searchcmd, refresh=True)
+        if 'errors' in results:
+            self.logger.error(str(results['errors']))
+            return str(results['errors'])
+        if 'data' in results and 'me' in results['data']:
+            # this is the hc_id tied to the api bearer token
+            res = results['data']['me']
+            whoami = res[0]['id']
+            if whoami:
+                db = database.DBConnection()
+                db.upsert("users", {'hc_id': whoami}, {'UserID': userid})
+                return whoami
+        return str(results)
 
     def sync(self, library='', userid=None):
         # hc status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf

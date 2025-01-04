@@ -7133,7 +7133,19 @@ class WebInterface(object):
         return res
 
     @cherrypy.expose
-    def test_gr_auth(self, **kwargs):
+    def test_hcauth(self, **kwargs):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        thread_name("WEBSERVER")
+        if 'userid' in kwargs:
+            res = hc.test_auth(kwargs['userid'])
+        else:
+            res = hc.test_auth()
+        if str(res).isnumeric():
+            res = f"Pass: whoami={res}"
+        return res
+
+    @cherrypy.expose
+    def test_grauth(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         fail = ''

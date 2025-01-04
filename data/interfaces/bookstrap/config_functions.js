@@ -480,6 +480,23 @@
         });
 
 
+        $('#test_hcauth').click(function () {
+            let hc_api = $.trim($("#hc_api").val());
+            $.get("test_hcauth", {},
+                function (data) {
+                    bootbox.dialog({
+                        title: 'HardCover Auth',
+                        message: '<pre>'+data+'</pre>',
+                        buttons: {
+                            primary: {
+                                label: "Close",
+                                className: 'btn-primary'
+                            }
+                        }
+                    });
+                });
+        });
+
         $('#test_grauth').click(function () {
             let gr_api = $.trim($("#gr_api").val());
             let gr_secret = $.trim($("#gr_secret").val());
