@@ -75,7 +75,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
                 akas = get_list(item['AKA'], ',')
                 if akas:
                     for aka in akas:
-                        match_fuzz = fuzz.token_set_ratio(aka.lower().replace('.', ''), match_name)
+                        match_fuzz = fuzz.token_set_ratio(aka.lower().replace('.', '').replace(',', ''), match_name)
                         if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                             logger.debug("Fuzzy AKA match [%s] %s%% for [%s]" % (aka, match_fuzz, author))
                             author = item['AuthorName']
@@ -225,10 +225,11 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
         if check_exist_author:
             akas = get_list(check_exist_author['AKA'], ',')
             new_aka = False
-            aka = author_info.get('aka', '')
+            aka = author_info.get('aka', '').replace(',', '')
             if aka and aka not in akas:
                 akas.append(aka)
                 new_aka = True
+            req_author = req_author.replace(',', '')
             if author != req_author and req_author not in akas:
                 akas.append(req_author)
                 new_aka = True
@@ -346,17 +347,23 @@ def get_all_author_details(authorid=None, authorname=None):
         if author.get('AKA'):
             akas = get_list(author.get('AKA', ''), ',')
 
-        if gr_name and author['authorname'] != gr_name and gr_name not in akas:
-            logger.warning("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
-                           (author['authorid'], author['authorname'], gr_name))
+        if gr_name:
+            gr_name = gr_name.replace(',', '')
+            if author['authorname'] != gr_name and gr_name not in akas:
+                logger.warning("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
+                               (author['authorid'], author['authorname'], gr_name))
             akas.append(gr_name)
-        if ol_name and author['authorname'] != ol_name and ol_name not in akas:
-            logger.warning("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
-                           (author['authorid'], author['authorname'], ol_name))
+        if ol_name:
+            ol_name = ol_name.replace(',', '')
+            if author['authorname'] != ol_name and ol_name not in akas:
+                logger.warning("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
+                               (author['authorid'], author['authorname'], ol_name))
             akas.append(ol_name)
-        if hc_name and author['authorname'] != hc_name and hc_name not in akas:
-            logger.warning("Conflicting hardcover authorname for %s [%s][%s] setting AKA" %
-                           (author['authorid'], author['authorname'], hc_name))
+        if hc_name:
+            hc_name = hc_name.replace(',', '')
+            if author['authorname'] != hc_name and hc_name not in akas:
+                logger.warning("Conflicting hardcover authorname for %s [%s][%s] setting AKA" %
+                               (author['authorid'], author['authorname'], hc_name))
             akas.append(hc_name)
         author['AKA'] = ', '.join(akas)
 
@@ -390,11 +397,18 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         if dbauthor:
             new_author = False
             authorid = dbauthor['AuthorID']
+            authorname = dbauthor['AuthorName']
         elif authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
             dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
             if dbauthor:
                 new_author = False
                 authorid = dbauthor['AuthorID']
+            else:
+                dbauthor = db.match("SELECT * from authors WHERE instr(AKA, ?) > 0", (authorname,))
+                if dbauthor:
+                    new_author = False
+                    authorid = dbauthor['AuthorID']
+                    authorname = dbauthor['AuthorName']
 
         if new_author or refresh:
             current_author = get_all_author_details(authorid, authorname)
@@ -425,7 +439,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 logger.warning("Authorname %s already exists with id %s" % (current_author['authorname'],
                                                                             dbauthor['authorID']))
                 current_author['authorid'] = dbauthor['authorid']
-                aka = authorname
+                aka = authorname.replace(',', '')
                 akas = get_list(dbauthor['AKA'], ',')
                 if aka and aka not in akas:
                     akas.append(aka)
