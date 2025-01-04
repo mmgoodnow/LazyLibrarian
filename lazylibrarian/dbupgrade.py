@@ -719,7 +719,7 @@ def check_db(upgradelog=None):
             cmd = "SELECT * from sqlite_master WHERE type= 'index' and tbl_name = 'member' and name = 'unq'"
             match = db.match(cmd)
             if not match:
-                logger.debug("Removing duplicates from member table and adding unique constraint")
+                logger.debug("Removing any duplicates from member table and adding unique constraint")
                 cmd = ("delete from member where rowid not in (select min(rowid) from member "
                        "group by seriesid,bookid)")
                 db.action(cmd)
@@ -1153,33 +1153,35 @@ def update_schema(db, upgradelog):
         db.action('ALTER TABLE authors ADD COLUMN gr_id TEXT')
         res = db.select('SELECT authorid,authorname from authors')
         tot = len(res)
-        lazylibrarian.UPDATE_MSG = "Copying authorid for %s authors" % tot
-        logger.debug(lazylibrarian.UPDATE_MSG)
-        cnt = 0
-        for auth in res:
-            gr_id = auth[0]
-            # name = auth[1]
-            if gr_id.isdigit():
-                cnt += 1
-                db.action("UPDATE authors SET gr_id=? WHERE authorid=?", (gr_id, gr_id))
-        lazylibrarian.UPDATE_MSG = "Copied authorid for %s authors (from %s)" % (cnt, tot)
-        upgradelog.write("%s v70: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        if tot:
+            lazylibrarian.UPDATE_MSG = "Copying authorid for %s authors" % tot
+            logger.debug(lazylibrarian.UPDATE_MSG)
+            cnt = 0
+            for auth in res:
+                gr_id = auth[0]
+                # name = auth[1]
+                if gr_id.isdigit():
+                    cnt += 1
+                    db.action("UPDATE authors SET gr_id=? WHERE authorid=?", (gr_id, gr_id))
+            lazylibrarian.UPDATE_MSG = "Copied authorid for %s authors (from %s)" % (cnt, tot)
+            upgradelog.write("%s v70: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
     if not has_column(db, 'books', 'gr_id'):
         changes += 1
         db.action('ALTER TABLE books ADD COLUMN gr_id TEXT')
         res = db.select('SELECT bookid from books')
         tot = len(res)
-        lazylibrarian.UPDATE_MSG = "Copying bookid for %s books" % tot
-        logger.debug(lazylibrarian.UPDATE_MSG)
-        cnt = 0
-        for book in res:
-            gr_id = book[0]
-            if gr_id.isdigit():
-                cnt += 1
-                db.action("UPDATE books SET gr_id=? WHERE bookid=?", (gr_id, gr_id))
-        lazylibrarian.UPDATE_MSG = "Copied bookid for %s books (from %s)" % (cnt, tot)
-        logger.debug(lazylibrarian.UPDATE_MSG)
-        upgradelog.write("%s v70: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        if tot:
+            lazylibrarian.UPDATE_MSG = "Copying bookid for %s books" % tot
+            logger.debug(lazylibrarian.UPDATE_MSG)
+            cnt = 0
+            for book in res:
+                gr_id = book[0]
+                if gr_id.isdigit():
+                    cnt += 1
+                    db.action("UPDATE books SET gr_id=? WHERE bookid=?", (gr_id, gr_id))
+            lazylibrarian.UPDATE_MSG = "Copied bookid for %s books (from %s)" % (cnt, tot)
+            logger.debug(lazylibrarian.UPDATE_MSG)
+            upgradelog.write("%s v70: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
     if not has_column(db, "books", "Narrator"):
         changes += 1
         lazylibrarian.UPDATE_MSG = 'Adding Narrator to books table'
@@ -1215,12 +1217,13 @@ def update_schema(db, upgradelog):
         upgradelog.write("%s v75: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE authors ADD COLUMN ol_id TEXT')
         res = db.select("SELECT authorid from authors WHERE authorid like 'OL%A'")
-        lazylibrarian.UPDATE_MSG = "Copying authorid for %s authors" % len(res)
-        logger.debug(lazylibrarian.UPDATE_MSG)
-        for author in res:
-            db.action("UPDATE authors SET ol_id=? WHERE authorid=?", (author['authorid'], author['authorid']))
-        lazylibrarian.UPDATE_MSG = "Copied authorid for %s authors" % len(res)
-        logger.debug(lazylibrarian.UPDATE_MSG)
+        if len(res):
+            lazylibrarian.UPDATE_MSG = "Copying authorid for %s authors" % len(res)
+            logger.debug(lazylibrarian.UPDATE_MSG)
+            for author in res:
+                db.action("UPDATE authors SET ol_id=? WHERE authorid=?", (author['authorid'], author['authorid']))
+            lazylibrarian.UPDATE_MSG = "Copied authorid for %s authors" % len(res)
+            logger.debug(lazylibrarian.UPDATE_MSG)
 
     if not has_column(db, "wanted", "Label"):
         changes += 1
@@ -1272,20 +1275,21 @@ def update_schema(db, upgradelog):
 
         allowed = set(string.ascii_letters + string.digits + '-_')
         res = db.select("SELECT bookid from books")
-        lazylibrarian.UPDATE_MSG = "Populating new fields in books table for %s books" % len(res)
-        logger.debug(lazylibrarian.UPDATE_MSG)
-        for book in res:
-            if book['bookid'] and book['bookid'].startswith('OL') and book['bookid'].endswith('W'):
-                db.action("UPDATE books SET ol_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
-            elif book['bookid'] and book['bookid'].isnumeric():
-                db.action("UPDATE books SET gr_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
-            elif book['bookid']:
-                if set(book['bookid']) <= allowed:
-                    db.action("UPDATE books SET gb_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
-            else:
-                logger.warning(f"Unable to determine bookid type for {book['bookid']}")
-        lazylibrarian.UPDATE_MSG = "Processed %s books" % len(res)
-        logger.debug(lazylibrarian.UPDATE_MSG)
+        if len(res):
+            lazylibrarian.UPDATE_MSG = "Populating new fields in books table for %s books" % len(res)
+            logger.debug(lazylibrarian.UPDATE_MSG)
+            for book in res:
+                if book['bookid'] and book['bookid'].startswith('OL') and book['bookid'].endswith('W'):
+                    db.action("UPDATE books SET ol_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
+                elif book['bookid'] and book['bookid'].isnumeric():
+                    db.action("UPDATE books SET gr_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
+                elif book['bookid']:
+                    if set(book['bookid']) <= allowed:
+                        db.action("UPDATE books SET gb_id=? WHERE bookid=?", (book['bookid'], book['bookid']))
+                else:
+                    logger.warning(f"Unable to determine bookid type for {book['bookid']}")
+            lazylibrarian.UPDATE_MSG = "Processed %s books" % len(res)
+            logger.debug(lazylibrarian.UPDATE_MSG)
 
     if has_column(db, "users", "HaveRead"):
         changes += 1
@@ -1313,9 +1317,9 @@ def update_schema(db, upgradelog):
                     for item in new_set:
                         cmd = 'INSERT into %s (UserID, BookID) VALUES (?,?)' % reading_list
                         db.action(cmd, (userid, item))
-
-        lazylibrarian.UPDATE_MSG = f"Processed {cnt} reading lists"
-        logger.debug(lazylibrarian.UPDATE_MSG)
+        if cnt:
+            lazylibrarian.UPDATE_MSG = f"Processed {cnt} reading lists"
+            logger.debug(lazylibrarian.UPDATE_MSG)
 
         db.action('DROP TABLE IF EXISTS temp')
         db.action('CREATE TABLE temp (UserID TEXT UNIQUE, UserName TEXT UNIQUE, Password TEXT, Email TEXT, Name TEXT,' +

@@ -18,6 +18,7 @@ import subprocess
 import tarfile
 import threading
 import time
+import datetime
 from shutil import rmtree, move
 
 import lazylibrarian
@@ -219,17 +220,12 @@ def check_for_updates():
     if 'Thread' in thread_name():
         thread_name("CRON-VERSIONCHECK")
         auto_update = CONFIG.get_bool('AUTO_UPDATE')
-    # noinspection PyBroadException
+
     db = database.DBConnection()
-    try:
-        columns = db.match('PRAGMA table_info(jobs)')
-        if columns:
-            db.upsert("jobs", {"Start": time.time()}, {"Name": "VERSIONCHECK"})
-    except Exception:
-        # jobs table might not exist yet
-        pass
-    finally:
-        db.close()
+    columns = db.match('PRAGMA table_info(jobs)')
+    if columns:
+        db.upsert("jobs", {"Start": time.time()}, {"Name": "VERSIONCHECK"})
+    db.close()
 
     logger.debug('Setting Install Type, Current & Latest Version and Commit status')
     get_install_type()
@@ -238,11 +234,10 @@ def check_for_updates():
     if CONFIG['CURRENT_VERSION'].startswith('45d4f24'):
         CONFIG.set_str('CURRENT_VERSION', 'd9002e449db276e0416a8d19423143cc677b2e84')
         CONFIG.set_int('GIT_UPDATED', 0)  # and ignore timestamp to force upgrade
-    CONFIG.set_str('LATEST_VERSION', get_latest_version())
+    get_latest_version()
     # allow comparison of long and short hashes
     if CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']):
         CONFIG.set_int('COMMITS_BEHIND', 0)
-        CONFIG.set_int('GIT_UPDATED', int(time.time()))
         lazylibrarian.COMMIT_LIST = ""
     else:
         commits, lazylibrarian.COMMIT_LIST = get_commit_difference_from_git()
@@ -273,32 +268,32 @@ def check_for_updates():
     # lazylibrarian.CONFIG['CURRENT_VERSION'] = 'testing'
 
     logger.debug(f"Update check complete. Behind {CONFIG['COMMITS_BEHIND']}")
-    # noinspection PyBroadException
     db = database.DBConnection()
-    try:
-        columns = db.match('PRAGMA table_info(jobs)')
-        if columns:
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": "VERSIONCHECK"})
-    except Exception:
-        # jobs table might not exist yet
-        pass
-    finally:
-        db.close()
+    columns = db.match('PRAGMA table_info(jobs)')
+    if columns:
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": "VERSIONCHECK"})
+    db.close()
 
 
 def get_latest_version():
     # Return latest version from git
     # if GIT install return latest on current branch
     # if nonGIT install return latest from master
-
+    created_at = ''
     if CONFIG['INSTALL_TYPE'] in ['git', 'source', 'package']:
-        latest_version = get_latest_version_from_git()
+        latest_version, created_at = get_latest_version_from_git()
     elif CONFIG['INSTALL_TYPE'] in ['win']:
         latest_version = 'WINDOWS INSTALL'
     else:
         latest_version = 'UNKNOWN INSTALL'
 
     CONFIG.set_str('LATEST_VERSION', latest_version)
+    if created_at:
+        try:
+            updated = int(time.mktime(datetime.datetime.fromisoformat(created_at).timetuple()))
+            CONFIG.set_int('GIT_UPDATED', updated)
+        except ValueError:
+            pass
     return latest_version
 
 
@@ -306,6 +301,7 @@ def get_latest_version_from_git():
     # Don't call directly, use get_latest_version as wrapper.
     logger = logging.getLogger(__name__)
     latest_version = 'Unknown'
+    created_at = ''
 
     # Can only work for non Windows driven installs, so check install type
     if CONFIG['INSTALL_TYPE'] == 'win':
@@ -358,7 +354,8 @@ def get_latest_version_from_git():
                 if str(r.status_code).startswith('2'):
                     try:
                         latest_version = r.json()[0]['id']
-                        logger.debug('Branch [%s] Latest Version has been set to [%s]' % (branch, latest_version))
+                        created_at = r.json()[0]['created_at']
+                        logger.debug(f"Branch {branch} Latest Version [{latest_version}] {created_at}")
                     except Exception as err:
                         logger.warning(f'Error {type(err).__name__} reading json response')
                         logger.error(f'{r.json()}')
@@ -374,7 +371,7 @@ def get_latest_version_from_git():
                 logger.error(f'for {url}: {str(err)}')
                 latest_version = f'Not_Available_From_Git : {type(err).__name__} : {url}'
 
-    return latest_version
+    return latest_version, created_at
 
 
 def get_commit_difference_from_git() -> (int, str):
@@ -461,16 +458,16 @@ def update_version_file(new_version_id):
     version_path = os.path.join(DIRS.CACHEDIR, 'version.txt')
 
     try:
-        # noinspection PyBroadException
-        try:
-            with open(syspath(version_path), 'r') as ver_file:
-                current_version = ver_file.read().strip(' \n\r')
-            if current_version == new_version_id:
-                return False
-        except Exception:
-            pass
+        with open(syspath(version_path), 'r') as ver_file:
+            current_version = ver_file.read().strip(' \n\r')
+        if current_version == new_version_id:
+            return False
+    except Exception as err:
+        logger.error("Unable to read current version from version.txt: %s" % str(err))
+        pass
 
-        logger.debug("Updating [%s] with value [%s]" % (version_path, new_version_id))
+    logger.debug("Updating [%s] with value [%s]" % (version_path, new_version_id))
+    try:
         with open(syspath(version_path), 'w') as ver_file:
             ver_file.write(new_version_id)
         CONFIG.set_str('CURRENT_VERSION', new_version_id)
@@ -575,7 +572,6 @@ def update():
             update_version_file(CONFIG['LATEST_VERSION'])
             upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                                           CONFIG['LATEST_VERSION']))
-            CONFIG.set_int('GIT_UPDATED', int(time.time()))
             CONFIG.set_str('CURRENT_VERSION', CONFIG['LATEST_VERSION'])
             return True
 
@@ -680,7 +676,6 @@ def update():
             update_version_file(CONFIG['LATEST_VERSION'])
             upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                                           CONFIG['LATEST_VERSION']))
-            CONFIG.set_int('GIT_UPDATED', int(time.time()))
             CONFIG.set_str('CURRENT_VERSION', CONFIG['LATEST_VERSION'])
             return True
 
