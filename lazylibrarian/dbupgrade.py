@@ -326,6 +326,7 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
 
 def check_db(upgradelog=None):
     logger = logging.getLogger(__name__)
+    loggermatching = logging.getLogger('special.matching')
     cnt = 0
     closefile = False
     db = database.DBConnection()
@@ -369,7 +370,8 @@ def check_db(upgradelog=None):
                 source = ''
             if source:
                 tot = db.select('SELECT * from authors')
-                res = db.select("SELECT * from authors WHERE %s is not null and %s != '' and Status in ('Wanted', 'Active')" % (source, source))
+                res = db.select("SELECT * from authors WHERE %s is not null and %s != '' "
+                                "and Status in ('Wanted', 'Active')" % (source, source))
                 if len(tot) - len(res):
                     logger.warning("Information source is %s but %s active authors (from %s) do not have %s ID" %
                                    (info, len(tot) - len(res), len(tot), info))
@@ -691,18 +693,17 @@ def check_db(upgradelog=None):
                     db.action("UPDATE books SET audiostatus='Skipped' WHERE bookid=?", (orphan[0],))
 
             # all authors with no books in the library and no books marked wanted unless series contributor
-            cmd = ("select authorid from authors where havebooks=0 and Reason not like '%Series%' except "
-                   "select authorid from wanted,books where books.bookid=wanted.bookid and books.status=='Wanted';")
+            cmd = ("select authorid from authors where havebooks=0 and totalbooks>0 and Reason not like '%Series%' "
+                   "except select authorid from books where (books.status='Wanted' or books.audiostatus='Wanted');")
             authors = db.select(cmd)
             if authors:
-                cnt += len(authors)
                 msg = 'Found %s %s with no books in the library or marked wanted' % (len(authors),
                                                                                      plural(len(authors), "author"))
                 logger.warning(msg)
                 # Don't auto delete them, may be in a reading list?
-                # for author in authors:
-                # name = db.match("SELECT authorname from authors where authorid=?", (author[0],))
-                # logger.warning(f"{name[0]} has no active books")
+                for author in authors:
+                    name = db.match("SELECT authorname,status,reason from authors where authorid=?", (author[0],))
+                    loggermatching.warning(f"{name[0]} ({name[1]}) has no active books ({name[2]})")
                 # db.action('DELETE from authors where authorid=?', (author[0],))
 
             # update empty bookdate to "0000"
