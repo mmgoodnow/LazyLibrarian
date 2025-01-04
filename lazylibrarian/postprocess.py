@@ -684,7 +684,8 @@ def unpack_multipart(source_dir, download_dir, title):
             return ''
         for f in listdir(source_dir):
             archivename = os.path.join(source_dir, f)
-            if not (archivename.endswith('epub') or archivename.endswith('cbz')) and zipfile.is_zipfile(archivename):
+            xtn = os.path.splitext(archivename)[1].lower()
+            if xtn not in ['.epub', '.cbz'] and zipfile.is_zipfile(archivename):
                 try:
                     z = zipfile.ZipFile(archivename)
                     for item in z.namelist():
@@ -725,8 +726,9 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
 
     # noinspection PyBroadException
     try:
-        if not (archivename.endswith('epub') or archivename.endswith('cbz')) and zipfile.is_zipfile(archivename):
-            TELEMETRY.record_usage_data('Process/Archive')
+        xtn = os.path.splitext(archivename)[1].lower()
+        if xtn not in ['.epub', '.cbz'] and zipfile.is_zipfile(archivename):
+            TELEMETRY.record_usage_data('Process/Archive/Zip')
             loggerpostprocess.debug('%s is a zip file' % archivename)
             try:
                 z = zipfile.ZipFile(archivename)
@@ -757,6 +759,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
                         f.write(z.read(item))
 
         elif tarfile.is_tarfile(archivename):
+            TELEMETRY.record_usage_data('Process/Archive/Tar')
             loggerpostprocess.debug('%s is a tar file' % archivename)
             try:
                 z = tarfile.TarFile(archivename)
@@ -786,6 +789,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
                         f.write(z.extractfile(item).read())
 
         elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
+            TELEMETRY.record_usage_data('Process/Archive/RarOne')
             loggerpostprocess.debug('%s is a rar file' % archivename)
             try:
                 z = lazylibrarian.RARFILE.RarFile(archivename)
@@ -819,6 +823,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
             try:
                 z = lazylibrarian.RARFILE(archivename)
                 loggerpostprocess.debug('%s is a rar file' % archivename)
+                TELEMETRY.record_usage_data('Process/Archive/RarTwo')
             except Exception as e:
                 if archivename.endswith('.rar'):
                     logger.debug(str(e))
@@ -1105,8 +1110,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     zipfiles = 0
                                     for f in listdir(pp_path):
                                         archivename = os.path.join(pp_path, f)
-                                        if not (archivename.endswith('epub') or archivename.endswith('cbz')) \
-                                                and zipfile.is_zipfile(archivename):
+                                        xtn = os.path.splitext(archivename)[1].lower()
+                                        if xtn not in ['.epub', '.cbz'] and zipfile.is_zipfile(archivename):
                                             zipfiles += 1
                                     if zipfiles > 1:
                                         new_pp_path = unpack_multipart(pp_path, download_dir, matchtitle)
@@ -1115,13 +1120,25 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             pp_path = new_pp_path
 
                                     # folder name matches, look in subdirectories for a filename of a valid type
+                                    file_match = False
                                     for r, _, f in walk(pp_path):
                                         for item in f:
                                             if is_valid_type(item, extensions=CONFIG.get_all_types_list(),
                                                              extras='cbr, cbz'):
                                                 pp_path = os.path.dirname(os.path.join(r, item))
+                                                file_match = True
                                                 break
-
+                                    if not file_match:
+                                        # maybe it's in an archive...
+                                        for r, _, f in walk(pp_path):
+                                            for item in f:
+                                                xtn = os.path.splitext(item)[1].lower()
+                                                if xtn not in ['.epub', '.cbr', '.cbz']:
+                                                    res = unpack_archive(os.path.join(r, item),
+                                                                         download_dir, matchtitle)
+                                                    if res:
+                                                        pp_path = res
+                                                        break
                                     skipped = False
 
                                     if booktype == 'eBook':
