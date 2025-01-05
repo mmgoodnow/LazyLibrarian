@@ -677,7 +677,6 @@ class StartupLazyLibrarian:
                     except FileNotFoundError:
                         pass
                     os.makedirs(makocache)
-                    CONFIG.set_int('GIT_UPDATED', int(time.time()))
                     if CONFIG.configfilename:
                         # won't have one if  --update
                         CONFIG.save_config_and_backup_old(section='Git')

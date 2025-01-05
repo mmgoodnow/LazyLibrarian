@@ -321,7 +321,7 @@ def get_latest_version_from_git():
             if not project:
                 project = '9317860'  # default lazylibrarian
 
-            url = f"https://gitlab.com/api/v4/projects/{project}/repository/commits"
+            url = f"https://gitlab.com/api/v4/projects/{project}/repository/commits?per_page=1"
             # Get the latest commit available from git
             logger.debug('Retrieving latest version information from git command=[%s]' % url)
 
