@@ -440,7 +440,7 @@ def check_db(upgradelog=None):
                 db.action("UPDATE books SET BookLang='Unknown' WHERE " + filt)
 
             cmd = "SELECT BookID,BookLang from books WHERE BookLang LIKE '%,%'"
-            res = db.match(cmd)
+            res = db.select(cmd)
             tot = len(res)
             if tot:
                 cnt += tot
