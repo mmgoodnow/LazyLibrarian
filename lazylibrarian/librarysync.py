@@ -35,10 +35,11 @@ from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented
                                      split_title, now, make_unicode)
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.ol import OpenLibrary
+from lazylibrarian.hc import HardCover
 from lazylibrarian.images import img_id
 from lazylibrarian.importer import (update_totals, add_author_name_to_db, search_for, collate_nopunctuation,
                                     title_translates)
-from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.preprocessor import preprocess_audio
 from lib.mobi import Mobi
 from rapidfuzz import fuzz
@@ -87,6 +88,9 @@ def get_book_meta(fdir, reason="get_book_meta"):
                     elif CONFIG['BOOK_API'] == "GoodReads":
                         gr = GoodReads(bookid)
                         gr.find_book(bookid, None, None, reason)
+                    elif CONFIG['BOOK_API'] == "HardCover":
+                        hc = HardCover(bookid)
+                        hc.find_book(bookid, None, None, reason)
                     elif CONFIG['BOOK_API'] == "OpenLibrary":
                         ol = OpenLibrary(bookid)
                         ol.find_book(bookid, None, None, reason)
@@ -227,6 +231,8 @@ def get_book_info(fname):
                             res['gr_id'] = txt
                         elif attrib[k] == 'OPENLIBRARY':
                             res['ol_id'] = txt
+                        elif attrib[k] == 'HARDCOVER':
+                            res['hc_id'] = txt
                         elif attrib[k] == 'GOOGLE':
                             res['gb_id'] = txt
         n += 1
@@ -696,6 +702,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         gr_id = ""
                         gb_id = ""
                         ol_id = ""
+                        hc_id = ""
                         publisher = ""
                         narrator = ""
                         extn = os.path.splitext(files)[1]
@@ -761,6 +768,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                             if 'ol_id' in res:
                                 ol_id = res['ol_id']
                                 ident = "OL: " + ol_id
+                            if 'hc_id' in res:
+                                hc_id = res['hc_id']
+                                ident = "HC: " + hc_id
                             logger.debug(
                                 "file meta [%s] [%s] [%s] [%s] [%s] [%s] [%s]" % (
                                     isbn, language, author, book, ident, publisher, narrator))
@@ -844,7 +854,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 else:
                                     logger.debug("Already cached Lang [%s] ISBN [%s]" % (language, isbnhead))
 
-                            newauthor, authorid, _ = add_author_name_to_db(author, addbooks=True,
+                            newauthor, authorid, _ = add_author_name_to_db(author, addbooks=None,
                                                                            reason="Add author of %s" % book, title=book)
 
                             if last_authorid and last_authorid != authorid:
@@ -875,6 +885,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     bookid = gb_id
                                 elif ol_id and CONFIG['BOOK_API'] == "OpenLibrary":
                                     bookid = ol_id
+                                elif hc_id and CONFIG['BOOK_API'] == "HardCover":
+                                    bookid = hc_id
                                 if bookid:
                                     match = db.match('SELECT AuthorID,Status FROM books where BookID=?',
                                                      (bookid,))
@@ -925,6 +937,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         elif CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
                                             finder = OpenLibrary(ol_id)
                                             finder.find_book(ol_id, None, None, "Added by ol librarysync")
+                                        elif CONFIG['BOOK_API'] == "HardCover" and hc_id:
+                                            finder = HardCover(hc_id)
+                                            finder.find_book(hc_id, None, None, "Added by hc librarysync")
 
                                     if bookid:
                                         # see if it's there now...
@@ -1029,6 +1044,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 src_id = OpenLibrary(bookid)
                                             elif source == 'GoodReads':
                                                 src_id = GoodReads(bookid)
+                                            elif source == 'HardCover':
+                                                src_id = HardCover(bookid)
                                             else:
                                                 src_id = GoogleBooks(bookid)
                                             src_id.find_book(bookid, reason="Librarysync %s rescan %s" %
