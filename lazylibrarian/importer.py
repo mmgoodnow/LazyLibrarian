@@ -286,7 +286,7 @@ def get_all_author_details(authorid=None, authorname=None):
             if not authorname and 'authorname' in ol_author:
                 authorname = ol_author['authorname']
 
-    if CONFIG['HC_API'] and (CONFIG['BOOK_API'] in ['HardCover'] or CONFIG.get_bool('MULTI_SOURCE')):
+    if CONFIG['HC_API'] and (CONFIG['BOOK_API'] in ['HardCover', 'GoogleBooks'] or CONFIG.get_bool('MULTI_SOURCE')):
         if not hc_id and not authorname and authorid.isnumeric():
             hc_id = authorid
         if not hc_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
@@ -307,7 +307,7 @@ def get_all_author_details(authorid=None, authorname=None):
             if not authorname and 'authorname' in hc_author:
                 authorname = hc_author['authorname']
 
-    if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'GoogleBooks', 'HardCover'] or
+    if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'HardCover'] or
                              CONFIG.get_bool('MULTI_SOURCE')):
         if not gr_id and not authorname and authorid.isnumeric():
             gr_id = authorid
@@ -323,22 +323,21 @@ def get_all_author_details(authorid=None, authorname=None):
             # uncomment the next 2 lines if any additional sources added later
             # if not authorname:
             #    authorname = gr_author['authorname']
-
     # which source do we prefer
     if ol_author:
         author['ol_id'] = ol_author['authorid']
         for item in ol_author:
-            if not author.get(item):  # if key doesn't exist or value empty
+            if not author.get(item):
                 author[item] = ol_author[item]
     if gr_author:
         author['gr_id'] = gr_author['authorid']
         for item in gr_author:
-            if not author.get(item) or CONFIG['BOOK_API'] == 'GoodReads':
+            if not author.get(item) or (gr_author[item] and CONFIG['BOOK_API'] == 'GoodReads'):
                 author[item] = gr_author[item]
     if hc_author:
         author['hc_id'] = hc_author['authorid']
         for item in hc_author:
-            if not author.get(item) or CONFIG['BOOK_API'] == 'HardCover':
+            if not author.get(item) or (hc_author[item] and CONFIG['BOOK_API'] == 'HardCover'):
                 author[item] = hc_author[item]
 
     if author:
