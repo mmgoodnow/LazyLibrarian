@@ -128,7 +128,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'restart': (1, 'restart lazylibrarian'),
             'update': (1, 'update lazylibrarian'),
             'findAuthor': (0, '&name= search goodreads/googlebooks for named author'),
-            'findAuthorID': (0, '&name= find goodreads ID for named author'),
+            'findAuthorID': (0, '&name= [&source=] find AuthorID for named author'),
+            'findMissingAuthorID': (0, '[&source=] find authorid from named source for any authors without id'),
             'findBook': (0, '&name= search goodreads/googlebooks for named book'),
             'addBook': (1, '&id= add book details to the database'),
             'moveBooks': (1, '&fromname= &toname= move all books from one author to another by AuthorName'),
@@ -1946,9 +1947,59 @@ class Api(object):
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
+        if 'source' in kwargs:
+            source = kwargs['source']
+        else:
+            source = CONFIG.get_str('BOOK_API')
         authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        gr = GoodReads(authorname)
-        self.data = gr.find_author_id()
+        if source == 'GoodReads':
+            gr = GoodReads(authorname)
+            self.data = gr.find_author_id()
+        if source == 'OpenLibrary':
+            ol = OpenLibrary(authorname)
+            self.data = ol.find_author_id()
+        if source == 'HardCover':
+            hc = HardCover(authorname)
+            self.data = hc.find_author_id()
+
+    def _findmissingauthorid(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'source' in kwargs:
+            source = kwargs['source']
+        else:
+            source = CONFIG.get_str('BOOK_API')
+        cnt = 0
+        db = database.DBConnection()
+        key = ''
+        if source == 'GoodReads' and CONFIG['GR_API']:
+            key = 'gr_id'
+        elif source == 'OpenLibrary' and CONFIG['OL_API']:
+            key = 'ol_id'
+        elif source == 'HardCover' and CONFIG['HC_API']:
+            key = 'hc_id'
+        if not key:
+            self.data = f"Invalid or disabled source [{source}]"
+            return
+        try:
+            authordata = db.select(f"SELECT AuthorName from authors WHERE {key}='' or {key} is null")
+            print(len(authordata))
+            api = None
+            res = {}
+            for author in authordata:
+                if source == 'GoodReads':
+                    api = GoodReads(author['AuthorName'])
+                elif source == 'OpenLibrary':
+                    api = OpenLibrary(author['AuthorName'])
+                elif source == 'HardCover':
+                    api = HardCover(author['AuthorName'])
+                if api:
+                    res = api.find_author_id()
+                if res.get('authorid'):
+                    db.action(f"update authors set {key}=? where authorname=?", (res.get('authorid'), author['AuthorName']))
+                    cnt += 1
+        finally:
+            db.close()
+        self.data = f"Updated {source} authorid for {cnt} authors"
 
     def _findauthor(self, **kwargs):
         TELEMETRY.record_usage_data()
