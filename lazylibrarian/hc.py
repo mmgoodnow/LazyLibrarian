@@ -55,7 +55,7 @@ def get_current_userid():
     if userid:
         # need to collect the users apikey from the database
         db = database.DBConnection()
-        user = db.match("select distinct userid from sync where label like 'hc_%'")
+        user = db.match("select distinct userid from sync where instr(label, 'hc_') = 1")
         db.close()
         if not user or not user[0]:
             msg = 'No users with HardCover sync enabled'
@@ -325,6 +325,11 @@ query FindBookByName {
                                                         ).replace('[order]', '')
         self.HC_ISBN10_BOOKS = self.HC_FINDBOOK.replace('[where]', '{isbn_10: {_eq: "[isbn]"}}'
                                                         ).replace('[order]', '')
+
+# queries below this point use a bookid, authorid, seriesid
+# so should be faster if we query books_by_pk rather than query books
+# but at the moment that's not the case.
+
         self.HC_BOOKID_BOOKS = self.HC_FINDBOOK.replace('[where]', '{id: {_eq: [bookid]}}'
                                                         ).replace('[order]', '')
         self.HC_AUTHORID_BOOKS = self.HC_FINDBOOK.replace('[where]',
@@ -373,7 +378,6 @@ query FindEdition { editions(where: {book_id: {_eq: [bookid]}})
   }
 }
 '''
-# cached_image in authors is a book image, not author??
         self.HC_AUTHORINFO = '''
 query FindAuthor { authors(where: {id: {_eq: [authorid]}})
   {
@@ -384,6 +388,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
     born_year
     born_date
     bio
+    cached_image
   }
 }'''
 
@@ -685,7 +690,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                     # search results return a different layout to books
                     bookdict = self.get_searchdict(book_data)
                 else:
-                    bookdict = self.get_bookdict(book_data)
+                    bookdict = self.build_bookdict(book_data)
 
                 if searchauthorname:
                     author_fuzz = fuzz.token_set_ratio(bookdict['auth_name'], searchauthorname)
@@ -848,6 +853,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         author_born = ''
         author_died = ''
         author_link = ''
+        author_img = ''
         about = ''
         totalbooks = 0
         api_hits = 0
@@ -871,8 +877,11 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                     author_died = author.get('death_date', '')
                     totalbooks = author.get('books_count', 0)
                     about = author.get('bio', '')
-                    # if 'cached_image' in author and author['cached_image'].get('url'):
-                    #     author_img = author['cached_image']['url']
+                    if 'cached_image' in author:
+                        img = author['cached_image'].get('url')
+                        if '/books/' not in img:
+                            # hardcover image bug, sometimes gives us a book cover instead of author image
+                            author_img = author['cached_image']['url']
                     break
 
         if "," in author_name:
@@ -889,14 +898,12 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
             return {}
 
         self.logger.debug("[%s] Returning HC info for authorID: %s" % (author_name, authorid))
-        # return authorimg in this dict once we get a reliable one from hc
-        # need to uncomment cached_image lines above
         author_dict = {
             'authorid': str(authorid),
             'authorlink': author_link,
-            # 'authorimg': author_img,
             'authorborn': author_born,
             'authordeath': author_died,
+            'authorimg': author_img,
             'about': about,
             'totalbooks': totalbooks,
             'authorname': format_author_name(author_name, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
@@ -904,7 +911,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         self.logger.debug("AuthorInfo used %s api hit, %s in cache" % (api_hits, cache_hits))
         return author_dict
 
-    def get_bookdict(self, book_data):
+    def build_bookdict(self, book_data):
         bookdict = {}
         if 'contributions' in book_data and len(book_data['contributions']):
             author = book_data['contributions'][0]
@@ -1104,7 +1111,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
 
             self.logger.debug(f"HC found {len(results['data']['books'])} results")
             for book_data in results['data']['books']:
-                bookdict = self.get_bookdict(book_data)
+                bookdict = self.build_bookdict(book_data)
                 if bookdict['auth_name'] != entry_name:
                     # not our author, might be a contributor to an anthology?
                     if 'contributions' in book_data and len(book_data['contributions']):
@@ -1244,7 +1251,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                 exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
                                 if not exists:
                                     exists = db.match("SELECT * from series WHERE seriesname=? "
-                                                      "and seriesid like 'HC%'", (ser_name,))
+                                                      "and instr(seriesid, 'HC') = 1", (ser_name,))
                                 if not exists:
                                     self.logger.debug("New series: %s:%s" % (ser_id, ser_name))
                                     db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
@@ -1312,17 +1319,9 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                                     # make sure bookid is in database, if not, add it
                                                     match = db.match(cmd, (str(member[4]),))
                                                     if not match:
-                                                        bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]',
-                                                                                                 str(member[4]))
-                                                        results, in_cache = self.result_from_cache(bookidcmd,
-                                                                                                   refresh=refresh)
+                                                        newbookdict, in_cache = self.get_bookdict(str(member[4]))
                                                         api_hits += not in_cache
                                                         cache_hits += in_cache
-                                                        newbookdict = {}
-                                                        if 'errors' in results:
-                                                            self.logger.error(str(results['errors']))
-                                                        if 'data' in results and results['data'].get('books'):
-                                                            newbookdict = self.get_bookdict(results['data']['books'][0])
                                                         if newbookdict:
                                                             cover_link = newbookdict['cover']
                                                             if 'nocover' in cover_link or 'nophoto' in cover_link:
@@ -1420,24 +1419,18 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         finally:
             db.close()
 
-    def find_bookdict(self, bookid=None):
+    def get_bookdict(self, bookid=None):
         bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
         bookdict = {}
         if 'errors' in results:
             self.logger.error(str(results['errors']))
         if 'data' in results and results['data'].get('books'):
-            bookdict = self.get_bookdict(results['data']['books'][0])
-        return bookdict
+            bookdict = self.build_bookdict(results['data']['books'][0])
+        return bookdict, in_cache
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.find_book'):
-        bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
-        results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
-        bookdict = {}
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
-        if 'data' in results and results['data'].get('books'):
-            bookdict = self.get_bookdict(results['data']['books'][0])
+        bookdict, _ = self.get_bookdict(bookid)
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
             self.logger.debug("No bookstatus passed, using default %s" % bookstatus)
@@ -1650,12 +1643,8 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                 sync_dict[res['bookid']] = item['id']
                         else:
                             self.syncinglogger.warning(f"{mapp[2]} {hc_id} not found in database")
-                            bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(hc_id))
-                            results, _ = self.result_from_cache(bookidcmd, refresh=False)
-                            if 'errors' in results:
-                                self.logger.error(str(results['errors']))
-                            elif 'data' in results and results['data'].get('books'):
-                                newbookdict = self.get_bookdict(results['data']['books'][0])
+                            newbookdict, in_cache = self.get_bookdict(str(hc_id))
+                            if newbookdict:
                                 in_db = lazylibrarian.librarysync.find_book_in_db(newbookdict['auth_name'],
                                                                                   newbookdict['title'],
                                                                                   source='',
@@ -1687,7 +1676,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                                                              f"{newbookdict['title']}")
                                     self.find_book(str(hc_id))
                             else:
-                                self.syncinglogger.debug(results)
+                                self.syncinglogger.debug(f"No bookdict found for {hc_id}")
             last_toread = []
             last_reading = []
             last_read = []
