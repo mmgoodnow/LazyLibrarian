@@ -258,7 +258,7 @@ def cache_bookimg(img, bookid, src, suffix='', imgid=None):
     return ''
 
 
-def get_book_cover(bookid=None, src=None, ignore=None):
+def get_book_cover(bookid=None, src=None, ignore=''):
     """ Return link to a local file containing a book cover image for a bookid, and which source used.
         Try 1. Local file cached from goodreads/googlebooks when book was imported
             2. cover.jpg if we have the book
@@ -354,7 +354,7 @@ def get_book_cover(bookid=None, src=None, ignore=None):
             item = db.match(cmd, (bookid,))
             if item and item['hc_id']:
                 h_c = lazylibrarian.hc.HardCover(item['hc_id'])
-                bookdict, _ = h_c.get_bookdict(item['hc_id'])
+                bookdict = h_c.find_bookdict(item['hc_id'])
                 img = bookdict['cover']
                 if img:
                     coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)
