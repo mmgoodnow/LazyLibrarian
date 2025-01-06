@@ -878,8 +878,8 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                     totalbooks = author.get('books_count', 0)
                     about = author.get('bio', '')
                     if 'cached_image' in author:
-                        img = author['cached_image'].get('url')
-                        if '/books/' not in img:
+                        img = author['cached_image'].get('url', '')
+                        if img and '/books/' not in img:
                             # hardcover image bug, sometimes gives us a book cover instead of author image
                             author_img = author['cached_image']['url']
                     break
