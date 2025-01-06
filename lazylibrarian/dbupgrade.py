@@ -602,7 +602,7 @@ def check_db(upgradelog=None):
                             db.action(f"DELETE from {table} WHERE GenreID=?", (match['GenreID'],))
 
                 for item in lazylibrarian.GRGENRES.get('genreExcludeParts', []):
-                    cmd = f"SELECT GenreID,GenreName from genres where instr(GenreName, {item}) > 0 COLLATE NOCASE"
+                    cmd = f"SELECT GenreID,GenreName from genres where instr(GenreName, '{item}') > 0 COLLATE NOCASE"
                     matches = db.select(cmd)
                     if matches:
                         cnt += len(matches)

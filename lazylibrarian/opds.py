@@ -420,7 +420,7 @@ class OPDS(object):
                "genrebooks.genreid = genres.genreid and books.status='Open' and "
                "books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0")
         if 'query' in kwargs:
-            cmd += f" and instr(genrename, {kwargs['query']}) > 0"
+            cmd += f" and instr(genrename, '{kwargs['query']}') > 0"
         cmd += " order by cnt DESC,genrename ASC"
         db = database.DBConnection()
         try:
@@ -591,7 +591,7 @@ class OPDS(object):
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Authors'))
         cmd = "SELECT AuthorName,AuthorID,HaveEBooks,TotalBooks,Updated,AuthorImg from Authors WHERE "
         if 'query' in kwargs:
-            cmd += f"instr(AuthorName, {kwargs['query']}) > 0 AND "
+            cmd += f"instr(AuthorName, '{kwargs['query']}') > 0 AND "
         cmd += "HaveEBooks > 0 order by AuthorName"
         db = database.DBConnection()
         try:
@@ -668,7 +668,7 @@ class OPDS(object):
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Authors'))
         cmd = "SELECT AuthorName,AuthorID,HaveAudioBooks,TotalBooks,Updated,AuthorImg from Authors WHERE "
         if 'query' in kwargs:
-            cmd += f"instr(AuthorName, {kwargs['query']}) > 0 AND "
+            cmd += f"instr(AuthorName, '{kwargs['query']}') > 0 AND "
         cmd += "HaveAudioBooks > 0 order by AuthorName"
         db = database.DBConnection()
         try:
@@ -743,7 +743,7 @@ class OPDS(object):
         cmd = ("select comics.*,(select count(*) as counter from comicissues where "
                "comics.ComicID = comicissues.ComicID) as Iss_Cnt from comics ")
         if 'query' in kwargs:
-            cmd += f"WHERE instr(comics.title, {kwargs['query']}) > 0 "
+            cmd += f"WHERE instr(comics.title, '{kwargs['query']}') > 0 "
         cmd += "order by comics.title"
         db = database.DBConnection()
         try:
@@ -816,7 +816,7 @@ class OPDS(object):
         cmd = ("select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title) "
                "as Iss_Cnt from magazines ")
         if 'query' in kwargs:
-            cmd += f"WHERE instr(magazines.title, {kwargs['query']}) > 0 "
+            cmd += f"WHERE instr(magazines.title, '{kwargs['query']}') > 0 "
         cmd += "order by magazines.title"
         db = database.DBConnection()
         try:
@@ -888,7 +888,7 @@ class OPDS(object):
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Series'))
         cmd = "SELECT SeriesName,SeriesID,Have,Total from Series WHERE CAST(Have AS INTEGER) > 0 "
         if 'query' in kwargs:
-            cmd += f"AND instr(SeriesName, {kwargs['query']}) > 0 "
+            cmd += f"AND instr(SeriesName, '{kwargs['query']}') > 0 "
         cmd += "order by SeriesName"
         db = database.DBConnection()
         try:
@@ -1119,7 +1119,7 @@ class OPDS(object):
             author = make_unicode(author['AuthorName'])
             cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,BookFile from books WHERE "
             if 'query' in kwargs:
-                cmd += f"instr(BookName, {kwargs['query']} > 0 AND "
+                cmd += f"instr(BookName, '{kwargs['query']}' > 0 AND "
             cmd += "Status='Open' and AuthorID=? order by BookDate DESC"
             results = db.select(cmd, (kwargs['authorid'],))
         finally:
@@ -1212,7 +1212,7 @@ class OPDS(object):
             author = make_unicode(author['AuthorName'])
             cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,AudioFile from books WHERE "
             if 'query' in kwargs:
-                cmd += f"instr(BookName, {kwargs['query']}) > 0 AND "
+                cmd += f"instr(BookName, '{kwargs['query']}') > 0 AND "
             cmd += "AudioStatus='Open' and AuthorID=? order by BookDate DESC"
             results = db.select(cmd, (kwargs['authorid'],))
         finally:
@@ -1398,7 +1398,7 @@ class OPDS(object):
         cmd = "select Title,IssueID,IssueAcquired,IssueDate,IssueFile,Cover from issues "
         cmd += "where IssueFile != '' "
         if 'query' in kwargs:
-            cmd += f"AND instr(Title, {kwargs['query']}) > 0 "
+            cmd += f"AND instr(Title, '{kwargs['query']}') > 0 "
         cmd += "order by IssueAcquired DESC"
         db = database.DBConnection()
         try:
@@ -1466,7 +1466,7 @@ class OPDS(object):
         cmd = "select comics.ComicID,Title,IssueID,IssueAcquired,IssueFile,Start from comics,comicissues "
         cmd += "where comics.ComicID = comicissues.ComicID and IssueFile != '' "
         if 'query' in kwargs:
-            cmd += f"AND instr(Title, {kwargs['query']}) > 0 "
+            cmd += f"AND instr(Title, '{kwargs['query']}') > 0 "
         cmd += "order by IssueAcquired DESC"
         db = database.DBConnection()
         try:
@@ -1553,7 +1553,7 @@ class OPDS(object):
         cmd = ("select BookName,BookID,BookLibrary,BookDate,BookImg,BookDesc,BookRate,BookAdded,BookFile,AuthorID "
                "from books where Status='Open' ")
         if 'query' in kwargs:
-            cmd += f"AND instr(BookName, {kwargs['query']}) > 0 "
+            cmd += f"AND instr(BookName, '{kwargs['query']}') > 0 "
         if sorder == 'Recent':
             cmd += "order by BookLibrary DESC, BookName ASC"
         if sorder == 'Rated':
@@ -1680,7 +1680,7 @@ class OPDS(object):
         cmd = ("select BookName,BookID,AudioLibrary,BookDate,BookImg,BookDesc,BookRate,BookAdded,AuthorID"
                " from books WHERE ")
         if 'query' in kwargs:
-            cmd += f"instr(BookName, {kwargs['query']}) > 0 AND "
+            cmd += f"instr(BookName, '{kwargs['query']}') > 0 AND "
         cmd += "AudioStatus='Open'"
         if sorder == 'Recent':
             cmd += " order by AudioLibrary DESC, BookName ASC"

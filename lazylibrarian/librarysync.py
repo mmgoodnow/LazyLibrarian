@@ -566,7 +566,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 cmd = ("select AuthorName, BookName, BookFile, BookID from books,authors where BookLibrary "
                        "is not null and books.AuthorID = authors.AuthorID")
                 if not startdir == destdir:
-                    cmd += f" and instr(BookFile, {startdir}) = 1"
+                    cmd += f" and instr(BookFile, '{startdir}') = 1"
                 books = db.select(cmd)
                 status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing eBooks will be marked as %s' % status)
@@ -583,7 +583,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 cmd = ("select AuthorName, BookName, AudioFile, BookID from books,authors where AudioLibrary "
                        "is not null and books.AuthorID = authors.AuthorID")
                 if not startdir == destdir:
-                    cmd += f" and instr(AudioFile, {startdir}) = 1"
+                    cmd += f" and instr(AudioFile, '{startdir}') = 1"
                 books = db.select(cmd)
                 status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing AudioBooks will be marked as %s' % status)
