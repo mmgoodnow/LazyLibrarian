@@ -190,7 +190,7 @@ def mailing_list(book_type, global_name, book_id):
                                 msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
                                     '{link}', link).replace('{method}', ' is available for download ')
                             result = email_notifier.email_file(subject="Message from LazyLibrarian",
-                                                               message=msg, to_addr=res['SendTo'], files=[])
+                                                               message=msg, to_addr=addr, files=[])
                 if result:
                     count += 1
                     db.action("DELETE from subscribers WHERE UserID=? and Type=? and WantID=?",
