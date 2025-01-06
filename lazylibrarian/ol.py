@@ -864,7 +864,7 @@ class OpenLibrary:
                                         exists = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
                                         if not exists:
                                             exists = db.match("SELECT * from series WHERE seriesname=? "
-                                                              "and seriesid like 'LT%'", (series[0],))
+                                                              "and instr(seriesid, 'LT') = 1", (series[0],))
                                         if not exists:
                                             self.logger.debug("New series: %s" % series[0])
                                             db.action('INSERT INTO series (SeriesID, SeriesName, Status, '

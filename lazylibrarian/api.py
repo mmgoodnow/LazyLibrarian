@@ -1405,7 +1405,7 @@ class Api(object):
     def _listnobooks(self):
         TELEMETRY.record_usage_data()
         q = 'select authorid,authorname,reason from authors where haveebooks+haveaudiobooks=0 and '
-        q += 'reason not like "%Series%" except select authors.authorid,authorname,reason from books,authors where '
+        q += "instr(reason, 'Series') = 0 except select authors.authorid,authorname,reason from books,authors where "
         q += 'books.authorid=authors.authorid and books.status=="Wanted";'
         self.data = self._dic_from_query(q)
 
@@ -1995,7 +1995,8 @@ class Api(object):
                 if api:
                     res = api.find_author_id()
                 if res.get('authorid'):
-                    db.action(f"update authors set {key}=? where authorname=?", (res.get('authorid'), author['AuthorName']))
+                    db.action(f"update authors set {key}=? where authorname=?",
+                              (res.get('authorid'), author['AuthorName']))
                     cnt += 1
         finally:
             db.close()

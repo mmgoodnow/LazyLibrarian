@@ -166,7 +166,7 @@ def get_author_images():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        cmd = ("select AuthorID, AuthorName from authors where (AuthorImg like '%nophoto%' or "
+        cmd = ("select AuthorID, AuthorName from authors where (instr(AuthorImg, 'nophoto') > 0 or "
                "AuthorImg is null) and Manual is not '1'")
         authors = db.select(cmd)
         if authors:
@@ -204,8 +204,8 @@ def get_book_covers():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        cmd = ("select BookID,BookImg from books where BookImg like '%nocover%' "
-               "or BookImg like '%nophoto%' and Manual is not '1'")
+        cmd = ("select BookID,BookImg from books where instr(BookImg,'nocover') > 0 "
+               "or instr(BookImg, 'nophoto') > 0 and Manual is not '1'")
         books = db.select(cmd)
         if books:
             logger.info('Checking covers for %s %s' % (len(books), plural(len(books), "book")))
@@ -354,7 +354,7 @@ def get_book_cover(bookid=None, src=None, ignore=None):
             item = db.match(cmd, (bookid,))
             if item and item['hc_id']:
                 h_c = lazylibrarian.hc.HardCover(item['hc_id'])
-                bookdict = h_c.find_bookdict(item['hc_id'])
+                bookdict, _ = h_c.get_bookdict(item['hc_id'])
                 img = bookdict['cover']
                 if img:
                     coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)

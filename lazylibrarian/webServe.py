@@ -2684,8 +2684,8 @@ class WebInterface(object):
                     res = db.select("SELECT WantID from subscribers WHERE Type='feed' and UserID=?", (userid,))
                     loggerserverside.debug("User subscribes to %s feeds" % len(res))
                     for feed in res:
-                        sel = 'SELECT BookID from books WHERE Requester like "%?%"'
-                        sel += '  or AudioRequester like "%?%"'
+                        sel = "SELECT BookID from books WHERE instr(Requester, '?') > 0"
+                        sel += "  or instr(AudioRequester, '?') > 0"
                         bookids = db.select(sel, (feed['WantID'], feed['WantID']))
                         for bookid in bookids:
                             mybooks.append(bookid['BookID'])

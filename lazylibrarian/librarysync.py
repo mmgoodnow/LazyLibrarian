@@ -525,7 +525,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 lazylibrarian.AUDIO_UPDATE = 1
             db.action('DELETE from stats')
             try:  # remove any extra whitespace in authornames
-                authors = db.select("SELECT AuthorID,AuthorName FROM authors WHERE AuthorName like '%  %'")
+                authors = db.select("SELECT AuthorID,AuthorName FROM authors WHERE instr(AuthorName, '  ') > 0")
                 if authors:
                     logger.info('Removing extra spaces from %s %s' % (len(authors), plural(len(authors), "authorname")))
                     for author in authors:
@@ -566,7 +566,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 cmd = ("select AuthorName, BookName, BookFile, BookID from books,authors where BookLibrary "
                        "is not null and books.AuthorID = authors.AuthorID")
                 if not startdir == destdir:
-                    cmd += " and BookFile like '" + startdir + "%'"
+                    cmd += f" and instr(BookFile, {startdir}) = 1"
                 books = db.select(cmd)
                 status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing eBooks will be marked as %s' % status)
@@ -583,7 +583,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 cmd = ("select AuthorName, BookName, AudioFile, BookID from books,authors where AudioLibrary "
                        "is not null and books.AuthorID = authors.AuthorID")
                 if not startdir == destdir:
-                    cmd += " and AudioFile like '" + startdir + "%'"
+                    cmd += f" and instr(AudioFile, {startdir}) = 1"
                 books = db.select(cmd)
                 status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing AudioBooks will be marked as %s' % status)
@@ -1280,7 +1280,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                               plural(cachesize['counter'], 'entry')))
 
             # Cache any covers and images
-            images = db.select("select bookid, bookimg, bookname from books where bookimg like 'http%'")
+            images = db.select("select bookid, bookimg, bookname from books where instr(bookimg, 'http') = 1")
             if len(images):
                 logger.info("Caching %s for %i %s" % (plural(len(images), "cover"), len(images),
                                                       plural(len(images), "book")))
@@ -1292,7 +1292,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     if success:
                         db.action('update books set BookImg=? where BookID=?', (newimg, bookid))
 
-            images = db.select("select AuthorID, AuthorImg, AuthorName from authors where AuthorImg like 'http%'")
+            images = db.select("select AuthorID, AuthorImg, AuthorName from authors where instr(AuthorImg, 'http') = 1")
             if len(images):
                 logger.info("Caching %s for %i %s" % (plural(len(images), "image"), len(images),
                                                       plural(len(images), "author")))

@@ -415,7 +415,7 @@ def check_db(upgradelog=None):
                     db.action("DELETE from series where total=1")
 
             # Extract any librarything workids from workpage url
-            cmd = ("SELECT WorkPage,BookID from books WHERE WorkPage like '%librarything.com/work/%' "
+            cmd = ("SELECT WorkPage,BookID from books WHERE instr(WorkPage, 'librarything.com/work/') > 0 "
                    "and LT_WorkID is NULL")
             res = db.select(cmd)
             tot = len(res)
@@ -439,7 +439,7 @@ def check_db(upgradelog=None):
                 logger.warning(msg)
                 db.action("UPDATE books SET BookLang='Unknown' WHERE " + filt)
 
-            cmd = "SELECT BookID,BookLang from books WHERE BookLang LIKE '%,%'"
+            cmd = "SELECT BookID,BookLang from books WHERE instr(BookLang, ',') > 0"
             res = db.select(cmd)
             tot = len(res)
             if tot:
@@ -522,7 +522,7 @@ def check_db(upgradelog=None):
 
             # remove authors that started initializing, but failed to get added fully
             lazylibrarian.UPDATE_MSG = 'Removing partially initialized authors'
-            authors = db.select("SELECT AuthorID FROM authors WHERE AuthorName LIKE 'unknown author %'")
+            authors = db.select("SELECT AuthorID FROM authors WHERE instr(AuthorName, 'unknown author ') > 0")
             if authors:
                 cnt += len(authors)
                 msg = 'Removing %s %s partially initialized authors' % (len(authors), plural(len(authors), "author"))
@@ -602,7 +602,7 @@ def check_db(upgradelog=None):
                             db.action(f"DELETE from {table} WHERE GenreID=?", (match['GenreID'],))
 
                 for item in lazylibrarian.GRGENRES.get('genreExcludeParts', []):
-                    cmd = "SELECT GenreID,GenreName from genres where GenreName like '%" + item + "%' COLLATE NOCASE"
+                    cmd = f"SELECT GenreID,GenreName from genres where instr(GenreName, {item}) > 0 COLLATE NOCASE"
                     matches = db.select(cmd)
                     if matches:
                         cnt += len(matches)
@@ -693,7 +693,7 @@ def check_db(upgradelog=None):
                     db.action("UPDATE books SET audiostatus='Skipped' WHERE bookid=?", (orphan[0],))
 
             # all authors with no books in the library and no books marked wanted unless series contributor
-            cmd = ("select authorid from authors where havebooks=0 and totalbooks>0 and Reason not like '%Series%' "
+            cmd = ("select authorid from authors where havebooks=0 and totalbooks>0 and instr(Reason, 'Series') = 0 "
                    "except select authorid from books where (books.status='Wanted' or books.audiostatus='Wanted');")
             authors = db.select(cmd)
             if authors:

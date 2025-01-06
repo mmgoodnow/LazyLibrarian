@@ -1278,7 +1278,7 @@ def get_work_series(bookid=None, source='GR', reason=""):
     elif source == 'HC':
         series_results = []
         hc = lazylibrarian.hc.HardCover(bookid)
-        res = hc.find_bookdict(bookid)
+        res, _ = hc.get_bookdict(bookid)
         if 'series' in res:
             series_results = res['series']
         for item in series_results:
