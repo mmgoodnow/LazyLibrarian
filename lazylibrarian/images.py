@@ -354,7 +354,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             item = db.match(cmd, (bookid,))
             if item and item['hc_id']:
                 h_c = lazylibrarian.hc.HardCover(item['hc_id'])
-                bookdict = h_c.get_bookdict(item['hc_id'])
+                bookdict, _ = h_c.get_bookdict(item['hc_id'])
                 img = bookdict['cover']
                 if img:
                     coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)
