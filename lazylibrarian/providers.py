@@ -503,6 +503,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
 
     logger = logging.getLogger(__name__)
     iterateproviderslogger = logging.getLogger('special.iterateproviders')
+    iterateproviderslogger.debug(f"ZNAB: Book:{book}, SearchType:{search_type}")
     resultslist = []
     providers = 0
 
@@ -566,7 +567,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
             if BLOCKHANDLER.is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % dispname)
                 ignored = True
-            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
+            elif 'book' in search_type and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % dispname)
                 ignored = True
             elif "audio" in search_type and 'A' not in provider['DLTYPES']:
@@ -610,6 +611,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
 def iterate_over_torrent_sites(book=None, search_type=None):
     logger = logging.getLogger(__name__)
     iterateproviderslogger = logging.getLogger('special.iterateproviders')
+    iterateproviderslogger.debug(f"Torrents: Book:{book}, SearchType:{search_type}")
     resultslist = []
     providers = 0
 
@@ -668,6 +670,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
 def iterate_over_direct_sites(book=None, search_type=None):
     logger = logging.getLogger(__name__)
     iterateproviderslogger = logging.getLogger('special.iterateproviders')
+    iterateproviderslogger.debug(f"Direct: Book:{book}, SearchType:{search_type}")
     resultslist = []
     providers = 0
     if search_type not in ['mag', 'comic'] and not search_type.startswith('general'):
@@ -903,6 +906,7 @@ def iterate_over_wishlists():
 def iterate_over_irc_sites(book=None, search_type=None):
     logger = logging.getLogger(__name__)
     iterateproviderslogger = logging.getLogger('special.iterateproviders')
+    iterateproviderslogger.debug(f"IRS: Book:{book}, SearchType:{search_type}")
     resultslist = []
     providers = 0
     try:
