@@ -107,6 +107,10 @@ def get_install_type():
         CONFIG.set_str('INSTALL_TYPE', 'package')
         CONFIG.set_str('GIT_BRANCH', 'master')
 
+    elif install == 'docker':
+        CONFIG.set_str('INSTALL_TYPE', 'docker')
+        CONFIG.set_str('GIT_BRANCH', 'master')
+
     elif path_isdir(os.path.join(DIRS.PROG_DIR, '.git')):
         CONFIG.set_str('INSTALL_TYPE', 'git')
         CONFIG.set_str('GIT_BRANCH', get_current_git_branch())
@@ -167,7 +171,7 @@ def get_current_version() -> str:
             else:
                 version_string = 'Invalid Version file'
                 return version_string
-    elif CONFIG['INSTALL_TYPE'] in ['package']:
+    elif CONFIG['INSTALL_TYPE'] in ['package', 'docker']:
         try:
             v = version.LAZYLIBRARIAN_HASH
         except AttributeError:
@@ -280,7 +284,7 @@ def get_latest_version():
     # if GIT install return latest on current branch
     # if nonGIT install return latest from master
     created_at = ''
-    if CONFIG['INSTALL_TYPE'] in ['git', 'source', 'package']:
+    if CONFIG['INSTALL_TYPE'] in ['git', 'source', 'package', 'docker']:
         latest_version, created_at = get_latest_version_from_git()
     elif CONFIG['INSTALL_TYPE'] in ['win']:
         latest_version = 'WINDOWS INSTALL'
@@ -314,7 +318,7 @@ def get_latest_version_from_git():
         if branch == 'InvalidBranch':
             logger.debug('Failed to get a valid branch name from local repo')
         else:
-            if branch.lower() == 'package':  # check packages against master
+            if branch.lower() in ['package', 'docker']:  # check against master
                 branch = 'master'
 
             project = CONFIG['GIT_PROJECT']
@@ -493,7 +497,7 @@ def update():
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
             return False
-        if docker():
+        if docker() or CONFIG['INSTALL_TYPE'] == 'docker':
             msg = 'Docker does not allow upgrading the program inside the container,'
             msg += ' please rebuild your docker container instead'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
