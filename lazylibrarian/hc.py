@@ -179,7 +179,7 @@ def validate_bookdict(bookdict):
                 badwords = get_list(CONFIG['REJECT_WORDS'], ',')
                 for word in badwords:
                     if (' ' in word and word in name) or word in namewords:
-                        rejected = 'word', 'Contains [%s]' % word
+                        rejected = 'word', 'Name contains [%s]' % word
                         break
 
             if not rejected:
@@ -326,12 +326,12 @@ query FindBookByName {
         self.HC_ISBN10_BOOKS = self.HC_FINDBOOK.replace('[where]', '{isbn_10: {_eq: "[isbn]"}}'
                                                         ).replace('[order]', '')
 
-# queries below this point use a bookid, authorid, seriesid
-# so should be faster if we query books_by_pk rather than query books
-# but at the moment that's not the case.
+# queries using bookid, authorid, seriesid should be faster if we query using _by_pk e.g.
+# query books_by_pk rather than query books but at the moment that's not the case.
+# also series_by_pk does not use series_id as primary key so doesn't work as expectedio
 
-        self.HC_BOOKID_BOOKS = self.HC_FINDBOOK.replace('[where]', '{id: {_eq: [bookid]}}'
-                                                        ).replace('[order]', '')
+        self.HC_BOOKID_BOOKS = self.HC_FINDBOOK.replace('books([order] where: [where])', 'books_by_pk(id: [bookid])')
+
         self.HC_AUTHORID_BOOKS = self.HC_FINDBOOK.replace('[where]',
                                                           '{contributions: {author: {id: {_eq: "[authorid]"}}}}'
                                                           ).replace('[order]', '')
@@ -379,7 +379,7 @@ query FindEdition { editions(where: {book_id: {_eq: [bookid]}})
 }
 '''
         self.HC_AUTHORINFO = '''
-query FindAuthor { authors(where: {id: {_eq: [authorid]}})
+query FindAuthor { authors_by_pk(id: [authorid])
   {
     id
     name
@@ -389,6 +389,7 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
     born_date
     bio
     cached_image
+    slug
   }
 }'''
 
@@ -822,28 +823,28 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
                             return res
 
                 # get the authorid from the book page as it's not in the title search results
-                bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', bookid)
+                bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
                 results, in_cache = self.result_from_cache(bookidcmd, refresh=refresh)
                 api_hits += not in_cache
-                if 'data' in results and results['data'].get('books'):
-                    for book_data in results['data']['books']:
-                        for author in book_data['contributions']:
-                            # might be more than one author listed
-                            author_name = author['author']['name']
-                            authorid = str(author['author']['id'])
-                            res = None
-                            match = fuzz.ratio(author_name.lower(), authorname.lower())
-                            if match >= CONFIG.get_int('NAME_RATIO'):
+                if results and 'data' in results:
+                    book_data = results['data'].get('books_by_pk', {})
+                    for author in book_data['contributions']:
+                        # might be more than one author listed
+                        author_name = author['author']['name']
+                        authorid = str(author['author']['id'])
+                        res = None
+                        match = fuzz.ratio(author_name.lower(), authorname.lower())
+                        if match >= CONFIG.get_int('NAME_RATIO'):
+                            res = self.get_author_info(authorid)
+                        if not res:
+                            match = fuzz.partial_ratio(author_name.lower(), authorname.lower())
+                            if match >= CONFIG.get_int('NAME_PARTNAME'):
                                 res = self.get_author_info(authorid)
-                            if not res:
-                                match = fuzz.partial_ratio(author_name.lower(), authorname.lower())
-                                if match >= CONFIG.get_int('NAME_PARTNAME'):
-                                    res = self.get_author_info(authorid)
-                            if res:
-                                if res['authorname'] != authorname:
-                                    res['aka'] = authorname
-                                self.logger.debug("Author/book search used %s api hit" % api_hits)
-                                return res
+                        if res:
+                            if res['authorname'] != authorname:
+                                res['aka'] = authorname
+                            self.logger.debug("Author/book search used %s api hit" % api_hits)
+                            return res
 
         self.logger.debug("No results. Used %s api hit" % api_hits)
         return {}
@@ -866,23 +867,26 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         cache_hits += in_cache
         if 'errors' in results:
             self.logger.error(str(results['errors']))
-        if results and results.get('data'):
-            for author in results['data']['authors']:
-                if str(author['id']) == str(authorid):
-                    author_name = author.get('name', '')
-                    # hc sometimes returns multiple comma separated names, use the one we are looking for
-                    if self.name and self.name in author_name:
-                        author_name = self.name
-                    author_born = author.get('born_date', '')
-                    author_died = author.get('death_date', '')
-                    totalbooks = author.get('books_count', 0)
-                    about = author.get('bio', '')
-                    if 'cached_image' in author:
-                        img = author['cached_image'].get('url', '')
-                        if img and '/books/' not in img:
-                            # hardcover image bug, sometimes gives us a book cover instead of author image
-                            author_img = author['cached_image']['url']
-                    break
+        if results and 'data' in results:
+            author = results['data'].get('authors_by_pk', {})
+            if author and str(author['id']) == str(authorid):
+                author_name = author.get('name', '')
+                # hc sometimes returns multiple comma separated names, use the one we are looking for
+                if self.name and self.name in author_name:
+                    author_name = self.name
+                author_born = author.get('born_date', '')
+                author_died = author.get('death_date', '')
+                totalbooks = author.get('books_count', 0)
+                about = author.get('bio', '')
+                author_link = author.get('slug', '')
+                if author_link:
+                    author_link = self.auth_url + author_link
+
+                if 'cached_image' in author:
+                    img = author['cached_image'].get('url', '')
+                    if img and '/books/' not in img:
+                        # hardcover image bug, sometimes gives us a book cover instead of author image
+                        author_img = author['cached_image']['url']
 
         if "," in author_name:
             postfix = get_list(CONFIG.get_csv('NAME_POSTFIX'))
@@ -1425,8 +1429,8 @@ query FindAuthor { authors(where: {id: {_eq: [authorid]}})
         bookdict = {}
         if 'errors' in results:
             self.logger.error(str(results['errors']))
-        if 'data' in results and results['data'].get('books'):
-            bookdict = self.build_bookdict(results['data']['books'][0])
+        if 'data' in results and results['data'].get('books_by_pk'):
+            bookdict = self.build_bookdict(results['data']['books_by_pk'])
         return bookdict, in_cache
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.find_book'):
