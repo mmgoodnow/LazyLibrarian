@@ -5912,7 +5912,7 @@ class WebInterface(object):
                                 except subprocess.CalledProcessError as e:
                                     logger.warning(e.output)
                             else:
-                                res = coverswap(issuefile)
+                                res = coverswap(issuefile, 2)  # cover from page 2 (counted from 1)
                                 if res:
                                     coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
                             if coverfile:

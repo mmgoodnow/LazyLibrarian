@@ -22,9 +22,7 @@ from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, se
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import calibre_prg, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
-from lazylibrarian.images import shrink_mag
-
-from PyPDF3 import PdfFileWriter, PdfFileReader
+from lazylibrarian.images import shrink_mag, coverswap
 
 
 def preprocess_ebook(bookfolder):
@@ -530,34 +528,8 @@ def preprocess_magazine(bookfolder, cover=0):
                 remove_file(shrunkfile)
 
         if CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1:
-            if not PdfFileWriter:
-                logger.error("PdfFileWriter not found")
-            else:
-                output = PdfFileWriter()
-                with open(srcfile, "rb") as f:
-                    cover -= 1  # zero based page count
-                    input1 = PdfFileReader(f)
-                    cnt = input1.getNumPages()
-                    output.addPage(input1.getPage(cover))
-                    p = 0
-                    while p < cnt:
-                        if p != cover:
-                            output.addPage(input1.getPage(p))
-                        p += 1
-                    with open(srcfile + 'new', "wb") as outputStream:
-                        output.write(outputStream)
-                logger.debug("%s has %d pages. Cover from page %d" % (srcfile, cnt, cover + 1))
-                try:
-                    sz = os.stat(srcfile + 'new').st_size
-                except Exception as e:
-                    sz = 0
-                    logger.warning("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
-                if sz:
-                    remove_file(srcfile)
-                    newcopy = safe_move(srcfile + 'new', original + 'new')
-                    os.rename(newcopy, original)
-                    _ = setperm(original)
-                    return
+            coverswap(srcfile, cover)
+
         safe_move(srcfile, original)
         _ = setperm(original)
     except Exception as e:

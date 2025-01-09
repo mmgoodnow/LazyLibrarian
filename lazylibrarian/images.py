@@ -47,7 +47,7 @@ else:
     FlickrImageCrawler = None
 
 # noinspection PyProtectedMember
-from PyPDF3 import PdfFileWriter, PdfFileReader
+from pypdf import PdfWriter, PdfReader
 
 # noinspection PyBroadException
 try:
@@ -81,6 +81,10 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
     if not overwrite and path_isfile(outfile):
         return outfile
 
+    if not path_isfile(jpeg):
+        logger.debug(f"Cannot open {jpeg} for thumbnail")
+        return ''
+
     bwidth = basewidth if basewidth else 300
     try:
         img = PILImage.open(jpeg)
@@ -110,10 +114,10 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
     return outfile
 
 
-def coverswap(sourcefile):
+def coverswap(sourcefile, coverpage=2):
     logger = logging.getLogger(__name__)
-    if PdfFileWriter is None:
-        logger.warning("PyPDF3 is not loaded")
+    if PdfWriter is None:
+        logger.warning("pypdf is not loaded")
         return False
 
     _, extn = os.path.splitext(sourcefile)
@@ -126,22 +130,20 @@ def coverswap(sourcefile):
         original = sourcefile
         logger.debug(f"Copying {original}")
         srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, os.path.basename(sourcefile)))
-        output = PdfFileWriter()
+        writer = PdfWriter()
         with open(srcfile, "rb") as f:
-            input1 = PdfFileReader(f)
-            cnt = input1.getNumPages()
-            logger.debug(f"Found {cnt} pages in {srcfile}")
-            output.addPage(input1.getPage(1))
-            # logger.debug("Added page 1")
-            output.addPage(input1.getPage(0))
-            # logger.debug("Added page 0")
-            p = 2
+            reader = PdfReader(f)
+            cnt = reader.get_num_pages()
+            logger.debug(f"{srcfile} has {cnt} pages, new cover from page {coverpage}")
+            coverpage -= 1  # zero based page count
+            writer.add_page(reader.pages[coverpage])
+            p = 0
             while p < cnt:
-                output.addPage(input1.getPage(p))
-                # logger.debug("Added page %s" % p)
+                if p != coverpage:
+                    writer.add_page(reader.pages[p])
                 p += 1
             with open(srcfile + 'new', "wb") as outputStream:
-                output.write(outputStream)
+                writer.write(outputStream)
         logger.debug("Writing new output file")
         try:
             newcopy = safe_copy(srcfile + 'new', original + 'new')
