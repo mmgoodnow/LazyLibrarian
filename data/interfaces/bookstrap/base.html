@@ -288,7 +288,7 @@
           msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Enable Telemetry" id="enableTelemetry">Turn on</a>&nbsp;'
           msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ask me again later" id="ignoreTelemetry">Maybe Later</a></div>'
           if (readCookie('ignoreTelemetry') != null) { msg = '' }
-        % elif CONFIG['INSTALL_TYPE'] == 'git' or CONFIG['INSTALL_TYPE'] == 'source':
+        % elif CONFIG['INSTALL_TYPE'] in ['git', 'source']:
           title = 'LazyLibrarian Update'
           % if not CONFIG['CURRENT_VERSION']:
               msg = '<div class="input-group">You are running an unknown version of lazylibrarian'
