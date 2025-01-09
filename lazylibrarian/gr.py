@@ -661,7 +661,7 @@ class GoodReads:
                             badwords = get_list(CONFIG['REJECT_WORDS'], ',')
                             for word in badwords:
                                 if (' ' in word and word in name) or word in namewords:
-                                    rejected = 'word', 'Contains [%s]' % word
+                                    rejected = 'word', 'Name contains [%s]' % word
                                     self.logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
                                     break
 

@@ -667,7 +667,7 @@ class OpenLibrary:
                         badwords = get_list(CONFIG['REJECT_WORDS'], ',')
                         for word in badwords:
                             if (' ' in word and word in name) or word in namewords:
-                                rejected = 'word', 'Contains [%s]' % word
+                                rejected = 'word', 'Name contains [%s]' % word
                                 break
 
                     if not rejected:

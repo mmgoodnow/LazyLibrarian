@@ -81,7 +81,7 @@ def session_get(sess, url, headers):
                             verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
     else:
         response = sess.get(url, headers=headers, timeout=90, verify=False)
-    if response.status_code != 200:
+    if not str(response.status_code).startswith('2'):
         logger.debug("b-ok response: %s" % response.status_code)
     return response
 
@@ -122,7 +122,7 @@ def bok_login(sess, headers):
         response = sess.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
     logger.debug("b-ok login response: %s" % response.status_code)
     if not str(response.status_code).startswith('2'):
-        logger.error("Login Response:%s" % response)
+        logger.error("Login Response:%s" % response.text)
         return False
     # use these login cookies for all 1-lib, z-library, b-ok domains
     for c in sess.cookies:
@@ -161,8 +161,9 @@ def direct_bok(book=None, prov=None, test=False):
     headers = {'User-Agent': get_user_agent()}
     s = requests.Session()
     if not bok_login(s, headers):
+        if test:
+            return False
         return results, "Login failed"
-
     if 'singlelogin' in host or 'z-library' in host:
         host = host.replace('singlelogin', 'z-library').split('/?')[0]
         # not sure if this number is important, maybe any referer will do?
@@ -219,6 +220,7 @@ def direct_bok(book=None, prov=None, test=False):
                         next_page = False
                         break
                     url = None
+                    size = 0
                     prov_page = ''
                     newsoup = BeautifulSoup(str(row), "html5lib")
                     bookcard = newsoup.find("z-bookcard")
@@ -226,7 +228,7 @@ def direct_bok(book=None, prov=None, test=False):
                         url = host + bookcard["href"]
                         filesize = bookcard["filesize"]
                         if filesize:
-                          size = size_in_bytes(filesize.upper())
+                            size = size_in_bytes(filesize.upper())
                         extn = bookcard["extension"]
                         author_div = bookcard.find("div", {"slot": "author"})
                         author = author_div.contents[0] if author_div.contents else None
@@ -237,7 +239,6 @@ def direct_bok(book=None, prov=None, test=False):
                         author = None
                         title = None
                         extn = None
-                        size = 0
 
                     if url:
                         bok_sleep()
@@ -249,8 +250,8 @@ def direct_bok(book=None, prov=None, test=False):
                         else:
                             try:
                                 newsoup = BeautifulSoup(result, "html5lib")
-                                #a = newsoup.find('a', {"class": "dlButton"})
-                                #if not a:
+                                # a = newsoup.find('a', {"class": "dlButton"})
+                                # if not a:
                                 a = newsoup.find('a', {"class": "addDownloadedBook"})
                                 if not a:
                                     link = ''
@@ -528,7 +529,6 @@ def direct_gen(book=None, prov=None, test=False):
 
         providerurl = url_fix(host + "/%s" % search)
         search_url = providerurl + "?%s" % urlencode(params)
-
         next_page = False
         result, success = fetch_url(search_url)
         if not success:
@@ -536,8 +536,6 @@ def direct_gen(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
-            if test:
-                return 0
             elif '111' in result:
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -549,7 +547,7 @@ def direct_gen(book=None, prov=None, test=False):
                 errmsg = result
                 TELEMETRY.record_usage_data("libgenError")
             if test:
-                return False
+                return 0
             return results, errmsg
 
         if len(result):
