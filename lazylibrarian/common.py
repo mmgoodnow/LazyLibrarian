@@ -38,6 +38,7 @@ import tarfile
 import webencodings
 import bs4
 import html5lib
+import pypdf
 from pathlib import Path
 
 import lazylibrarian
@@ -254,8 +255,30 @@ def create_support_zip() -> (str, str):
 
 
 def docker():
+    # this is from https://stackoverflow.com/questions/43878953
+    if Path('/.dockerenv').is_file():
+        return True
+    # as is this...
     cgroup = Path("/proc/self/cgroup")
-    return Path('/.dockerenv').is_file() or cgroup.is_file() and cgroup.read_text().find('docker') > -1
+    if cgroup.is_file() and cgroup.read_text().find('docker') > -1:
+        return True
+    # this is from jaraco.docker library
+    mountinfo = Path("/proc/self/mountinfo")
+    if mountinfo.is_file():
+        with open(mountinfo, 'r') as f:
+            first_mount = f.readlines()[0]
+        if 'docker' in first_mount or 'overlay' in first_mount:
+            return True
+    # this works for linuxserver docker
+    if DIRS.PROG_DIR.startswith('/app/'):
+        return True
+    # check for environment variable
+    if os.environ.get("DOCKER", "").lower() in ("yes", "y", "on", "true", "1"):
+        return True
+    # or value read from version.py during startup
+    if 'DOCKER' in CONFIG['INSTALL_TYPE'].upper():
+        return True
+    return False
 
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
@@ -268,7 +291,6 @@ def log_header(online=True) -> str:
     header += 'Interface: %s\n' % CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % logging.getLevelName(logger.getEffectiveLevel())
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
-    header += 'Docker: %s\n' % lazylibrarian.DOCKER
     for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
             timestamp = CONFIG.get_int(item)
@@ -331,7 +353,7 @@ def log_header(online=True) -> str:
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
     header += "mako: %s\n" % getattr(mako, '__version__', None)
     header += "webencodings: %s\n" % getattr(webencodings, 'VERSION', None)
-
+    header += "pypdf: %s\n" % getattr(pypdf, '__version__', None)
     from lazylibrarian.notifiers import APPRISE_VER
     if APPRISE_VER and APPRISE_VER[0].isdigit():
         header += "apprise: %s\n" % APPRISE_VER

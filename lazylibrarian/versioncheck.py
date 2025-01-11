@@ -94,6 +94,7 @@ def get_install_type():
     # We use a string in the version.py file for this
     # FUTURE:   Add a version number string in this file too?
     logger = logging.getLogger(__name__)
+    CONFIG.set_str('INSTALL_TYPE', '')
     try:
         install = version.LAZYLIBRARIAN_VERSION.lower()
     except AttributeError:
@@ -107,16 +108,15 @@ def get_install_type():
         CONFIG.set_str('INSTALL_TYPE', 'package')
         CONFIG.set_str('GIT_BRANCH', 'master')
 
-    elif install == 'docker':
-        CONFIG.set_str('INSTALL_TYPE', 'docker')
-        CONFIG.set_str('GIT_BRANCH', 'master')
-
     elif path_isdir(os.path.join(DIRS.PROG_DIR, '.git')):
         CONFIG.set_str('INSTALL_TYPE', 'git')
         CONFIG.set_str('GIT_BRANCH', get_current_git_branch())
     else:
         CONFIG.set_str('INSTALL_TYPE', 'source')
         CONFIG.set_str('GIT_BRANCH', 'master')
+
+    if docker() or install == 'docker':
+        CONFIG.set_str('INSTALL_TYPE', CONFIG['INSTALL_TYPE'] + ' DOCKER')
 
     logger.debug('%s install detected. Setting Branch to [%s]' %
                  (CONFIG['INSTALL_TYPE'], CONFIG['GIT_BRANCH']))
@@ -171,7 +171,7 @@ def get_current_version() -> str:
             else:
                 version_string = 'Invalid Version file'
                 return version_string
-    elif CONFIG['INSTALL_TYPE'] in ['package', 'docker']:
+    elif CONFIG['INSTALL_TYPE'] in ['package']:
         try:
             v = version.LAZYLIBRARIAN_HASH
         except AttributeError:
@@ -318,7 +318,7 @@ def get_latest_version_from_git():
         if branch == 'InvalidBranch':
             logger.debug('Failed to get a valid branch name from local repo')
         else:
-            if branch.lower() in ['package', 'docker']:  # check against master
+            if branch.lower() in ['package']:  # check against master
                 branch = 'master'
 
             project = CONFIG['GIT_PROJECT']
@@ -497,7 +497,7 @@ def update():
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logger.info(msg)
             return False
-        if docker() or CONFIG['INSTALL_TYPE'] == 'docker':
+        if docker():
             msg = 'Docker does not allow upgrading the program inside the container,'
             msg += ' please rebuild your docker container instead'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))

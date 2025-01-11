@@ -36,7 +36,7 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header, create_support_zip, docker, get_readinglist, dbbackup
+from lazylibrarian.common import log_header, create_support_zip, get_readinglist, dbbackup
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
@@ -1346,7 +1346,7 @@ class Api(object):
                         break
         finally:
             db.close()
-        msg = "Scanned %d %s, found %d new %s from %d" % \
+        msg = "Scanned %s %s, found %s new %s from %s" % \
               (cnt, plural(cnt, "book"), descs, plural(descs, "description"), len(res))
         if blocked:
             msg += ': Access Blocked'
@@ -1389,7 +1389,7 @@ class Api(object):
                     blocked = True
                 if blocked:
                     break
-        msg = "Scanned %d %s, found %d new %s from %d" % (cnt, plural(cnt, "book"), genre,
+        msg = "Scanned %s %s, found %s new %s from %s" % (cnt, plural(cnt, "book"), genre,
                                                           plural(genre, "genre"), len(res))
         if blocked:
             msg += ': Access Blocked'
@@ -1916,8 +1916,6 @@ class Api(object):
             'latest_version': CONFIG.get_str('LATEST_VERSION'),
             'commits_behind': CONFIG.get_int('COMMITS_BEHIND'),
         }
-        if docker():
-            self.data["install_type"] += " DOCKER"
 
     def _getcurrentversion(self):
         TELEMETRY.record_usage_data()

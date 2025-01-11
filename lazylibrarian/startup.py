@@ -581,7 +581,7 @@ class StartupLazyLibrarian:
                 CONFIG['CURRENT_VERSION'], CONFIG['LATEST_VERSION'],
                 CONFIG['INSTALL_TYPE']))
 
-            if docker() or CONFIG.get_int('GIT_UPDATED') == 0:
+            if CONFIG.get_int('GIT_UPDATED') == 0:
                 # we don't know when the last update was
                 # (docker doesn't set timestamp or it's a first time install)
                 # allow comparison of long and short hashes
@@ -688,150 +688,149 @@ class StartupLazyLibrarian:
             self.logger.info('Removing pidfile %s' % lazylibrarian.PIDFILE)
             os.remove(syspath(lazylibrarian.PIDFILE))
 
-        if not doquit:
+        if not doquit and not docker():
             self.logger.info('LazyLibrarian is restarting ...')
-            if not docker():
-                # Try to use the currently running python executable, as it is known to work
-                # if not able to determine, sys.executable returns empty string or None
-                # and we have to go looking for it...
-                executable = sys.executable
+            # Try to use the currently running python executable, as it is known to work
+            # if not able to determine, sys.executable returns empty string or None
+            # and we have to go looking for it...
+            executable = sys.executable
 
-                if not executable:
-                    prg = "python3"
-                    if os.name == 'nt':
-                        params = ["where", prg]
-                        try:
-                            executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                            executable = make_unicode(executable).strip()
-                        except Exception as e:
-                            self.logger.debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+            if not executable:
+                prg = "python3"
+                if os.name == 'nt':
+                    params = ["where", prg]
+                    try:
+                        executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                        executable = make_unicode(executable).strip()
+                    except Exception as e:
+                        self.logger.debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+                else:
+                    params = ["which", prg]
+                    try:
+                        executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                        executable = make_unicode(executable).strip()
+                    except Exception as e:
+                        self.logger.debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+
+            if not executable:
+                executable = 'python'  # default if not found
+
+            popen_list = [executable, DIRS.FULL_PATH]
+            popen_list += DIRS.ARGS
+            while '--update' in popen_list:
+                popen_list.remove('--update')
+            while '--upgrade' in popen_list:
+                popen_list.remove('--upgrade')
+            if '--nolaunch' not in popen_list:
+                popen_list += ['--nolaunch']
+
+            with open(syspath(DIRS.get_logfile('upgrade.log')), 'a') as upgradelog:
+                if updated:
+                    upgradelog.write("%s %s\n" % (time.ctime(),
+                                                  'Restarting LazyLibrarian with ' + str(popen_list)))
+
+                subprocess.Popen(popen_list, cwd=os.getcwd())
+                doquit = True
+                if cherrypy.server.httpserver is not None:
+                    # updating a running instance, not an --update
+                    # wait for the new instance to open the httpserver
+                    cherrypy.engine.stop()
+                    cherrypy.server.httpserver = None
+                    host = CONFIG['HTTP_HOST']
+                    if '0.0.0.0' in host:
+                        host = 'localhost'  # windows doesn't like 0.0.0.0
+
+                    if not host.startswith('http'):
+                        host = 'http://' + host
+
+                    # depending on proxy might need host:port/root or just host/root
+                    if CONFIG['HTTP_ROOT']:
+                        server1 = "%s:%s/%s" % (host, CONFIG['HTTP_PORT'],
+                                                CONFIG['HTTP_ROOT'].lstrip('/'))
+                        server2 = "%s/%s" % (host, CONFIG['HTTP_ROOT'].lstrip('/'))
                     else:
-                        params = ["which", prg]
-                        try:
-                            executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                            executable = make_unicode(executable).strip()
-                        except Exception as e:
-                            self.logger.debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+                        server1 = "%s:%s" % (host, CONFIG['HTTP_PORT'])
+                        server2 = ''
 
-                if not executable:
-                    executable = 'python'  # default if not found
-
-                popen_list = [executable, DIRS.FULL_PATH]
-                popen_list += DIRS.ARGS
-                while '--update' in popen_list:
-                    popen_list.remove('--update')
-                while '--upgrade' in popen_list:
-                    popen_list.remove('--upgrade')
-                if '--nolaunch' not in popen_list:
-                    popen_list += ['--nolaunch']
-
-                with open(syspath(DIRS.get_logfile('upgrade.log')), 'a') as upgradelog:
+                    msg = "Waiting for %s to start" % server1
                     if updated:
-                        upgradelog.write("%s %s\n" % (time.ctime(),
-                                                      'Restarting LazyLibrarian with ' + str(popen_list)))
+                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                    self.logger.info(msg)
+                    pawse = 18
+                    success = False
+                    res = ''
+                    while pawse:
+                        # noinspection PyBroadException
+                        try:
+                            r = requests.get(server1)
+                            res = r.status_code
+                            if res == 200 or res == 401:
+                                success = True
+                                break
+                        except Exception:
+                            r = None
 
-                    subprocess.Popen(popen_list, cwd=os.getcwd())
-                    doquit = True
-                    if cherrypy.server.httpserver is not None:
-                        # updating a running instance, not an --update
-                        # wait for the new instance to open the httpserver
-                        cherrypy.engine.stop()
-                        cherrypy.server.httpserver = None
-                        host = CONFIG['HTTP_HOST']
-                        if '0.0.0.0' in host:
-                            host = 'localhost'  # windows doesn't like 0.0.0.0
-
-                        if not host.startswith('http'):
-                            host = 'http://' + host
-
-                        # depending on proxy might need host:port/root or just host/root
-                        if CONFIG['HTTP_ROOT']:
-                            server1 = "%s:%s/%s" % (host, CONFIG['HTTP_PORT'],
-                                                    CONFIG['HTTP_ROOT'].lstrip('/'))
-                            server2 = "%s/%s" % (host, CONFIG['HTTP_ROOT'].lstrip('/'))
-                        else:
-                            server1 = "%s:%s" % (host, CONFIG['HTTP_PORT'])
-                            server2 = ''
-
-                        msg = "Waiting for %s to start" % server1
-                        if updated:
-                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                        self.logger.info(msg)
-                        pawse = 18
-                        success = False
-                        res = ''
-                        while pawse:
+                        if not r and server2:
                             # noinspection PyBroadException
                             try:
-                                r = requests.get(server1)
+                                r = requests.get(server2)
                                 res = r.status_code
                                 if res == 200 or res == 401:
                                     success = True
                                     break
                             except Exception:
-                                r = None
+                                pass
 
-                            if not r and server2:
-                                # noinspection PyBroadException
-                                try:
-                                    r = requests.get(server2)
-                                    res = r.status_code
-                                    if res == 200 or res == 401:
-                                        success = True
-                                        break
-                                except Exception:
-                                    pass
-
-                            print("Waiting... %s %s" % (pawse, res))
-                            time.sleep(5)
-                            pawse -= 1
-                        if update:
-                            archivename = 'backup.tgz'
-                            if success:
-                                msg = 'Reached webserver page %s, deleting backup' % res
-                                doquit = True
-                                if updated:
-                                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                                self.logger.info(msg)
-                                try:
-                                    os.remove(syspath(archivename))
-                                except OSError as e:
-                                    if e.errno != 2:  # doesn't exist is ok
-                                        msg = '{} {} {} {}'.format(type(e).__name__, 'deleting backup file:',
-                                                                   archivename, e.strerror)
-                                        self.logger.warning(msg)
-                            else:
-                                msg = 'Webserver failed to start, reverting update'
+                        print("Waiting... %s %s" % (pawse, res))
+                        time.sleep(5)
+                        pawse -= 1
+                    if update:
+                        archivename = 'backup.tgz'
+                        if success:
+                            msg = 'Reached webserver page %s, deleting backup' % res
+                            doquit = True
+                            if updated:
                                 upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                                self.logger.info(msg)
-                                cherrypy.engine.start()
-                                if tarfile.is_tarfile(archivename):
-                                    try:
-                                        with tarfile.open(archivename) as tar:
-                                            tar.extractall()
-                                        success = True
-                                    except Exception as e:
-                                        msg = 'Failed to unpack tarfile %s (%s): %s' % \
-                                              (type(e).__name__, archivename, str(e))
-                                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                                        self.logger.warning(msg)
-                                else:
-                                    msg = "Invalid archive"
+                            self.logger.info(msg)
+                            try:
+                                os.remove(syspath(archivename))
+                            except OSError as e:
+                                if e.errno != 2:  # doesn't exist is ok
+                                    msg = '{} {} {} {}'.format(type(e).__name__, 'deleting backup file:',
+                                                               archivename, e.strerror)
+                                    self.logger.warning(msg)
+                        else:
+                            msg = 'Webserver failed to start, reverting update'
+                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                            self.logger.info(msg)
+                            cherrypy.engine.start()
+                            if tarfile.is_tarfile(archivename):
+                                try:
+                                    with tarfile.open(archivename) as tar:
+                                        tar.extractall()
+                                    success = True
+                                except Exception as e:
+                                    msg = 'Failed to unpack tarfile %s (%s): %s' % \
+                                          (type(e).__name__, archivename, str(e))
                                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
                                     self.logger.warning(msg)
-                                if success:
-                                    current_version = ''
-                                    version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
-                                    old_location = os.path.join(DIRS.PROG_DIR, 'version.txt')
-                                    if os.path.isfile(old_location):
-                                        with open(old_location, 'r') as fp:
-                                            current_version = fp.read().strip(' \n\r')
-                                        self.logger.debug(f'Moving {old_location} to {version_file}')
-                                        move(old_location, version_file)
-                                    msg = f"Restarting {current_version} from backup"
-                                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                                    self.logger.info(msg)
-                                    subprocess.Popen(popen_list, cwd=os.getcwd())
+                            else:
+                                msg = "Invalid archive"
+                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                self.logger.warning(msg)
+                            if success:
+                                current_version = ''
+                                version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
+                                old_location = os.path.join(DIRS.PROG_DIR, 'version.txt')
+                                if os.path.isfile(old_location):
+                                    with open(old_location, 'r') as fp:
+                                        current_version = fp.read().strip(' \n\r')
+                                    self.logger.debug(f'Moving {old_location} to {version_file}')
+                                    move(old_location, version_file)
+                                msg = f"Restarting {current_version} from backup"
+                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                self.logger.info(msg)
+                                subprocess.Popen(popen_list, cwd=os.getcwd())
 
         if doquit and not testing:
             self.logger.info('Lazylibrarian (pid %s) is exiting' % os.getpid())

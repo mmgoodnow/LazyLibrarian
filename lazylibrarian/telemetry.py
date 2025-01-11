@@ -30,7 +30,7 @@ from typing import Optional
 import requests
 
 from lazylibrarian import database
-from lazylibrarian.common import proxy_list, docker
+from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.config2 import LLConfigHandler
 from lazylibrarian.formatter import thread_name
@@ -100,8 +100,6 @@ class LazyTelemetry(object):
         server = self.get_server_telemetry()
         up = datetime.datetime.now() - self._boottime
         server["install_type"] = _config['INSTALL_TYPE']
-        if docker():
-            server["install_type"] += " DOCKER"
         server["version"] = _config['CURRENT_VERSION']
         if testing:
             server["os"] = 'nt'

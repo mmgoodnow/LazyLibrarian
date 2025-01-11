@@ -34,7 +34,6 @@ ll_dependencies = (
     ('httplib2', '', ''),
     ('Pillow', '', 'PIL'),
     ('apprise', '', ''),
-    ('PyPDF3', '', ''),
     ('python_magic', 'magic', 'magic'),
     ('RapidFuzz', 'thefuzz', ''),
     ('Levenshtein', '', ''),
