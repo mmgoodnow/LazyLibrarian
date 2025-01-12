@@ -328,7 +328,6 @@ query FindBookByName {
 
 # queries using bookid, authorid, seriesid should be faster if we query using _by_pk e.g.
 # query books_by_pk rather than query books but at the moment that's not the case.
-# also series_by_pk does not use series_id as primary key so doesn't work as expectedio
 
         self.HC_BOOKID_BOOKS = self.HC_FINDBOOK.replace('books([order] where: [where])', 'books_by_pk(id: [bookid])')
 
@@ -336,15 +335,15 @@ query FindBookByName {
                                                           '{contributions: {author: {id: {_eq: "[authorid]"}}}}'
                                                           ).replace('[order]', '')
         self.HC_BOOK_SERIES = '''
-query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
-    {
+query SeriesByPK {
+  series_by_pk(id: "[seriesid]") {
+    id
+    name
+    primary_books_count
+    book_series {
+      book_id
       position
-      series {
-        name
-        id
-      }
       book {
-        id
         title
         release_date
         release_year
@@ -359,8 +358,10 @@ query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
             language
           }
         }
+        compilation
       }
     }
+  }
 }
 '''
         self.HC_EDITIONS = '''
@@ -533,7 +534,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
     def get_series_members(self, series_ident=None, series_title='', queue=None, refresh=False):
         resultlist = []
         resultdict = {}
-        ser_name = ''
+        series_name = ''
         series_id = ''
         author_name = ''
         api_hits = 0
@@ -544,63 +545,58 @@ query FindAuthor { authors_by_pk(id: [authorid])
         cache_hits += in_cache
         if 'errors' in results:
             self.logger.error(str(results['errors']))
-        if 'data' in results and 'book_series' in results['data']:
-            for entry in results['data']['book_series']:
-                series_id = 'HC' + str(entry['series']['id'])
-                if series_id != series_ident:
-                    self.logger.debug("Series id mismatch for %s, %s" %
-                                      (series_id, series_ident))
-                else:
-                    ser_name = entry['series']['name']
-                    if not ser_name:
-                        ser_name = series_title
-                    if ser_name != series_title:
-                        match = fuzz.partial_ratio(ser_name, series_title)
-                        if match < 95:
-                            self.logger.debug("Series name mismatch for %s, %s%% %s/%s" %
-                                              (series_id, match, ser_name, series_title))
-                        else:
-                            ser_name = series_title
+        if 'data' in results and 'series_by_pk' in results['data']:
+            wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
+            series_id = 'HC' + str(results['data']['series_by_pk']['id'])
+            if series_id != series_ident:
+                self.logger.debug("Series id mismatch for %s, %s" % (series_id, series_ident))
+            series_name = results['data']['series_by_pk']['name']
+            primary_books_count = results['data']['series_by_pk']['primary_books_count']
+            if series_name != series_title:
+                match = fuzz.partial_ratio(series_name, series_title)
+                if match < 95:
+                    self.logger.debug("Series name mismatch for %s, %s%% %s/%s" %
+                                      (series_id, match, series_name, series_title))
 
-                if ser_name == series_title and series_id == series_ident:
-                    position = entry['position']
-                    if not position or str(position) == 'None':
-                        position = 0
-                    book_title = entry['book']['title']
-                    workid = entry['book']['id']
-                    authorname = entry['book']['contributions'][0]['author']['name']
-                    authorlink = entry['book']['contributions'][0]['author']['id']
-                    pubyear = entry['book']['release_year']
-                    pubdate = entry['book']['release_date']
-                    editions = entry['book']['editions']
-                    languages = []
-                    for lang in editions:
-                        if lang.get('language'):
-                            res = lang['language']
-                            languages.append(res.get('language'))
-                    languages = set(languages)
+            for entry in results['data']['series_by_pk']['book_series']:
+                book_id = entry['book_id']
+                position = entry['position']
+                if not position or str(position) == 'None':
+                    position = 0
+                book_title = entry['book']['title']
+                authorname = entry['book']['contributions'][0]['author']['name']
+                authorlink = entry['book']['contributions'][0]['author']['id']
+                pubyear = entry['book']['release_year']
+                pubdate = entry['book']['release_date']
+                editions = entry['book']['editions']
+                compilation = entry['book']['compilation']
+                languages = []
+                for lang in editions:
+                    if lang.get('language'):
+                        res = lang['language']
+                        languages.append(res.get('language'))
+                languages = set(languages)
 
-                    if not author_name:
-                        author_name = authorname
-
-                    if position and (position not in resultdict or resultdict[position][1] != author_name):
-                        valid_lang = False
-                        if not languages:
-                            valid_lang = True
-                        else:
-                            wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
-                            for lang in languages:
-                                if lang in wantedlanguages:
-                                    valid_lang = True
-                                    break
-                        if valid_lang:
-                            resultdict[position] = [book_title, authorname, authorlink, workid, pubyear, pubdate]
+                if not author_name:
+                    author_name = authorname
+                # pick the first entry for each position that is non compilation and in a language we want
+                if not compilation and position and (position not in resultdict or resultdict[position][1] != author_name):
+                    valid_lang = False
+                    if not languages:
+                        valid_lang = True
+                    else:
+                        for lang in languages:
+                            if lang in wantedlanguages:
+                                valid_lang = True
+                                break
+                    if valid_lang:
+                        resultdict[position] = [book_title, authorname, authorlink, book_id, pubyear, pubdate]
             for item in resultdict:
                 res = [item]
                 res.extend(resultdict[item])
                 resultlist.append(res)
             resultlist = sorted(resultlist)
-            self.logger.debug("Found %s for series %s: %s" % (len(resultlist), series_id, ser_name))
+            self.logger.debug("Found %s for series %s: %s" % (len(resultlist), series_id, series_name))
             self.logger.debug("Used %s api hit, %s in cache" % (api_hits, cache_hits))
 
         if queue:
@@ -1400,7 +1396,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                                                                               "result")))
             self.logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
             self.logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
-            self.logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
+            self.logger.debug("Imported/Updated %s %s in %s secs using %s api %s" %
                               (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
                                api_hits, plural(api_hits, "hit")))
             if cover_count:
