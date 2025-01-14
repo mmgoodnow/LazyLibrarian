@@ -20,6 +20,8 @@ from operator import itemgetter
 from queue import Queue
 from urllib.parse import unquote_plus
 
+from rapidfuzz import fuzz
+
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.cache import cache_img, ImageType
@@ -29,11 +31,10 @@ from lazylibrarian.formatter import today, unaccented, format_author_name, \
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow
+from lazylibrarian.hc import HardCover
 from lazylibrarian.images import get_author_image, img_id
 from lazylibrarian.ol import OpenLibrary
-from lazylibrarian.hc import HardCover
 from lazylibrarian.processcontrol import get_info_on_caller
-from rapidfuzz import fuzz
 
 
 def is_valid_authorid(authorid: str, api=None) -> bool:
@@ -68,7 +69,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
                 if aname:
                     match_fuzz = fuzz.ratio(aname.lower().replace('.', ''), match_name)
                     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                        logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AuthorName'], match_fuzz, author))
+                        logger.debug(f"Fuzzy match [{item['AuthorName']}] {match_fuzz}% for [{author}]")
                         author = item['AuthorName']
                         match = True
                         break
@@ -77,7 +78,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
                     for aka in akas:
                         match_fuzz = fuzz.token_set_ratio(aka.lower().replace('.', '').replace(',', ''), match_name)
                         if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                            logger.debug("Fuzzy AKA match [%s] %s%% for [%s]" % (aka, match_fuzz, author))
+                            logger.debug(f"Fuzzy AKA match [{aka}] {match_fuzz}% for [{author}]")
                             author = item['AuthorName']
                             match = True
                             break
@@ -95,7 +96,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     if not reason:
         program, method, lineno = get_info_on_caller(depth=1)
         if lineno > 0:
-            reason = "%s:%s:%s" % (program, method, lineno)
+            reason = f"{program}:{method}:{lineno}"
         else:
             reason = 'Unknown reason in add_author_name_to_db'
 
@@ -105,7 +106,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     new = False
     author_info = {}
     if not author or len(author) < 2 or 'unknown' in author.lower() or 'anonymous' in author.lower():
-        logger.debug('Invalid Author Name [%s]' % author)
+        logger.debug(f'Invalid Author Name [{author}]')
         return "", "", False
 
     unquoted_author = unquote_plus(author)
@@ -124,7 +125,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
         else:
             check_exist_author = None
         if not exists and (CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
-            logger.debug('Author %s not found in database, trying to add' % author)
+            logger.debug(f'Author {author} not found in database, trying to add')
             # no match for supplied author, but we're allowed to add new ones
             if title:
                 search = f"{author}<ll>{title}"
@@ -132,11 +133,11 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                 search = author
 
             api_sources = [
-                            ['OL', OpenLibrary(search), 'ol_id', 'OL_API'],
-                            ['GR', GoodReads(search), 'gr_id', 'GR_API'],
-                            ['HC', HardCover(search), 'hc_id', 'HC_API'],
-                            ['GB', None, 'authorid', 'GB_API'],
-                        ]
+                ['OL', OpenLibrary(search), 'ol_id', 'OL_API'],
+                ['GR', GoodReads(search), 'gr_id', 'GR_API'],
+                ['HC', HardCover(search), 'hc_id', 'HC_API'],
+                ['GB', None, 'authorid', 'GB_API'],
+            ]
 
             # GB doesn't have authorid so we use one of the others...
             if CONFIG['OL_API']:
@@ -158,9 +159,9 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             match_fuzz = 0
             for api_source in api_sources:
                 if not CONFIG[api_source[3]] or not api_source[1]:
-                    logger.debug("%s is disabled" % api_source[3])
+                    logger.debug(f"{api_source[3]} is disabled")
                 else:
-                    logger.debug("Finding %s author ID for %s" % (api_source[0], author))
+                    logger.debug(f"Finding {api_source[0]} author ID for {author}")
                     book_api = api_source[1]
                     author_info = book_api.find_author_id(refresh=True)
                     if author_info:
@@ -184,8 +185,8 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                         if match_fuzz >= CONFIG.get_int('NAME_PARTNAME'):
                             break
                         else:
-                            logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
-                                         (author, match_name, match_fuzz))
+                            logger.debug(
+                                f"Failed to match author [{author}] to authorname [{match_name}] fuzz [{match_fuzz}]")
 
             if not author_info:
                 return "", "", False
@@ -202,10 +203,10 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                 # database, so check again
                 check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
                 if check_exist_author:
-                    logger.debug('Found authorname %s in database' % author)
+                    logger.debug(f'Found authorname {author} in database')
                     new = False
                 else:
-                    logger.info("Adding new author [%s] %s %s addbooks=%s" % (author, authorid, reason, addbooks))
+                    logger.info(f"Adding new author [{author}] {authorid} {reason} addbooks={addbooks}")
                     try:
                         add_author_to_db(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
                                          reason=reason)
@@ -219,7 +220,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                         if check_exist_author:
                             new = True
                     except Exception as e:
-                        logger.error('Failed to add author [%s] to db: %s %s' % (author, type(e).__name__, str(e)))
+                        logger.error(f'Failed to add author [{author}] to db: {type(e).__name__} {str(e)}')
 
         # check author exists in db, either newly loaded or already there, maybe under aka
         if check_exist_author:
@@ -237,7 +238,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                 db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
                           (', '.join(akas), check_exist_author['AuthorID']))
         else:
-            logger.debug("Failed to match author [%s] in database" % author)
+            logger.debug(f"Failed to match author [{author}] in database")
             return "", "", False
     finally:
         db.close()
@@ -349,20 +350,23 @@ def get_all_author_details(authorid=None, authorname=None):
         if gr_name:
             gr_name = gr_name.replace(',', '')
             if author['authorname'] != gr_name and gr_name not in akas:
-                logger.warning("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
-                               (author['authorid'], author['authorname'], gr_name))
+                logger.warning(
+                    f"Conflicting goodreads authorname for {author['authorid']} [{author['authorname']}]"
+                    f"[{gr_name}] setting AKA")
             akas.append(gr_name)
         if ol_name:
             ol_name = ol_name.replace(',', '')
             if author['authorname'] != ol_name and ol_name not in akas:
-                logger.warning("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
-                               (author['authorid'], author['authorname'], ol_name))
+                logger.warning(
+                    f"Conflicting openlibrary authorname for {author['authorid']} [{author['authorname']}]"
+                    f"[{ol_name}] setting AKA")
             akas.append(ol_name)
         if hc_name:
             hc_name = hc_name.replace(',', '')
             if author['authorname'] != hc_name and hc_name not in akas:
-                logger.warning("Conflicting hardcover authorname for %s [%s][%s] setting AKA" %
-                               (author['authorid'], author['authorname'], hc_name))
+                logger.warning(
+                    f"Conflicting hardcover authorname for {author['authorid']} [{author['authorname']}]"
+                    f"[{hc_name}] setting AKA")
             akas.append(hc_name)
         author['AKA'] = ', '.join(akas)
 
@@ -380,7 +384,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     if not reason:
         program, method, lineno = get_info_on_caller(depth=1)
         if lineno > 0:
-            reason = "%s:%s:%s" % (program, method, lineno)
+            reason = f"{program}:{method}:{lineno}"
         else:
             reason = "Unknown reason in add_author_to_db"
 
@@ -425,7 +429,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             current_author['status'] = dbauthor['status']
 
         if not current_author or not current_author.get('authorid'):
-            msg = "No author info for %s:%s" % (authorid, authorname)
+            msg = f"No author info for {authorid}:{authorname}"
             # goodreads sometimes changes authorid
             # maybe change of provider or no reply from provider
             logger.error(msg)
@@ -435,8 +439,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         if authorname and current_author['authorname'] != authorname:
             dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (current_author['authorname'],))
             if dbauthor:
-                logger.warning("Authorname %s already exists with id %s" % (current_author['authorname'],
-                                                                            dbauthor['authorID']))
+                logger.warning(
+                    f"Authorname {current_author['authorname']} already exists with id {dbauthor['authorID']}")
                 current_author['authorid'] = dbauthor['authorid']
                 aka = authorname.replace(',', '')
                 akas = get_list(dbauthor['AKA'], ',')
@@ -444,9 +448,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     akas.append(aka)
                     db.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), dbauthor['authorid']))
             else:
-                logger.warning("Updating authorname for %s (new:%s old:%s)" % (current_author['authorid'],
-                                                                               current_author['authorname'],
-                                                                               authorname))
+                logger.warning(
+                    f"Updating authorname for {current_author['authorid']} (new:{current_author['authorname']} "
+                    f"old:{authorname})")
                 db.action('UPDATE authors SET AuthorName=? WHERE AuthorID=?',
                           (current_author['authorname'], current_author['authorid']))
 
@@ -477,9 +481,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
         entry_status = current_author['status']
         new_value_dict = {
-                            "Status": "Loading",
-                            "Updated": int(time.time())
-                        }
+            "Status": "Loading",
+            "Updated": int(time.time())
+        }
         if not current_author.get('authorid'):
             current_author['authorid'] = authorid
         if new_author:
@@ -487,13 +491,13 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             new_value_dict['Reason'] = reason
             new_value_dict['DateAdded'] = today()
             refresh = True
-            logger.debug("Adding new author id %s (%s) to database %s, Addbooks=%s" %
-                         (current_author['authorid'], current_author['authorname'], reason, addbooks))
+            logger.debug(
+                f"Adding new author id {current_author['authorid']} ({current_author['authorname']}) to database "
+                f"{reason}, Addbooks={addbooks}")
         else:
-            logger.debug("Updating author %s (%s) %s, Addbooks=%s, Manual=%s" % (current_author['authorid'],
-                                                                                 current_author['authorname'],
-                                                                                 entry_status, addbooks,
-                                                                                 current_author['manual']))
+            logger.debug(
+                f"Updating author {current_author['authorid']} ({current_author['authorname']}) {entry_status}, "
+                f"Addbooks={addbooks}, Manual={current_author['manual']}")
         db.upsert("authors", new_value_dict, control_value_dict)
 
         # if author is set to manual, should we allow replacing 'nophoto' ?
@@ -512,7 +516,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 authorimg = newimg
                 new_img = True
             else:
-                logger.debug('Failed to cache image for %s (%s)' % (authorimg, newimg))
+                logger.debug(f'Failed to cache image for {authorimg} ({newimg})')
 
         if new_img:
             db.action("UPDATE authors SET AuthorIMG=? WHERE AuthorID=?", (authorimg, current_author['authorid']))
@@ -530,11 +534,11 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             if entry_status not in ['Ignored', 'Paused']:
                 # process books
                 api_sources = [
-                                ['OL', OpenLibrary(current_author['authorname']), 'ol_id', 'OL_API'],
-                                ['GR', GoodReads(current_author['authorname']), 'gr_id', 'GR_API'],
-                                ['HC', HardCover(current_author['authorname']), 'hc_id', 'HC_API'],
-                                ['GB', GoogleBooks(current_author['authorname']), 'authorid', 'GB_API'],
-                            ]
+                    ['OL', OpenLibrary(current_author['authorname']), 'ol_id', 'OL_API'],
+                    ['GR', GoodReads(current_author['authorname']), 'gr_id', 'GR_API'],
+                    ['HC', HardCover(current_author['authorname']), 'hc_id', 'HC_API'],
+                    ['GB', GoogleBooks(current_author['authorname']), 'authorid', 'GB_API'],
+                ]
 
                 if CONFIG['BOOK_API'] == "GoodReads":
                     api_sources.insert(0, api_sources.pop(1))
@@ -547,22 +551,20 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
                 for api_source in api_sources:
                     if not CONFIG[api_source[3]]:
-                        logger.debug("%s is disabled" % api_source[3])
+                        logger.debug(f"{api_source[3]} is disabled")
                     else:
                         current_id = current_author.get(api_source[2], '')
                         if not current_id:
                             if api_source[0] != 'GB':  # GB doesn't have authorid
-                                logger.debug("Finding %s author ID for %s" % (api_source[0],
-                                                                              current_author['authorname']))
+                                logger.debug(f"Finding {api_source[0]} author ID for {current_author['authorname']}")
                                 book_api = api_source[1]
                                 res = book_api.find_author_id(refresh=True)
                                 if res and res.get('authorid'):
                                     current_id = res.get('authorid')
-                                    cmd = "UPDATE authors SET %s=? WHERE AuthorName=?" % api_source[2]
+                                    cmd = f"UPDATE authors SET {api_source[2]}=? WHERE AuthorName=?"
                                     db.action(cmd, (current_id, current_author['authorname']))
                         if current_id:
-                            logger.debug("Book query %s for %s:%s" % (api_source[0], current_id,
-                                                                      current_author['authorname']))
+                            logger.debug(f"Book query {api_source[0]} for {current_id}:{current_author['authorname']}")
                             book_api = api_source[1]
                             book_api.get_author_books(current_id, current_author['authorname'],
                                                       bookstatus=bookstatus,
@@ -572,7 +574,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 update_totals(current_author['authorid'])
 
             if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
-                msg = "[%s] Author update aborted, status %s" % (current_author['authorname'], entry_status)
+                msg = f"[{current_author['authorname']}] Author update aborted, status {entry_status}"
                 logger.debug(msg)
                 return msg
 
@@ -582,7 +584,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     logger.warning(res)
                 try:
                     followid = res.split("followid=")[1]
-                    logger.debug('%s marked followed' % current_author['authorname'])
+                    logger.debug(f"{current_author['authorname']} marked followed")
                 except IndexError:
                     followid = ''
                 db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, current_author['authorid']))
@@ -595,17 +597,17 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         if current_author:
             db.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entry_status,
                                                                        current_author['authorid']))
-            msg = "%s [%s] Author update complete, status %s" % (current_author['authorid'],
-                                                                 current_author['authorname'], entry_status)
+            msg = (f"{current_author['authorid']} [{current_author['authorname']}] Author update complete, "
+                   f"status {entry_status}")
             logger.info(msg)
             return current_author['authorid']
         else:
-            msg = "Authorid %s (%s) not found in database" % (authorid, authorname)
+            msg = f"Authorid {authorid} ({authorname}) not found in database"
             logger.warning(msg)
             return msg
 
     except Exception:
-        msg = 'Unhandled exception in add_author_to_db: %s' % traceback.format_exc()
+        msg = f'Unhandled exception in add_author_to_db: {traceback.format_exc()}'
         logger.error(msg)
         return msg
     finally:
@@ -722,34 +724,33 @@ def de_duplicate(authorid):
                                     'AudioFile', 'AudioLibrary', 'WorkID', 'ScanResult', 'gr_id', 'ol_id', 'gb_id',
                                     'hc_id', 'OriginalPubDate', 'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']:
                             if not favourite[key] and copy[key]:
-                                cmd = "UPDATE books SET %s=? WHERE BookID=?" % key
+                                cmd = f"UPDATE books SET {key}=? WHERE BookID=?"
                                 logger.debug(f"Copy {key} from {copy['BookID']}: {copy['BookName']}")
                                 db.action(cmd, (copy[key], favourite['BookID']))
                                 if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
                                     if key == 'BookFile' and favourite['Status'] not in ['Open', 'Have']:
-                                        logger.debug("Copy Status from %s" % copy['BookID'])
+                                        logger.debug(f"Copy Status from {copy['BookID']}")
                                         db.action('UPDATE books SET Status=? WHERE BookID=?',
                                                   (copy['Status'], favourite['BookID']))
                                     if key == 'AudioFile' and favourite['AudioStatus'] not in ['Open', 'Have']:
-                                        logger.debug("Copy AudioStatus from %s" % copy['BookID'])
+                                        logger.debug(f"Copy AudioStatus from {copy['BookID']}")
                                         db.action('UPDATE books SET AudioStatus=? WHERE BookID=?',
                                                   (copy['AudioStatus'], favourite['BookID']))
 
                         if copy['Status'] in ['Ignored'] or copy['AudioStatus'] in ['Ignored']:
-                            logger.debug("Keeping duplicate %s,  %s/%s" % (copy['BookID'], copy['Status'],
-                                                                           copy['AudioStatus']))
+                            logger.debug(f"Keeping duplicate {copy['BookID']},  {copy['Status']}/{copy['AudioStatus']}")
                         else:
-                            logger.debug("Delete %s keeping %s" % (copy['BookID'], favourite['BookID']))
+                            logger.debug(f"Delete {copy['BookID']} keeping {favourite['BookID']}")
                             db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
                             db.action("UPDATE readinglists SET Bookid=? WHERE BookID=?",
                                       (favourite['BookID'], copy['BookID']))
                             total += 1
     except Exception:
-        msg = 'Unhandled exception in de_duplicate: %s' % traceback.format_exc()
+        msg = f'Unhandled exception in de_duplicate: {traceback.format_exc()}'
         logger.warning(msg)
     finally:
         db.close()
-    logger.info("Deleted %s duplicate %s for %s" % (total, plural(dupes, 'title'), authorname))
+    logger.info(f"Deleted {total} duplicate {plural(dupes, 'title')} for {authorname}")
 
 
 def update_totals(authorid):
@@ -759,7 +760,7 @@ def update_totals(authorid):
         # author totals needs to be updated every time a book is marked differently
         match = db.select('SELECT AuthorID from authors WHERE AuthorID=?', (authorid,))
         if not match:
-            logger.debug('Update_totals - authorid [%s] not found' % authorid)
+            logger.debug(f'Update_totals - authorid [{authorid}] not found')
             return
 
         cmd = ("SELECT BookName, BookLink, BookDate, BookID from books WHERE AuthorID=? and Status != 'Ignored' "
@@ -802,8 +803,8 @@ def update_totals(authorid):
         res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
     finally:
         db.close()
-    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], new_value_dict['HaveBooks'],
-                                                    new_value_dict['TotalBooks']))
+    logger.debug(
+        f"Updated totals for [{res['AuthorName']}] {new_value_dict['HaveBooks']}/{new_value_dict['TotalBooks']}")
 
 
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
@@ -818,21 +819,21 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
             gb.find_book(bookid, ebook, audio, reason)
     elif CONFIG['BOOK_API'] == 'OpenLibrary':
         ol = OpenLibrary(bookid)
-        logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
+        logger.debug(f"bookstatus={ebook}, audiostatus={audio}")
         if not wait:
             threading.Thread(target=ol.find_book, name='OL-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             ol.find_book(bookid, ebook, audio, reason)
     elif CONFIG['BOOK_API'] == 'HardCover':
         hc = HardCover(bookid)
-        logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
+        logger.debug(f"bookstatus={ebook}, audiostatus={audio}")
         if not wait:
             threading.Thread(target=hc.find_book, name='HC-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             hc.find_book(bookid, ebook, audio, reason)
     else:
         gr = GoodReads(bookid)
-        logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
+        logger.debug(f"bookstatus={ebook}, audiostatus={audio}")
         if not wait:
             threading.Thread(target=gr.find_book, name='GR-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
@@ -846,7 +847,7 @@ def search_for(searchterm, source=None):
     loggersearching = logging.getLogger('special.searching')
     if not source:
         source = CONFIG['BOOK_API']
-    loggersearching.debug("%s %s" % (source, searchterm))
+    loggersearching.debug(f"{source} {searchterm}")
     if source == "GoogleBooks" and CONFIG['GB_API']:
         gb = GoogleBooks(searchterm)
         myqueue = Queue()

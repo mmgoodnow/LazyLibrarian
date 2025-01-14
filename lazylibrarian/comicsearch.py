@@ -11,24 +11,24 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import threading
-import traceback
-import time
 import logging
-import lazylibrarian
+import threading
+import time
+import traceback
 
-from lazylibrarian.config2 import CONFIG
+from rapidfuzz import fuzz
+
+import lazylibrarian
 from lazylibrarian import database
+from lazylibrarian.comicid import cv_identify, cx_identify
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
     now, thread_name
+from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_znab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
-from lazylibrarian.comicid import cv_identify, cx_identify
-from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
-from rapidfuzz import fuzz
-
 
 # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
 dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
@@ -54,7 +54,7 @@ def search_item(comicid=None):
     finally:
         db.close()
     if not match:
-        logger.debug("No comic match for %s" % comicid)
+        logger.debug(f"No comic match for {comicid}")
         return results
 
     cat = 'comic'
@@ -65,7 +65,7 @@ def search_item(comicid=None):
     book['searchterm'] = searchterm.replace('+', ' ')
 
     nprov = CONFIG.total_active_providers()
-    logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
+    logger.debug(f"Searching {nprov} {plural(nprov, 'provider')} ({cat}) for {searchterm}")
 
     if CONFIG.use_nzb():
         resultlist, nprov = iterate_over_znab_sites(book, cat)
@@ -162,18 +162,18 @@ def search_item(comicid=None):
 
                 if not rejected and maxsize and size_mb > maxsize:
                     rejected = True
-                    logger.debug("Rejecting %s, too large (%sMb)" % (title, size_mb))
+                    logger.debug(f"Rejecting {title}, too large ({size_mb}Mb)")
 
                 if not rejected and minsize and size_mb < minsize:
                     rejected = True
-                    logger.debug("Rejecting %s, too small (%sMb)" % (title, size_mb))
+                    logger.debug(f"Rejecting {title}, too small ({size_mb}Mb)")
 
                 if not rejected:
                     result_title = unaccented(replace_all(title, dictrepl), only_ascii=False).strip()
                     words = get_list(result_title.lower())
                     for word in words:
                         if word in banwords:
-                            logger.debug("Rejecting %s, contains %s" % (title, word))
+                            logger.debug(f"Rejecting {title}, contains {word}")
                             rejected = True
                             break
                     if not rejected and filetypes:
@@ -185,7 +185,7 @@ def search_item(comicid=None):
                               'url': url, 'mode': mode, 'bookid': comicid}
                     searchresults.append(result)
 
-    logger.debug('Found %s %s results for %s' % (len(searchresults), cat, searchterm))
+    logger.debug(f'Found {len(searchresults)} {cat} results for {searchterm}')
     return searchresults
 
 
@@ -219,17 +219,17 @@ def search_comics(comicid=None):
         else:
             # search for all active comics
             comics = db.select(cmd)
-            logger.debug("Found %s active comics" % len(comics))
+            logger.debug(f"Found {len(comics)} active comics")
 
         for comic in comics:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLCOMICS":
-                logger.debug("Aborting %s" % threadname)
+                logger.debug(f"Aborting {threadname}")
                 break
             comicid = comic['ComicID']
             aka = get_list(comic['aka'])
             id_list = comicid
             if len(aka):
-                id_list = id_list + ', ' + ', '.join(aka)
+                id_list = f"{id_list}, {', '.join(aka)}"
             found = 0
             notfound = 0
             foundissues = {}
@@ -237,7 +237,7 @@ def search_comics(comicid=None):
             for item in res:
                 match = None
                 if item['score'] >= 85:
-                    loggersearching.debug("Trying to match %s" % item['title'])
+                    loggersearching.debug(f"Trying to match {item['title']}")
                     if comic['ComicID'].startswith('CV'):
                         match = cv_identify(item['title'])
                     elif comic['ComicID'].startswith('CX'):
@@ -249,11 +249,10 @@ def search_comics(comicid=None):
                             if match[4] not in foundissues:
                                 foundissues[match[4]] = item
                     else:
-                        loggersearching.debug("No match (%s) want %s: %s" % (match[3]['seriesid'],
-                                                                             id_list, item['title']))
+                        loggersearching.debug(f"No match ({match[3]['seriesid']}) want {id_list}: {item['title']}")
                         notfound += 1
                 else:
-                    loggersearching.debug("No match [%s%%] %s" % (item['score'], item['title']))
+                    loggersearching.debug(f"No match [{item['score']}%] {item['title']}")
                     notfound += 1
 
             total = len(foundissues)
@@ -268,16 +267,16 @@ def search_comics(comicid=None):
                 if item in have:
                     foundissues.pop(item)
 
-            logger.debug("Found %s results, %s match, %s fail, %s distinct, Have %s, Missing %s" %
-                         (len(res), found, notfound, total, sorted(have),
-                          sorted(foundissues.keys())))
+            logger.debug(
+                f"Found {len(res)} results, {found} match, {notfound} fail, {total} distinct, Have {sorted(have)}, "
+                f"Missing {sorted(foundissues.keys())}")
             threading.Thread(target=download_comiclist, name='DL-COMICLIST', args=[foundissues]).start()
 
             time.sleep(CONFIG.get_int('SEARCH_RATELIMIT'))
         logger.info("ComicSearch for Wanted items complete")
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
     except Exception:
-        logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in search_comics: {traceback.format_exc()}')
     finally:
         db.close()
         thread_name("WEBSERVER")
@@ -294,9 +293,9 @@ def download_comiclist(foundissues):
             match = db.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
                              (item['title'], item['provider']))
             if match:
-                loggesearching.debug('%s is already marked %s' % (item['title'], match['Status']))
+                loggesearching.debug(f"{item['title']} is already marked {match['Status']}")
             else:
-                bookid = "%s_%s" % (item['bookid'], issue)
+                bookid = f"{item['bookid']}_{issue}"
                 control_value_dict = {
                     "NZBtitle": item['title'],
                     "NZBprov": item['provider']
@@ -333,18 +332,18 @@ def download_comiclist(foundissues):
                         item['url'],
                         'comic')
                 else:
-                    res = 'Unhandled mode [%s] for %s' % (item['mode'], item["url"])
+                    res = f"Unhandled mode [{item['mode']}] for {item['url']}"
                     logger.error(res)
                     snatch = 0
 
                 if snatch:
                     snatched += 1
-                    logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
+                    logger.info(f"Downloading {item['title']} from {item['provider']}")
                     db.action("UPDATE wanted SET nzbdate=? WHERE NZBurl=?", (now(), item['url']))
-                    custom_notify_snatch("%s %s" % (bookid, item['url']))
-                    notify_snatch("Comic %s from %s at %s" %
-                                  (unaccented(item['title'], only_ascii=False),
-                                   CONFIG.disp_name(item["provider"]), now()))
+                    custom_notify_snatch(f"{bookid} {item['url']}")
+                    notify_snatch(
+                        f"Comic {unaccented(item['title'], only_ascii=False)} from "
+                        f"{CONFIG.disp_name(item['provider'])} at {now()}")
                 else:
                     db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?",
                               (res, item["url"]))

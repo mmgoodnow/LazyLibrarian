@@ -1,5 +1,6 @@
 <%
     import lazylibrarian
+    from lazylibrarian.common import docker
     from lazylibrarian.config2 import CONFIG
 %>
 <!doctype html>
@@ -309,7 +310,7 @@
                 msg += '<strong>Manual update is required</strong>'
               % endif
               msg += '</div><div>'
-              % if "** MANUAL **" not in lazylibrarian.COMMIT_LIST:
+              % if "** MANUAL **" not in lazylibrarian.COMMIT_LIST and not docker():
                   msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
               % endif
               msg += '<a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Show Changes" id="getChangelog">Changes</a>&nbsp;'

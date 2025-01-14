@@ -62,10 +62,10 @@ class AppriseNotifier:
 
         title = "LazyLibrarian"
 
-        logger.debug("Apprise: event: " + event)
-        logger.debug("Apprise: message: " + message)
-        logger.debug("Apprise: url: " + str(url))
-        logger.debug("Using %d notification %s" % (len(apobj), plural(len(apobj), "service")))
+        logger.debug(f"Apprise: event: {event}")
+        logger.debug(f"Apprise: message: {message}")
+        logger.debug(f"Apprise: url: {str(url)}")
+        logger.debug(f"Using {len(apobj)} notification {plural(len(apobj), 'service')}")
         logger.debug(str(asset.details()))
         if event == notifyStrings[NOTIFY_SNATCH]:
             notifytype = NotifyType.INFO
@@ -74,7 +74,7 @@ class AppriseNotifier:
         else:
             notifytype = NotifyType.WARNING
 
-        return apobj.notify(title=title, body="%s\n%s" % (event, message), notify_type=notifytype)
+        return apobj.notify(title=title, body=f"{event}\n{message}", notify_type=notifytype)
 
     def _notify(self, event, message, url=None):
         """

@@ -76,7 +76,7 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
         return ''
     logger = logging.getLogger(__name__)
     fname, extn = os.path.splitext(jpeg)
-    outfile = f"{fname}_w{basewidth}{extn}" if basewidth else fname + '_thumb' + extn
+    outfile = f"{fname}_w{basewidth}{extn}" if basewidth else f"{fname}_thumb{extn}"
 
     if not overwrite and path_isfile(outfile):
         return outfile
@@ -109,7 +109,7 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
             img.convert('RGB').save(outfile)
         except OSError:
             return ''
-    logger.debug("Created %s" % outfile)
+    logger.debug(f"Created {outfile}")
     setperm(outfile)
     return outfile
 
@@ -142,16 +142,16 @@ def coverswap(sourcefile, coverpage=2):
                 if p != coverpage:
                     writer.add_page(reader.pages[p])
                 p += 1
-            with open(srcfile + 'new', "wb") as outputStream:
+            with open(f"{srcfile}new", "wb") as outputStream:
                 writer.write(outputStream)
         logger.debug("Writing new output file")
         try:
-            newcopy = safe_copy(srcfile + 'new', original + 'new')
+            newcopy = safe_copy(f"{srcfile}new", f"{original}new")
         except Exception as e:
             logger.warning(f"Failed to copy output file: {str(e)}")
             return False
         os.remove(srcfile)
-        os.remove(srcfile + 'new')
+        os.remove(f"{srcfile}new")
         # windows does not allow rename to overwrite an existing file
         os.remove(original)
         os.rename(newcopy, original)
@@ -191,7 +191,7 @@ def get_author_images():
                     db.upsert("authors", new_value_dict, control_value_dict)
 
             msg = f"Updated {counter} {plural(counter, 'image')}"
-            logger.info('Author Image check complete: ' + msg)
+            logger.info(f"Author Image check complete: {msg}")
         else:
             msg = 'No missing author images'
             logger.debug(msg)
@@ -225,7 +225,7 @@ def get_book_covers():
                     new_value_dict = {"BookImg": "images/nocover.png"}
                     db.upsert("books", new_value_dict, control_value_dict)
             msg = f"Updated {counter} {plural(counter, 'cover')}"
-            logger.info('Cover check complete: ' + msg)
+            logger.info(f"Cover check complete: {msg}")
         else:
             msg = 'No missing book covers'
             logger.debug(msg)
@@ -295,8 +295,8 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 coverlink = 'images/nocover.png'
                 db.action("UPDATE books SET BookImg=? WHERE BookID=?", (coverlink, bookid))
         else:
-            coverlink = "cache/book/" + bookid + ".jpg"
-            coverfile = os.path.join(cachedir, "book", bookid + '.jpg')
+            coverlink = f"cache/book/{bookid}.jpg"
+            coverfile = os.path.join(cachedir, "book", f"{bookid}.jpg")
         if not src or src == 'cache' or src == 'current':
             if path_isfile(coverfile):  # use cached image if there is one
                 lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
@@ -319,7 +319,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                             extn = '.jpg'
 
                         coverfile = os.path.join(cachedir, "book", bookid + extn)
-                        coverlink = 'cache/book/' + bookid + extn
+                        coverlink = f"cache/book/{bookid}{extn}"
                         logger.debug(f"Caching {extn} for {bookid}")
                         _ = safe_copy(coverimg, coverfile)
                         return coverlink, src
@@ -340,8 +340,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 cmd = "select BookISBN from books where bookID=?"
                 item = db.match(cmd, (bookid,))
                 if item and item['BookISBN']:
-                    img = '/'.join([CONFIG['LT_URL'], 'devkey/%s/large/isbn/%s' % (
-                        CONFIG['LT_DEVKEY'], item['BookISBN'])])
+                    img = '/'.join([CONFIG['LT_URL'], f"devkey/{CONFIG['LT_DEVKEY']}/large/isbn/{item['BookISBN']}"])
                     coverlink = cache_bookimg(img, bookid, src, suffix='_lt', imgid=imgid)
                     if coverlink:
                         return coverlink, 'librarything'
@@ -404,7 +403,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
         title = safe_unicode(item['BookName'])
         author = safe_unicode(item['AuthorName'])
         booklink = item['BookLink']
-        safeparams = quote_plus(make_utf8bytes("%s %s" % (author, title))[0])
+        safeparams = quote_plus(make_utf8bytes(f"{author} {title}")[0])
 
         # try to get a cover from goodreads
         if not src or src == 'goodreads' and 'goodreads' not in ignore:
@@ -472,7 +471,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
         if not src or src == 'googleisbn' and 'googleapis' not in ignore:
             # try a google isbn page search...
             if item and item['BookISBN']:
-                url = "https://www.googleapis.com/books/v1/volumes?q=isbn:" + item['BookISBN']
+                url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{item['BookISBN']}"
                 result, success = fetch_url(url)
                 if success:
                     img = ''
@@ -510,7 +509,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
         logger.debug("No image found from any configured source")
         return None, src
     except Exception:
-        logger.error('Unhandled exception in get_book_cover: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in get_book_cover: {traceback.format_exc()}')
     finally:
         db.close()
     return None, src
@@ -551,16 +550,16 @@ def crawl_image(crawler_name, src, cachedir, bookid, safeparams):
         res = len(os.listdir(icrawlerdir))
     else:
         res = 0
-    logger.debug("%s found %d %s" % (crawler_name, res, plural(res, 'image')))
+    logger.debug(f"{crawler_name} found {res} {plural(res, 'image')}")
     if res:
         img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
 
-        coverlink = cache_bookimg(img, bookid, src, suffix='_' + crawler_name[:2])
+        coverlink = cache_bookimg(img, bookid, src, suffix=f"_{crawler_name[:2]}")
         rmtree(icrawlerdir, ignore_errors=True)
         if coverlink:
             return coverlink, crawler_name
     else:
-        logger.debug("No images found in %s page for %s" % (crawler_name, bookid))
+        logger.debug(f"No images found in {crawler_name} page for {bookid}")
     # rmtree(icrawlerdir, ignore_errors=True)
     return None, src
 
@@ -582,18 +581,18 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
     if author:
         coverfile = os.path.join(datadir, author['AuthorIMG'])
     else:
-        coverfile = os.path.join(cachedir, "author", authorid + '.jpg')
+        coverfile = os.path.join(cachedir, "author", f"{authorid}.jpg")
 
     if path_isfile(coverfile) and max_num == 1 and not refresh:  # use cached image if there is one
         lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-        logger.debug("get_author_image: Returning Cached response for %s" % coverfile)
+        logger.debug(f"get_author_image: Returning Cached response for {coverfile}")
         coverlink = coverfile.lstrip(datadir)
         return coverlink
 
     lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
     if PIL and author:
         authorname = safe_unicode(author['AuthorName'])
-        safeparams = quote_plus(make_utf8bytes("author %s" % authorname)[0])
+        safeparams = quote_plus(make_utf8bytes(f"author {authorname}")[0])
         icrawlerdir = os.path.join(cachedir, 'icrawler', authorid)
         rmtree(icrawlerdir, ignore_errors=True)
         crawler_name = 'google'
@@ -610,7 +609,7 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
                 res = len(os.listdir(icrawlerdir))
             else:
                 res = 0
-        logger.debug("%s found %d %s" % (crawler_name, res, plural(res, 'image')))
+        logger.debug(f"{crawler_name} found {res} {plural(res, 'image')}")
         if max_num == 1:
             if res:
                 img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
@@ -619,14 +618,14 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
                     logger.debug(f"Cached {crawler_name} image for {authorname}")
                     return coverlink
             else:
-                logger.debug("No images found for %s" % authorname)
+                logger.debug(f"No images found for {authorname}")
             rmtree(icrawlerdir, ignore_errors=True)
         else:
             return icrawlerdir
     elif not PIL:
         logger.debug("PIL not installed, not looking for author image")
     else:
-        logger.debug("No author found for %s" % authorid)
+        logger.debug(f"No author found for {authorid}")
     return None
 
 
@@ -640,9 +639,9 @@ def create_mag_covers(refresh=False):
         #  <> '' ignores empty string or NULL
         issues = db.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
         if refresh:
-            logger.info("Creating covers for %s %s" % (len(issues), plural(len(issues), "issue")))
+            logger.info(f"Creating covers for {len(issues)} {plural(len(issues), 'issue')}")
         else:
-            logger.info("Checking covers for %s %s" % (len(issues), plural(len(issues), "issue")))
+            logger.info(f"Checking covers for {len(issues)} {plural(len(issues), 'issue')}")
         cnt = 0
         for item in issues:
             try:
@@ -650,14 +649,13 @@ def create_mag_covers(refresh=False):
                 create_mag_cover(item['IssueFile'], refresh=refresh, pagenum=maginfo['CoverPage'])
                 cnt += 1
             except Exception as why:
-                logger.warning('Unable to create cover for %s, %s %s' % (item['IssueFile'],
-                                                                         type(why).__name__, str(why)))
+                logger.warning(f"Unable to create cover for {item['IssueFile']}, {type(why).__name__} {str(why)}")
     finally:
         db.close()
     logger.info("Cover creation completed")
     if refresh:
-        return "Created covers for %s %s" % (cnt, plural(cnt, "issue"))
-    return "Checked covers for %s %s" % (cnt, plural(cnt, "issue"))
+        return f"Created covers for {cnt} {plural(cnt, 'issue')}"
+    return f"Checked covers for {cnt} {plural(cnt, 'issue')}"
 
 
 def find_gs():
@@ -668,18 +666,18 @@ def find_gs():
             GS = os.path.join(os.getcwd(), "gswin64c.exe")
             generator = "local gswin64c"
             if not path_isfile(GS):
-                logger.debug("%s not found" % GS)
+                logger.debug(f"{GS} not found")
                 GS = os.path.join(os.getcwd(), "gswin32c.exe")
                 generator = "local gswin32c"
             if not path_isfile(GS):
-                logger.debug("%s not found" % GS)
+                logger.debug(f"{GS} not found")
                 params = ["where", "gswin64c"]
                 try:
                     GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
                     GS = make_unicode(GS).strip()
                     generator = "gswin64c"
                 except Exception as e:
-                    logger.debug("where gswin64c failed: %s %s" % (type(e).__name__, str(e)))
+                    logger.debug(f"where gswin64c failed: {type(e).__name__} {str(e)}")
                     GS = ''
             if not path_isfile(GS):
                 params = ["where", "gswin32c"]
@@ -688,7 +686,7 @@ def find_gs():
                     GS = make_unicode(GS).strip()
                     generator = "gswin32c"
                 except Exception as e:
-                    logger.debug("where gswin32c failed: %s %s" % (type(e).__name__, str(e)))
+                    logger.debug(f"where gswin32c failed: {type(e).__name__} {str(e)}")
             if not path_isfile(GS):
                 logger.debug("No gswin found")
                 generator = "(no windows ghostscript found)"
@@ -697,7 +695,7 @@ def find_gs():
             GS = os.path.join(os.getcwd(), "gs")
             generator = "local gs"
             if not path_isfile(GS):
-                logger.debug("%s not found" % GS)
+                logger.debug(f"{GS} not found")
                 GS = ''
                 params = ["which", "gs"]
                 try:
@@ -708,7 +706,7 @@ def find_gs():
                     if e.returncode == 1:
                         logger.debug("Could not find gs in your system path")
                     else:
-                        logger.debug("which gs failed: %s %s" % (type(e).__name__, str(e)))
+                        logger.debug(f"which gs failed: {type(e).__name__} {str(e)}")
             if not path_isfile(GS):
                 logger.debug("Cannot find gs")
                 generator = "(no gs found)"
@@ -720,11 +718,11 @@ def find_gs():
                 params = [GS, "--version"]
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                 res = make_unicode(res).strip()
-                logger.debug("Found %s [%s] version %s" % (generator, GS, res))
-                generator = "%s version %s" % (generator, res)
+                logger.debug(f"Found {generator} [{GS}] version {res}")
+                generator = f"{generator} version {res}"
                 GS_VER = res
             except Exception as e:
-                logger.debug("gs --version failed: %s %s" % (type(e).__name__, str(e)))
+                logger.debug(f"gs --version failed: {type(e).__name__} {str(e)}")
 
     return GS, GS_VER, generator
 
@@ -733,33 +731,33 @@ def shrink_mag(issuefile, dpi=0):
     global GS, GS_VER, generator
     logger = logging.getLogger(__name__)
     if not issuefile or not path_isfile(issuefile):
-        logger.warning('No issuefile %s' % issuefile)
+        logger.warning(f'No issuefile {issuefile}')
         return ''
     if not GS:
         GS, GS_VER, generator = find_gs()
     if GS_VER:
-        outfile = "%s_%s%s" % (issuefile, dpi, '.pdf')
+        outfile = f"{issuefile}_{dpi}.pdf"
         params = [GS, "-sDEVICE=pdfwrite", "-dNOPAUSE", "-dBATCH", "-dSAFER",
                   "-dCompatibilityLevel=1.3", "-dPDFSETTINGS=/screen",
                   "-dEmbedAllFonts=true", "-dSubsetFonts=true",
                   "-dAutoRotatePages=/None",
                   "-dColorImageDownsampleType=/Bicubic",
-                  "-dColorImageResolution=%s" % dpi,
+                  f"-dColorImageResolution={dpi}",
                   "-dGrayImageDownsampleType=/Bicubic",
-                  "-dGrayImageResolution=%s" % dpi,
+                  f"-dGrayImageResolution={dpi}",
                   "-dMonoImageDownsampleType=/Subsample",
-                  "-dMonoImageResolution=%s" % dpi,
-                  "-dUseCropBox", "-sOutputFile=%s" % outfile, issuefile]
+                  f"-dMonoImageResolution={dpi}",
+                  "-dUseCropBox", f"-sOutputFile={outfile}", issuefile]
         try:
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
             res = make_unicode(res).strip()
             if not path_isfile(outfile):
-                logger.debug("Failed to shrink file: %s" % res)
+                logger.debug(f"Failed to shrink file: {res}")
                 return ''
-            logger.debug("Resized file: %s" % outfile)
+            logger.debug(f"Resized file: {outfile}")
             return outfile
         except Exception as e:
-            logger.debug("Failed to shrink file with %s [%s]" % (str(params), e))
+            logger.debug(f"Failed to shrink file with {str(params)} [{e}]")
             return ''
 
 
@@ -768,34 +766,34 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
     logger = logging.getLogger(__name__)
     if not CONFIG.get_bool('IMP_MAGCOVER') or not pagenum:
-        logger.warning('No cover required for %s' % issuefile)
+        logger.warning(f'No cover required for {issuefile}')
         return ''
     if not issuefile or not path_isfile(issuefile):
-        logger.warning('No issuefile %s' % issuefile)
+        logger.warning(f'No issuefile {issuefile}')
         return ''
 
     base, extn = os.path.splitext(issuefile)
     if not extn:
-        logger.warning('Unable to create cover for %s, no extension?' % issuefile)
+        logger.warning(f'Unable to create cover for {issuefile}, no extension?')
         return ''
 
-    coverfile = base + '.jpg'
+    coverfile = f"{base}.jpg"
 
     if path_isfile(coverfile):
         if refresh:
             os.remove(syspath(coverfile))
         else:
-            logger.debug('Cover for %s exists' % issuefile)
+            logger.debug(f'Cover for {issuefile} exists')
             return coverfile  # quit if cover already exists and we didn't want to refresh
 
-    logger.debug('Creating cover for %s, page %s' % (issuefile, pagenum))
+    logger.debug(f'Creating cover for {issuefile}, page {pagenum}')
     data = ''  # result from unzip or unrar
     extn = extn.lower()
     if extn in ['.cbz', '.epub']:
         try:
             data = zipfile.ZipFile(issuefile)
         except Exception as why:
-            logger.error("Failed to read zip file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
+            logger.error(f"Failed to read zip file {issuefile}, {type(why).__name__} {str(why)}")
             data = ''
     elif extn in ['.cbr']:
         if lazylibrarian.UNRARLIB:
@@ -805,7 +803,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 elif lazylibrarian.UNRARLIB == 2:
                     data = lazylibrarian.RARFILE(issuefile)
             except Exception as why:
-                logger.error("Failed to read rar file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
+                logger.error(f"Failed to read rar file {issuefile}, {type(why).__name__} {str(why)}")
                 data = ''
     if data:
         img = None
@@ -841,13 +839,13 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                         f.write(img)
                 return coverfile
             else:
-                logger.debug("Failed to find image in %s" % issuefile)
+                logger.debug(f"Failed to find image in {issuefile}")
         except Exception as why:
-            logger.error("Failed to extract image from %s, %s %s" % (issuefile, type(why).__name__, str(why)))
+            logger.error(f"Failed to extract image from {issuefile}, {type(why).__name__} {str(why)}")
 
     elif extn == '.pdf':
         if len(CONFIG['IMP_CONVERT']):  # allow external convert to override libraries
-            generator = "external program: %s" % CONFIG['IMP_CONVERT']
+            generator = f"external program: {CONFIG['IMP_CONVERT']}"
             if "gsconvert.py" in CONFIG['IMP_CONVERT']:
                 msg = "Use of gsconvert.py is deprecated, equivalent functionality is now built in. "
                 msg += "Support for gsconvert.py may be removed in a future release. See wiki for details."
@@ -861,7 +859,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 postfix = '[0]'
             params = []
             try:
-                params = [converter, '%s%s' % (issuefile, postfix), '%s' % coverfile]
+                params = [converter, f'{issuefile}{postfix}', f'{coverfile}']
                 if os.name != 'nt':
                     res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
                                                   stderr=subprocess.STDOUT)
@@ -870,11 +868,11 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
 
                 res = make_unicode(res).strip()
                 if res:
-                    logger.debug('%s reports: %s' % (CONFIG['IMP_CONVERT'], res))
+                    logger.debug(f"{CONFIG['IMP_CONVERT']} reports: {res}")
             except Exception as e:
                 if params:
                     logger.debug(params)
-                logger.warning('External "convert" failed %s %s' % (type(e).__name__, str(e)))
+                logger.warning(f'External "convert" failed {type(e).__name__} {str(e)}')
 
         elif os.name == 'nt':
             if not GS:
@@ -911,7 +909,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
             try:
                 if interface == 'wand':
                     generator = "wand interface"
-                    with wand_image(filename=issuefile + '[' + str(check_int(pagenum, 1) - 1) + ']') as img:
+                    with wand_image(filename=f"{issuefile}[{str(check_int(pagenum, 1) - 1)}]") as img:
                         img.save(filename=coverfile)
 
                 elif interface == 'pythonmagick':
@@ -922,7 +920,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                         issuefile = make_bytestr(issuefile)
                     if type(coverfile) is str:
                         coverfile = make_bytestr(coverfile)
-                    img.read(issuefile + '[' + str(check_int(pagenum, 1) - 1) + ']')
+                    img.read(f"{issuefile}[{str(check_int(pagenum, 1) - 1)}]")
                     img.write(coverfile)
 
                 else:

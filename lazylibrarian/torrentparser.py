@@ -30,9 +30,9 @@ def torrent_tpb(book=None, test=False):
     provider = "torrent_tpb"
     host = CONFIG['TPB_HOST']
     if not host.startswith('http'):
-        host = 'http://' + host
+        host = f"http://{host}"
 
-    providerurl = url_fix(host + "/search/")
+    providerurl = url_fix(f"{host}/search/")
 
     cat = 0  # 601=ebooks, 602=comics, 102=audiobooks, 0=all, no mag category so use 600=other
     if 'library' in book:
@@ -54,25 +54,25 @@ def torrent_tpb(book=None, test=False):
 
     while next_page:
 
-        search_url = providerurl + "%s/%s/99/%s" % (quote(make_utf8bytes(book['searchterm'])[0]), page, cat)
+        search_url = f"{providerurl}{quote(make_utf8bytes(book['searchterm'])[0])}/{page}/99/{cat}"
         next_page = False
         result, success = fetch_url(search_url)
 
         if not success:
             # may return 404 if no results, not really an error
             if '404' in result:
-                logger.debug("No results found from %s for %s" % (provider, sterm))
+                logger.debug(f"No results found from {provider} for {sterm}")
                 if test:
                     return 0  # no results but no error
             else:
                 logger.debug(search_url)
-                logger.debug('Error fetching data from %s: %s' % (provider, result))
+                logger.debug(f'Error fetching data from {provider}: {result}')
                 errmsg = result
                 TELEMETRY.record_usage_data("tpbError")
             result = False
 
         if result:
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
+            logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
             soup = BeautifulSoup(result, 'html5lib')
             # tpb uses a named table
             table = soup.find('table', id='searchResult')
@@ -106,10 +106,10 @@ def torrent_tpb(book=None, test=False):
                             if magnet.startswith('http'):
                                 magurl = magnet
                             else:
-                                magurl = '%s/%s' % (host, magnet)
+                                magurl = f'{host}/{magnet}'
                             result, success = fetch_url(magurl)
                             if not success:
-                                logger.debug('Error fetching url %s, %s' % (magurl, result))
+                                logger.debug(f'Error fetching url {magurl}, {result}')
                             else:
                                 magnet = None
                                 new_soup = BeautifulSoup(result, 'html5lib')
@@ -142,25 +142,24 @@ def torrent_tpb(book=None, test=False):
                                     y = tor_date[-4:]
                                     if ':' in y:
                                         t = tor_date[-6:]
-                                        res['tor_date'] = "%s-%s%s" % (m, d, t)
+                                        res['tor_date'] = f"{m}-{d}{t}"
                                     else:
-                                        res['tor_date'] = "%s-%s-%s" % (y, m, d)
+                                        res['tor_date'] = f"{y}-{m}-{d}"
                                 except IndexError:
                                     pass
 
                                 results.append(res)
-                                logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
+                                logger.debug(f'Found {title}. Size: {size}: {magnet}')
                                 next_page = True
                         else:
-                            logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
+                            logger.debug(f"Found {title} but {seeders} {plural(seeders, 'seeder')}")
                     except Exception as e:
-                        logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                        logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                        logger.error(f"An error occurred in the {provider} parser: {str(e)}")
+                        logger.debug(f'{provider}: {traceback.format_exc()}')
                         TELEMETRY.record_usage_data("tpbParserError")
 
         if test:
-            logger.debug("Test found %i %s from %s for %s" % (len(results), plural(len(results),
-                                                              "result"), provider, sterm))
+            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
             return len(results)
 
         if 0 < CONFIG.get_int('MAX_PAGES') < page:
@@ -169,7 +168,7 @@ def torrent_tpb(book=None, test=False):
         else:
             page += 1
 
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
     return results, errmsg
 
 
@@ -179,16 +178,16 @@ def torrent_kat(book=None, test=False):
     provider = "torrent_kat"
     host = CONFIG['KAT_HOST']
     if not host.startswith('http'):
-        host = 'http://' + host
+        host = f"http://{host}"
 
-    providerurl = url_fix(host + "/usearch/" + quote(make_utf8bytes(book['searchterm'])[0]))
+    providerurl = url_fix(f"{host}/usearch/{quote(make_utf8bytes(book['searchterm'])[0])}")
 
     params = {
         "category": "books",
         "field": "seeders",
         "sorder": "desc"
     }
-    search_url = providerurl + "/?%s" % urlencode(params)
+    search_url = f"{providerurl}/?{urlencode(params)}"
 
     sterm = make_unicode(book['searchterm'])
 
@@ -196,12 +195,12 @@ def torrent_kat(book=None, test=False):
     if not success:
         # seems torrent_kat returns 404 if no results, not really an error
         if '404' in result:
-            logger.debug("No results found from %s for %s" % (provider, sterm))
+            logger.debug(f"No results found from {provider} for {sterm}")
             if test:
                 return False
         else:
             logger.debug(search_url)
-            logger.debug('Error fetching data from %s: %s' % (provider, result))
+            logger.debug(f'Error fetching data from {provider}: {result}')
             errmsg = result
             TELEMETRY.record_usage_data("katError")
         result = False
@@ -209,7 +208,7 @@ def torrent_kat(book=None, test=False):
     results = []
 
     if result:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
+        logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
         minimumseeders = CONFIG.get_int('KAT_SEEDERS') - 1
         soup = BeautifulSoup(result, 'html5lib')
         rows = []
@@ -291,15 +290,15 @@ def torrent_kat(book=None, test=False):
                             'priority': CONFIG['KAT_DLPRIORITY'],
                             'prov_page': prov_page
                         })
-                        logger.debug('Found %s. Size: %s' % (title, size))
+                        logger.debug(f'Found {title}. Size: {size}')
                     else:
-                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
+                        logger.debug(f"Found {title} but {seeders} {plural(seeders, 'seeder')}")
                 except Exception as e:
-                    logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                    logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                    logger.error(f"An error occurred in the {provider} parser: {str(e)}")
+                    logger.debug(f'{provider}: {traceback.format_exc()}')
                     TELEMETRY.record_usage_data("katParserError")
 
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
     if test:
         return len(results)
     return results, errmsg
@@ -311,13 +310,13 @@ def torrent_lime(book=None, test=False):
     provider = "Limetorrent"
     host = CONFIG['LIME_HOST']
     if not host.startswith('http'):
-        host = 'http://' + host
+        host = f"http://{host}"
 
     params = {
         "q": make_utf8bytes(book['searchterm'])[0]
     }
-    providerurl = url_fix(host + "/searchrss/other")
-    search_url = providerurl + "?%s" % urlencode(params)
+    providerurl = url_fix(f"{host}/searchrss/other")
+    search_url = f"{providerurl}?{urlencode(params)}"
 
     sterm = make_unicode(book['searchterm'])
 
@@ -325,12 +324,12 @@ def torrent_lime(book=None, test=False):
     if not success:
         # may return 404 if no results, not really an error
         if '404' in data:
-            logger.debug("No results found from %s for %s" % (provider, sterm))
+            logger.debug(f"No results found from {provider} for {sterm}")
             if test:
                 return False
         else:
             logger.debug(search_url)
-            logger.debug('Error fetching data from %s: %s' % (provider, data))
+            logger.debug(f'Error fetching data from {provider}: {data}')
             errmsg = data
             TELEMETRY.record_usage_data("limeError")
         data = False
@@ -339,7 +338,7 @@ def torrent_lime(book=None, test=False):
 
     minimumseeders = CONFIG.get_int('LIME_SEEDERS') - 1
     if data:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
+        logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
         d = feedparser.parse(data)
         if len(d.entries):
             for item in d.entries:
@@ -382,20 +381,20 @@ def torrent_lime(book=None, test=False):
                         if pubdate:
                             res['tor_date'] = pubdate
                         results.append(res)
-                        logger.debug('Found %s. Size: %s' % (title, size))
+                        logger.debug(f'Found {title}. Size: {size}')
                     else:
-                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
+                        logger.debug(f"Found {title} but {seeders} {plural(seeders, 'seeder')}")
 
                 except Exception as e:
                     if 'forbidden' in str(e).lower():
                         # may have ip based access limits
-                        logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
+                        logger.error(f'Access forbidden. Please wait a while before trying {provider} again.')
                     else:
-                        logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                        logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                        logger.error(f"An error occurred in the {provider} parser: {str(e)}")
+                        logger.debug(f'{provider}: {traceback.format_exc()}')
                         TELEMETRY.record_usage_data("limeParserError")
 
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
     if test:
         return len(results)
     return results, errmsg
@@ -407,7 +406,7 @@ def torrent_tdl(book=None, test=False):
     provider = "torrentdownloads"
     host = CONFIG['TDL_HOST']
     if not host.startswith('http'):
-        host = 'http://' + host
+        host = f"http://{host}"
 
     providerurl = url_fix(host)
 
@@ -416,7 +415,7 @@ def torrent_tdl(book=None, test=False):
         "cid": "2",
         "search": make_utf8bytes(book['searchterm'])[0]
     }
-    search_url = providerurl + "/rss.xml?%s" % urlencode(params)
+    search_url = f"{providerurl}/rss.xml?{urlencode(params)}"
 
     sterm = make_unicode(book['searchterm'])
 
@@ -424,12 +423,12 @@ def torrent_tdl(book=None, test=False):
     if not success:
         # may return 404 if no results, not really an error
         if '404' in data:
-            logger.debug("No results found from %s for %s" % (provider, sterm))
+            logger.debug(f"No results found from {provider} for {sterm}")
             if test:
                 return False
         else:
             logger.debug(search_url)
-            logger.debug('Error fetching data from %s: %s' % (provider, data))
+            logger.debug(f'Error fetching data from {provider}: {data}')
             errmsg = data
             TELEMETRY.record_usage_data("tdlError")
         data = False
@@ -438,7 +437,7 @@ def torrent_tdl(book=None, test=False):
 
     minimumseeders = CONFIG.get_int('TDL_SEEDERS') - 1
     if data:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
+        logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
         d = feedparser.parse(data)
         if len(d.entries):
             for item in d.entries:
@@ -480,17 +479,17 @@ def torrent_tdl(book=None, test=False):
                             }
                             if pubdate:
                                 res['tor_date'] = pubdate
-                            logger.debug('Found %s. Size: %s' % (title, size))
+                            logger.debug(f'Found {title}. Size: {size}')
                             results.append(res)
                     else:
-                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
+                        logger.debug(f"Found {title} but {seeders} {plural(seeders, 'seeder')}")
 
                 except Exception as e:
-                    logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                    logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                    logger.error(f"An error occurred in the {provider} parser: {str(e)}")
+                    logger.debug(f'{provider}: {traceback.format_exc()}')
                     TELEMETRY.record_usage_data("tdlParserError")
 
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
     if test:
         return len(results)
     return results, errmsg

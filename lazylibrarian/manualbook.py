@@ -61,7 +61,7 @@ def search_item(item=None, bookid=None, cat=None):
             cat = 'general'
 
     nprov = CONFIG.total_active_providers()
-    logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
+    logger.debug(f"Searching {nprov} {plural(nprov, 'provider')} ({cat}) for {searchterm}")
 
     if CONFIG.use_nzb():
         resultlist, nprov = iterate_over_znab_sites(book, cat)
@@ -149,5 +149,5 @@ def search_item(item=None, bookid=None, cat=None):
 
                 searchresults.append(result)
 
-    logger.debug('Found %s %s results for %s' % (len(searchresults), cat, searchterm))
+    logger.debug(f'Found {len(searchresults)} {cat} results for {searchterm}')
     return searchresults

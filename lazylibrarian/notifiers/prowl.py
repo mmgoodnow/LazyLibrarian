@@ -25,9 +25,9 @@ class ProwlNotifier:
         if prowl_priority is None:
             prowl_priority = CONFIG.get_int('PROWL_PRIORITY')
 
-        logger.debug(u"Prowl: title: " + title)
-        logger.debug(u"Prowl: event: " + event)
-        logger.debug(u"Prowl: message: " + message)
+        logger.debug(f"Prowl: title: {title}")
+        logger.debug(f"Prowl: event: {event}")
+        logger.debug(f"Prowl: message: {message}")
 
         data = {'event': event,
                 'description': message,
@@ -51,14 +51,14 @@ class ProwlNotifier:
                 logger.info('Prowl notifications sent.')
                 return True
             elif request_status == 401:
-                logger.info('Prowl auth failed: %s' % response.reason)
+                logger.info(f'Prowl auth failed: {response.reason}')
                 return False
             else:
                 logger.info('Prowl notification failed.')
                 return False
 
         except Exception as e:
-            logger.warning('Error sending to Prowl: %s' % e)
+            logger.warning(f'Error sending to Prowl: {e}')
             return False
 
     #

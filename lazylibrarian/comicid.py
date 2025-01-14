@@ -11,21 +11,21 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import re
 import string
 import time
-from xml.etree import ElementTree
 import zipfile
-import logging
-
-import lazylibrarian
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.cache import html_request, json_request
-from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, quotes
-from lazylibrarian.filesystem import path_isfile
 from urllib.parse import quote_plus
+from xml.etree import ElementTree
 
 from bs4 import BeautifulSoup
+
+import lazylibrarian
+from lazylibrarian.cache import html_request, json_request
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import path_isfile
+from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, quotes
 
 
 def get_issue_num(words, skipped):
@@ -58,12 +58,12 @@ def get_issue_num(words, skipped):
 def name_words(name):
     # sanitize for better matching
     # allow #num and word! or word? but strip other punctuation, allow '&' as a word
-    punct = re.compile('[{}]'.format(re.escape(string.punctuation.replace('#', '').replace('!', '').
-                                               replace('?', '').replace('&', '').replace(':', ''))))
+    punct = re.compile(
+        f"[{re.escape(string.punctuation.replace('#', '').replace('!', '').replace('?', '').replace('&', '').replace(':', ''))}]")
 
     name = punct.sub(' ', name)
     # strip all ascii and non-ascii quotes/apostrophes
-    strip = re.compile('[{}]'.format(re.escape(''.join(quotes))))
+    strip = re.compile(f"[{re.escape(''.join(quotes))}]")
     name = strip.sub('', name)
     # special cases, probably need a configurable translation table like we do for genres
     name = name.replace('40 000', '40,000').replace("X Men", "X-Men").replace("X Factor", "X-Factor")
@@ -75,7 +75,7 @@ def name_words(name):
         if word == '&' and not buildword:
             namewords.append(word)
         elif len(word) == 1 and not word.isdigit():
-            buildword = "%s%s." % (buildword, word)
+            buildword = f"{buildword}{word}."
         else:
             if buildword:
                 if len(buildword) == 2:
@@ -112,7 +112,8 @@ def cv_identify(fname, best=True):
         # don't nag. Show warning message no more than every 20 mins
         timenow = int(time.time())
         if check_int(lazylibrarian.TIMERS['NO_CV_MSG'], 0) + 1200 < timenow:
-            logger.warning("Please obtain an apikey from https://comicvine.gamespot.com/api/ and add as CV_APIKEY in config.ini")
+            logger.warning(
+                "Please obtain an apikey from https://comicvine.gamespot.com/api/ and add as CV_APIKEY in config.ini")
             lazylibrarian.TIMERS['NO_CV_MSG'] = timenow
         return []
 
@@ -134,14 +135,14 @@ def cv_identify(fname, best=True):
     page_number = 0
     while next_page:
         if offset:
-            off = "&offset=%s" % offset
+            off = f"&offset={offset}"
         else:
             off = ''
-        url = '/'.join([CONFIG['CV_URL'], 'api/volumes/?api_key=%s' % apikey])
+        url = '/'.join([CONFIG['CV_URL'], f'api/volumes/?api_key={apikey}'])
         if fname.startswith('CV'):
-            url += '&format=json&sort=name:asc&filter=id:%s%s' % (fname[2:], off)
+            url += f'&format=json&sort=name:asc&filter=id:{fname[2:]}{off}'
         else:
-            url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(make_utf8bytes(matchwords)[0]), off)
+            url += f'&format=json&sort=name:asc&filter=name:{quote_plus(make_utf8bytes(matchwords)[0])}{off}'
         cv_api_sleep()
         res, _ = json_request(url)
         if not res:
@@ -181,7 +182,7 @@ def cv_identify(fname, best=True):
                                 "count": count,
                                 "first": first,
                                 "last": last,
-                                "seriesid": "CV%s" % seriesid,
+                                "seriesid": f"CV{seriesid}",
                                 "description": description,
                                 "searchterm": matchwords.replace('+', ' '),
                                 "link": link
@@ -201,7 +202,7 @@ def cv_identify(fname, best=True):
         return choices
 
     if choices:
-        loggermatching.debug('Found %i possible for %s' % (len(choices), fname))
+        loggermatching.debug(f'Found {len(choices)} possible for {fname}')
         results = []
         year = 0
         # do we have a year to narrow it down
@@ -210,7 +211,7 @@ def cv_identify(fname, best=True):
                 year = w
                 break
 
-        loggermatching.debug("Checking %s %s" % (len(choices), plural(len(choices), "result")))
+        loggermatching.debug(f"Checking {len(choices)} {plural(len(choices), 'result')}")
         for item in choices:
             present = 0
             noise = 0
@@ -223,13 +224,12 @@ def cv_identify(fname, best=True):
                     noise += 1
 
             if year and item['start'] and item["start"] > year:  # series not started yet
-                loggermatching.debug("Year %s out of range (start=%s) %s" % (year, item["start"], item['title']))
+                loggermatching.debug(f"Year {year} out of range (start={item['start']}) {item['title']}")
                 rejected = True
 
             issue = get_issue_num(words, namewords)
             if issue and (issue < check_int(item["first"], 0) or issue > check_int(item["last"], 0)):
-                loggermatching.debug("Issue %s out of range (%s to %s) %s" % (issue, item["first"],
-                                                                              item["last"], item['title']))
+                loggermatching.debug(f"Issue {issue} out of range ({item['first']} to {item['last']}) {item['title']}")
                 rejected = True
 
             for w in titlewords:
@@ -241,7 +241,7 @@ def cv_identify(fname, best=True):
             if not rejected and present >= minmatch:
                 results.append([present, noise, missing, item, issue])
             else:
-                loggermatching.debug("Only matched %s %s in %s" % (present, plural(present, "word"), item['title']))
+                loggermatching.debug(f"Only matched {present} {plural(present, 'word')} in {item['title']}")
 
         results = sorted(results, key=lambda x: (-x[0], x[1], -(check_int(x[3]["start"], 0))))
         loggermatching.debug(str(results))
@@ -250,21 +250,21 @@ def cv_identify(fname, best=True):
             return results[0]
 
     if not CONFIG.get_bool('CV_WEBSEARCH'):
-        loggermatching.debug('No match for %s' % fname)
+        loggermatching.debug(f'No match for {fname}')
         return []
 
-    loggermatching.debug('No api match for %s, trying websearch' % fname)
+    loggermatching.debug(f'No api match for {fname}, trying websearch')
     # fortunately comicvine sorts the resuts and gives us "best match first"
     # so we only scrape the first page (could add &page=2)
-    url = '/'.join([CONFIG['CV_URL'], 'search/?i=volume&q=%s' % matchwords])
+    url = '/'.join([CONFIG['CV_URL'], f'search/?i=volume&q={matchwords}'])
     data, in_cache = html_request(url)
     if not data:
-        loggermatching.debug('No match for %s' % fname)
+        loggermatching.debug(f'No match for {fname}')
         return []
 
     choices = get_volumes_from_search(data)
     if choices:
-        loggermatching.debug('Found %i possible for %s' % (len(choices), fname))
+        loggermatching.debug(f'Found {len(choices)} possible for {fname}')
         results = []
         year = 0
         # do we have a year to narrow it down
@@ -303,7 +303,7 @@ def cv_identify(fname, best=True):
     if results:
         return results[0]
 
-    loggermatching.debug('No match for %s' % fname)
+    loggermatching.debug(f'No match for {fname}')
     return []
 
 
@@ -348,7 +348,7 @@ def get_volumes_from_search(page_content):
                             "count": count,
                             "first": first,
                             "last": last,
-                            "seriesid": "CV%s" % seriesid,
+                            "seriesid": f"CV{seriesid}",
                             "description": description,
                             "searchterm": matchwords.replace('+', ' '),
                             "link": CONFIG['CV_URL'] + href
@@ -418,11 +418,11 @@ def cx_identify(fname, best=True):
         minmatch = 2
     max_pages = CONFIG.get_int('MAX_PAGES')
 
-    url = '/'.join([CONFIG['CX_URL'], 'search/series?search=%s' % matchwords])
+    url = '/'.join([CONFIG['CX_URL'], f'search/series?search={matchwords}'])
     data, _ = html_request(url)
 
     if not data:
-        loggermatching.debug('No match for %s' % fname)
+        loggermatching.debug(f'No match for {fname}')
         return []
 
     series_links = get_series_links_from_search(data)
@@ -437,11 +437,11 @@ def cx_identify(fname, best=True):
             if page_number == 1:
                 data, in_cache = html_request(link)
             else:
-                data, in_cache = html_request(link+'?Issues_pg=%s' % page_number)
+                data, in_cache = html_request(f"{link}?Issues_pg={page_number}")
             try:
                 soup = BeautifulSoup(data, "html5lib")
                 pager = soup.find('div', class_="list Issues").find(
-                                  'div', class_="pager-text").text.strip('\n').strip()
+                    'div', class_="pager-text").text.strip('\n').strip()
             except (TypeError, AttributeError):
                 pager = None
 
@@ -481,7 +481,7 @@ def cx_identify(fname, best=True):
                 except IndexError:
                     pass
 
-                series_detail['seriesid'] = "CX%s" % link.rsplit('/', 1)[1]
+                series_detail['seriesid'] = f"CX{link.rsplit('/', 1)[1]}"
                 series_detail['start'] = start
                 series_detail['first'] = first
                 series_detail['last'] = last
@@ -495,7 +495,7 @@ def cx_identify(fname, best=True):
 
     choices = []
     if res:
-        loggermatching.debug('Found %i possible for %s' % (len(res), fname))
+        loggermatching.debug(f'Found {len(res)} possible for {fname}')
         year = 0
         # do we have a year to narrow it down
         for w in words:
@@ -526,21 +526,21 @@ def cx_identify(fname, best=True):
             for w in name_words(item['title']):
                 if w in words:
                     if check_year(w):
-                        loggermatching.debug('Match %s year %s' % (item['title'], year))
+                        loggermatching.debug(f"Match {item['title']} year {year}")
                     else:
                         wordcount += 1
                 else:
                     if check_year(w):
                         if y1 and y2 and int(y1) <= int(year) <= int(y2):
-                            loggermatching.debug('Match %s (%s is between %s-%s)' % (item['title'], year, y1, y2))
+                            loggermatching.debug(f"Match {item['title']} ({year} is between {y1}-{y2})")
                             rejected = False
                             break
                         elif y1 and not y2 and int(year) >= int(y1):
-                            loggermatching.debug('Accept %s (%s is in %s-)' % (item['title'], year, y1))
+                            loggermatching.debug(f"Accept {item['title']} ({year} is in {y1}-)")
                             rejected = False
                             break
                         else:
-                            loggermatching.debug('Rejecting %s, need %s' % (item['title'], year))
+                            loggermatching.debug(f"Rejecting {item['title']}, need {year}")
                             rejected = True
                             noise += 1
                             break
@@ -556,8 +556,8 @@ def cx_identify(fname, best=True):
                 rejected = True
 
             if not rejected and wordcount >= minmatch:
-                if (missing + noise)/2 >= wordcount:
-                    loggermatching.debug("Rejecting %s (noise %s)" % (item['title'], missing + noise))
+                if (missing + noise) / 2 >= wordcount:
+                    loggermatching.debug(f"Rejecting {item['title']} (noise {missing + noise})")
                 else:
                     choices.append([wordcount, noise, missing, item, issue])
 
@@ -565,7 +565,7 @@ def cx_identify(fname, best=True):
             choices = sorted(choices, key=lambda x: (-x[0], x[1]))
             return choices[0]
 
-    loggermatching.debug('No match for %s' % fname)
+    loggermatching.debug(f'No match for {fname}')
     return []
 
 
@@ -574,14 +574,14 @@ def comic_metadata(archivename, xml=False):
     loggermatching = logging.getLogger('special.matching')
     archivename = make_unicode(archivename)
     if not path_isfile(archivename):  # regular files only
-        logger.debug("%s is not a file" % archivename)
+        logger.debug(f"{archivename} is not a file")
         return {}
 
     if zipfile.is_zipfile(archivename):
         try:
             z = zipfile.ZipFile(archivename)
         except Exception as e:
-            logger.error("Failed to unzip %s: %s" % (archivename, e))
+            logger.error(f"Failed to unzip {archivename}: {e}")
             return {}
 
         namelist = z.namelist()
@@ -589,17 +589,17 @@ def comic_metadata(archivename, xml=False):
             if item.endswith('ComicInfo.xml'):
                 if xml:
                     res = z.read(item)
-                    logger.debug("%s bytes xml" % len(res))
+                    logger.debug(f"{len(res)} bytes xml")
                     return res
                 return meta_dict(z.read(item))
-        loggermatching.debug('ComicInfo.xml not found in %s' % archivename)
+        loggermatching.debug(f'ComicInfo.xml not found in {archivename}')
         return {}
 
     if lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
         try:
             z = lazylibrarian.RARFILE.RarFile(archivename)
         except Exception as e:
-            logger.error("Failed to unrar lib_1 %s: %s" % (archivename, e))
+            logger.error(f"Failed to unrar lib_1 {archivename}: {e}")
             return {}
 
         namelist = z.namelist()
@@ -607,30 +607,30 @@ def comic_metadata(archivename, xml=False):
             if item.endswith('ComicInfo.xml'):
                 if xml:
                     res = z.read(item)
-                    logger.debug("%s bytes xml" % len(res))
+                    logger.debug(f"{len(res)} bytes xml")
                     return res
                 return meta_dict(z.read(item))
-        loggermatching.debug('ComicInfo.xml not found in %s' % archivename)
+        loggermatching.debug(f'ComicInfo.xml not found in {archivename}')
         return {}
 
     if lazylibrarian.UNRARLIB == 2:
         try:
             rarc = lazylibrarian.RARFILE(archivename)
         except Exception as e:
-            logger.error("Failed to unrar lib_2 %s: %s" % (archivename, e))
+            logger.error(f"Failed to unrar lib_2 {archivename}: {e}")
             return {}
 
         data = rarc.read_files('ComicInfo.xml')
         if data:
             if xml:
                 res = data[0][1]
-                logger.debug("%s bytes xml" % len(res))
+                logger.debug(f"{len(res)} bytes xml")
                 return res
             return meta_dict(data[0][1])
-        loggermatching.debug('ComicInfo.xml not found in %s' % archivename)
+        loggermatching.debug(f'ComicInfo.xml not found in {archivename}')
         return {}
 
-    logger.debug("%s is not an archive we can unpack" % archivename)
+    logger.debug(f"{archivename} is not an archive we can unpack")
     return {}
 
 
@@ -644,15 +644,15 @@ def meta_dict(data):
             datadict[item] = res.text
     if 'Web' in datadict:
         if 'comicvine' in datadict['Web']:
-            datadict['ComicID'] = 'CV' + datadict['Web'].rsplit('-', 1)[-1].strip('/')
+            datadict['ComicID'] = f"CV{datadict['Web'].rsplit('-', 1)[-1].strip('/')}"
         elif 'comixology' in datadict['Web']:
-            datadict['ComicID'] = 'CX' + datadict['Web'].rsplit('/', 1)[-1]
+            datadict['ComicID'] = f"CX{datadict['Web'].rsplit('/', 1)[-1]}"
     else:
         res = rootxml.find('Notes')
         if res is not None and res.text is not None:
             notes = res.text
             if 'Comic Vine' in notes and 'Issue ID ' in notes:
-                datadict['ComicID'] = 'CV' + notes.split('Issue ID ')[1].split(']')[0].strip()
+                datadict['ComicID'] = f"CV{notes.split('Issue ID ')[1].split(']')[0].strip()}"
     logger.debug(str(datadict))
     return datadict
 
@@ -661,8 +661,8 @@ def cv_issue(seriesid, issuenum):
     logger = logging.getLogger(__name__)
     res = {'Description': '', 'Link': '', 'Contributors': ''}
     apikey = CONFIG['CV_APIKEY']
-    url = '/'.join([CONFIG['CV_URL'], 'api/issues/?api_key=%s' % apikey])
-    url += '&format=json&filter=volume:%s,issue_number:%s' % (seriesid, issuenum)
+    url = '/'.join([CONFIG['CV_URL'], f'api/issues/?api_key={apikey}'])
+    url += f'&format=json&filter=volume:{seriesid},issue_number:{issuenum}'
     cv_api_sleep()
     data, _ = json_request(url)
     # comicvine api "/issue" and "issue_detail_url" seem broken, always get 404
@@ -674,16 +674,16 @@ def cv_issue(seriesid, issuenum):
             res['Link'] = data['results'][0]['site_detail_url']
             res['Description'] = data['results'][0]['description']
         except IndexError:
-            logger.debug("No link/description from %s" % url)
+            logger.debug(f"No link/description from {url}")
             return res
     else:
-        logger.debug("No data from %s" % url)
+        logger.debug(f"No data from {url}")
         return res
 
     if res['Link']:
         data, _ = html_request(res['Link'])
     else:
-        logger.debug("No site_detail_url from %s" % url)
+        logger.debug(f"No site_detail_url from {url}")
         return res
 
     if data:
@@ -708,7 +708,7 @@ def cx_issue(url, issuenum):
     if data:
         issue_links = get_series_links_from_search(data)
         for link in issue_links:
-            if "-%s/" % issuenum in link or "-%s-" % issuenum in link:
+            if f"-{issuenum}/" in link or f"-{issuenum}-" in link:
                 res['Link'] = link
                 break
     if res['Link']:
@@ -742,6 +742,6 @@ def cv_api_sleep():
         sleep_time = 1.0 - delay
         lazylibrarian.TIMERS['SLEEP_CV'] += sleep_time
         cachelogger = logging.getLogger('special.cache')
-        cachelogger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_CV']))
+        cachelogger.debug(f"ComicVine sleep {sleep_time:.3f}, total {lazylibrarian.TIMERS['SLEEP_CV']:.3f}")
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_CV'] = time_now

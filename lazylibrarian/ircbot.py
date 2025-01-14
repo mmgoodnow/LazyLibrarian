@@ -79,21 +79,21 @@ try:
             self.file = None
             self.my_dcc = None
 
-        def on_nicknameinuse(self, c, e):
+        def on_nicknameinuse(self, c, err):
             # handle username conflicts
-            c.nick(c.get_nickname() + "_")
+            c.nick(f"{c.get_nickname()}_")
 
-        def on_welcome(self, c, e):
+        def on_welcome(self, c, err):
             self.dlcommslogger.debug("on_welcome")
             c.join(self.channel)
             self.timer = threading.Timer(searchtimeout, self.handle_timeout)
             self.timer.start()
-            self.connection.privmsg(self.channel, self.searchtype + " " + self.searchterm)
+            self.connection.privmsg(self.channel, f"{self.searchtype} {self.searchterm}")
 
             if self.searchtype.startswith('!'):
-                self.logger.debug("Downloading " + self.filename + " ...\n")
+                self.logger.debug(f"Downloading {self.filename} ...\n")
             else:
-                self.logger.debug("Searching for " + self.searchterm + " ...\n")
+                self.logger.debug(f"Searching for {self.searchterm} ...\n")
 
         def handle_timeout(self):
             self.logger.debug("No search results found")
@@ -116,9 +116,9 @@ try:
             command, filename, peer_address, peer_port, size = parts
             if command != "SEND":
                 return
-            self.logger.debug("peer sending file on port " + str(peer_port))
-            self.filename = self.localfolder + "/" + self.filename
-            self.logger.debug("writing file " + self.filename)
+            self.logger.debug(f"peer sending file on port {str(peer_port)}")
+            self.filename = f"{self.localfolder}/{self.filename}"
+            self.logger.debug(f"writing file {self.filename}")
             self.file = open(self.filename, "wb")
             peer_address = irc_client.ip_numstr_to_quad(peer_address)
             peer_port = int(peer_port)
@@ -133,7 +133,7 @@ try:
 
         def on_dcc_disconnect(self, connection, event):
             self.file.close()
-            self.logger.debug("Received file %s (%d bytes).\n" % (self.filename, self.received_bytes))
+            self.logger.debug(f"Received file {self.filename} ({self.received_bytes} bytes).\n")
             self.timer.cancel()
             self.die()  # exit when the download finishes
 
@@ -146,13 +146,13 @@ except Exception as e:
 
 
 def irc_query(provider: ConfigDict, filename, searchterm, searchtype, cache=True):
-    logger = logging.getLogger(__name__)
+    logg = logging.getLogger(__name__)
     cachelogger = logging.getLogger('special.cache')
     if not irc_client:
         BLOCKHANDLER.block_provider(provider['SERVER'], 'IRC module not loaded')
     if BLOCKHANDLER.is_blocked(provider['SERVER']):
-        msg = "%s is blocked" % provider['SERVER']
-        logger.warning(msg)
+        msg = f"{provider['SERVER']} is blocked"
+        logg.warning(msg)
         return ''
 
     if not searchtype:
@@ -165,7 +165,7 @@ def irc_query(provider: ConfigDict, filename, searchterm, searchtype, cache=True
         else:
             myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + searchtype)
         valid_cache = False
-        hashfilename = os.path.join(cache_location, myhash + ".irc")
+        hashfilename = os.path.join(cache_location, f"{myhash}.irc")
         # cache results so we can do multiple searches for the same author
         # or multiple search types for a book without hammering the irc provider
         # expire cache after 2 hours, there might be new additions
@@ -176,15 +176,14 @@ def irc_query(provider: ConfigDict, filename, searchterm, searchtype, cache=True
             time_now = time.time()
             if cache_modified_time < time_now - expiry:
                 # Cache entry is too old, delete it
-                cachelogger.debug("Expiring %s" % myhash)
+                cachelogger.debug(f"Expiring {myhash}")
                 remove_file(hashfilename)
             else:
                 valid_cache = True
 
         if valid_cache:
             lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-            cachelogger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
-                                                                                     searchterm))
+            cachelogger.debug(f"CacheHandler: Returning CACHED response {hashfilename} for {searchterm}")
             return
 
         lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
@@ -201,10 +200,10 @@ def irc_results(provider: ConfigDict, fname,):
     # filename is rest up to ::INFO:: or "\r"
     # if ::INFO:: in line, following word is size including unit
     # if \r- in line last two words are size/unit
-    logger = logging.getLogger(__name__)
+    logg = logging.getLogger(__name__)
     results = []
     tor_date = today()
-    logger.debug("Checking results in %s" % fname)
+    logg.debug(f"Checking results in {fname}")
     if fname and zipfile.is_zipfile(fname):
         try:
             data = zipfile.ZipFile(fname)
@@ -251,9 +250,9 @@ def irc_results(provider: ConfigDict, fname,):
                                         'types': provider['DLTYPES'],
                                     })
                 else:
-                    logger.error("No results file found in %s" % fname)
+                    logger.error(f"No results file found in {fname}")
             else:
-                logger.error("No zip data in %s" % fname)
-        except Exception as e:
-            logger.error("Error reading results: %s" % str(e))
+                logger.error(f"No zip data in {fname}")
+        except Exception as err:
+            logger.error(f"Error reading results: {str(err)}")
     return results

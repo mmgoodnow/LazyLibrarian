@@ -51,7 +51,7 @@ def magnet2torrent(magnet, output_name=None):
     if output_name and \
             not os.path.isdir(output_name) and \
             not os.path.isdir(os.path.dirname(os.path.abspath(output_name))):
-        logger.debug("Invalid output folder: " + os.path.dirname(os.path.abspath(output_name)))
+        logger.debug(f"Invalid output folder: {os.path.dirname(os.path.abspath(output_name))}")
         return False
 
     tempdir = tempfile.mkdtemp()
@@ -82,11 +82,11 @@ def magnet2torrent(magnet, output_name=None):
     if not counter:
         logger.debug("magnet2Torrent Aborting...")
         ses.pause()
-        logger.debug("Cleanup dir " + tempdir)
+        logger.debug(f"Cleanup dir {tempdir}")
         try:
             shutil.rmtree(tempdir)
         except Exception as e:
-            logger.error("%s removing directory: %s" % (type(e).__name__, str(e)))
+            logger.error(f"{type(e).__name__} removing directory: {str(e)}")
         return False
     ses.pause()
 
@@ -97,20 +97,20 @@ def magnet2torrent(magnet, output_name=None):
     torcontent = lt.bencode(torfile.generate())
     ses.remove_torrent(handle)
 
-    output = os.path.abspath(torinfo.name() + ".torrent")
+    output = os.path.abspath(f"{torinfo.name()}.torrent")
     if output_name:
         if os.path.isdir(output_name):
             output = os.path.abspath(os.path.join(
-                output_name, torinfo.name() + ".torrent"))
+                output_name, f"{torinfo.name()}.torrent"))
         elif os.path.isdir(os.path.dirname(os.path.abspath(output_name))):
             output = os.path.abspath(output_name)
 
-    logger.debug("Saving torrent file here : " + output + " ...")
+    logger.debug(f"Saving torrent file here : {output} ...")
     with open(output, 'wb') as f:
         f.write(torcontent)
-    logger.debug("Saved! Cleaning up dir: " + tempdir)
+    logger.debug(f"Saved! Cleaning up dir: {tempdir}")
     try:
         shutil.rmtree(tempdir)
     except Exception as e:
-        logger.error("%s removing directory: %s" % (type(e).__name__, str(e)))
+        logger.error(f"{type(e).__name__} removing directory: {str(e)}")
     return output

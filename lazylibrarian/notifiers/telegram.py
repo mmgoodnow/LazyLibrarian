@@ -1,4 +1,5 @@
 import logging
+
 import requests
 
 from lazylibrarian.config2 import CONFIG
@@ -25,11 +26,11 @@ class TelegramNotifier:
         if telegram_userid is None:
             telegram_userid = CONFIG['TELEGRAM_USERID']
 
-        logger.debug("Telegram: event: " + event)
-        logger.debug("Telegram: message: " + message)
+        logger.debug(f"Telegram: event: {event}")
+        logger.debug(f"Telegram: message: {message}")
 
         # Construct message
-        payload = {'chat_id': telegram_userid, 'text': event + ': ' + message}
+        payload = {'chat_id': telegram_userid, 'text': f"{event}: {message}"}
 
         # Send message to user using Telegram's Bot API
         try:
@@ -38,14 +39,14 @@ class TelegramNotifier:
             logger.debug(str(payload))
             response = requests.request('POST', url, data=payload)
         except Exception as e:
-            logger.warning('Telegram notify failed: ' + str(e))
+            logger.warning(f"Telegram notify failed: {str(e)}")
             return False
 
         if response.status_code == 200:
             return True
         else:
-            logger.warning('Could not send notification to TelegramBot (token=%s). Response: [%s]' %
-                           (telegram_token, response.text))
+            logger.warning(
+                f'Could not send notification to TelegramBot (token={telegram_token}). Response: [{response.text}]')
             return False
         #
         # Public functions

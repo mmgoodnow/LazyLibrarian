@@ -47,7 +47,7 @@ def initialize(options=None):
     https_cert = options['https_cert']
     https_key = options['https_key']
     if options['http_root'] and not options['http_root'].startswith('/'):
-        options['http_root'] = '/' + options['http_root']
+        options['http_root'] = f"/{options['http_root']}"
 
     if https_enabled:
         if not (path_exists(https_cert) and path_exists(https_key)):
@@ -75,8 +75,8 @@ def initialize(options=None):
     else:
         protocol = "http"
 
-    logger.info("Starting LazyLibrarian web server on %s://%s:%s%s" %
-                (protocol, options['http_host'], options['http_port'], options['http_root']))
+    logger.info(f"Starting LazyLibrarian web server on {protocol}://{options['http_host']}:"
+                f"{options['http_port']}{options['http_root']}")
     cherrypy_cors.install()
     cherrypy.config.update(options_dict)
 
@@ -163,8 +163,8 @@ def initialize(options=None):
             'tools.proxy.local': CONFIG['PROXY_LOCAL']
         })
     if options['http_pass'] != "":
-        logger.info("Web server %s authentication is enabled, username is '%s'" %
-                    (options['authentication'], options['http_user']))
+        logger.info(f"Web server {options['authentication']} authentication is enabled, "
+                    f"username is '{options['http_user']}'")
         if options['authentication'] == 'FORM':
             # Set up a sessions based login page instead of using basic auth,
             # using the credentials set for basic auth. Attempting to browse to
@@ -224,10 +224,10 @@ def initialize(options=None):
                      ('Comics', 'RecentComics'),
                      ('Genres', 'Genres'),
                      ('Series', 'Series')]:
-            with open(syspath(os.path.join(DIRS.CACHEDIR, 'opensearch%s.xml' % item[0].lower())), 'w') as t:
+            with open(syspath(os.path.join(DIRS.CACHEDIR, f'opensearch{item[0].lower()}.xml')), 'w') as t:
                 for lyne in data:
                     t.write(lyne.replace('{label}', item[0]).replace(
-                                      '{func}', 't=%s&amp;' % item[1]).replace(
+                                      '{func}', f't={item[1]}&amp;').replace(
                                       '{webroot}', options['http_root']))
                     t.write('\n')
 
@@ -254,16 +254,16 @@ def initialize(options=None):
         copyfile(os.path.join(DIRS.PROG_DIR, 'data', 'images', 'lazylibrarian.png'),
                  os.path.join(DIRS.CACHEDIR, 'alive.png'))
     except Exception as e:
-        msg = 'CherryPy failed to start on port %i' % (options['http_port'])
+        msg = f"CherryPy failed to start on port {options['http_port']}"
         if psutil:
             for item in psutil.net_connections():
                 txt = str(item)
-                if 'port=%s' % options['http_port'] in txt and "status='LISTEN'" in txt:
+                if f"port={options['http_port']}" in txt and "status='LISTEN'" in txt:
                     user_pid = int(txt.split('pid=')[1].split(')')[0].split(',')[0])
                     if user_pid:
                         process = psutil.Process(user_pid)
                         process_cmd = process.cmdline()
-                        msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_cmd))
+                        msg += f", port appears to be used by pid {user_pid}, {process_cmd}"
         else:
             msg += ' Please install psutil to get more info'
         logger.warning(msg)
@@ -288,7 +288,7 @@ def error_page_404(status, message, traceback, version):
 # noinspection PyShadowingNames,PyUnusedLocal
 def error_page_401(status, message, traceback, version):
     """ Custom handler for 401 error """
-    body = 'Error %s: ' % status
+    body = f'Error {status}: '
     if str(status) == '401':
         body += 'You need to provide a valid username and password. '
     if message:

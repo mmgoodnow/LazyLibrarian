@@ -19,15 +19,15 @@ import time
 import traceback
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
     nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, thread_name
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_znab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.telemetry import TELEMETRY
 
 
@@ -72,7 +72,7 @@ def search_magazines(mags=None, reset=False):
             thread_name("WEBSERVER")
             return
 
-        logger.info('Searching for %i %s' % (len(searchmags), plural(len(searchmags), "magazine")))
+        logger.info(f"Searching for {len(searchmags)} {plural(len(searchmags), 'magazine')}")
 
         for searchmag in searchmags:
             bookid = searchmag['Title']
@@ -94,7 +94,7 @@ def search_magazines(mags=None, reset=False):
 
         for book in searchlist:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLMAG":
-                logger.debug("Aborting %s" % threadname)
+                logger.debug(f"Aborting {threadname}")
                 break
 
             resultlist = []
@@ -197,7 +197,7 @@ def search_magazines(mags=None, reset=False):
                             })
 
             if not resultlist:
-                logger.debug("No results for magazine %s" % book['searchterm'])
+                logger.debug(f"No results for magazine {book['searchterm']}")
             else:
                 bad_name = 0
                 bad_date = 0
@@ -234,19 +234,19 @@ def search_magazines(mags=None, reset=False):
 
                     results = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
                     if not results:
-                        logger.debug('Magazine [%s] does not match search term [%s].' % (nzbtitle, bookid))
+                        logger.debug(f'Magazine [{nzbtitle}] does not match search term [{bookid}].')
                         bad_name += 1
                     else:
                         rejected = False
                         maxsize = CONFIG.get_int('REJECT_MAGSIZE')
                         if maxsize and nzbsize > maxsize:
-                            logger.debug("Rejecting %s, too large (%sMb)" % (nzbtitle, nzbsize))
+                            logger.debug(f"Rejecting {nzbtitle}, too large ({nzbsize}Mb)")
                             rejected = True
 
                         if not rejected:
                             minsize = CONFIG.get_int('REJECT_MAGMIN')
                             if minsize and nzbsize < minsize:
-                                logger.debug("Rejecting %s, too small (%sMb)" % (nzbtitle, nzbsize))
+                                logger.debug(f"Rejecting {nzbtitle}, too small ({nzbsize}Mb)")
                                 rejected = True
 
                         if not rejected:
@@ -271,32 +271,30 @@ def search_magazines(mags=None, reset=False):
                                     elif word == '+':
                                         word = 'and'
                                     if word.lower() not in wlist:
-                                        logger.debug("Rejecting %s, missing [%s]" % (nzbtitle, word))
+                                        logger.debug(f"Rejecting {nzbtitle}, missing [{word}]")
                                         rejected = True
                                         break
 
                                 if rejected:
                                     logger.debug(
-                                        "Magazine title match failed " + bookid + " for " + nzbtitle_formatted)
+                                        f"Magazine title match failed {bookid} for {nzbtitle_formatted}")
                                 else:
                                     logger.debug(
-                                        "Magazine title matched " + bookid + " for " + nzbtitle_formatted)
+                                        f"Magazine title matched {bookid} for {nzbtitle_formatted}")
                             else:
-                                logger.debug("Magazine name too short (%s)" % len(nzbtitle_exploded))
+                                logger.debug(f"Magazine name too short ({len(nzbtitle_exploded)})")
                                 rejected = True
 
                         if not rejected and CONFIG.get_bool('BLACKLIST_FAILED'):
                             blocked = db.match("SELECT * from wanted WHERE NZBurl=? and Status='Failed'", (nzburl,))
                             if blocked:
-                                logger.debug("Rejecting %s, blacklisted at %s" %
-                                             (nzbtitle_formatted, blocked['NZBprov']))
+                                logger.debug(f"Rejecting {nzbtitle_formatted}, blacklisted at {blocked['NZBprov']}")
                                 rejected = True
 
                         if not rejected and CONFIG.get_bool('BLACKLIST_PROCESSED'):
                             blocked = db.match('SELECT * from wanted WHERE NZBurl=?', (nzburl,))
                             if blocked:
-                                logger.debug("Rejecting %s, blacklisted at %s" %
-                                             (nzbtitle_formatted, blocked['NZBprov']))
+                                logger.debug(f"Rejecting {nzbtitle_formatted}, blacklisted at {blocked['NZBprov']}")
                                 rejected = True
 
                         if not rejected:
@@ -305,14 +303,14 @@ def search_magazines(mags=None, reset=False):
                             lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower().split()
                             lower_bookid = unaccented(bookid, only_ascii=False).lower().split()
                             if reject_list:
-                                loggersearching.debug('Reject: %s' % reject_list)
-                                loggersearching.debug('Title: %s' % lower_title)
-                                loggersearching.debug('Bookid: %s' % lower_bookid)
+                                loggersearching.debug(f'Reject: {reject_list}')
+                                loggersearching.debug(f'Title: {lower_title}')
+                                loggersearching.debug(f'Bookid: {lower_bookid}')
                             for word in reject_list:
                                 word = unaccented(word).lower()
                                 if word in lower_title and word not in lower_bookid:
                                     rejected = True
-                                    logger.debug("Rejecting %s, contains %s" % (nzbtitle_formatted, word))
+                                    logger.debug(f"Rejecting {nzbtitle_formatted}, contains {word}")
                                     break
                             if not rejected:
                                 reject_list = get_list(results['Reject'])
@@ -331,8 +329,8 @@ def search_magazines(mags=None, reset=False):
                                                         break
                                                 if not valid:
                                                     rejected = True
-                                                    logger.debug("Rejecting %s, strict, contains %s" %
-                                                                 (nzbtitle_formatted, word))
+                                                    logger.debug(
+                                                        f"Rejecting {nzbtitle_formatted}, strict, contains {word}")
                                                     break
                         if rejected:
                             rejects += 1
@@ -340,8 +338,8 @@ def search_magazines(mags=None, reset=False):
                             datetype = book['datetype']
                             regex_pass, issuedate, year = get_issue_date(nzbtitle_exploded, datetype=datetype)
                             if regex_pass:
-                                logger.debug('Issue %s (regex %s) for %s, %s' %
-                                             (issuedate, regex_pass, nzbtitle_formatted, datetype))
+                                logger.debug(
+                                    f'Issue {issuedate} (regex {regex_pass}) for {nzbtitle_formatted}, {datetype}')
                                 datetype_ok = True
 
                                 if datetype:
@@ -365,8 +363,8 @@ def search_magazines(mags=None, reset=False):
                                         datetype_ok = False
                             else:
                                 datetype_ok = False
-                                logger.debug('Magazine %s not in a recognised date format [%s]' % (nzbtitle_formatted,
-                                                                                                   datetype))
+                                logger.debug(
+                                    f'Magazine {nzbtitle_formatted} not in a recognised date format [{datetype}]')
                                 bad_date += 1
                                 # allow issues with good name but bad date to be included
                                 # so user can manually select them, incl those with issue numbers
@@ -383,14 +381,14 @@ def search_magazines(mags=None, reset=False):
                                         issuedate = year + issuedate
 
                                 control_date = results['IssueDate']
-                                logger.debug("Control date: [%s]" % control_date)
+                                logger.debug(f"Control date: [{control_date}]")
                                 if not control_date:  # we haven't got any copies of this magazine yet
                                     # get a rough time just over MAX_AGE days ago to compare to, in format yyyy-mm-dd
                                     # could perhaps calc differently for weekly, biweekly etc.
                                     # For magazines with only an issue number use zero as we can't tell age
 
                                     if issuedate.isdigit():
-                                        logger.debug('Magazine comparing issue numbers (%s)' % issuedate)
+                                        logger.debug(f'Magazine comparing issue numbers ({issuedate})')
                                         control_date = 0
                                     elif re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                         start_time = time.time()
@@ -398,9 +396,9 @@ def search_magazines(mags=None, reset=False):
                                         if start_time < 0:  # limit of unixtime (1st Jan 1970)
                                             start_time = 0
                                         control_date = time.strftime("%Y-%m-%d", time.localtime(start_time))
-                                        logger.debug('Magazine date comparing to %s' % control_date)
+                                        logger.debug(f'Magazine date comparing to {control_date}')
                                     else:
-                                        logger.debug('Magazine unable to find comparison type [%s]' % issuedate)
+                                        logger.debug(f'Magazine unable to find comparison type [{issuedate}]')
                                         control_date = 0
 
                                 if str(control_date).isdigit() and str(issuedate).isdigit():
@@ -427,21 +425,21 @@ def search_magazines(mags=None, reset=False):
                                                 issuedate = "%04d-%02d-01" % (year, issuenum)
                                                 comp_date = datecompare(issuedate, control_date)
                                         if not comp_date:
-                                            logger.debug('Magazine %s failed: Expecting a date' % nzbtitle_formatted)
+                                            logger.debug(f'Magazine {nzbtitle_formatted} failed: Expecting a date')
                                     else:
-                                        logger.debug('Magazine %s failed: Expecting issue number' % nzbtitle_formatted)
+                                        logger.debug(f'Magazine {nzbtitle_formatted} failed: Expecting issue number')
                                     if not comp_date:
                                         bad_date += 1
                                         issuedate = "1970-01-01"
 
                             if issuedate == "1970-01-01":
-                                logger.debug('This issue of %s is unknown age; skipping.' % nzbtitle_formatted)
+                                logger.debug(f'This issue of {nzbtitle_formatted} is unknown age; skipping.')
                             elif not datetype_ok:
-                                logger.debug('This issue of %s not in a wanted date format.' % nzbtitle_formatted)
+                                logger.debug(f'This issue of {nzbtitle_formatted} not in a wanted date format.')
                             elif comp_date > 0:
                                 # keep track of what we're going to download, so we don't download dupes
                                 new_date += 1
-                                issue = bookid + ',' + issuedate
+                                issue = f"{bookid},{issuedate}"
                                 if issue not in issues:
                                     maglist.append({
                                         'bookid': bookid,
@@ -450,17 +448,17 @@ def search_magazines(mags=None, reset=False):
                                         'nzburl': nzburl,
                                         'nzbmode': nzbmode
                                     })
-                                    logger.debug('This issue of %s is new, downloading' % nzbtitle_formatted)
+                                    logger.debug(f'This issue of {nzbtitle_formatted} is new, downloading')
                                     issues.append(issue)
-                                    logger.debug('Magazine request number %s' % len(issues))
+                                    logger.debug(f'Magazine request number {len(issues)}')
                                     loggersearching.debug(str(issues))
                                     insert_table = "wanted"
                                     nzbdate = now()  # when we asked for it
                                 else:
-                                    logger.debug('This issue of %s is already flagged for download; skipping' % issue)
+                                    logger.debug(f'This issue of {issue} is already flagged for download; skipping')
                                     continue
                             else:
-                                loggersearching.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
+                                loggersearching.debug(f'This issue of {nzbtitle_formatted} is old; skipping.')
                                 old_date += 1
 
                             # store only the _new_ matching results
@@ -468,11 +466,11 @@ def search_magazines(mags=None, reset=False):
                             #  and status has been user-set ( we only delete the "Skipped" ones )
                             #  In "wanted" table it might be already snatched/downloading/processing
 
-                            mag_entry = db.match('SELECT Status from %s WHERE NZBtitle=? and NZBprov=?' %
-                                                 insert_table, (nzbtitle, nzbprov))
+                            mag_entry = db.match(f'SELECT Status from {insert_table} WHERE NZBtitle=? and NZBprov=?',
+                                                 (nzbtitle, nzbprov))
                             if mag_entry and insert_table != 'wanted':
-                                logger.info('%s is already in %s marked %s; skipping' %
-                                            (nzbtitle, insert_table, mag_entry['Status']))
+                                logger.info(
+                                    f"{nzbtitle} is already in {insert_table} marked {mag_entry['Status']}; skipping")
                                 continue
                             else:
                                 control_value_dict = {
@@ -498,12 +496,11 @@ def search_magazines(mags=None, reset=False):
                                         new_value_dict["Status"] = "Skipped"
                                     new_value_dict["Added"] = int(time.time())
                                 db.upsert(insert_table, new_value_dict, control_value_dict)
-                                logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table,
-                                                                          new_value_dict["Status"]))
+                                logger.info(f"Added {nzbtitle} to {insert_table} marked {new_value_dict['Status']}")
 
-                msg = 'Found %i %s for %s. %i new,' % (total_nzbs, plural(total_nzbs, "result"), bookid, new_date)
-                msg += ' %i old, %i fail date, %i fail name,' % (old_date, bad_date, bad_name)
-                msg += ' %i rejected: %i to download' % (rejects, len(maglist))
+                msg = f"Found {total_nzbs} {plural(total_nzbs, 'result')} for {bookid}. {new_date} new,"
+                msg += f' {old_date} old, {bad_date} fail date, {bad_name} fail name,'
+                msg += f' {rejects} rejected: {len(maglist)} to download'
                 logger.info(msg)
 
                 threading.Thread(target=download_maglist, name='DL-MAGLIST', args=[maglist, 'pastissues']).start()
@@ -515,7 +512,7 @@ def search_magazines(mags=None, reset=False):
             schedule_job(action=SchedulerCommand.RESTART, target='search_magazines')
 
     except Exception:
-        logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in search_magazines: {traceback.format_exc()}')
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         db.close()
@@ -549,19 +546,20 @@ def download_maglist(maglist, table='wanted'):
                     magazine['nzburl'],
                     'magazine')
             else:
-                res = 'Unhandled NZBmode [%s] for %s' % (magazine['nzbmode'], magazine["nzburl"])
+                res = f"Unhandled NZBmode [{magazine['nzbmode']}] for {magazine['nzburl']}"
                 logger.error(res)
                 snatch = 0
             if snatch:
                 snatched += 1
                 if table == 'pastissues':
                     db.action("UPDATE pastissues set status=? WHERE NZBurl=?", ('Snatched', magazine["nzburl"]))
-                logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
-                custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
-                notify_snatch("Magazine %s from %s at %s" % (unaccented(magazine['nzbtitle'], only_ascii=False),
-                              CONFIG.disp_name(magazine["nzbprov"]), now()))
+                logger.info(f"Downloading {magazine['nzbtitle']} from {magazine['nzbprov']}")
+                custom_notify_snatch(f"{magazine['bookid']} {magazine['nzburl']}")
+                notify_snatch(
+                    f"Magazine {unaccented(magazine['nzbtitle'], only_ascii=False)} from "
+                    f"{CONFIG.disp_name(magazine['nzbprov'])} at {now()}")
             else:
-                db.action("UPDATE " + table + " SET status='Failed',DLResult=? WHERE NZBurl=?",
+                db.action(f"UPDATE {table} SET status='Failed',DLResult=? WHERE NZBurl=?",
                           (res, magazine["nzburl"]))
     except Exception as e:
         logger.error(str(e))
@@ -617,7 +615,7 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                         regex_pass = 1
                     else:
                         day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos - 2]), 0)
-                        if pos > 2 and nzbtitle_exploded[pos-3].lower().strip('.') in nouns:
+                        if pos > 2 and nzbtitle_exploded[pos - 3].lower().strip('.') in nouns:
                             # definitely an issue number
                             if 'Y' in datetype:
                                 issuedate = str(day)
@@ -659,7 +657,7 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                 except ValueError:
                     regex_pass = 0
                 except OverflowError:
-                    logger.debug("Overflow [%s]" % str(nzbtitle_exploded))
+                    logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
                     regex_pass = 0
         pos += 1
 
@@ -680,7 +678,7 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     except ValueError:
                         regex_pass = 0
                     except OverflowError:
-                        logger.debug("Overflow [%s]" % str(nzbtitle_exploded))
+                        logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
                         regex_pass = 0
 
             pos += 1
@@ -712,7 +710,7 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     except ValueError:
                         regex_pass = 0
                     except OverflowError:
-                        logger.debug("Overflow [%s]" % str(nzbtitle_exploded))
+                        logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
                         regex_pass = 0
             pos += 1
 
@@ -778,9 +776,9 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     if issue.count('.') == 1 and issue.replace('.', '').isdigit():
                         year, issuedate = issue.split('.')
                         if len(year) == 2:
-                            year = '20%s' % year
+                            year = f'20{year}'
                         if len(issuedate) == 1:
-                            issuedate = '0%s' % issuedate
+                            issuedate = f'0{issuedate}'
                         if len(year) == 4 and len(issuedate) == 2:
                             regex_pass = 10
                             break
@@ -828,7 +826,7 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
 
     # Annual - only a year found, year was found prior to regex 8/9
     if not regex_pass and year:
-        issuedate = "%s-01-01" % year
+        issuedate = f"{year}-01-01"
         regex_pass = 15
 
     # YYYYIIII internal issuedates for filenames

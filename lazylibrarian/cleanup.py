@@ -124,7 +124,7 @@ class ModuleUnbundler:
         Return an updated dict of libraries that can now be unbundled. """
         for item in bundled:
             if item not in distro:
-                print("Installing %s" % item)  # TODO: warn about potentially long installs here
+                print(f"Installing {item}")  # TODO: warn about potentially long installs here
                 try:
                     res = subprocess.run([sys.executable, '-m', 'pip', 'install', item], check=True,
                                          capture_output=True, text=True).stdout

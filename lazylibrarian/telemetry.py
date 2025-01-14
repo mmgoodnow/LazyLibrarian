@@ -223,10 +223,10 @@ class LazyTelemetry(object):
             logger.debug(f'GET {url}')
             r = requests.get(url, verify=False, params=payload, headers=headers)
         except requests.exceptions.Timeout as e:
-            logger.error("_send_url: Timeout sending telemetry %s" % url)
-            return "Timeout %s" % str(e), False
+            logger.error(f"_send_url: Timeout sending telemetry {url}")
+            return f"Timeout {str(e)}", False
         except Exception as e:
-            return "Exception %s: %s" % (type(e).__name__, str(e)), False
+            return f"Exception {type(e).__name__}: {str(e)}", False
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             return r.text, True  # Success
@@ -234,7 +234,7 @@ class LazyTelemetry(object):
             msg = responses[r.status_code]
         else:
             msg = r.text
-        return "Response status %s: %s" % (r.status_code, msg), False
+        return f"Response status {r.status_code}: {msg}", False
 
     def submit_data(self, server: str, send_config: bool, send_usage: bool):
         """ Submits LL telemetry data

@@ -16,12 +16,13 @@
 #   Scheduling functionality
 
 import datetime
-import time
-import threading
-import traceback
 import logging
+import threading
+import time
+import traceback
 from enum import Enum
 from typing import Optional
+
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import lazylibrarian
@@ -87,28 +88,28 @@ def next_run_time(when_run: str, test_now: Optional[datetime.datetime] = None):
         td = when_run - timenow
         diff = td.total_seconds()  # time difference in seconds
     except ValueError as e:
-        logger.error("Error getting next run for [%s] %s" % (when_run, str(e)))
+        logger.error(f"Error getting next run for [{when_run}] {str(e)}")
         diff = 0
         td = ''
 
     td = str(td)
     if 'days,' in td:  # > 1 day, just return days
-        return td.split('s,')[0] + 's'
+        return f"{td.split('s,')[0]}s"
     elif 'day,' in td and "0:00:00" not in td:  # 1 day and change, or 1 day?
         diff += 86400
 
     days, hours, minutes, seconds = get_whole_timediff_from_seconds(diff)
 
     if days > 1:
-        return "%i days" % days
+        return f"{days} days"
     elif hours > 1:
-        return "%i hours" % hours
+        return f"{hours} hours"
     elif minutes > 1:
-        return "%i minutes" % minutes
+        return f"{minutes} minutes"
     elif seconds == 1:
         return "1 second"
     else:
-        return "%i seconds" % seconds
+        return f"{seconds} seconds"
 
 
 def get_whole_timediff_from_seconds(diff):
@@ -150,7 +151,7 @@ def get_next_run_time(target: str, minutes=0, action=SchedulerCommand.NONE) -> d
 
     if nextruntime:
         startdate = datetime.datetime.strptime(nextruntime, '%Y-%m-%d %H:%M:%S')
-        msg = "%s %s job in %s" % (action, target, next_run_time(nextruntime))
+        msg = f"{action} {target} job in {next_run_time(nextruntime)}"
     else:
         next_run_in = lastrun + (minutes * 60) - time.time()
         if next_run_in < 60:
@@ -164,16 +165,16 @@ def get_next_run_time(target: str, minutes=0, action=SchedulerCommand.NONE) -> d
             next_run_in = 1
 
         if next_run_in <= 120:
-            msg = "%s %s job in %s %s" % (action.value, target, next_run_in, plural(next_run_in, "minute"))
+            msg = f"{action.value} {target} job in {next_run_in} {plural(next_run_in, 'minute')}"
         else:
             hours = int(next_run_in / 60)
             if hours <= 48:
-                msg = "%s %s job in %s %s" % (action.value, target, hours, plural(hours, "hour"))
+                msg = f"{action.value} {target} job in {hours} {plural(hours, 'hour')}"
             else:
                 days = int(hours / 24)
-                msg = "%s %s job in %s %s" % (action.value, target, days, plural(days, "day"))
+                msg = f"{action.value} {target} job in {days} {plural(days, 'day')}"
     if lastrun:
-        msg += " (Last run %s)" % ago(lastrun)
+        msg += f" (Last run {ago(lastrun)})"
     logger.debug(msg)
 
     return startdate
@@ -208,8 +209,7 @@ def adjust_schedule(scheduler: ConfigScheduler):
                 due = "due"
             else:
                 due = "overdue"
-            logger.debug("Found %s %s from %s %s update" % (
-                overdue, plural(overdue, typ), total, due))
+            logger.debug(f"Found {overdue} {plural(overdue, typ)} from {total} {due} update")
 
             interval = maxhours * 60
             interval = interval / max(total, 1)
@@ -242,7 +242,7 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
         if not stopjob:
             for job in SCHED.get_jobs():
                 if target in str(job):
-                    logger.debug("%s %s job, already scheduled" % (action.value, target))
+                    logger.debug(f"{action.value} {target} job, already scheduled")
                     return  # return if already running, if not, start a new one
 
         schedule = CONFIG.get_configscheduler(target)
@@ -263,7 +263,7 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
         res = startjob.get_hour_min_interval()
         hours = res[0]
         minutes = res[1]
-        if stopjob.trigger.interval_length - 60*(hours*60+minutes) < 2:
+        if stopjob.trigger.interval_length - 60 * (hours * 60 + minutes) < 2:
             stopjob = startjob = None  # 2 seconds tolerance: No change
 
     if stopjob:
@@ -298,19 +298,18 @@ def author_update(restart=True, only_overdue=True):
             if not total:
                 msg = "There are no monitored authors"
             elif not overdue and only_overdue:
-                msg = 'Oldest author info (%s) is %s %s old, no update due' % (name,
-                                                                               days, plural(days, "day"))
+                msg = f"Oldest author info ({name}) is {days} {plural(days, 'day')} old, no update due"
             else:
-                logger.info('Starting update for %s' % name)
-                add_author_to_db(refresh=True, authorid=ident, reason="author_update %s" % name)
+                logger.info(f'Starting update for {name}')
+                add_author_to_db(refresh=True, authorid=ident, reason=f"author_update {name}")
                 if lazylibrarian.STOPTHREADS:
                     return ''
-                msg = 'Updated author %s' % name
+                msg = f'Updated author {name}'
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "AUTHORUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "author_update")
     except Exception:
-        logger.error('Unhandled exception in AuthorUpdate: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in AuthorUpdate: {traceback.format_exc()}')
         msg = "Unhandled exception in AuthorUpdate"
     finally:
         db.close()
@@ -330,19 +329,18 @@ def series_update(restart=True, only_overdue=True):
             if not total:
                 msg = "There are no monitored series"
             elif not overdue and only_overdue:
-                msg = 'Oldest series info (%s) is %s %s old, no update due' % (name,
-                                                                               days, plural(days, "day"))
+                msg = f"Oldest series info ({name}) is {days} {plural(days, 'day')} old, no update due"
             else:
-                logger.info('Starting series update for %s' % name)
+                logger.info(f'Starting series update for {name}')
                 add_series_members(ident)
-                msg = 'Updated series %s' % name
+                msg = f'Updated series {name}'
             logger.debug(msg)
 
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "SERIESUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "series_update")
     except Exception:
-        logger.error('Unhandled exception in series_update: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in series_update: {traceback.format_exc()}')
         msg = "Unhandled exception in series_update"
     finally:
         db.close()
@@ -358,7 +356,7 @@ def all_author_update(refresh=False):
                " order by Updated ASC")
         activeauthors = db.select(cmd)
         lazylibrarian.AUTHORS_UPDATE = 1
-        logger.info('Starting update for %i active %s' % (len(activeauthors), plural(len(activeauthors), "author")))
+        logger.info(f"Starting update for {len(activeauthors)} active {plural(len(activeauthors), 'author')}")
         for author in activeauthors:
             if lazylibrarian.STOPTHREADS:
                 logger.debug("Aborting ActiveAuthorUpdate")
@@ -366,10 +364,10 @@ def all_author_update(refresh=False):
             add_author_to_db(refresh=refresh, authorid=author['AuthorID'], authorname=author['AuthorName'],
                              reason="all_author_update")
         logger.info('Active author update complete')
-        msg = 'Updated %i active %s' % (len(activeauthors), plural(len(activeauthors), "author"))
+        msg = f"Updated {len(activeauthors)} active {plural(len(activeauthors), 'author')}"
         logger.debug(msg)
     except Exception:
-        msg = 'Unhandled exception in all_author_update: %s' % traceback.format_exc()
+        msg = f'Unhandled exception in all_author_update: {traceback.format_exc()}'
         logger.error(msg)
     finally:
         db.close()
@@ -445,6 +443,7 @@ def is_overdue(which="author") -> (int, int, str, str, int):
         ident: The ID for the Author or Series
         days
     """
+
     def get_overdue_from_dbrows():
         dtnow = time.time()
         found = 0
@@ -499,13 +498,13 @@ def ago(when):
     days, hours, minutes, seconds = get_whole_timediff_from_seconds(diff)
 
     if days > 1:
-        return "%i days ago" % days
+        return f"{days} days ago"
     elif hours > 1:
-        return "%i hours ago" % hours
+        return f"{hours} hours ago"
     elif minutes > 1:
-        return "%i minutes ago" % minutes
+        return f"{minutes} minutes ago"
     elif seconds > 1:
-        return "%i seconds ago" % seconds
+        return f"{seconds} seconds ago"
     else:
         return "just now"
 
@@ -534,19 +533,19 @@ def show_jobs(json=False):
         timeparts = jobtime.split(' ')
         if timeparts[0] == '1' and timeparts[1].endswith('s'):
             timeparts[1] = timeparts[1][:-1]
-        jobinfo = "%s: Next run in %s %s" % (jobname, timeparts[0], timeparts[1])
+        jobinfo = f"{jobname}: Next run in {timeparts[0]} {timeparts[1]}"
         resultdict[jobname] = {}
         resultdict[jobname]['next'] = f"Next run in {timeparts[0]} {timeparts[1]}"
-        res = db.match("SELECT Start,Finish from jobs WHERE Name='%s'" % threadname)
+        res = db.match(f"SELECT Start,Finish from jobs WHERE Name='{threadname}'")
 
         if res:
             if res['Start'] > res['Finish']:
                 resultdict[jobname] = {}
-                resultdict[jobname]['last'] = "Running since %s" % ago(res['Start'])
-                jobinfo += " (Running since %s)" % ago(res['Start'])
+                resultdict[jobname]['last'] = f"Running since {ago(res['Start'])}"
+                jobinfo += f" (Running since {ago(res['Start'])})"
             elif res['Finish']:
-                resultdict[jobname]['last'] = "Last run %s" % ago(res['Finish'])
-                jobinfo += " (Last run %s)" % ago(res['Finish'])
+                resultdict[jobname]['last'] = f"Last run {ago(res['Finish'])}"
+                jobinfo += f" (Last run {ago(res['Finish'])})"
         result.append(jobinfo)
 
     result.append(' ')
@@ -555,32 +554,32 @@ def show_jobs(json=False):
     if name:
         resultdict['Author']['Name'] = name
         resultdict['Author']['Overdue'] = days
-        result.append('Oldest author info (%s) is %s %s old' % (name, days, plural(days, "day")))
+        result.append(f"Oldest author info ({name}) is {days} {plural(days, 'day')} old")
     if not overdue:
         resultdict['Author']['Overdue'] = 0
         result.append("There are no authors needing update")
     elif days == CONFIG.get_int('CACHE_AGE'):
         resultdict['Author']['Due'] = overdue
-        result.append("Found %s %s from %s due update" % (overdue, plural(overdue, "author"), total))
+        result.append(f"Found {overdue} {plural(overdue, 'author')} from {total} due update")
     else:
         resultdict['Author']['Late'] = overdue
-        result.append("Found %s %s from %s overdue update" % (overdue, plural(overdue, "author"), total))
+        result.append(f"Found {overdue} {plural(overdue, 'author')} from {total} overdue update")
 
     overdue, total, name, _, days = is_overdue('series')
     resultdict['Series'] = {}
     if name:
         resultdict['Series']['Name'] = name
         resultdict['Series']['Overdue'] = days
-        result.append('Oldest series info (%s) is %s %s old' % (name, days, plural(days, "day")))
+        result.append(f"Oldest series info ({name}) is {days} {plural(days, 'day')} old")
     if not overdue:
         resultdict['Series']['Overdue'] = 0
         result.append("There are no series needing update")
     elif days == CONFIG.get_int('CACHE_AGE'):
         resultdict['Series']['Due'] = overdue
-        result.append("Found %s series from %s due update" % (overdue, total))
+        result.append(f"Found {overdue} series from {total} due update")
     else:
         resultdict['Series']['Late'] = overdue
-        result.append("Found %s series from %s overdue update" % (overdue, total))
+        result.append(f"Found {overdue} series from {total} overdue update")
     if json:
         return resultdict
     return result
@@ -594,19 +593,18 @@ def show_stats(json=False):
              'comicvine': lazylibrarian.TIMERS['SLEEP_CV'], 'hardcover': lazylibrarian.TIMERS['SLEEP_HC']}
     resultdict['cache'] = cache
     resultdict['sleep'] = sleep
-    result = ["Cache %i %s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
-                                          plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
-                                          check_int(lazylibrarian.CACHE_MISS, 0)),
-              "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine, %.3f hardcover" % (
-              lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
-              lazylibrarian.TIMERS['SLEEP_CV'], lazylibrarian.TIMERS['SLEEP_HC'])]
+    result = [
+        f"Cache {check_int(lazylibrarian.CACHE_HIT, 0)} {plural(check_int(lazylibrarian.CACHE_HIT, 0), 'hit')}, "
+        f"{check_int(lazylibrarian.CACHE_MISS, 0)} miss, ",
+        f"Sleep {lazylibrarian.TIMERS['SLEEP_GR']:.3f} goodreads, {lazylibrarian.TIMERS['SLEEP_LT']:.3f} librarything, "
+        f"{lazylibrarian.TIMERS['SLEEP_CV']:.3f} comicvine, {lazylibrarian.TIMERS['SLEEP_HC']:.3f} hardcover"]
 
     db = database.DBConnection()
     try:
         snatched = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
         if snatched['counter']:
             resultdict['snatched'] = snatched['counter']
-            result.append("%i Snatched %s" % (snatched['counter'], plural(snatched['counter'], "item")))
+            result.append(f"{snatched['counter']} Snatched {plural(snatched['counter'], 'item')}")
         result.append("No Snatched items")
 
         series_stats = []
@@ -717,7 +715,7 @@ def show_stats(json=False):
         res = db.match("SELECT count(*) as counter FROM authors")
         author_stats.append(['Authors', res['counter']])
         for status in ['Active', 'Wanted', 'Ignored', 'Paused']:
-            res = db.match("SELECT count(*) as counter FROM authors WHERE Status='%s'" % status)
+            res = db.match(f"SELECT count(*) as counter FROM authors WHERE Status='{status}'")
             author_stats.append([status, res['counter']])
         res = db.match("SELECT count(*) as counter FROM authors WHERE HaveEBooks+HaveAudioBooks=0")
         author_stats.append(['Empty', res['counter']])

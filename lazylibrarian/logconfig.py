@@ -458,18 +458,18 @@ class LogConfig:
         # Delete everything in the LOGDIR
         error = False
         deleted = 0
-        for f in glob.glob(logdir + "/*.log*"):
+        for f in glob.glob(f"{logdir}/*.log*"):
             try:
                 os.remove(syspath(f))
                 deleted += 1
             except OSError as err:
                 error = err.strerror
-                logger.debug("Failed to remove %s : %s" % (f, error))
+                logger.debug(f"Failed to remove {f} : {error}")
 
         # Let the user know what happened
         if deleted == 0:
             if error:
-                return 'Failed to clear logfiles: %s' % error
+                return f'Failed to clear logfiles: {error}'
             else:
                 return 'No log files to delete'
         else:

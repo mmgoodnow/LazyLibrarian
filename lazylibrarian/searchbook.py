@@ -13,17 +13,17 @@
 
 import logging
 import threading
-import traceback
 import time
+import traceback
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
+from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, check_int, thread_name
 from lazylibrarian.providers import iterate_over_znab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.resultlist import find_best_result, download_result
-from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.telemetry import TELEMETRY
 
 
@@ -72,7 +72,7 @@ def warn_mode(mode):
             return
     else:
         return
-    logger.warning('No %s providers are available. Check config and blocklist' % mode)
+    logger.warning(f'No {mode} providers are available. Check config and blocklist')
 
 
 def search_book(books=None, library=None):
@@ -113,7 +113,7 @@ def search_book(books=None, library=None):
         else:
             # The user has added new books
             if library:
-                logger.debug("Searching for %s %s" % (len(books), plural(len(books), library)))
+                logger.debug(f"Searching for {len(books)} {plural(len(books), library)}")
             for book in books:
                 if not book['bookid'] in ['booklang', 'library', 'ignored']:
                     cmd = ("SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus "
@@ -123,7 +123,7 @@ def search_book(books=None, library=None):
                         for terms in results:
                             searchbooks.append(terms)
                     else:
-                        logger.debug("SearchBooks - BookID %s is not in the database" % book['bookid'])
+                        logger.debug(f"SearchBooks - BookID {book['bookid']} is not in the database")
 
         if len(searchbooks) == 0:
             logger.debug("No books to search for")
@@ -135,7 +135,7 @@ def search_book(books=None, library=None):
             msg = "SearchBooks - No providers to search"
             blocked = BLOCKHANDLER.number_blocked()
             if blocked:
-                msg += " (there %s %s in blocklist)" % (plural(blocked, "is"), blocked)
+                msg += f" (there {plural(blocked, 'is')} {blocked} in blocklist)"
             else:
                 msg += " (check you have some enabled)"
             logger.debug(msg)
@@ -154,15 +154,16 @@ def search_book(books=None, library=None):
         if CONFIG.use_irc():
             modelist.append('irc')
 
-        logger.info('Searching %s %s %s for %i %s' %
-                    (nprov, plural(nprov, "provider"), str(modelist), len(searchbooks),
-                     plural(len(searchbooks), library)))
-        logger.info("Provider Blocklist contains %s %s" % (BLOCKHANDLER.number_blocked(),
-                                                           plural(BLOCKHANDLER.number_blocked(), 'entry')))
+        logger.info(
+            f"Searching {nprov} {plural(nprov, 'provider')} {str(modelist)} for {len(searchbooks)} "
+            f"{plural(len(searchbooks), library)}")
+        logger.info(
+            f"Provider Blocklist contains {BLOCKHANDLER.number_blocked()} "
+            f"{plural(BLOCKHANDLER.number_blocked(), 'entry')}")
 
         for searchbook in searchbooks:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLBOOKS":
-                logger.debug("Aborting %s" % threadname)
+                logger.debug(f"Aborting {threadname}")
                 break
 
             # searchterm is only used for display purposes
@@ -170,14 +171,14 @@ def search_book(books=None, library=None):
             if searchbook['AuthorName']:
                 searchterm = searchbook['AuthorName']
             else:
-                logger.warning("No AuthorName for %s" % searchbook['BookID'])
+                logger.warning(f"No AuthorName for {searchbook['BookID']}")
 
             if searchbook['BookName']:
                 if len(searchterm):
                     searchterm += ' '
                 searchterm += searchbook['BookName']
             else:
-                logger.warning("No BookName for %s" % searchbook['BookID'])
+                logger.warning(f"No BookName for {searchbook['BookID']}")
 
             if searchbook['BookSub']:
                 if len(searchterm):
@@ -188,8 +189,9 @@ def search_book(books=None, library=None):
                 cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='eBook' and Status='Snatched'"
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
-                    logger.warning('eBook %s %s already marked snatched in wanted table' %
-                                   (searchbook['AuthorName'], searchbook['BookName']))
+                    logger.warning(
+                        f"eBook {searchbook['AuthorName']} {searchbook['BookName']} "
+                        f"already marked snatched in wanted table")
                 else:
                     searchlist.append(
                         {"bookid": searchbook['BookID'],
@@ -203,8 +205,9 @@ def search_book(books=None, library=None):
                 cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='AudioBook' and Status='Snatched'"
                 snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
-                    logger.warning('AudioBook %s %s already marked snatched in wanted table' %
-                                   (searchbook['AuthorName'], searchbook['BookName']))
+                    logger.warning(
+                        f"AudioBook {searchbook['AuthorName']} {searchbook['BookName']} "
+                        f"already marked snatched in wanted table")
                 else:
                     searchlist.append(
                         {"bookid": searchbook['BookID'],
@@ -219,33 +222,32 @@ def search_book(books=None, library=None):
         if CONFIG.use_rss():
             rss_resultlist, nprov, dltypes = iterate_over_rss_sites()
             if not nprov or (library == 'Audiobook' and 'A' not in dltypes) or \
-                            (library == 'eBook' and 'E' not in dltypes) or \
-                            (library is None and ('E' in dltypes or 'A' in dltypes)):
+                    (library == 'eBook' and 'E' not in dltypes) or \
+                    (library is None and ('E' in dltypes or 'A' in dltypes)):
                 warn_mode('rss')
 
         book_count = 0
         for book in searchlist:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLBOOKS":
-                logger.debug("Aborting %s" % threadname)
+                logger.debug(f"Aborting {threadname}")
                 break
             do_search = True
             if CONFIG.get_bool('DELAYSEARCH') and not force:
                 res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
                                (book['bookid'], book['library']))
                 if not res:
-                    logger.debug("SearchDelay: %s %s has not failed before" % (book['library'], book['bookid']))
+                    logger.debug(f"SearchDelay: {book['library']} {book['bookid']} has not failed before")
                 else:
                     skipped = check_int(res['Count'], 0)
                     interval = check_int(res['Interval'], 0)
                     if skipped < interval:
-                        logger.debug("SearchDelay: %s %s not due (%d/%d)" %
-                                     (book['library'], book['bookid'], skipped, interval))
+                        logger.debug(f"SearchDelay: {book['library']} {book['bookid']} not due ({skipped}/{interval})")
                         db.action("UPDATE failedsearch SET Count=? WHERE BookID=? AND Library=?",
                                   (skipped + 1, book['bookid'], book['library']))
                         do_search = False
                     else:
-                        logger.debug("SearchDelay: %s %s due this time (%d/%d)" %
-                                     (book['library'], book['bookid'], skipped, interval))
+                        logger.debug(
+                            f"SearchDelay: {book['library']} {book['bookid']} due this time ({skipped}/{interval})")
 
             matches = []
             if do_search:
@@ -262,11 +264,11 @@ def search_book(books=None, library=None):
                     elif resultlist:
                         match = find_best_result(resultlist, book, searchtype, 'nzb')
                         if not good_enough(match):
-                            logger.info("NZB search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(f"NZB search for {book['library']} {book['searchterm']} returned no results.")
                         else:
-                            logger.info("Found NZB result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"priority {match[3]}")
                             matches.append(match)
 
                 if CONFIG.use_tor():
@@ -276,11 +278,12 @@ def search_book(books=None, library=None):
                     elif resultlist:
                         match = find_best_result(resultlist, book, searchtype, 'tor')
                         if not good_enough(match):
-                            logger.info("Torrent search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(
+                                f"Torrent search for {book['library']} {book['searchterm']} returned no results.")
                         else:
-                            logger.info("Found Torrent result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found Torrent result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"priority {match[3]}")
                             matches.append(match)
 
                 if CONFIG.use_direct():
@@ -290,11 +293,12 @@ def search_book(books=None, library=None):
                     elif resultlist:
                         match = find_best_result(resultlist, book, searchtype, 'direct')
                         if not good_enough(match):
-                            logger.info("Direct search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(
+                                f"Direct search for {book['library']} {book['searchterm']} returned no results.")
                         else:
-                            logger.info("Found Direct result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found Direct result: {searchtype} {match[0]}%, {match[1]['NZBprov']} priority "
+                                f"{match[3]}")
                             matches.append(match)
 
                 if CONFIG.use_irc():
@@ -304,191 +308,207 @@ def search_book(books=None, library=None):
                     elif resultlist:
                         match = find_best_result(resultlist, book, searchtype, 'irc')
                         if not good_enough(match):
-                            logger.info("IRC search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(f"IRC search for {book['library']} {book['searchterm']} returned no results.")
                         else:
-                            logger.info("Found IRC result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found IRC result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"priority {match[3]}")
                             matches.append(match)
 
                 if CONFIG.use_rss() and rss_resultlist:
                     match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                     if not good_enough(match):
-                        logger.info("RSS search for %s %s returned no results." %
-                                    (book['library'], book['searchterm']))
+                        logger.info(f"RSS search for {book['library']} {book['searchterm']} returned no results.")
                     else:
-                        logger.info("Found RSS result: %s %s%%, %s priority %s" %
-                                    (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                        logger.info(
+                            f"Found RSS result: {searchtype} {match[0]}%, {match[1]['NZBprov']} priority {match[3]}")
                         matches.append(match)
 
                 # if you can't find the book, try author/title without any "(extended details, series etc)"
                 if not matches and '(' in book['bookName']:
                     if CONFIG.use_nzb():
-                        resultlist, nprov = iterate_over_znab_sites(book, 'short' + searchtype)
+                        resultlist, nprov = iterate_over_znab_sites(book, f"short{searchtype}")
                         if not nprov:
                             warn_mode('nzb')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'nzb')
                             if not good_enough(match):
-                                logger.info("NZB short search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"NZB short search for {book['library']} {book['searchterm']} returned no results.")
                             else:
-                                logger.info("Found NZB result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"priority {match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_tor():
-                        resultlist, nprov = iterate_over_torrent_sites(book, 'short' + searchtype)
+                        resultlist, nprov = iterate_over_torrent_sites(book, f"short{searchtype}")
                         if not nprov:
                             warn_mode('tor')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'tor')
                             if not good_enough(match):
-                                logger.info("Torrent short search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"Torrent short search for {book['library']} {book['searchterm']} "
+                                    f"returned no results.")
                             else:
-                                logger.info("Found Torrent result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found Torrent result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"priority {match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_direct():
-                        resultlist, nprov = iterate_over_direct_sites(book, 'short' + searchtype)
+                        resultlist, nprov = iterate_over_direct_sites(book, f"short{searchtype}")
                         if not nprov:
                             warn_mode('direct')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'direct')
                             if not good_enough(match):
-                                logger.info("Direct short search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"Direct short search for {book['library']} {book['searchterm']} "
+                                    f"returned no results.")
                             else:
-                                logger.info("Found Direct result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found Direct result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"priority {match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_irc():
-                        resultlist, nprov = iterate_over_irc_sites(book, 'short' + searchtype)
+                        resultlist, nprov = iterate_over_irc_sites(book, f"short{searchtype}")
                         if not nprov:
                             warn_mode('irc')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'irc')
                             if not good_enough(match):
-                                logger.info("IRC short search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"IRC short search for {book['library']} {book['searchterm']} returned no results.")
                             else:
-                                logger.info("Found IRC result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found IRC result: {searchtype} {match[0]}%, {match[1]['NZBprov']} priority "
+                                    f"{match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_rss() and rss_resultlist:
                         match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                         if not good_enough(match):
-                            logger.info("RSS short search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(
+                                f"RSS short search for {book['library']} {book['searchterm']} returned no results.")
                         else:
-                            logger.info("Found RSS result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found RSS result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"priority {match[3]}")
                             matches.append(match)
 
                 # if you can't find the book under "books", you might find under general search
                 # general search is the same as booksearch for torrents, irc and rss, no need to check again
                 if not matches and CONFIG.use_nzb():
-                    resultlist, nprov = iterate_over_znab_sites(book, 'general' + searchtype)
+                    resultlist, nprov = iterate_over_znab_sites(book, f"general{searchtype}")
                     if not nprov:
                         warn_mode('nzb')
                     elif resultlist:
                         match = find_best_result(resultlist, book, searchtype, 'nzb')
                         if not good_enough(match):
-                            logger.info("NZB general search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(
+                                f"NZB general search for {book['library']} {book['searchterm']} returned no results.")
                         else:
-                            logger.info("Found NZB result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"priority {match[3]}")
                             matches.append(match)
 
                 # if still not found, try general search again without any "(extended details, series etc)"
                 # shortgeneral is the same as shortbook for torrents, irc and rss, no need to check again
                 if not matches and CONFIG.use_nzb() and '(' in book['searchterm']:
-                    resultlist, nprov = iterate_over_znab_sites(book, 'shortgeneral' + searchtype)
+                    resultlist, nprov = iterate_over_znab_sites(book, f"shortgeneral{searchtype}")
                     if not nprov:
                         warn_mode('nzb')
                     elif resultlist:
                         match = find_best_result(resultlist, book, searchtype, 'nzb')
                         if not good_enough(match):
-                            logger.info("NZB shortgeneral search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(
+                                f"NZB shortgeneral search for {book['library']} {book['searchterm']} "
+                                f"returned no results.")
                         else:
-                            logger.info("Found NZB result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found NZB result: {searchtype} {match[0]}%, "
+                                f"{match[1]['NZBprov']} priority {match[3]}")
                             matches.append(match)
 
                 # if still not found, try general search again with title only
                 if not matches:
                     if CONFIG.use_nzb():
-                        resultlist, nprov = iterate_over_znab_sites(book, 'title' + searchtype)
+                        resultlist, nprov = iterate_over_znab_sites(book, f"title{searchtype}")
                         if not nprov:
                             warn_mode('nzb')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'nzb')
                             if not good_enough(match):
-                                logger.info("NZB title search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"NZB title search for {book['library']} {book['searchterm']} returned no results.")
                             else:
-                                logger.info("Found NZB result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"priority {match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_tor():
-                        resultlist, nprov = iterate_over_torrent_sites(book, 'title' + searchtype)
+                        resultlist, nprov = iterate_over_torrent_sites(book, f"title{searchtype}")
                         if not nprov:
                             warn_mode('tor')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'tor')
                             if not good_enough(match):
-                                logger.info("Torrent title search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"Torrent title search for {book['library']} {book['searchterm']} "
+                                    f"returned no results.")
                             else:
-                                logger.info("Found Torrent result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found Torrent result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"priority {match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_direct():
-                        resultlist, nprov = iterate_over_direct_sites(book, 'title' + searchtype)
+                        resultlist, nprov = iterate_over_direct_sites(book, f"title{searchtype}")
                         if not nprov:
                             warn_mode('direct')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'direct')
                             if not good_enough(match):
-                                logger.info("Direct title search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"Direct title search for {book['library']} {book['searchterm']}"
+                                    f" returned no results.")
                             else:
-                                logger.info("Found Direct result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found Direct result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"priority {match[3]}")
                                 matches.append(match)
 
                     # irchighway says search results without both author and title will be
                     # silently rejected but that doesn't seem to be actioned...
                     if CONFIG.use_irc():
-                        resultlist, nprov = iterate_over_irc_sites(book, 'title' + searchtype)
+                        resultlist, nprov = iterate_over_irc_sites(book, f"title{searchtype}")
                         if not nprov:
                             warn_mode('irc')
                         elif resultlist:
                             match = find_best_result(resultlist, book, searchtype, 'irc')
                             if not good_enough(match):
-                                logger.info("IRC title search for %s %s returned no results." %
-                                            (book['library'], book['searchterm']))
+                                logger.info(
+                                    f"IRC title search for {book['library']} {book['searchterm']} returned no results.")
                             else:
-                                logger.info("Found IRC result: %s %s%%, %s priority %s" %
-                                            (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                                logger.info(
+                                    f"Found IRC result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"priority {match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_rss():
                         match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                         if not good_enough(match):
-                            logger.info("RSS title search for %s %s returned no results." %
-                                        (book['library'], book['searchterm']))
+                            logger.info(
+                                f"RSS title search for {book['library']} {book['searchterm']} returned no results.")
                         else:
-                            logger.info("Found RSS result: %s %s%%, %s priority %s" %
-                                        (searchtype, match[0], match[1]['NZBprov'], match[3]))
+                            logger.info(
+                                f"Found RSS result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"priority {match[3]}")
                             matches.append(match)
 
             if matches:
@@ -497,11 +517,13 @@ def search_book(books=None, library=None):
                 except TypeError:
                     highest = max(matches, key=lambda s: (str(s[0]), str(s[3])))
 
-                logger.info("Requesting %s download: %s%% %s: %s" %
-                            (book['library'], highest[0], highest[1]['NZBprov'], highest[1]['NZBtitle']))
+                logger.info(
+                    f"Requesting {book['library']} download: {highest[0]}% {highest[1]['NZBprov']}: "
+                    f"{highest[1]['NZBtitle']}")
                 if download_result(highest, book) > 1:
                     book_count += 1  # we found it
-                db.action("DELETE from failedsearch WHERE BookID=? AND Library=?", (book['bookid'], book['library']))
+                db.action("DELETE from failedsearch WHERE BookID=? AND Library=?",
+                          (book['bookid'], book['library']))
             elif CONFIG.get_bool('DELAYSEARCH') and not force and do_search and len(modelist):
                 res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
                                (book['bookid'], book['library']))
@@ -516,10 +538,10 @@ def search_book(books=None, library=None):
 
             time.sleep(CONFIG.get_int('SEARCH_RATELIMIT'))
 
-        logger.info("Search for Wanted items complete, found %s %s" % (book_count, plural(book_count, "book")))
+        logger.info(f"Search for Wanted items complete, found {book_count} {plural(book_count, 'book')}")
 
     except Exception:
-        logger.error('Unhandled exception in search_book: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in search_book: {traceback.format_exc()}')
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         db.close()

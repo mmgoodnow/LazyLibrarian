@@ -10,6 +10,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import datetime
 import logging
 import os
 import platform
@@ -18,14 +19,14 @@ import subprocess
 import tarfile
 import threading
 import time
-import datetime
 from shutil import rmtree, move
 
-import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 import requests
+
+import lazylibrarian
 from lazylibrarian import version, database
 from lazylibrarian.common import get_user_agent, proxy_list, docker, dbbackup
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, listdir, walk
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 from lazylibrarian.telemetry import TELEMETRY
@@ -35,7 +36,7 @@ def run_git(args):
     logger = logging.getLogger(__name__)
     # Function to execute GIT commands taking care of error logging etc
     if CONFIG['GIT_PROGRAM']:
-        git_locations = ['"' + CONFIG['GIT_PROGRAM'] + '"']
+        git_locations = [f"\"{CONFIG['GIT_PROGRAM']}\""]
     else:
         git_locations = ['git']
 
@@ -47,29 +48,29 @@ def run_git(args):
 
     for cur_git in git_locations:
 
-        cmd = cur_git + ' ' + args
+        cmd = f"{cur_git} {args}"
 
         cmd = make_unicode(cmd)
         try:
-            logger.debug('Execute: "%s" with shell in %s' % (cmd, DIRS.PROG_DIR))
+            logger.debug(f'Execute: "{cmd}" with shell in {DIRS.PROG_DIR}')
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                  shell=True, cwd=DIRS.PROG_DIR)
             output, err = p.communicate()
             output = make_unicode(output).strip('\n')
 
-            logger.debug('Git output: [%s]' % output)
+            logger.debug(f'Git output: [{output}]')
             if err:
                 err = make_unicode(err)
-                logger.debug('Git err: [%s]' % err)
+                logger.debug(f'Git err: [{err}]')
             elif not output:
                 output = ' '
 
         except OSError:
-            logger.debug('Command ' + cmd + ' didn\'t work, couldn\'t find git')
+            logger.debug(f"Command {cmd} didn't work, couldn't find git")
             continue
 
         if 'not found' in output or "not recognized as an internal or external command" in output:
-            logger.debug('Unable to find git with command ' + cmd)
+            logger.debug(f"Unable to find git with command {cmd}")
             logger.error('git not found - please ensure git executable is in your PATH')
             output = None
         elif 'fatal:' in output or err:
@@ -116,10 +117,9 @@ def get_install_type():
         CONFIG.set_str('GIT_BRANCH', 'master')
 
     if docker() or install == 'docker':
-        CONFIG.set_str('INSTALL_TYPE', CONFIG['INSTALL_TYPE'] + ' DOCKER')
+        CONFIG.set_str('INSTALL_TYPE', f"{CONFIG['INSTALL_TYPE']} DOCKER")
 
-    logger.debug('%s install detected. Setting Branch to [%s]' %
-                 (CONFIG['INSTALL_TYPE'], CONFIG['GIT_BRANCH']))
+    logger.debug(f"{CONFIG['INSTALL_TYPE']} install detected. Setting Branch to [{CONFIG['GIT_BRANCH']}]")
 
 
 def get_current_version() -> str:
@@ -160,7 +160,7 @@ def get_current_version() -> str:
 
         if not os.path.isfile(version_file):
             version_string = 'Missing Version file'
-            logger.debug('Version file [%s] missing.' % version_file)
+            logger.debug(f'Version file [{version_file}] missing.')
             return version_string
         else:
             with open(version_file, 'r') as fp:
@@ -184,11 +184,9 @@ def get_current_version() -> str:
 
     updated = update_version_file(version_string)
     if updated:
-        logger.debug('Install type [%s] Local Version is set to [%s] ' % (
-            CONFIG['INSTALL_TYPE'], version_string))
+        logger.debug(f"Install type [{CONFIG['INSTALL_TYPE']}] Local Version is set to [{version_string}] ")
     else:
-        logger.debug('Install type [%s] Local Version is unchanged [%s] ' % (
-            CONFIG['INSTALL_TYPE'], version_string))
+        logger.debug(f"Install type [{CONFIG['INSTALL_TYPE']}] Local Version is unchanged [{version_string}] ")
 
     return version_string
 
@@ -211,7 +209,7 @@ def get_current_git_branch():
         logger.error('Failed to return current branch value')
         return 'InvalidBranch'
 
-    logger.debug('Current local branch of repo is [%s] ' % current_branch)
+    logger.debug(f'Current local branch of repo is [{current_branch}] ')
 
     return current_branch
 
@@ -251,7 +249,7 @@ def check_for_updates():
                 for word in ['update', 'scan', 'import', 'sync', 'process']:
                     if word in name:
                         suppress = True
-                        logger.warning('Suppressed auto-update as %s running' % name)
+                        logger.warning(f'Suppressed auto-update as {name} running')
                         break
 
             if not suppress and '** MANUAL **' in lazylibrarian.COMMIT_LIST:
@@ -262,7 +260,7 @@ def check_for_updates():
                 plural = ''
                 if commits > 1:
                     plural = 's'
-                logger.info('Auto updating %s commit%s' % (commits, plural))
+                logger.info(f'Auto updating {commits} commit{plural}')
                 lazylibrarian.SIGNAL = 'update'
 
     # testing - force a fake update
@@ -327,7 +325,7 @@ def get_latest_version_from_git():
 
             url = f"https://gitlab.com/api/v4/projects/{project}/repository/commits?per_page=1"
             # Get the latest commit available from git
-            logger.debug('Retrieving latest version information from git command=[%s]' % url)
+            logger.debug(f'Retrieving latest version information from git command=[{url}]')
 
             timestamp = CONFIG.get_int('GIT_UPDATED')
             age = ''
@@ -338,13 +336,12 @@ def get_latest_version_from_git():
                 daynames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
                 monnames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
                 tm = time.gmtime(timestamp)
-                age = "%s, %02d %s %04d %02d:%02d:%02d GMT" % (daynames[tm.tm_wday], tm.tm_mday,
-                                                               monnames[tm.tm_mon], tm.tm_year, tm.tm_hour,
-                                                               tm.tm_min, tm.tm_sec)
+                age = (f"{daynames[tm.tm_wday]}, {tm.tm_mday:02d} {monnames[tm.tm_mon]} {tm.tm_year:04d} "
+                       f"{tm.tm_hour:02d}:{tm.tm_min:02d}:{tm.tm_sec:02d} GMT")
             try:
                 headers = {'User-Agent': get_user_agent()}
                 if age:
-                    logger.debug('Checking if modified since %s' % age)
+                    logger.debug(f'Checking if modified since {age}')
                     headers.update({'If-Modified-Since': age})
                 proxies = proxy_list()
                 timeout = CONFIG.get_int('HTTP_TIMEOUT')
@@ -387,14 +384,13 @@ def get_commit_difference_from_git() -> (int, str):
     commits = -1
     if CONFIG['LATEST_VERSION'] and CONFIG['LATEST_VERSION'].startswith('Not_Available_From_Git'):
         CONFIG.set_str('LATEST_VERSION', 'HEAD')
-        commit_list = 'Unable to get latest version from %s' % CONFIG['GIT_HOST']
+        commit_list = f"Unable to get latest version from {CONFIG['GIT_HOST']}"
         logger.info(commit_list)
     if re.match('^[a-z0-9]+$', CONFIG['CURRENT_VERSION']):  # does it look like a hash, not an error message
-        url = 'https://%s/api/v4/projects/%s%%2F%s/repository/compare?from=%s&to=%s' % (
-            lazylibrarian.GITLAB_TOKEN, CONFIG['GIT_USER'],
-            CONFIG['GIT_REPO'], CONFIG['CURRENT_VERSION'],
-            CONFIG['LATEST_VERSION'])
-        logger.debug('Check for differences between local & repo by [%s]' % url)
+        url = (f'https://{lazylibrarian.GITLAB_TOKEN}/api/v4/projects/{CONFIG["GIT_USER"]}%2F'
+               f'{CONFIG["GIT_REPO"]}/repository/compare?from={CONFIG["CURRENT_VERSION"]}'
+               f'&to={CONFIG["LATEST_VERSION"]}')
+        logger.debug(f'Check for differences between local & repo by [{url}]')
 
         try:
             headers = {'User-Agent': get_user_agent()}
@@ -415,7 +411,7 @@ def get_commit_difference_from_git() -> (int, str):
                 behind = 0
                 if CONFIG['INSTALL_TYPE'] == 'git':
                     branch = CONFIG['GIT_BRANCH']
-                    output, _ = run_git('rev-list --left-right --count %s...origin/%s' % (branch, branch))
+                    output, _ = run_git(f'rev-list --left-right --count {branch}...origin/{branch}')
                     if output:
                         a, b = output.split(None, 1)
                         ahead = check_int(a, 0)
@@ -425,23 +421,22 @@ def get_commit_difference_from_git() -> (int, str):
                         else:
                             st = "Even"
                 if st:
-                    msg = 'Git: Status [%s] - Ahead [%s] - Behind [%s] - Total Commits [%s]' % (
-                           st, ahead, behind, commits)
+                    msg = f'Git: Status [{st}] - Ahead [{ahead}] - Behind [{behind}] - Total Commits [{commits}]'
                 else:
-                    msg = 'Git: Total Commits [%s]' % commits
+                    msg = f'Git: Total Commits [{commits}]'
                 logger.debug(msg)
             else:
-                logger.warning('Could not get difference status from git: %s' % str(git))
+                logger.warning(f'Could not get difference status from git: {str(git)}')
             if commits > 0:
                 if CONFIG['LATEST_VERSION'] == 'HEAD':
                     CONFIG.set_str('LATEST_VERSION', git['commit']['id'])
                 for item in git['commits']:
-                    commit_list = "%s\n%s" % (item['title'], commit_list)
+                    commit_list = f"{item['title']}\n{commit_list}"
         except Exception as err:
-            logger.warning('Could not get difference status from git: %s' % type(err).__name__)
+            logger.warning(f'Could not get difference status from git: {type(err).__name__}')
 
     if commits > 1:
-        logger.info('New version is available. You are %s commits behind' % commits)
+        logger.info(f'New version is available. You are {commits} commits behind')
     elif commits == 1:
         logger.info('New version is available. You are one commit behind')
     elif commits == 0:
@@ -467,10 +462,10 @@ def update_version_file(new_version_id):
         if current_version == new_version_id:
             return False
     except Exception as err:
-        logger.error("Unable to read current version from version.txt: %s" % str(err))
+        logger.error(f"Unable to read current version from version.txt: {str(err)}")
         pass
 
-    logger.debug("Updating [%s] with value [%s]" % (version_path, new_version_id))
+    logger.debug(f"Updating [{version_path}] with value [{new_version_id}]")
     try:
         with open(syspath(version_path), 'w') as ver_file:
             ver_file.write(new_version_id)
@@ -478,7 +473,7 @@ def update_version_file(new_version_id):
         return True
 
     except Exception as err:
-        logger.error("Unable to write current version to version.txt: %s" % str(err))
+        logger.error(f"Unable to write current version to version.txt: {str(err)}")
         return False
 
 
@@ -489,25 +484,25 @@ def update():
     with open(os.path.join(logdir, 'upgrade.log'), 'a') as upgradelog:
         if CONFIG['INSTALL_TYPE'] == 'win':
             msg = 'Windows .exe updating not supported yet.'
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.info(msg)
             return False
         if CONFIG['INSTALL_TYPE'] == 'package':
             msg = 'Please use your package manager to update'
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.info(msg)
             return False
         if docker():
             msg = 'Docker does not allow upgrading the program inside the container,'
             msg += ' please rebuild your docker container instead'
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.info(msg)
             return False
         try:
             # try to create a backup in case the upgrade is faulty...
             backup_file = os.path.join(DIRS.PROG_DIR, "backup.tgz")
             msg = 'Backing up prior to upgrade'
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.info(msg)
             dbbackup_file = ''
             if CONFIG['BACKUP_DB']:
@@ -537,29 +532,29 @@ def update():
                 zf.add(version_file, arcname='version.txt')
             zf.close()
             msg = f'Saved current version {current_version} to {backup_file}'
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.info(msg)
         except Exception as err:
-            msg = "Failed to create backup: %s" % str(err)
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            msg = f"Failed to create backup: {str(err)}"
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.error(msg)
 
         if CONFIG['INSTALL_TYPE'] == 'git':
             branch = get_current_git_branch()
 
             _, _ = run_git('stash clear')
-            output, _ = run_git('pull --no-rebase origin ' + branch)  # type: str
+            output, _ = run_git(f"pull --no-rebase origin {branch}")  # type: str
 
             if not output:
                 msg = 'Couldn\'t download latest version'
-                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                upgradelog.write(f"{time.ctime()} {msg}\n")
                 logger.error(msg)
                 return False
 
             for line in output.split('\n'):
                 if 'Already up to date' in line:
-                    msg = 'No update available: ' + str(output)
-                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                    msg = f"No update available: {str(output)}"
+                    upgradelog.write(f"{time.ctime()} {msg}\n")
                     logger.info(msg)
                     if os.path.exists(backup_file):
                         os.remove(backup_file)
@@ -567,31 +562,29 @@ def update():
                         os.remove(dbbackup_file)
                     break
                 elif 'Aborting' in line or 'local changes' in line:
-                    msg = 'Unable to update: ' + str(output)
-                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                    msg = f"Unable to update: {str(output)}"
+                    upgradelog.write(f"{time.ctime()} {msg}\n")
                     logger.error(msg)
                     return False
 
             get_latest_version()
             update_version_file(CONFIG['LATEST_VERSION'])
-            upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
-                                          CONFIG['LATEST_VERSION']))
+            upgradelog.write("%s %s\n" % (time.ctime(), f"Updated version file to {CONFIG['LATEST_VERSION']}"))
             CONFIG.set_str('CURRENT_VERSION', CONFIG['LATEST_VERSION'])
             return True
 
         elif CONFIG['INSTALL_TYPE'] == 'source':
-            tar_download_url = 'https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz' % (
-                lazylibrarian.GITLAB_TOKEN, CONFIG['GIT_USER'],
-                CONFIG['GIT_REPO'], CONFIG['GIT_BRANCH'],
-                CONFIG['GIT_REPO'], CONFIG['GIT_BRANCH'])
+            tar_download_url = (f"https://{lazylibrarian.GITLAB_TOKEN}/{CONFIG['GIT_USER']}/"
+                                f"{CONFIG['GIT_REPO']}/-/archive/{CONFIG['GIT_BRANCH']}/{CONFIG['GIT_REPO']}-"
+                                f"{CONFIG['GIT_BRANCH']}.tar.gz")
             update_dir = os.path.join(DIRS.PROG_DIR, 'update')
 
             rmtree(update_dir, ignore_errors=True)
             os.mkdir(update_dir)
 
             try:
-                msg = 'Downloading update from: ' + tar_download_url
-                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                msg = f"Downloading update from: {tar_download_url}"
+                upgradelog.write(f"{time.ctime()} {msg}\n")
                 logger.info(msg)
                 headers = {'User-Agent': get_user_agent()}
                 proxies = proxy_list()
@@ -603,15 +596,15 @@ def update():
                 else:
                     r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
             except requests.exceptions.Timeout:
-                msg = "Timeout retrieving new version from " + tar_download_url
-                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                msg = f"Timeout retrieving new version from {tar_download_url}"
+                upgradelog.write(f"{time.ctime()} {msg}\n")
                 logger.error(msg)
                 return False
             except Exception as err:
                 errmsg = str(err)
-                msg = "Unable to retrieve new version from " + tar_download_url
-                msg += ", can't update: %s" % errmsg
-                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                msg = f"Unable to retrieve new version from {tar_download_url}"
+                msg += f", can't update: {errmsg}"
+                upgradelog.write(f"{time.ctime()} {msg}\n")
                 logger.error(msg)
                 return False
 
@@ -623,36 +616,35 @@ def update():
             with open(syspath(tar_download_path), 'wb') as f:
                 f.write(r.content)
 
-            msg = 'Extracting file ' + tar_download_path
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            msg = f"Extracting file {tar_download_path}"
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.info(msg)
             try:
                 with tarfile.open(tar_download_path) as tar:
                     tar.extractall(update_dir)
             except Exception as err:
-                msg = 'Failed to unpack tarfile %s (%s): %s' % (type(err).__name__,
-                                                                tar_download_path, str(err))
-                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                msg = f'Failed to unpack tarfile {type(err).__name__} ({tar_download_path}): {str(err)}'
+                upgradelog.write(f"{time.ctime()} {msg}\n")
                 logger.error(msg)
                 return False
 
-            msg = 'Deleting file ' + tar_download_path
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            msg = f"Deleting file {tar_download_path}"
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.info(msg)
             os.remove(syspath(tar_download_path))
 
             # Find update dir name
             update_dir = make_unicode(update_dir)
-            logger.debug("update_dir [%s]" % update_dir)
+            logger.debug(f"update_dir [{update_dir}]")
             update_dir_contents = [x for x in listdir(update_dir) if path_isdir(os.path.join(update_dir, x))]
             if len(update_dir_contents) != 1:
-                msg = "Invalid update data, update failed: " + str(update_dir_contents)
-                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                msg = f"Invalid update data, update failed: {str(update_dir_contents)}"
+                upgradelog.write(f"{time.ctime()} {msg}\n")
                 logger.error(msg)
                 return False
             content_dir = os.path.join(update_dir, update_dir_contents[0])
-            logger.debug("update_dir_contents [%s]" % str(update_dir_contents))
-            logger.debug("Walking %s" % content_dir)
+            logger.debug(f"update_dir_contents [{str(update_dir_contents)}]")
+            logger.debug(f"Walking {content_dir}")
             # walk temp folder and move files to main folder
             for rootdir, _, filenames in walk(content_dir):
                 rootdir = rootdir[len(content_dir) + 1:]
@@ -660,16 +652,16 @@ def update():
                     old_path = os.path.join(content_dir, rootdir, curfile)
                     new_path = os.path.join(DIRS.PROG_DIR, rootdir, curfile)
                     if old_path == new_path:
-                        msg = "PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
-                               DIRS.PROG_DIR, content_dir, rootdir, curfile)
-                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                        msg = (f"PROG_DIR [{DIRS.PROG_DIR}] content_dir [{content_dir}] rootdir [{rootdir}] "
+                               f"curfile [{curfile}]")
+                        upgradelog.write(f"{time.ctime()} {msg}\n")
                         logger.error(msg)
                     if curfile.endswith('.dll'):
                         # can't update a dll on windows if it's mapped into the system
                         # but as the dll doesn't change just skip past it.
                         # If we need to update it in the future we will need to rename it
                         # or use a different upgrade mechanism
-                        logger.debug("Skipping %s" % curfile)
+                        logger.debug(f"Skipping {curfile}")
                     else:
                         if os.path.isfile(syspath(new_path)):
                             os.remove(syspath(new_path))
@@ -678,13 +670,12 @@ def update():
             # Update version.txt and timestamp
             get_latest_version()
             update_version_file(CONFIG['LATEST_VERSION'])
-            upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
-                                          CONFIG['LATEST_VERSION']))
+            upgradelog.write("%s %s\n" % (time.ctime(), f"Updated version file to {CONFIG['LATEST_VERSION']}"))
             CONFIG.set_str('CURRENT_VERSION', CONFIG['LATEST_VERSION'])
             return True
 
         else:
             msg = "Cannot perform update - Install Type not set"
-            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+            upgradelog.write(f"{time.ctime()} {msg}\n")
             logger.error(msg)
             return False

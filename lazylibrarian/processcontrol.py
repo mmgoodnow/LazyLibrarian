@@ -17,9 +17,9 @@
 #   Provider functionality related to process control
 
 import inspect
+import logging
 import os
 import time
-import logging
 from datetime import timedelta
 
 try:
@@ -78,10 +78,9 @@ def track_resource_usage(func):
             result = func(*args, **kwargs)
             elapsed_time = elapsed_since(start)
             _, mem_after = get_process_memory()
-            logger.debug("{}: memory before: {:,}, after: {:,}, consumed: {:,}; exec time: {}".format(
-                func.__name__,
-                mem_before, mem_after, mem_after - mem_before,
-                elapsed_time))
+            logger.debug(
+                f"{func.__name__}: memory before: {mem_before:,}, after: {mem_after:,}, consumed: "
+                f"{mem_after - mem_before:,}; exec time: {elapsed_time}")
         else:
             logger.debug("psutil is not installed")
             result = func(*args, **kwargs)
@@ -97,6 +96,6 @@ def get_cpu_use() -> (bool, str):
         p = psutil.Process()
         blocking = p.cpu_percent(interval=1)
         nonblocking = p.cpu_percent(interval=None)
-        return True, "Blocking %s%% Non-Blocking %s%% %s" % (blocking, nonblocking, p.cpu_times())
+        return True, f"Blocking {blocking}% Non-Blocking {nonblocking}% {p.cpu_times()}"
     else:
         return False, "Unknown - install psutil"

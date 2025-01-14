@@ -18,14 +18,13 @@ import os
 import random
 import string
 import time
-
 from http.cookiejar import CookieJar
 from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, build_opener, Request
 
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import get_user_agent
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import get_list, make_bytestr, make_unicode
 
 
@@ -43,7 +42,7 @@ class QbittorrentClient(object):
             self.logger.error('Invalid Qbittorrent host or port, check your config')
 
         if not host.startswith("http://") and not host.startswith("https://"):
-            host = 'http://' + host
+            host = f"http://{host}"
 
         host = host.rstrip('/')
 
@@ -51,9 +50,9 @@ class QbittorrentClient(object):
             host = host[:-4]
 
         if CONFIG['QBITTORRENT_BASE']:
-            host = "%s:%s/%s" % (host, port, CONFIG['QBITTORRENT_BASE'].strip('/'))
+            host = f"{host}:{port}/{CONFIG['QBITTORRENT_BASE'].strip('/')}"
         else:
-            host = "%s:%s" % (host, port)
+            host = f"{host}:{port}"
         self.base_url = host
         self.username = CONFIG['QBITTORRENT_USER']
         self.password = CONFIG['QBITTORRENT_PASS']
@@ -78,43 +77,43 @@ class QbittorrentClient(object):
             else:
                 version = int(self._command('version/api'))
         except Exception as err:
-            self.logger.warning('Error getting api version. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+            self.logger.warning(f'Error getting api version. qBittorrent {type(err).__name__}: {str(err)}')
             version = 1
         return version
 
     def _get_sid(self, base_url, username, password):
         # login so we can capture SID cookie
         login_data = make_bytestr(urlencode({'username': username, 'password': password}))
-        self.loggerdlcomms.debug('Trying ' + base_url + '/login')
+        self.loggerdlcomms.debug(f"Trying {base_url}/login")
         try:
-            _ = self.opener.open(base_url + '/login', login_data)
+            _ = self.opener.open(f"{base_url}/login", login_data)
             self.cmdset = 1
         except Exception as err:
-            self.loggerdlcomms.debug('Error getting v1 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
-            self.loggerdlcomms.debug('Trying ' + base_url + '/api/v2/auth/login')
+            self.loggerdlcomms.debug(f'Error getting v1 SID. qBittorrent {type(err).__name__}: {str(err)}')
+            self.loggerdlcomms.debug(f"Trying {base_url}/api/v2/auth/login")
             try:
-                _ = self.opener.open(base_url + '/api/v2/auth/login', login_data)
+                _ = self.opener.open(f"{base_url}/api/v2/auth/login", login_data)
                 self.cmdset = 2
             except Exception as err:
-                self.loggerdlcomms.debug('Error getting v2 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+                self.loggerdlcomms.debug(f'Error getting v2 SID. qBittorrent {type(err).__name__}: {str(err)}')
 
         if not self.cmdset:
-            self.logger.warning('Unable to log in to %s' % base_url)
+            self.logger.warning(f'Unable to log in to {base_url}')
             return
 
         for cookie in self.cookiejar:
-            self.loggerdlcomms.debug('login cookie: ' + cookie.name + ', value: ' + cookie.value)
+            self.loggerdlcomms.debug(f"login cookie: {cookie.name}, value: {cookie.value}")
         return
 
     def _command(self, command, args=None, content_type=None, files=None):
-        self.loggerdlcomms.debug('QBittorrent WebAPI Command: %s' % command)
+        self.loggerdlcomms.debug(f'QBittorrent WebAPI Command: {command}')
         if self.cmdset == 2:
-            url = self.base_url + '/api/v2/' + command
+            url = f"{self.base_url}/api/v2/{command}"
         else:
-            url = self.base_url + '/' + command
+            url = f"{self.base_url}/{command}"
         data = None
         headers = dict()
-        self.loggerdlcomms.debug('QBittorrent URL: %s' % url)
+        self.loggerdlcomms.debug(f'QBittorrent URL: {url}')
 
         if files or content_type == 'multipart/form-data':
             data, headers = encode_multipart(args, files, '-------------------------acebdf13572468')
@@ -137,7 +136,7 @@ class QbittorrentClient(object):
                 content_type = response.headers['content-type']
             except KeyError:
                 content_type = ''
-            self.loggerdlcomms.debug("QBitTorrent content type [%s]" % content_type)
+            self.loggerdlcomms.debug(f"QBitTorrent content type [{content_type}]")
 
             resp = response.read()
             # some commands return json
@@ -148,7 +147,7 @@ class QbittorrentClient(object):
             else:
                 # some commands return plain text
                 resp = make_unicode(resp)
-                self.loggerdlcomms.debug("QBitTorrent returned %s" % resp)
+                self.loggerdlcomms.debug(f"QBitTorrent returned {resp}")
                 if command in ['version/api', 'app/webapiVersion']:
                     return resp
                 # some just return Ok. or Fails.
@@ -159,8 +158,8 @@ class QbittorrentClient(object):
             self.loggerdlcomms.debug("QBitTorrent returned True")
             return True
         except URLError as err:
-            self.logger.debug('Failed URL: %s' % url)
-            self.logger.debug('QBitTorrent webUI raised the following error: %s' % err.reason)
+            self.logger.debug(f'Failed URL: {url}')
+            self.logger.debug(f'QBitTorrent webUI raised the following error: {err.reason}')
             return False
 
     def _get_list(self):
@@ -175,7 +174,7 @@ class QbittorrentClient(object):
             value = self._command('torrents/info', args)
         else:
             value = self._command('query/torrents', args)
-        self.loggerdlcomms.debug('get_list() returned %s' % str(value))
+        self.loggerdlcomms.debug(f'get_list() returned {str(value)}')
         return value
 
     def _get_settings(self):
@@ -183,11 +182,11 @@ class QbittorrentClient(object):
             value = self._command('app/preferences')
         else:
             value = self._command('query/preferences')
-        self.loggerdlcomms.debug('get_settings() returned %d items' % len(value))
+        self.loggerdlcomms.debug(f'get_settings() returned {len(value)} items')
         return value
 
     def get_savepath(self, hashid):
-        self.loggerdlcomms.debug('qb.get_savepath(%s)' % hashid)
+        self.loggerdlcomms.debug(f'qb.get_savepath({hashid})')
         hashid = hashid.lower()
         self.hashid = hashid
         torrent_list = self._get_list()
@@ -197,7 +196,7 @@ class QbittorrentClient(object):
         return None
 
     def start(self, hashid):
-        self.loggerdlcomms.debug('qb.start(%s)' % hashid)
+        self.loggerdlcomms.debug(f'qb.start({hashid})')
         args = {'hash': hashid}
         if self.cmdset == 2:
             return self._command('torrents/resume', args, 'application/x-www-form-urlencoded')
@@ -205,7 +204,7 @@ class QbittorrentClient(object):
             return self._command('command/resume', args, 'application/x-www-form-urlencoded')
 
     def pause(self, hashid):
-        self.loggerdlcomms.debug('qb.pause(%s)' % hashid)
+        self.loggerdlcomms.debug(f'qb.pause({hashid})')
         args = {'hash': hashid}
         if self.cmdset == 2:
             return self._command('torrents/pause', args, 'application/x-www-form-urlencoded')
@@ -213,21 +212,21 @@ class QbittorrentClient(object):
             return self._command('command/pause', args, 'application/x-www-form-urlencoded')
 
     def getfiles(self, hashid):
-        self.loggerdlcomms.debug('qb.getfiles(%s)' % hashid)
+        self.loggerdlcomms.debug(f'qb.getfiles({hashid})')
         if self.cmdset == 2:
-            return self._command('torrents/files?hash=' + hashid)
+            return self._command(f"torrents/files?hash={hashid}")
         else:
-            return self._command('query/propertiesFiles/' + hashid)
+            return self._command(f"query/propertiesFiles/{hashid}")
 
     def getprops(self, hashid):
-        self.loggerdlcomms.debug('qb.getprops(%s)' % hashid)
+        self.loggerdlcomms.debug(f'qb.getprops({hashid})')
         if self.cmdset == 2:
-            return self._command('torrents/properties?hash=' + hashid)
+            return self._command(f"torrents/properties?hash={hashid}")
         else:
-            return self._command('query/propertiesGeneral/' + hashid)
+            return self._command(f"query/propertiesGeneral/{hashid}")
 
     def remove(self, hashid, remove_data=False):
-        self.loggerdlcomms.debug('qb.remove(%s,%s)' % (hashid, remove_data))
+        self.loggerdlcomms.debug(f'qb.remove({hashid},{remove_data})')
         args = {'hashes': hashid}
         if self.cmdset == 2:
             command = 'torrents/delete'
@@ -243,7 +242,7 @@ class QbittorrentClient(object):
 
 def get_progress(hashid):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug('get_progress(%s)' % hashid)
+    loggerdlcomms.debug(f'get_progress({hashid})')
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -290,7 +289,7 @@ def get_progress(hashid):
 def remove_torrent(hashid, remove_data=False):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug('remove_torrent(%s,%s)' % (hashid, remove_data))
+    loggerdlcomms.debug(f'remove_torrent({hashid},{remove_data})')
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -305,15 +304,15 @@ def remove_torrent(hashid, remove_data=False):
                 remove = True
                 if torrent['state'] == 'uploading' or torrent['state'] == 'stalledUP':
                     if not CONFIG.get_bool('SEED_WAIT'):
-                        logger.debug('%s is seeding, removing torrent and data anyway' % torrent['name'])
+                        logger.debug(f"{torrent['name']} is seeding, removing torrent and data anyway")
                     else:
-                        logger.info('%s has not finished seeding yet, torrent will not be removed' % torrent['name'])
+                        logger.info(f"{torrent['name']} has not finished seeding yet, torrent will not be removed")
                         remove = False
                 if remove:
                     if remove_data:
-                        logger.info('%s removing torrent and data' % torrent['name'])
+                        logger.info(f"{torrent['name']} removing torrent and data")
                     else:
-                        logger.info('%s removing torrent' % torrent['name'])
+                        logger.info(f"{torrent['name']} removing torrent")
                     qbclient.remove(hashid, remove_data)
                     return True
     return False
@@ -326,16 +325,15 @@ def check_link():
         if qbclient.cmdset:
             # qbittorrent creates a new label if needed
             # can't see how to get a list of known labels to check against
-            return "qBittorrent login successful, api: %s" % qbclient.api
+            return f"qBittorrent login successful, api: {qbclient.api}"
         return "qBittorrent login FAILED\nCheck debug log"
     except Exception as err:
-        return "qBittorrent login FAILED: %s %s" % (type(err).__name__, str(err))
+        return f"qBittorrent login FAILED: {type(err).__name__} {str(err)}"
 
 
 def get_args(qbclient, provider_options):
     """ Get optional arguments based on configuration"""
-    args = {}
-    args['paused'] = 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'
+    args = {'paused': 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'}
     dl_dir = CONFIG['QBITTORRENT_DIR']
     if dl_dir:
         args['savepath'] = dl_dir
@@ -352,16 +350,17 @@ def get_args(qbclient, provider_options):
     if "seed_ratio" in provider_options:
         args['ratioLimit'] = provider_options["seed_ratio"]
     if "seed_duration" in provider_options:
-        args['seedingTimeLimit'] =  provider_options["seed_duration"]
+        args['seedingTimeLimit'] = provider_options["seed_duration"]
 
     return args
+
 
 def add_torrent(link, hashid, provider_options):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug('add_torrent(%s)' % link)
-    
+    loggerdlcomms.debug(f'add_torrent({link})')
+
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -369,7 +368,7 @@ def add_torrent(link, hashid, provider_options):
         logger.debug(res)
         return False, res
     args = get_args(qbclient, provider_options)
-    loggerdlcomms.debug('add_torrent args(%s)' % args)
+    loggerdlcomms.debug(f'add_torrent args({args})')
     args['urls'] = link
 
     if qbclient.cmdset == 2:
@@ -396,7 +395,7 @@ def add_torrent(link, hashid, provider_options):
             for item in torrents:
                 if item.get('hash') == hashid:
                     if count > 1:
-                        loggerdlcomms.debug("hashid found in torrent list after %s seconds" % count)
+                        loggerdlcomms.debug(f"hashid found in torrent list after {count} seconds")
                     return True, ''
     res = "hashid not found in torrent list, add_torrent failed"
     loggerdlcomms.debug(res)
@@ -415,7 +414,7 @@ def add_file(data, hashid, title, provider_options):
         logger.debug(res)
         return False, res
     args = get_args(qbclient, provider_options)
-    loggerdlcomms.debug('add_torrent args(%s)' % args)
+    loggerdlcomms.debug(f'add_torrent args({args})')
     files = {'torrents': {'filename': title, 'content': data}}
     if qbclient.cmdset == 2:
         # noinspection PyProtectedMember
@@ -438,7 +437,7 @@ def add_file(data, hashid, title, provider_options):
             for item in torrents:
                 if item.get('hash') == hashid:
                     if count > 1:
-                        loggerdlcomms.debug("hashid found in torrent list after %s seconds" % count)
+                        loggerdlcomms.debug(f"hashid found in torrent list after {count} seconds")
                     if qbclient.cmdset == 2 and CONFIG['QBITTORRENT_LABEL']:
                         args = {'hash': hashid, 'category': CONFIG['QBITTORRENT_LABEL']}
                         # noinspection PyProtectedMember
@@ -454,7 +453,7 @@ def get_name(hashid):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug('get_name(%s)' % hashid)
+    loggerdlcomms.debug(f'get_name({hashid})')
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -482,7 +481,7 @@ def get_files(hashid):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug('get_files(%s)' % hashid)
+    loggerdlcomms.debug(f'get_files({hashid})')
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -503,7 +502,7 @@ def get_files(hashid):
 def get_folder(hashid):
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug('get_folder(%s)' % hashid)
+    loggerdlcomms.debug(f'get_folder({hashid})')
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -564,8 +563,8 @@ def encode_multipart(fields, files, boundary=None):
         fields = dict((make_bytestr(k), make_bytestr(v)) for k, v in fields.items())
         for name, value in list(fields.items()):
             lines.extend((
-                '--{0}'.format(boundary),
-                'Content-Disposition: form-data; name="{0}"'.format(escape_quote(name)),
+                f'--{boundary}',
+                f'Content-Disposition: form-data; name="{escape_quote(name)}"',
                 '',
                 make_unicode(value),
             ))
@@ -578,23 +577,22 @@ def encode_multipart(fields, files, boundary=None):
             else:
                 mimetype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
             lines.extend((
-                '--{0}'.format(boundary),
-                'Content-Disposition: form-data; name="{0}"; filename="{1}"'.format(
-                    escape_quote(name), escape_quote(filename)),
-                'Content-Type: {0}'.format(mimetype),
+                f'--{boundary}',
+                f'Content-Disposition: form-data; name="{escape_quote(name)}"; filename="{escape_quote(filename)}"',
+                f'Content-Type: {mimetype}',
                 '',
                 value['content'],
             ))
 
     lines.extend((
-        '--{0}--'.format(boundary),
+        f'--{boundary}--',
         '',
     ))
-    
-    body = b'\r\n'.join([make_bytestr(l) for l in lines])
+
+    body = b'\r\n'.join([make_bytestr(ln) for ln in lines])
 
     headers = {
-        'Content-Type': 'multipart/form-data; boundary={0}'.format(boundary),
+        'Content-Type': f'multipart/form-data; boundary={boundary}',
         'Content-Length': str(len(body)),
     }
 

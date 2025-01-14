@@ -14,27 +14,27 @@
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import os
 import smtplib
 import ssl
-import cherrypy
+import traceback
 import uuid
-from email.utils import formatdate, formataddr
-from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate, formataddr
+
+import cherrypy
 
 import lazylibrarian
-import os
-import traceback
-
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, ebook_convert
-from lazylibrarian.librarysync import get_book_info
-from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import is_valid_email, run_script, mime_type
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import check_int, get_list, unaccented
+from lazylibrarian.librarysync import get_book_info
+from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 
 
 class EmailNotifier:
@@ -54,7 +54,7 @@ class EmailNotifier:
 
         if not to_addr:
             to_addr = CONFIG['EMAIL_TO']
-            logger.debug("Using default to_addr=%s" % to_addr)
+            logger.debug(f"Using default to_addr={to_addr}")
         if not is_valid_email(to_addr):
             logger.warning("Invalid TO address, check users email and/or config")
             return False
@@ -97,17 +97,17 @@ class EmailNotifier:
             message['From'] = formataddr(('LazyLibrarian', from_addr))
             message['To'] = toaddr
             message['Date'] = formatdate(localtime=True)
-            message['Message-ID'] = "<%s@%s>" % (uuid.uuid4(), from_addr.split('@')[1])
+            message['Message-ID'] = f"<{uuid.uuid4()}@{from_addr.split('@')[1]}>"
 
-            logger.debug('Email notification: %s' % message['Subject'])
-            logger.debug('Email from: %s' % message['From'])
-            logger.debug('Email to: %s' % message['To'])
-            logger.debug('Email ID: %s' % message['Message-ID'])
+            logger.debug(f"Email notification: {message['Subject']}")
+            logger.debug(f"Email from: {message['From']}")
+            logger.debug(f"Email to: {message['To']}")
+            logger.debug(f"Email ID: {message['Message-ID']}")
             if text[:15].lower() == '<!doctype html>':
-                logger.debug('Email text: %s' % text[:15])
+                logger.debug(f'Email text: {text[:15]}')
             else:
-                logger.debug('Email text: %s' % text)
-            logger.debug('Files: %s' % files)
+                logger.debug(f'Email text: {text}')
+            logger.debug(f'Files: {files}')
 
             if files:
                 for f in files:
@@ -116,14 +116,14 @@ class EmailNotifier:
                     title = unaccented(os.path.basename(f))
                     if limit and fsize > limit * 1024 * 1024:
                         oversize = True
-                        msg = '%s is too large (%s) to email' % (title, fsize)
+                        msg = f'{title} is too large ({fsize}) to email'
                         logger.debug(msg)
                         if CONFIG['CREATE_LINK']:
-                            logger.debug("Creating link to %s" % f)
+                            logger.debug(f"Creating link to {f}")
                             params = [CONFIG['CREATE_LINK'], f]
                             rc, res, err = run_script(params)
                             if res and res.startswith('http'):
-                                msg = "%s is available to download, %s" % (title, res)
+                                msg = f"{title} is available to download, {res}"
                                 logger.debug(msg)
                         message.attach(MIMEText(msg))
                     else:
@@ -132,13 +132,13 @@ class EmailNotifier:
                             metadata = get_book_info(f)
                             if 'title' not in metadata or 'creator' not in metadata:
                                 basename, _ = os.path.splitext(f)
-                                if os.path.exists(basename + '.opf'):
-                                    lazylibrarian.postprocess.write_meta(os.path.dirname(f), basename + '.opf')
+                                if os.path.exists(f"{basename}.opf"):
+                                    lazylibrarian.postprocess.write_meta(os.path.dirname(f), f"{basename}.opf")
                         subtype = mime_type(syspath(f)).split('/')[1]
-                        logger.debug('Attaching %s %s' % (subtype, title))
+                        logger.debug(f'Attaching {subtype} {title}')
                         with open(syspath(f), "rb") as fil:
                             part = MIMEApplication(fil.read(), _subtype=subtype, Name=title)
-                            part['Content-Disposition'] = 'attachment; filename="%s"' % title
+                            part['Content-Disposition'] = f'attachment; filename="{title}"'
                             message.attach(part)
 
             try:
@@ -166,15 +166,15 @@ class EmailNotifier:
                     mailserver.login(CONFIG['EMAIL_SMTP_USER'],
                                      CONFIG['EMAIL_SMTP_PASSWORD'])
 
-                logger.debug("Sending email to %s" % toaddr)
+                logger.debug(f"Sending email to {toaddr}")
                 mailserver.sendmail(from_addr, toaddr, message.as_string())
                 mailserver.quit()
                 if oversize:
                     return False
 
             except Exception as e:
-                logger.warning('Error sending Email: %s' % e)
-                logger.error('Email traceback: %s' % traceback.format_exc())
+                logger.warning(f'Error sending Email: {e}')
+                logger.error(f'Email traceback: {traceback.format_exc()}')
                 return False
 
         return True
@@ -188,7 +188,7 @@ class EmailNotifier:
 
     def email_file(self, subject, message, to_addr, files):
         logger = logging.getLogger(__name__)
-        logger.debug("to_addr=%s" % to_addr)
+        logger.debug(f"to_addr={to_addr}")
         res = self._notify(message=message, event=subject, force=True, files=files, to_addr=to_addr)
         return res
 
@@ -209,7 +209,7 @@ class EmailNotifier:
         if CONFIG.get_bool('EMAIL_NOTIFY_ONDOWNLOAD') or force:
             files = None
             event = notifyStrings[NOTIFY_DOWNLOAD]
-            logger.debug('Email send attachment is %s' % CONFIG['EMAIL_SENDFILE_ONDOWNLOAD'])
+            logger.debug(f"Email send attachment is {CONFIG['EMAIL_SENDFILE_ONDOWNLOAD']}")
             if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
                 if not bookid:
                     logger.debug('Email request to attach book, but no bookid')
@@ -222,10 +222,10 @@ class EmailNotifier:
                     if not CONFIG.get_bool('USER_ACCOUNTS'):
                         if custom_typelist:
                             preftype = custom_typelist[0]
-                            logger.debug('Preferred filetype = %s' % preftype)
+                            logger.debug(f'Preferred filetype = {preftype}')
                         elif typelist:
                             preftype = typelist[0]
-                            logger.debug('Default preferred filetype = %s' % preftype)
+                            logger.debug(f'Default preferred filetype = {preftype}')
                     else:
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
@@ -236,14 +236,14 @@ class EmailNotifier:
                                 db.close()
                             if res and res['BookType']:
                                 preftype = res['BookType']
-                                logger.debug('User preferred filetype = %s' % preftype)
+                                logger.debug(f'User preferred filetype = {preftype}')
                             else:
-                                logger.debug('No user preference for %s' % cookie['ll_uid'].value)
+                                logger.debug(f"No user preference for {cookie['ll_uid'].value}")
                         else:
                             logger.debug('No user login cookie')
                         if not preftype and typelist:
                             preftype = typelist[0]
-                            logger.debug('Default preferred filetype = %s' % preftype)
+                            logger.debug(f'Default preferred filetype = {preftype}')
 
                     db = database.DBConnection()
                     try:
@@ -256,16 +256,16 @@ class EmailNotifier:
                                 for item in set(
                                         typelist + custom_typelist):
                                     # Search download and email formats for existing book formats
-                                    target = basename + '.' + item
+                                    target = f"{basename}.{item}"
                                     if path_isfile(target):
                                         types.append(item)
 
-                                logger.debug('Available filetypes: %s' % str(types))
+                                logger.debug(f'Available filetypes: {str(types)}')
 
                                 # if the format we want to send is available, select it
                                 if preftype in types:
-                                    filename = basename + '.' + preftype
-                                    logger.debug('Found preferred filetype %s' % preftype)
+                                    filename = f"{basename}.{preftype}"
+                                    logger.debug(f'Found preferred filetype {preftype}')
                                 # if the format is not available, see if it's a type we want to convert,
                                 # otherwise send the first available format
                                 else:
@@ -273,23 +273,23 @@ class EmailNotifier:
                                     # convert it
                                     for convertable_format in get_list(CONFIG['EMAIL_CONVERT_FROM']):
                                         if convertable_format in types:
-                                            logger.debug('Converting %s to preferred filetype %s' %
-                                                         (convertable_format, preftype))
+                                            logger.debug(
+                                                f'Converting {convertable_format} to preferred filetype {preftype}')
                                             # noinspection PyBroadException
                                             try:
-                                                filename = ebook_convert.convert(basename + '.' + convertable_format,
+                                                filename = ebook_convert.convert(f"{basename}.{convertable_format}",
                                                                                  preftype)
-                                                logger.debug('Converted %s to preferred filetype %s' %
-                                                             (convertable_format, preftype))
+                                                logger.debug(
+                                                    f'Converted {convertable_format} to preferred filetype {preftype}')
                                                 break
                                             except Exception:
-                                                logger.debug("Conversion %s to %s failed" % (convertable_format, preftype))
+                                                logger.debug(f"Conversion {convertable_format} to {preftype} failed")
                                                 continue
                                     # If no convertable formats found, revert to default behavior of sending
                                     # first available format
                                     else:
-                                        logger.debug('Preferred filetype %s not found, sending %s' % (preftype, types[0]))
-                                        filename = basename + '.' + types[0]
+                                        logger.debug(f'Preferred filetype {preftype} not found, sending {types[0]}')
+                                        filename = f"{basename}.{types[0]}"
 
                             if force:
                                 event = title
@@ -301,16 +301,16 @@ class EmailNotifier:
                                         '{method}', ' is not available').replace('{link}', '')
                             else:
                                 title = data['BookName']
-                            logger.debug('Found %s for bookid %s' % (filename, bookid))
+                            logger.debug(f'Found {filename} for bookid {bookid}')
                         else:
-                            logger.debug('[%s] is not a valid bookid' % bookid)
+                            logger.debug(f'[{bookid}] is not a valid bookid')
                             data = db.match('SELECT IssueFile,Title,IssueDate from issues where IssueID=?', (bookid,))
                             if data:
                                 filename = data['IssueFile']
-                                title = "%s - %s" % (data['Title'], data['IssueDate'])
-                                logger.debug('Found %s for issueid %s' % (filename, bookid))
+                                title = f"{data['Title']} - {data['IssueDate']}"
+                                logger.debug(f'Found {filename} for issueid {bookid}')
                             else:
-                                logger.debug('[%s] is not a valid issueid' % bookid)
+                                logger.debug(f'[{bookid}] is not a valid issueid')
                                 filename = ''
                     finally:
                         db.close()

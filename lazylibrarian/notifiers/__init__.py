@@ -72,8 +72,8 @@ def custom_notify_download(bookid):
         TELEMETRY.record_usage_data('Notify/Download/Custom')
         custom_notifier.notify_download(bookid)
     except Exception as e:
-        logger.warning('Custom notify download failed: %s' % str(e))
-        logger.error('Unhandled exception: %s' % traceback.format_exc())
+        logger.warning(f'Custom notify download failed: {str(e)}')
+        logger.error(f'Unhandled exception: {traceback.format_exc()}')
 
 
 def custom_notify_snatch(bookid, fail=False):
@@ -82,8 +82,8 @@ def custom_notify_snatch(bookid, fail=False):
         TELEMETRY.record_usage_data('Notify/Snatch/Custom')
         custom_notifier.notify_snatch(bookid, fail=fail)
     except Exception as e:
-        logger.warning('Custom notify snatch failed: %s' % str(e))
-        logger.error('Unhandled exception: %s' % traceback.format_exc())
+        logger.warning(f'Custom notify snatch failed: {str(e)}')
+        logger.error(f'Unhandled exception: {traceback.format_exc()}')
 
 
 def notify_download(title, bookid=None):
@@ -98,8 +98,8 @@ def notify_download(title, bookid=None):
             else:
                 n.notify_download(title)
     except Exception as e:
-        logger.warning('Notify download failed: %s' % str(e))
-        logger.error('Unhandled exception: %s' % traceback.format_exc())
+        logger.warning(f'Notify download failed: {str(e)}')
+        logger.error(f'Unhandled exception: {traceback.format_exc()}')
 
 
 def notify_snatch(title, fail=False):
@@ -111,5 +111,5 @@ def notify_snatch(title, fail=False):
         for n in notifiers:
             n.notify_snatch(title, fail=fail)
     except Exception as e:
-        logger.warning('Notify snatch failed: %s' % str(e))
-        logger.error('Unhandled exception: %s' % traceback.format_exc())
+        logger.warning(f'Notify snatch failed: {str(e)}')
+        logger.error(f'Unhandled exception: {traceback.format_exc()}')

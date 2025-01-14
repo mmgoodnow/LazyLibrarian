@@ -46,7 +46,7 @@ def id3read(filename):
     except Exception:
         res = False
     if not res:
-        logger.warning("TinyTag:unsupported [%s]" % filename)
+        logger.warning(f"TinyTag:unsupported [{filename}]")
         return mydict
 
     # noinspection PyBroadException
@@ -81,7 +81,7 @@ def id3read(filename):
         if loggerlibsync.isEnabledFor(logging.DEBUG):
             for tag in ['filename', 'artist', 'albumartist', 'composer', 'album', 'title', 'track',
                         'track_total', 'comment']:
-                loggerlibsync.debug("id3r.%s [%s]" % (tag, eval(tag)))
+                loggerlibsync.debug(f"id3r.{tag} [{eval(tag)}]")
 
         if artist == 'None':
             artist = ''
@@ -138,7 +138,7 @@ def id3read(filename):
 
         if author and type(author) is list:
             lst = ', '.join(author)
-            logger.debug("id3reader author list [%s]" % lst)
+            logger.debug(f"id3reader author list [{lst}]")
             author = author[0]  # if multiple authors, just use the first one
 
         mydict['artist'] = artist
@@ -159,7 +159,7 @@ def id3read(filename):
             mydict[item] = make_unicode(mydict[item])
 
     except Exception:
-        logger.error("tinytag error %s" % traceback.format_exc())
+        logger.error(f"tinytag error {traceback.format_exc()}")
     return mydict
 
 
@@ -242,7 +242,7 @@ def audio_parts(folder, bookname, authorname):
                                 parts.append([track, book, author, f])
 
                     except Exception as e:
-                        logger.error("id3tag %s %s" % (type(e).__name__, str(e)))
+                        logger.error(f"id3tag {type(e).__name__} {str(e)}")
                         pass
         logger.debug(f"ID3read found {len(parts)}")
         total_parts = cnt
@@ -295,11 +295,11 @@ def audio_parts(folder, bookname, authorname):
 
     try:
         if cnt != len(parts):
-            logger.warning("%s: Incorrect number of parts (found %i from %i)" % (bookname, len(parts), cnt))
+            logger.warning(f"{bookname}: Incorrect number of parts (found {len(parts)} from {cnt})")
             failed = True
 
         if total_parts and total_parts != cnt:
-            logger.warning("%s: Reported %i parts, got %i" % (bookname, total_parts, cnt))
+            logger.warning(f"{bookname}: Reported {total_parts} parts, got {cnt}")
             failed = True
 
         # check all parts have the same author and title
@@ -340,21 +340,21 @@ def audio_parts(folder, bookname, authorname):
                     while cnt < len(parts):
                         cnt += 1
                         if tokmatch == ' 001.':
-                            pattern = ' %s.' % str(cnt).zfill(3)
+                            pattern = f' {str(cnt).zfill(3)}.'
                         elif tokmatch == ' 01.':
-                            pattern = ' %s.' % str(cnt).zfill(2)
+                            pattern = f' {str(cnt).zfill(2)}.'
                         elif tokmatch == ' 1.':
-                            pattern = ' %s.' % str(cnt)
+                            pattern = f' {str(cnt)}.'
                         elif tokmatch == ' 001 ':
-                            pattern = ' %s ' % str(cnt).zfill(3)
+                            pattern = f' {str(cnt).zfill(3)} '
                         elif tokmatch == ' 01 ':
-                            pattern = ' %s ' % str(cnt).zfill(2)
+                            pattern = f' {str(cnt).zfill(2)} '
                         elif tokmatch == ' 1 ':
-                            pattern = ' %s ' % str(cnt)
+                            pattern = f' {str(cnt)} '
                         elif tokmatch == '001':
-                            pattern = '%s' % str(cnt).zfill(3)
+                            pattern = f'{str(cnt).zfill(3)}'
                         else:
-                            pattern = '%s' % str(cnt).zfill(2)
+                            pattern = f'{str(cnt).zfill(2)}'
                         # standardise numbering of the parts
                         for part in parts:
                             if pattern in part[3]:
@@ -364,7 +364,7 @@ def audio_parts(folder, bookname, authorname):
     except Exception as e:
         logger.error(str(e))
 
-    logger.debug("Checking numbering of %s %s" % (len(parts), plural(len(parts), 'part')))
+    logger.debug(f"Checking numbering of {len(parts)} {plural(len(parts), 'part')}")
     parts.sort(key=lambda x: int(x[0]))
 
     # check all parts are present, ignore any part 0
@@ -420,10 +420,10 @@ def audio_rename(bookid, rename=False, playlist=False):
         if book_filename:
             old_path = os.path.dirname(book_filename)
         else:
-            logger.debug("No filename for %s in audio_rename" % bookid)
+            logger.debug(f"No filename for {bookid} in audio_rename")
             return ''
     else:
-        logger.debug("Invalid bookid in audio_rename %s" % bookid)
+        logger.debug(f"Invalid bookid in audio_rename {bookid}")
         return ''
 
     if not TinyTag:
@@ -436,7 +436,7 @@ def audio_rename(bookid, rename=False, playlist=False):
         return exists['AudioFile']
 
     if abridged:
-        abridged = ' (%s)' % abridged
+        abridged = f' ({abridged})'
     # if we get here, looks like we have all the parts needed to rename properly
     seriesinfo = name_vars(bookid, abridged)
     dest_path = seriesinfo['AudioFolderName']
@@ -469,7 +469,7 @@ def audio_rename(bookid, rename=False, playlist=False):
         try:
             playlist = open(os.path.join(dest_path, 'playlist.ll'), "w")
         except Exception as why:
-            logger.error('Unable to create playlist in %s: %s' % (dest_path, why))
+            logger.error(f'Unable to create playlist in {dest_path}: {why}')
             playlist = None
 
     if len(parts) == 1:
@@ -477,14 +477,14 @@ def audio_rename(bookid, rename=False, playlist=False):
         namevars = name_vars(bookid, abridged)
         bookfile = namevars['AudioSingleFile']
         if not bookfile:
-            bookfile = "%s - %s" % (exists['AuthorName'], exists['BookName'])
+            bookfile = f"{exists['AuthorName']} - {exists['BookName']}"
         out_type = os.path.splitext(part[3])[1]
         outfile = bookfile + out_type
         if playlist:
             if rename:
-                playlist.write("%s\n" % make_unicode(outfile))
+                playlist.write(f"{make_unicode(outfile)}\n")
             else:
-                playlist.write("%s\n" % make_unicode(part[3]))
+                playlist.write(f"{make_unicode(part[3])}\n")
         if rename:
             n = os.path.join(make_unicode(dest_path), make_unicode(outfile))
             o = os.path.join(make_unicode(dest_path), make_unicode(part[3]))
@@ -495,9 +495,9 @@ def audio_rename(bookid, rename=False, playlist=False):
                 try:
                     n = safe_move(o, n)
                     book_filename = n  # return part 1 of set
-                    logger.debug('%s: audio_rename [%s] to [%s]' % (exists['BookName'], o, n))
+                    logger.debug(f"{exists['BookName']}: audio_rename [{o}] to [{n}]")
                 except Exception as e:
-                    logger.error('Unable to rename [%s] to [%s] %s %s' % (o, n, type(e).__name__, str(e)))
+                    logger.error(f'Unable to rename [{o}] to [{n}] {type(e).__name__} {str(e)}')
     else:
         for part in parts:
             pattern = seriesinfo['AudioFile']
@@ -511,9 +511,9 @@ def audio_rename(bookid, rename=False, playlist=False):
 
             if playlist:
                 if rename:
-                    playlist.write("%s\n" % make_unicode(pattern))
+                    playlist.write(f"{make_unicode(pattern)}\n")
                 else:
-                    playlist.write("%s\n" % make_unicode(part[3]))
+                    playlist.write(f"{make_unicode(part[3])}\n")
             if rename:
                 n = os.path.join(make_unicode(dest_path), make_unicode(pattern))
                 o = os.path.join(make_unicode(dest_path), make_unicode(part[3]))
@@ -525,9 +525,9 @@ def audio_rename(bookid, rename=False, playlist=False):
                         n = safe_move(o, n)
                         if part[0] == 1:
                             book_filename = n  # return part 1 of set
-                        logger.debug('%s: audio_rename [%s] to [%s]' % (exists['BookName'], o, n))
+                        logger.debug(f"{exists['BookName']}: audio_rename [{o}] to [{n}]")
                     except Exception as e:
-                        logger.error('Unable to rename [%s] to [%s] %s %s' % (o, n, type(e).__name__, str(e)))
+                        logger.error(f'Unable to rename [{o}] to [{n}] {type(e).__name__} {str(e)}')
     if playlist:
         playlist.close()
     return book_filename
@@ -558,18 +558,18 @@ def book_rename(bookid):
         db.close()
 
     if not exists:
-        msg = "Invalid bookid in book_rename %s" % bookid
+        msg = f"Invalid bookid in book_rename {bookid}"
         logger.debug(msg)
         return '', msg
 
     fullname = exists['BookFile']
     if not fullname:
-        msg = "No filename for %s in BookRename" % bookid
+        msg = f"No filename for {bookid} in BookRename"
         logger.debug(msg)
         return '', msg
 
     if not os.path.isfile(fullname):
-        msg = "Missing source file for %s in BookRename" % bookid
+        msg = f"Missing source file for {bookid} in BookRename"
         logger.debug(msg)
         return '', msg
 
@@ -584,13 +584,13 @@ def book_rename(bookid):
             calibreid = ''
 
         if calibreid:
-            msg = '[%s] looks like a calibre directory: not renaming book' % os.path.basename(old_path)
+            msg = f'[{os.path.basename(old_path)}] looks like a calibre directory: not renaming book'
             logger.debug(msg)
             return fullname, msg
 
     reject = multibook(old_path)
     if reject:
-        msg = "Not renaming %s, found multiple %s" % (fullname, reject)
+        msg = f"Not renaming {fullname}, found multiple {reject}"
         logger.debug(msg)
         return fullname, msg
 
@@ -602,7 +602,7 @@ def book_rename(bookid):
 
     new_basename = namevars['BookFile']
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
-        msg = "[%s] looks like an omnibus? Not renaming" % new_basename
+        msg = f"[{new_basename}] looks like an omnibus? Not renaming"
         logger.warning(msg)
         return fullname, msg
 
@@ -660,7 +660,7 @@ def book_rename(bookid):
                         if oldname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
                             fullname = nfname
                     except Exception as e:
-                        m = 'Unable to rename [%s] to [%s] %s %s ' % (ofname, nfname, type(e).__name__, str(e))
+                        m = f'Unable to rename [{ofname}] to [{nfname}] {type(e).__name__} {str(e)} '
                         logger.error(m)
                         msg += m
     return fullname, msg
@@ -750,7 +750,7 @@ def name_vars(bookid, abridged=''):
             try:
                 padnum = str(float(seriesnum))
                 if padnum[1] == '.':
-                    padnum = '0' + padnum
+                    padnum = f"0{padnum}"
             except (ValueError, IndexError):
                 padnum = ''
 
@@ -762,7 +762,7 @@ def name_vars(bookid, abridged=''):
                 if seriesnum == '':
                     # add what we got back to end of series name
                     if seriesname and serieslist:
-                        seriesname = "%s %s" % (seriesname, serieslist)
+                        seriesname = f"{seriesname} {serieslist}"
 
         seriesname = ' '.join(seriesname.split())  # strip extra spaces
         if only_punctuation(seriesname):  # but don't return just whitespace or punctuation

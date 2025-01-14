@@ -28,9 +28,10 @@ from shutil import rmtree, move
 from typing import Any
 
 import cherrypy
-import lazylibrarian
 import requests
 import urllib3
+
+import lazylibrarian
 from lazylibrarian import database, versioncheck
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import init_hex_caches, fetch_url
@@ -187,7 +188,7 @@ class StartupLazyLibrarian:
                 self.shutdown(update=True, doquit=True, testing=False)
 
         if not testing:
-            self.logger.info("Lazylibrarian (pid %s) is starting up..." % os.getpid())
+            self.logger.info(f"Lazylibrarian (pid {os.getpid()}) is starting up...")
             # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
             time.sleep(2)
         return options, configfile
@@ -225,7 +226,7 @@ class StartupLazyLibrarian:
 
         logger = logging.getLogger(__name__)
         if APPRISE_VER:  # If APPRISE can't be found, show old notifiers
-            logger.info("Apprise library (%s) installed" % APPRISE_VER)
+            logger.info(f"Apprise library ({APPRISE_VER}) installed")
         else:
             logger.warning("Did not find Apprise notifications library")
             CONFIG.set_bool('HIDE_OLD_NOTIFIERS', False)
@@ -275,22 +276,22 @@ class StartupLazyLibrarian:
                 version = result[0]
             else:
                 version = 0
-            self.logger.info("Database is v%s, integrity check: %s" % (version, check[0]))
+            self.logger.info(f"Database is v{version}, integrity check: {check[0]}")
         except Exception as e:
-            self.logger.error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
+            self.logger.error(f"Can't connect to the database: {type(e).__name__} {str(e)}")
             sys.exit(0)
 
         curr_ver = upgrade_needed()
         if curr_ver:
-            lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
+            lazylibrarian.UPDATE_MSG = f'Updating database to version {curr_ver}'
             db_upgrade(curr_ver)
 
         if version:
             db_changes = check_db()
             if db_changes:
-                db.action('PRAGMA user_version=%s' % db_current_version)
+                db.action(f'PRAGMA user_version={db_current_version}')
                 db.action('vacuum')
-                self.logger.debug("Upgraded database schema to v%s with %s changes" % (db_current_version, db_changes))
+                self.logger.debug(f"Upgraded database schema to v{db_current_version} with {db_changes} changes")
 
         db.close()
         # group_concat needs sqlite3 >= 3.5.4
@@ -303,7 +304,7 @@ class StartupLazyLibrarian:
                     self.logger.error("Your version of sqlite3 is too old, please upgrade to at least v3.6.19")
                     sys.exit(0)
         except Exception as e:
-            self.logger.warning("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
+            self.logger.warning(f"Unable to parse sqlite3 version: {type(e).__name__} {str(e)}")
 
     def init_build_debug_header(self, online):
         debuginfo = log_header(online)
@@ -358,7 +359,7 @@ class StartupLazyLibrarian:
         url = 'http://bootswatch.com/api/3.json'
         result, success = fetch_url(url, headers=None, retry=False)
         if not success:
-            self.logger.debug("Error getting bookstrap themes : %s" % result)
+            self.logger.debug(f"Error getting bookstrap themes : {result}")
             return themelist
 
         try:
@@ -367,9 +368,9 @@ class StartupLazyLibrarian:
                 themelist.append(theme['name'].lower())
         except Exception as e:
             # error reading results
-            self.logger.warning('JSON Error reading bookstrap themes, %s %s' % (type(e).__name__, str(e)))
+            self.logger.warning(f'JSON Error reading bookstrap themes, {type(e).__name__} {str(e)}')
 
-        self.logger.info("Bookstrap found %i themes" % len(themelist))
+        self.logger.info(f"Bookstrap found {len(themelist)} themes")
         return themelist
 
     def build_logintemplate(self):
@@ -384,12 +385,12 @@ class StartupLazyLibrarian:
                     res = msg_data.read()
                 for item in ["{username}", "{password}", "{permission}"]:
                     if item not in res:
-                        self.logger.warning("Invalid login template in %s, no %s" % (msg_file, item))
+                        self.logger.warning(f"Invalid login template in {msg_file}, no {item}")
                         return default_msg
-                self.logger.info("Loaded login template from %s" % msg_file)
+                self.logger.info(f"Loaded login template from {msg_file}")
                 return res
             except Exception as e:
-                self.logger.error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
+                self.logger.error(f'Failed to load {msg_file}, {type(e).__name__} {str(e)}')
         self.logger.debug("Using default login template")
         return default_msg
 
@@ -402,12 +403,12 @@ class StartupLazyLibrarian:
                     res = msg_data.read()
                 for item in ["{name}", "{method}", "{link}"]:
                     if item not in res:
-                        self.logger.warning("Invalid attachment template in %s, no %s" % (msg_file, item))
+                        self.logger.warning(f"Invalid attachment template in {msg_file}, no {item}")
                         return default_msg
-                self.logger.info("Loaded attachment template from %s" % msg_file)
+                self.logger.info(f"Loaded attachment template from {msg_file}")
                 return res
             except Exception as e:
-                self.logger.error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
+                self.logger.error(f'Failed to load {msg_file}, {type(e).__name__} {str(e)}')
         self.logger.debug("Using default attachment template")
         return default_msg
 
@@ -418,10 +419,10 @@ class StartupLazyLibrarian:
                 try:
                     with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
                         res = json.load(json_data)
-                    self.logger.info("Loaded genres from %s" % json_file)
+                    self.logger.info(f"Loaded genres from {json_file}")
                     return res
                 except Exception as e:
-                    self.logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
+                    self.logger.error(f'Failed to load {json_file}, {type(e).__name__} {str(e)}')
         self.logger.error('No valid genres.json file found')
         return {"genreLimit": 4, "genreUsers": 10, "genreExclude": [], "genreExcludeParts": [], "genreReplace": {}}
 
@@ -432,10 +433,10 @@ class StartupLazyLibrarian:
                 try:
                     with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
                         res = json.load(json_data)
-                    self.logger.info("Loaded dicts from %s" % json_file)
+                    self.logger.info(f"Loaded dicts from {json_file}")
                     return res
                 except Exception as e:
-                    self.logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
+                    self.logger.error(f'Failed to load {json_file}, {type(e).__name__} {str(e)}')
         self.logger.error('No valid dicts.json file found')
         return {"filename_dict": {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
                                   ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
@@ -455,10 +456,10 @@ class StartupLazyLibrarian:
                 mlist = ''
                 # list alternate entries as each language is in twice (long and short month names)
                 for item in table[0][::2]:
-                    mlist += item + ' '
-                self.logger.debug('Loaded monthnames.json : %s' % mlist)
+                    mlist += f"{item} "
+                self.logger.debug(f'Loaded monthnames.json : {mlist}')
             except Exception as e:
-                self.logger.error('Failed to load monthnames.json, %s %s' % (type(e).__name__, str(e)))
+                self.logger.error(f'Failed to load monthnames.json, {type(e).__name__} {str(e)}')
 
         if not table:
             # Default Month names table to hold long/short month names for multiple languages
@@ -486,33 +487,34 @@ class StartupLazyLibrarian:
             if 'LC_CTYPE' in current_locale:
                 current_locale = locale.setlocale(locale.LC_CTYPE, '')
             # getdefaultlocale() doesnt seem to work as expected on windows, returns 'None'
-            self.logger.debug('Current locale is %s' % current_locale)
+            self.logger.debug(f'Current locale is {current_locale}')
         except locale.Error as e:
-            self.logger.debug("Error getting current locale : %s" % str(e))
+            self.logger.debug(f"Error getting current locale : {str(e)}")
             return table
 
         lang = str(current_locale)
         # check not already loaded, also all english variants and 'C' use the same month names
         if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
-            self.logger.debug('Month names for %s already loaded' % lang)
+            self.logger.debug(f'Month names for {lang} already loaded')
         else:
-            self.logger.debug('Loading month names for %s' % lang)
+            self.logger.debug(f'Loading month names for {lang}')
             table[0].append(lang)
             for f in range(1, 13):
                 table[f].append(unaccented(calendar.month_name[f]).lower())
             table[0].append(lang)
             for f in range(1, 13):
                 table[f].append(unaccented(calendar.month_abbr[f]).lower().strip('.'))
-            self.logger.info("Added month names for locale [%s], %s, %s ..." % (
-                lang, table[1][len(table[1]) - 2], table[1][len(table[1]) - 1]))
+            self.logger.info(
+                f"Added month names for locale [{lang}], {table[1][len(table[1]) - 2]}, "
+                f"{table[1][len(table[1]) - 1]} ...")
 
         for lang in get_list(config['IMP_MONTHLANG']):
             try:
                 if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
-                    self.logger.debug('Month names for %s already loaded' % lang)
+                    self.logger.debug(f'Month names for {lang} already loaded')
                 else:
                     locale.setlocale(locale.LC_ALL, lang)
-                    self.logger.debug('Loading month names for %s' % lang)
+                    self.logger.debug(f'Loading month names for {lang}')
                     table[0].append(lang)
                     for f in range(1, 13):
                         table[f].append(unaccented(calendar.month_name[f]).lower())
@@ -520,11 +522,12 @@ class StartupLazyLibrarian:
                     for f in range(1, 13):
                         table[f].append(unaccented(calendar.month_abbr[f]).lower().strip('.'))
                     locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
-                    self.logger.info("Added month names for locale [%s], %s, %s ..." % (
-                        lang, table[1][len(table[1]) - 2], table[1][len(table[1]) - 1]))
+                    self.logger.info(
+                        f"Added month names for locale [{lang}], {table[1][len(table[1]) - 2]}, "
+                        f"{table[1][len(table[1]) - 1]} ...")
             except Exception as e:
                 locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
-                self.logger.warning("Unable to load requested locale [%s] %s %s" % (lang, type(e).__name__, str(e)))
+                self.logger.warning(f"Unable to load requested locale [{lang}] {type(e).__name__} {str(e)}")
                 try:
                     wanted_lang = lang.split('_')[0]
                     params = ['locale', '-a']
@@ -535,12 +538,12 @@ class StartupLazyLibrarian:
                         if a_locale.startswith(wanted_lang):
                             locale_list.append(a_locale)
                     if locale_list:
-                        self.logger.warning("Found these alternatives: " + str(locale_list))
+                        self.logger.warning(f"Found these alternatives: {str(locale_list)}")
                     else:
                         self.logger.warning("Unable to find an alternative")
                 except Exception as e:
-                    self.logger.warning("Unable to get a list of alternatives, %s %s" % (type(e).__name__, str(e)))
-                self.logger.debug("Set locale back to entry state %s" % current_locale)
+                    self.logger.warning(f"Unable to get a list of alternatives, {type(e).__name__} {str(e)}")
+                self.logger.debug(f"Set locale back to entry state {current_locale}")
 
         # with open(json_file, 'w') as f:
         #    json.dump(table, f)
@@ -577,9 +580,9 @@ class StartupLazyLibrarian:
             # check the version when the application starts
             versioncheck.check_for_updates()
 
-            self.logger.debug('Current Version [%s] - Latest remote version [%s] - Install type [%s]' % (
-                CONFIG['CURRENT_VERSION'], CONFIG['LATEST_VERSION'],
-                CONFIG['INSTALL_TYPE']))
+            self.logger.debug(
+                f"Current Version [{CONFIG['CURRENT_VERSION']}] - Latest remote version "
+                f"[{CONFIG['LATEST_VERSION']}] - Install type [{CONFIG['INSTALL_TYPE']}]")
 
             if CONFIG.get_int('GIT_UPDATED') == 0:
                 # we don't know when the last update was
@@ -597,8 +600,8 @@ class StartupLazyLibrarian:
                 if 'gitlab.com' in str(res):
                     self.logger.warning('Unrecognised version, LazyLibrarian may have local changes')
             elif CONFIG['INSTALL_TYPE'] == 'source':
-                self.logger.warning('Unrecognised version [%s] to force upgrade delete %s' % (
-                    CONFIG['CURRENT_VERSION'], version_file))
+                self.logger.warning(
+                    f"Unrecognised version [{CONFIG['CURRENT_VERSION']}] to force upgrade delete {version_file}")
 
         if not path_isfile(version_file) and CONFIG['INSTALL_TYPE'] == 'source':
             # User may be running an old source zip, so try to force update
@@ -629,11 +632,11 @@ class StartupLazyLibrarian:
         else:
             protocol = 'http'
         if root and not root.startswith('/'):
-            root = '/' + root
+            root = f"/{root}"
         try:
             webbrowser.open(f'{protocol}://{host}:{port}{root}/home')
         except Exception as e:
-            self.logger.error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
+            self.logger.error(f'Could not launch browser:{type(e).__name__}  {str(e)}')
 
     @staticmethod
     def start_schedulers():
@@ -657,7 +660,7 @@ class StartupLazyLibrarian:
                 CONFIG.save_config_and_backup_old(restart_jobs=False)
 
         if not restart and not update:
-            self.logger.info('LazyLibrarian (pid %s) is shutting down...' % os.getpid())
+            self.logger.info(f'LazyLibrarian (pid {os.getpid()}) is shutting down...')
         # We are now shutting down. Remove all file handlers from the logger, keeping only console handlers
         rootlogger = logging.getLogger('root')
         for handler in rootlogger.handlers:
@@ -681,11 +684,11 @@ class StartupLazyLibrarian:
                         # won't have one if  --update
                         CONFIG.save_config_and_backup_old(section='Git')
             except Exception as e:
-                self.logger.warning('LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
+                self.logger.warning(f'LazyLibrarian failed to update: {type(e).__name__} {str(e)}. Restarting.')
                 self.logger.error(str(traceback.format_exc()))
 
         if lazylibrarian.PIDFILE:
-            self.logger.info('Removing pidfile %s' % lazylibrarian.PIDFILE)
+            self.logger.info(f'Removing pidfile {lazylibrarian.PIDFILE}')
             os.remove(syspath(lazylibrarian.PIDFILE))
 
         if not doquit and not docker():
@@ -703,14 +706,14 @@ class StartupLazyLibrarian:
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
                         executable = make_unicode(executable).strip()
                     except Exception as e:
-                        self.logger.debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+                        self.logger.debug(f"where {prg} failed: {type(e).__name__} {str(e)}")
                 else:
                     params = ["which", prg]
                     try:
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
                         executable = make_unicode(executable).strip()
                     except Exception as e:
-                        self.logger.debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+                        self.logger.debug(f"which {prg} failed: {type(e).__name__} {str(e)}")
 
             if not executable:
                 executable = 'python'  # default if not found
@@ -726,9 +729,7 @@ class StartupLazyLibrarian:
 
             with open(syspath(DIRS.get_logfile('upgrade.log')), 'a') as upgradelog:
                 if updated:
-                    upgradelog.write("%s %s\n" % (time.ctime(),
-                                                  'Restarting LazyLibrarian with ' + str(popen_list)))
-
+                    upgradelog.write(f"{time.ctime()} {'Restarting LazyLibrarian with ' + str(popen_list)}\n")
                 subprocess.Popen(popen_list, cwd=os.getcwd())
                 doquit = True
                 if cherrypy.server.httpserver is not None:
@@ -741,20 +742,19 @@ class StartupLazyLibrarian:
                         host = 'localhost'  # windows doesn't like 0.0.0.0
 
                     if not host.startswith('http'):
-                        host = 'http://' + host
+                        host = f"http://{host}"
 
                     # depending on proxy might need host:port/root or just host/root
                     if CONFIG['HTTP_ROOT']:
-                        server1 = "%s:%s/%s" % (host, CONFIG['HTTP_PORT'],
-                                                CONFIG['HTTP_ROOT'].lstrip('/'))
-                        server2 = "%s/%s" % (host, CONFIG['HTTP_ROOT'].lstrip('/'))
+                        server1 = f"{host}:{CONFIG['HTTP_PORT']}/{CONFIG['HTTP_ROOT'].lstrip('/')}"
+                        server2 = f"{host}/{CONFIG['HTTP_ROOT'].lstrip('/')}"
                     else:
-                        server1 = "%s:%s" % (host, CONFIG['HTTP_PORT'])
+                        server1 = f"{host}:{CONFIG['HTTP_PORT']}"
                         server2 = ''
 
-                    msg = "Waiting for %s to start" % server1
+                    msg = f"Waiting for {server1} to start"
                     if updated:
-                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                        upgradelog.write(f"{time.ctime()} {msg}\n")
                     self.logger.info(msg)
                     pawse = 18
                     success = False
@@ -781,27 +781,26 @@ class StartupLazyLibrarian:
                             except Exception:
                                 pass
 
-                        print("Waiting... %s %s" % (pawse, res))
+                        print(f"Waiting... {pawse} {res}")
                         time.sleep(5)
                         pawse -= 1
                     if update:
                         archivename = 'backup.tgz'
                         if success:
-                            msg = 'Reached webserver page %s, deleting backup' % res
+                            msg = f'Reached webserver page {res}, deleting backup'
                             doquit = True
                             if updated:
-                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                upgradelog.write(f"{time.ctime()} {msg}\n")
                             self.logger.info(msg)
                             try:
                                 os.remove(syspath(archivename))
                             except OSError as e:
                                 if e.errno != 2:  # doesn't exist is ok
-                                    msg = '{} {} {} {}'.format(type(e).__name__, 'deleting backup file:',
-                                                               archivename, e.strerror)
+                                    msg = f'{type(e).__name__} deleting backup file: {archivename} {e.strerror}'
                                     self.logger.warning(msg)
                         else:
                             msg = 'Webserver failed to start, reverting update'
-                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                            upgradelog.write(f"{time.ctime()} {msg}\n")
                             self.logger.info(msg)
                             cherrypy.engine.start()
                             if tarfile.is_tarfile(archivename):
@@ -810,13 +809,12 @@ class StartupLazyLibrarian:
                                         tar.extractall()
                                     success = True
                                 except Exception as e:
-                                    msg = 'Failed to unpack tarfile %s (%s): %s' % \
-                                          (type(e).__name__, archivename, str(e))
-                                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                    msg = f'Failed to unpack tarfile {type(e).__name__} ({archivename}): {str(e)}'
+                                    upgradelog.write(f"{time.ctime()} {msg}\n")
                                     self.logger.warning(msg)
                             else:
                                 msg = "Invalid archive"
-                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                upgradelog.write(f"{time.ctime()} {msg}\n")
                                 self.logger.warning(msg)
                             if success:
                                 current_version = ''
@@ -828,12 +826,12 @@ class StartupLazyLibrarian:
                                     self.logger.debug(f'Moving {old_location} to {version_file}')
                                     move(old_location, version_file)
                                 msg = f"Restarting {current_version} from backup"
-                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                upgradelog.write(f"{time.ctime()} {msg}\n")
                                 self.logger.info(msg)
                                 subprocess.Popen(popen_list, cwd=os.getcwd())
 
         if doquit and not testing:
-            self.logger.info('Lazylibrarian (pid %s) is exiting' % os.getpid())
+            self.logger.info(f'Lazylibrarian (pid {os.getpid()}) is exiting')
             cherrypy.engine.stop()
             # Do this as the last step before existing
             UNBUNDLER.remove_bundled_modules()

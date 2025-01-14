@@ -21,9 +21,9 @@ import threading
 from queue import Queue
 from urllib.parse import urlsplit, urlunsplit
 
+import cherrypy
 import dateutil.parser as dp
 
-import cherrypy
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
@@ -269,37 +269,38 @@ class Api(object):
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'API not enabled'}}
             return
         if not CONFIG.get_str('API_KEY'):
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 501, 'Message': 'No API key'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'No API key'}}
             return
         if len(CONFIG.get_str('API_KEY')) != 32:
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 503, 'Message': 'Invalid API key'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 503, 'Message': 'Invalid API key'}}
             return
 
         if 'apikey' not in kwargs:
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Missing parameter: apikey'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: apikey'}}
             return
 
         if kwargs['apikey'] != CONFIG.get_str('API_KEY') and kwargs['apikey'] != CONFIG.get_str('API_RO_KEY'):
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 401, 'Message': 'Incorrect API key'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 401, 'Message': 'Incorrect API key'}}
             return
         else:
             self.apikey = kwargs.pop('apikey')
 
         if 'cmd' not in kwargs:
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 405,
-                                                                  'Message': 'Missing parameter: cmd, try cmd=help'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 405,
+                                                                 'Message': 'Missing parameter: cmd, try cmd=help'}}
             return
 
         if kwargs['cmd'].lower() not in self.lower_cmds:
             self.data = {'Success': False, 'Data': '',
-                         'Error':  {'Code': 405, 'Message': 'Unknown command: %s, try cmd=help' % kwargs['cmd']}}
+                         'Error': {'Code': 405, 'Message': f"Unknown command: {kwargs['cmd']}, try cmd=help"}}
             return
 
         if get_case_insensitive_key_value(cmd_dict, kwargs['cmd'])[0] != 0 and self.apikey != CONFIG.get_str('API_KEY'):
             self.data = {'Success': False, 'Data': '',
-                         'Error':  {'Code': 405, 'Message': 'Command: %s not available with read-only '
-                                                            'api access key, try cmd=help' % kwargs['cmd']}}
+                         'Error': {'Code': 405,
+                                   'Message': f"Command: {kwargs['cmd']} "
+                                              f"not available with read-only api access key, try cmd=help"}}
             return
 
         self.cmd = kwargs.pop('cmd')
@@ -318,8 +319,8 @@ class Api(object):
                 remote_ip = cherrypy.request.headers.get('Remote-Addr')
             if not remote_ip:
                 remote_ip = cherrypy.request.remote.ip
-            self.logger.debug('Received API command from %s: %s %s' % (remote_ip, self.cmd, self.kwargs))
-            method_to_call = getattr(self, "_" + self.cmd.lower())
+            self.logger.debug(f'Received API command from {remote_ip}: {self.cmd} {self.kwargs}')
+            method_to_call = getattr(self, f"_{self.cmd.lower()}")
             method_to_call(**self.kwargs)
 
             if 'callback' not in self.kwargs:
@@ -331,7 +332,7 @@ class Api(object):
             else:
                 self.callback = self.kwargs['callback']
                 self.data = json.dumps(self.data)
-                self.data = self.callback + '(' + self.data + ');'
+                self.data = f"{self.callback}({self.data});"
                 return self.data
 
         elif isinstance(self.data, str):
@@ -355,7 +356,7 @@ class Api(object):
             for key in ['BookLibrary', 'AudioLibrary', 'BookAdded']:
                 if row_as_dic.get(key):
                     try:
-                        row_as_dic[key] = dp.parse(row_as_dic[key]).isoformat() + 'Z'
+                        row_as_dic[key] = f"{dp.parse(row_as_dic[key]).isoformat()}Z"
                     except dp._parser.ParserError:
                         pass
             rows_as_dic.append(row_as_dic)
@@ -366,39 +367,39 @@ class Api(object):
         TELEMETRY.record_usage_data()
         backup_file, err = dbbackup('api')
         success = backup_file != ''
-        self.data = {'Success': success != '', 'Data': backup_file, 'Error':  {'Code': 200, 'Message': err}}
+        self.data = {'Success': success != '', 'Data': backup_file, 'Error': {'Code': 200, 'Message': err}}
 
     def _renamebook(self, **kwargs):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Missing parameter: id'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: id'}}
         else:
             fname, err = book_rename(kwargs['id'])
-            self.data = {'Success': fname != '', 'Data': fname, 'Error':  {'Code': 200, 'Message': err}}
+            self.data = {'Success': fname != '', 'Data': fname, 'Error': {'Code': 200, 'Message': err}}
         return
 
     def _newauthorid(self, **kwargs):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Missing parameter: id'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: id'}}
         elif 'newid' not in kwargs:
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Missing parameter: newid'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: newid'}}
         elif kwargs['id'].startswith('OL') and not kwargs['newid'].startswith('OL'):
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Invalid parameter: newid'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Invalid parameter: newid'}}
         elif not kwargs['id'].startswith('OL') and kwargs['newid'].startswith('OL'):
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Invalid parameter: newid'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Invalid parameter: newid'}}
         else:
             db = database.DBConnection()
             try:
                 res = db.match('SELECT * from authors WHERE authorid=?', (kwargs['id'],))
                 if not res:
-                    self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                          'Message': 'Invalid parameter: id'}}
+                    self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                         'Message': 'Invalid parameter: id'}}
                 else:
                     db.action("PRAGMA foreign_keys = OFF")
                     db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
@@ -415,7 +416,7 @@ class Api(object):
                     db.action("PRAGMA foreign_keys = ON")
                     self.data = {'Success': True,
                                  'Data': {'AuthorID': kwargs['newid']},
-                                 'Error':  {'Code': 200, 'Message': 'OK'}
+                                 'Error': {'Code': 200, 'Message': 'OK'}
                                  }
             finally:
                 db.close()
@@ -454,7 +455,7 @@ class Api(object):
         tot = 0
         for item in self.data:
             tot += len(item)
-        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug(f"Returning {tot} {plural(tot, 'entry')}")
 
     def _listnabproviders(self):
         TELEMETRY.record_usage_data()
@@ -485,27 +486,27 @@ class Api(object):
             torzlist.append(entry)
 
         tot = len(newzlist) + len(torzlist)
-        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug(f"Returning {tot} {plural(tot, 'entry')}")
         self.data = {'Success': True,
                      'Data': {
-                        'Newznabs': newzlist,
-                        'Torznabs': torzlist,
+                         'Newznabs': newzlist,
+                         'Torznabs': torzlist,
                      },
-                     'Error':  {'Code': 200, 'Message': 'OK'}
+                     'Error': {'Code': 200, 'Message': 'OK'}
                      }
 
     def _listrssproviders(self):
         TELEMETRY.record_usage_data()
         providers = self._provider_array('RSS')
         tot = len(providers)
-        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug(f"Returning {tot} {plural(tot, 'entry')}")
         self.data = providers
 
     def _listircproviders(self):
         TELEMETRY.record_usage_data()
         providers = self._provider_array('IRC')
         tot = len(providers)
-        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug(f"Returning {tot} {plural(tot, 'entry')}")
         self.data = providers
 
     def _listtorrentproviders(self):
@@ -514,13 +515,13 @@ class Api(object):
         for provider in ['KAT', 'TPB', 'LIME', 'TDL']:
             mydict = {'NAME': provider, 'ENABLED': CONFIG.get_bool(provider)}
             for item in ['HOST', 'DLTYPES']:
-                name = "%s_%s" % (provider, item)
+                name = f"{provider}_{item}"
                 mydict[name] = CONFIG.get_str(name)
             for item in ['DLPRIORITY', 'SEEDERS']:
-                name = "%s_%s" % (provider, item)
+                name = f"{provider}_{item}"
                 mydict[name] = CONFIG.get_int(name)
             providers.append(mydict)
-        self.logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
+        self.logger.debug(f"Returning {len(providers)} {plural(len(providers), 'entry')}")
         self.data = providers
 
     def _listdirectproviders(self):
@@ -528,29 +529,29 @@ class Api(object):
         providers = self._provider_array('GEN')
         mydict = {'NAME': 'BOK', 'ENABLED': CONFIG.get_bool('BOK')}
         for item in ['HOST', 'LOGIN', 'USER', 'PASS', 'DLTYPES']:
-            name = "%s_%s" % ('BOK', item)
+            name = f"BOK_{item}"
             mydict[name] = CONFIG.get_str(name)
         for item in ['DLPRIORITY', 'DLLIMIT']:
-            name = "%s_%s" % ('BOK', item)
+            name = f"BOK_{item}"
             mydict[name] = CONFIG.get_int(name)
         providers.append(mydict)
         mydict = {'NAME': 'BFI', 'ENABLED': CONFIG.get_bool('BFI')}
         for item in ['HOST', 'DLTYPES']:
-            name = "%s_%s" % ('BFI', item)
+            name = f"BFI_{item}"
             mydict[name] = CONFIG.get_str(name)
         for item in ['DLPRIORITY']:
-            name = "%s_%s" % ('BFI', item)
+            name = f"BFI_{item}"
             mydict[name] = CONFIG.get_int(name)
         providers.append(mydict)
         tot = len(providers)
-        self.logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
+        self.logger.debug(f"Returning {tot} {plural(tot, 'entry')}")
         self.data = providers
 
     def _delprovider(self, **kwargs):
         TELEMETRY.record_usage_data()
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Missing parameter: name'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: name'}}
             return
 
         name = kwargs.get('name', '')
@@ -578,26 +579,26 @@ class Api(object):
             section = 'IRC_'
             clear = 'SERVER'
         else:
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Invalid parameter: name'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Invalid parameter: name'}}
             return
 
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
                 CONFIG.save_config_and_backup_old(section=section)
-                self.data = {'Success': True, 'Data': 'Deleted %s' % name,
-                             'Error':  {'Code': 200, 'Message': 'OK'}}
+                self.data = {'Success': True, 'Data': f'Deleted {name}',
+                             'Error': {'Code': 200, 'Message': 'OK'}}
                 return
-        self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 404,
-                                                              'Message': 'Provider %s not found' % name}}
+        self.data = {'Success': False, 'Data': '', 'Error': {'Code': 404,
+                                                             'Message': f'Provider {name} not found'}}
         return
 
     def _changeprovider(self, **kwargs):
         TELEMETRY.record_usage_data()
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
-            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
-                                                                  'Message': 'Missing parameter: name'}}
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: name'}}
             return
 
         hit = []
@@ -620,7 +621,7 @@ class Api(object):
         elif name in ['BOK', 'BFI', 'KAT', 'TPB', 'LIME', 'TDL']:
             for arg in kwargs:
                 if arg in ['HOST', 'DLTYPES', 'DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
-                    itemname = "%s_%s" % (name, arg)
+                    itemname = f"{name}_{arg}"
                     if itemname in CONFIG:
                         if arg in ['DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
                             CONFIG.set_int(itemname, kwargs[arg])
@@ -637,14 +638,14 @@ class Api(object):
                 else:
                     miss.append(arg)
             CONFIG.save_config_and_backup_old(section=name)
-            self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
-                         'Error':  {'Code': 200, 'Message': 'OK'}}
+            self.data = {'Success': True, 'Data': f"Changed {name} [{','.join(hit)}]",
+                         'Error': {'Code': 200, 'Message': 'OK'}}
             if miss:
-                self.data['Data'] += " Invalid parameters [%s]" % ','.join(miss)
+                self.data['Data'] += f" Invalid parameters [{','.join(miss)}]"
             return
         else:
             self.data = {'Success': False, 'Data': '',
-                         'Error':  {'Code': 400, 'Message': 'Invalid parameter: name'}}
+                         'Error': {'Code': 400, 'Message': 'Invalid parameter: name'}}
             return
 
         for item in providers:
@@ -698,24 +699,24 @@ class Api(object):
                 get_capabilities(item, True)
 
                 CONFIG.save_config_and_backup_old(section=item['NAME'])
-                self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
-                             'Error':  {'Code': 200, 'Message': 'OK'}}
+                self.data = {'Success': True, 'Data': f"Changed {item['NAME']} [{','.join(hit)}]",
+                             'Error': {'Code': 200, 'Message': 'OK'}}
                 if miss:
-                    self.data['Data'] += " Invalid parameters [%s]" % ','.join(miss)
+                    self.data['Data'] += f" Invalid parameters [{','.join(miss)}]"
                 return
         self.data = {'Success': False, 'Data': '',
-                     'Error':  {'Code': 404, 'Message': 'Provider %s not found' % name}}
+                     'Error': {'Code': 404, 'Message': f'Provider {name} not found'}}
         return
 
     def _addprovider(self, **kwargs):
         TELEMETRY.record_usage_data()
         if 'type' not in kwargs and 'providertype' not in kwargs:
             self.data = {'Success': False, 'Data': '',
-                         'Error':  {'Code': 400, 'Message': 'Missing parameter: type'}}
+                         'Error': {'Code': 400, 'Message': 'Missing parameter: type'}}
             return
         if 'HOST' not in kwargs and 'SERVER' not in kwargs and 'host' not in kwargs:
             self.data = {'Success': False, 'Data': '',
-                         'Error':  {'Code': 400, 'Message': 'Missing parameter: HOST or SERVER'}}
+                         'Error': {'Code': 400, 'Message': 'Missing parameter: HOST or SERVER'}}
             return
         if kwargs.get('type', '') == 'newznab' or kwargs.get('providertype', '') == 'newznab':
             providers = CONFIG.providers('NEWZNAB')
@@ -740,8 +741,8 @@ class Api(object):
         else:
             self.data = {'Success': False,
                          'Data': '',
-                         'Error':  {'Code': 400,
-                                    'Message': 'Invalid parameter: type. Should be newznab,torznab,rss,gen,irc'}
+                         'Error': {'Code': 400,
+                                   'Message': 'Invalid parameter: type. Should be newznab,torznab,rss,gen,irc'}
                          }
             return
 
@@ -750,7 +751,7 @@ class Api(object):
 
         hit = []
         miss = []
-        provname = "%s_%s" % (provname, num - 1)
+        provname = f"{provname}_{num - 1}"
         empty_slot['DISPNAME'] = provname
         for arg in kwargs:
             if arg == 'prov_apikey':
@@ -764,8 +765,8 @@ class Api(object):
                     if kwargs[arg] and existing['DISPNAME'] == kwargs[arg]:
                         self.data = {'Success': False,
                                      'Data': '',
-                                     'Error':  {'Code': 409,
-                                                'Message': '%s Already Exists' % kwargs[arg]}
+                                     'Error': {'Code': 409,
+                                               'Message': f'{kwargs[arg]} Already Exists'}
                                      }
                         return
                 hit.append(arg)
@@ -805,10 +806,10 @@ class Api(object):
         get_capabilities(empty_slot, True)
 
         CONFIG.save_config_and_backup_old(section=section)
-        self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
-                     'Error':  {'Code': 200, 'Message': 'OK'}}
+        self.data = {'Success': True, 'Data': f"Added {section} [{','.join(hit)}]",
+                     'Error': {'Code': 200, 'Message': 'OK'}}
         if miss:
-            self.data['Data'] += " Invalid parameters [%s]" % ','.join(miss)
+            self.data['Data'] += f" Invalid parameters [{','.join(miss)}]"
         return
 
     def _memuse(self):
@@ -877,7 +878,8 @@ class Api(object):
             else:
                 n = int(lazylibrarian.GC_AFTER[k])
             if n:
-                changed = "%s %s<br>" % (n, str(k).split("'")[1])
+                k = str(k).split("'")[1]
+                changed = f"{n} {k}<br>"
                 res += changed
         self.data = res
 
@@ -913,7 +915,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['user', 'feed']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         db = database.DBConnection()
         try:
@@ -937,7 +939,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['user', 'feed']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         db = database.DBConnection()
         try:
@@ -1016,17 +1018,17 @@ class Api(object):
         TELEMETRY.record_usage_data()
         limit = kwargs.get('limit', '')
         if limit:
-            limit = "limit " + limit
+            limit = f"limit {limit}"
         self.data = self._dic_from_query(
-            "SELECT authorid,authorname,dateadded,reason,status from authors order by dateadded desc %s" % limit)
+            f"SELECT authorid,authorname,dateadded,reason,status from authors order by dateadded desc {limit}")
 
     def _listnewbooks(self, **kwargs):
         TELEMETRY.record_usage_data()
         limit = kwargs.get('limit', '')
         if limit:
-            limit = "limit " + limit
+            limit = f"limit {limit}"
         self.data = self._dic_from_query(
-            "SELECT bookid,bookname,bookadded,scanresult,status from books order by bookadded desc %s" % limit)
+            f"SELECT bookid,bookname,bookadded,scanresult,status from books order by bookadded desc {limit}")
 
     def _showthreads(self):
         TELEMETRY.record_usage_data()
@@ -1061,7 +1063,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['dir', 'title', 'author']:
             if item not in kwargs:
-                self.data = 'Missing parameter: %s' % item
+                self.data = f'Missing parameter: {item}'
                 return
         tag = True if 'tag' in kwargs else None
         merge = True if 'merge' in kwargs else None
@@ -1094,7 +1096,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['dir', 'cover']:
             if item not in kwargs:
-                self.data = 'Missing parameter: %s' % item
+                self.data = f'Missing parameter: {item}'
                 return
         preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0))
         self.data = 'OK'
@@ -1103,7 +1105,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['id', 'dir']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         library = kwargs.get('library', 'eBook')
         self.data = process_book_from_dir(kwargs['dir'], library, kwargs['id'])
@@ -1112,7 +1114,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['title', 'num', 'file']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         self.data = process_mag_from_file(kwargs['file'], kwargs['title'], kwargs['num'])
 
@@ -1130,9 +1132,9 @@ class Api(object):
             return
         valid = ['users', 'magazines']
         if kwargs['table'] not in valid:
-            self.data = 'Invalid table. Only %s' % str(valid)
+            self.data = f'Invalid table. Only {str(valid)}'
             return
-        self.data = "Saved %s" % dump_table(kwargs['table'], DIRS.DATADIR)
+        self.data = f"Saved {dump_table(kwargs['table'], DIRS.DATADIR)}"
 
     def _writeallopf(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1154,7 +1156,7 @@ class Api(object):
                         counter += 1
                 except IndexError:
                     continue
-        self.data = 'Updated opf for %s %s' % (counter, plural(counter, "book"))
+        self.data = f"Updated opf for {counter} {plural(counter, 'book')}"
 
     def _writeopf(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1171,10 +1173,10 @@ class Api(object):
         finally:
             db.close()
         if not res:
-            self.data = 'No data found for bookid %s' % kwargs['id']
+            self.data = f"No data found for bookid {kwargs['id']}"
             return
         if not res['BookFile'] or not path_isfile(res['BookFile']):
-            self.data = 'No bookfile found for bookid %s' % kwargs['id']
+            self.data = f"No bookfile found for bookid {kwargs['id']}"
             return
         dest_path = os.path.dirname(res['BookFile'])
         global_name = os.path.splitext(os.path.basename(res['BookFile']))[0]
@@ -1242,7 +1244,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['level', 'text']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         self.data = kwargs['text']
         if kwargs['level'].upper() == 'INFO':
@@ -1254,7 +1256,7 @@ class Api(object):
         elif kwargs['level'].upper() == 'DEBUG':
             self.logger.debug(self.data)
         else:
-            self.data = 'Invalid level: %s' % kwargs['level']
+            self.data = f"Invalid level: {kwargs['level']}"
         return
 
     def _getdebug(self):
@@ -1265,7 +1267,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         lst = ''
         for item in sys.modules:
-            lst += "%s: %s<br>" % (item, str(sys.modules[item]).replace('<', '').replace('>', ''))
+            lst += f"{item}: {str(sys.modules[item]).replace('<', '').replace('>', '')}<br>"
         self.data = lst
 
     def _checkmodules(self):
@@ -1275,7 +1277,7 @@ class Api(object):
             data = str(sys.modules[item]).replace('<', '').replace('>', '')
             for libname in ['apscheduler', 'mobi', 'oauth2', 'pynma', 'pythontwitter', 'unrar']:
                 if libname in data and 'dist-packages' in data:
-                    lst.append("%s: %s" % (item, data))
+                    lst.append(f"{item}: {data}")
         self.data = lst
 
     def _clearlogs(self):
@@ -1320,13 +1322,13 @@ class Api(object):
             expire = False
             extra = ''
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
-        q += '(BookDesc="" or BookDesc is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
+        q += f"(BookDesc=\"\" or BookDesc is NULL{extra}) and books.AuthorID = authors.AuthorID"
         db = database.DBConnection()
         try:
             res = db.select(q)
             descs = 0
             cnt = 0
-            self.logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
+            self.logger.debug(f"Checking description for {len(res)} {plural(len(res), 'book')}")
             # ignore all errors except blocked (not found etc)
             blocked = False
             for item in res:
@@ -1337,7 +1339,7 @@ class Api(object):
                 data = get_gb_info(isbn, auth, book, expire=expire)
                 if data and data['desc']:
                     descs += 1
-                    self.logger.debug("Updated description for %s:%s" % (auth, book))
+                    self.logger.debug(f"Updated description for {auth}:{book}")
                     db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
                 elif data is None:  # error, see if it's because we are blocked
                     if BLOCKHANDLER.is_blocked('googleapis'):
@@ -1346,8 +1348,7 @@ class Api(object):
                         break
         finally:
             db.close()
-        msg = "Scanned %s %s, found %s new %s from %s" % \
-              (cnt, plural(cnt, "book"), descs, plural(descs, "description"), len(res))
+        msg = f"Scanned {cnt} {plural(cnt, 'book')}, found {descs} new {plural(descs, 'description')} from {len(res)}"
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
@@ -1362,7 +1363,7 @@ class Api(object):
             expire = False
             extra = ''
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
-        q += '(BookGenre="" or BookGenre is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
+        q += f"(BookGenre=\"\" or BookGenre is NULL{extra}) and books.AuthorID = authors.AuthorID"
         db = database.DBConnection()
         try:
             res = db.select(q)
@@ -1370,7 +1371,7 @@ class Api(object):
             db.close()
         genre = 0
         cnt = 0
-        self.logger.debug("Checking genre for %s %s" % (len(res), plural(len(res), "book")))
+        self.logger.debug(f"Checking genre for {len(res)} {plural(len(res), 'book')}")
         # ignore all errors except blocked (not found etc)
         blocked = False
         for item in res:
@@ -1382,15 +1383,14 @@ class Api(object):
             if data and data['genre']:
                 genre += 1
                 newgenre = genre_filter(data['genre'])
-                self.logger.debug("Updated genre for %s:%s [%s]" % (auth, book, newgenre))
+                self.logger.debug(f"Updated genre for {auth}:{book} [{newgenre}]")
                 set_genres([newgenre], item['BookID'])
             elif data is None:
                 if BLOCKHANDLER.is_blocked('googleapis'):
                     blocked = True
                 if blocked:
                     break
-        msg = "Scanned %s %s, found %s new %s from %s" % (cnt, plural(cnt, "book"), genre,
-                                                          plural(genre, "genre"), len(res))
+        msg = f"Scanned {cnt} {plural(cnt, 'book')}, found {genre} new {plural(genre, 'genre')} from {len(res)}"
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
@@ -1416,7 +1416,7 @@ class Api(object):
             db = database.DBConnection()
             try:
                 for auth in self.data:
-                    self.logger.debug("Deleting %s" % auth['AuthorName'])
+                    self.logger.debug(f"Deleting {auth['AuthorName']}")
                     db.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
             finally:
                 db.close()
@@ -1433,7 +1433,7 @@ class Api(object):
         res = self._dic_from_query(q)
         for author in res:
             q = "select count('bookname'),authorid,bookname from books where "
-            q += "AuthorID=%s " % (author['AuthorID'])
+            q += f"AuthorID={author['AuthorID']} "
             q += "and ( Status != 'Ignored' or AudioStatus != 'Ignored' ) "
             q += "group by bookname having ( count(bookname) > 1 )"
             r = self._dic_from_query(q)
@@ -1446,8 +1446,8 @@ class Api(object):
         self.data = []
         for item in res:
             q = 'select BookID,BookName,AuthorName,books.Status,AudioStatus from books,authors where '
-            q += 'books.authorid=authors.authorid and books.authorid=%s ' % item['AuthorID']
-            q += 'and BookName="%s" ' % item['BookName']
+            q += f"books.authorid=authors.authorid and books.authorid={item['AuthorID']} "
+            q += f"and BookName=\"{item['BookName']}\" "
             q += "and ( books.Status != 'Ignored' or AudioStatus != 'Ignored' )"
             r = self._dic_from_query(q)
             self.data += r
@@ -1485,9 +1485,9 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         author = self._dic_from_query(
-            'SELECT * from authors WHERE AuthorID="' + self.id + '"')
+            f"SELECT * from authors WHERE AuthorID=\"{self.id}\"")
         books = self._dic_from_query(
-            'SELECT * from books WHERE AuthorID="' + self.id + '"')
+            f"SELECT * from books WHERE AuthorID=\"{self.id}\"")
 
         self.data = {'author': author, 'books': books}
 
@@ -1516,8 +1516,8 @@ class Api(object):
         self.sort = kwargs.get('sort')
         if self.id:
             magazine = self._dic_from_query(
-                'SELECT * from magazines WHERE Title="' + self.id + '"')
-            q = 'SELECT * from issues WHERE Title="' + self.id + '"'
+                f"SELECT * from magazines WHERE Title=\"{self.id}\"")
+            q = f"SELECT * from issues WHERE Title=\"{self.id}\""
             if self.sort:
                 q += f' order by {self.sort}'
             if self.limit and self.limit.isnumeric():
@@ -1536,7 +1536,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['name', 'dpi']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         self.data = shrink_mag(kwargs['name'], check_int(kwargs['dpi'], 0))
 
@@ -1565,11 +1565,11 @@ class Api(object):
                         '$Title', title)
                 else:
                     fname = CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate)
-                self.data = os.path.join(dirname, fname + '.' + name_exploded[-1])
+                self.data = os.path.join(dirname, f"{fname}.{name_exploded[-1]}")
             else:
-                self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
+                self.data = f"Regex {regex_pass} [{issuedate}] {year}"
         else:
-            self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
+            self.data = f"Regex {regex_pass} [{issuedate}] {year}"
 
     def _createmagcovers(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1596,7 +1596,7 @@ class Api(object):
         if not self.id:
             self.data = 'Missing parameter: id'
             return
-        book = self._dic_from_query('SELECT * from books WHERE BookID="' + self.id + '"')
+        book = self._dic_from_query(f"SELECT * from books WHERE BookID=\"{self.id}\"")
         self.data = {'book': book}
 
     def _queuebook(self, **kwargs):
@@ -1608,7 +1608,7 @@ class Api(object):
             try:
                 res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
                 if not res:
-                    self.data = "Invalid id: %s" % kwargs['id']
+                    self.data = f"Invalid id: {kwargs['id']}"
                 else:
                     if kwargs.get('type', '') == 'AudioBook':
                         db.action("UPDATE books SET AudioStatus='Wanted' WHERE BookID=?", (kwargs["id"],))
@@ -1627,7 +1627,7 @@ class Api(object):
             try:
                 res = db.match('SELECT Status,AudioStatus from books WHERE BookID=?', (kwargs['id'],))
                 if not res:
-                    self.data = "Invalid id: %s" % kwargs['id']
+                    self.data = f"Invalid id: {kwargs['id']}"
                 else:
                     if kwargs.get('type', '') == 'AudioBook':
                         db.action("UPDATE books SET AudioStatus='Skipped' WHERE BookID=?", (kwargs["id"],))
@@ -1679,7 +1679,7 @@ class Api(object):
             try:
                 res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
                 if not res:
-                    self.data = "Invalid id: %s" % kwargs['id']
+                    self.data = f"Invalid id: {kwargs['id']}"
                 else:
                     db.action("UPDATE authors SET Status='Paused' WHERE AuthorID=?", (kwargs["id"],))
                     self.data = 'OK'
@@ -1695,7 +1695,7 @@ class Api(object):
             try:
                 res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
                 if not res:
-                    self.data = "Invalid id: %s" % kwargs['id']
+                    self.data = f"Invalid id: {kwargs['id']}"
                 else:
                     db.action("UPDATE authors SET Status='Ignored' WHERE AuthorID=?", (kwargs["id"],))
                     self.data = 'OK'
@@ -1711,7 +1711,7 @@ class Api(object):
             try:
                 res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
                 if not res:
-                    self.data = "Invalid id: %s" % kwargs['id']
+                    self.data = f"Invalid id: {kwargs['id']}"
                 else:
                     db.action("UPDATE authors SET Status='Active' WHERE AuthorID=?", (kwargs["id"],))
                     self.data = 'OK'
@@ -1723,14 +1723,14 @@ class Api(object):
         try:
             self.data = author_update(restart=False, only_overdue=False)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _seriesupdate(self):
         TELEMETRY.record_usage_data()
         try:
             self.data = series_update(restart=False, only_overdue=False)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _refreshauthor(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1740,9 +1740,9 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
         try:
-            add_author_to_db(self.id, refresh=refresh, reason="API refresh_author %s" % self.id)
+            add_author_to_db(self.id, refresh=refresh, reason=f"API refresh_author {self.id}")
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _forceactiveauthorsupdate(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1922,7 +1922,7 @@ class Api(object):
         self.data = {
             'Success': True,
             'Data': CONFIG.get_str('CURRENT_VERSION'),
-            'Error':  {'Code': 200, 'Message': 'OK'}
+            'Error': {'Code': 200, 'Message': 'OK'}
         }
 
     @staticmethod
@@ -2011,25 +2011,25 @@ class Api(object):
             gb = GoogleBooks(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS',
-                                          args=[' <ll> ' + authorname, myqueue])
+                                          args=[f" <ll> {authorname}", myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS',
-                                          args=[' <ll> ' + authorname, myqueue])
+                                          args=[f" <ll> {authorname}", myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "HardCover":
             hc = HardCover(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS',
-                                          args=[' <ll> ' + authorname, myqueue])
+                                          args=[f" <ll> {authorname}", myqueue])
             search_api.start()
         else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS',
-                                          args=[' <ll> ' + authorname, myqueue])
+                                          args=[f" <ll> {authorname}", myqueue])
             search_api.start()
 
         search_api.join()
@@ -2045,25 +2045,25 @@ class Api(object):
             gb = GoogleBooks(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS',
-                                          args=[kwargs['name'] + ' <ll> ', myqueue])
+                                          args=[f"{kwargs['name']} <ll> ", myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS',
-                                          args=[kwargs['name'] + ' <ll> ', myqueue])
+                                          args=[f"{kwargs['name']} <ll> ", myqueue])
             search_api.start()
         elif CONFIG.get_str('BOOK_API') == "HardCover":
             hc = HardCover(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS',
-                                          args=[kwargs['name'] + ' <ll> ', myqueue])
+                                          args=[f"{kwargs['name']} <ll> ", myqueue])
             search_api.start()
         else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS',
-                                          args=[kwargs['name'] + ' <ll> ', myqueue])
+                                          args=[f"{kwargs['name']} <ll> ", myqueue])
             search_api.start()
 
         search_api.join()
@@ -2096,36 +2096,36 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['id', 'toid']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         try:
             db = database.DBConnection()
             try:
                 authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
                 if not authordata:
-                    self.data = "No destination author [%s] in the database" % kwargs['toid']
+                    self.data = f"No destination author [{kwargs['toid']}] in the database"
                 else:
                     bookdata = db.match('SELECT AuthorID, BookName from books where BookID=?', (kwargs['id'],))
                     if not bookdata:
-                        self.data = "No bookid [%s] in the database" % kwargs['id']
+                        self.data = f"No bookid [{kwargs['id']}] in the database"
                     else:
                         control_value_dict = {'BookID': kwargs['id']}
                         new_value_dict = {'AuthorID': kwargs['toid']}
                         db.upsert("books", new_value_dict, control_value_dict)
                         update_totals(bookdata[0])  # we moved from here
                         update_totals(kwargs['toid'])  # to here
-                        self.data = "Moved book [%s] to [%s]" % (bookdata[1], authordata[0])
+                        self.data = f"Moved book [{bookdata[1]}] to [{authordata[0]}]"
             finally:
                 db.close()
             self.logger.debug(self.data)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _movebooks(self, **kwargs):
         TELEMETRY.record_usage_data()
         for item in ['fromname', 'toname']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         try:
             db = database.DBConnection()
@@ -2136,14 +2136,13 @@ class Api(object):
 
                 tohere = db.match('SELECT authorid from authors where authorname=?', (kwargs['toname'],))
                 if not len(fromhere):
-                    self.data = "No books by [%s] in the database" % kwargs['fromname']
+                    self.data = f"No books by [{kwargs['fromname']}] in the database"
                 else:
                     if not tohere:
-                        self.data = "No destination author [%s] in the database" % kwargs['toname']
+                        self.data = f"No destination author [{kwargs['toname']}] in the database"
                     else:
                         db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
-                        self.data = "Moved %s books from %s to %s" % (len(fromhere), kwargs['fromname'],
-                                                                      kwargs['toname'])
+                        self.data = f"Moved {len(fromhere)} books from {kwargs['fromname']} to {kwargs['toname']}"
                         update_totals(fromhere[0][1])  # we moved from here
                         update_totals(tohere[0])  # to here
             finally:
@@ -2151,7 +2150,7 @@ class Api(object):
 
             self.logger.debug(self.data)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _comicmeta(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2187,9 +2186,9 @@ class Api(object):
         books = True if kwargs.get('books') else False
         try:
             self.data = add_author_name_to_db(author=name, refresh=False, addbooks=books,
-                                              reason="API add_author %s" % name)
+                                              reason=f"API add_author {name}")
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _addauthorid(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2200,9 +2199,9 @@ class Api(object):
         books = True if kwargs.get('books') else False
         try:
             self.data = add_author_to_db(refresh=False, authorid=self.id, addbooks=books,
-                                         reason="API add_author_id %s" % self.id)
+                                         reason=f"API add_author_id {self.id}")
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _grfollowall(self):
         TELEMETRY.record_usage_data()
@@ -2215,23 +2214,23 @@ class Api(object):
             for author in authors:
                 followid = check_int(author['GRfollow'], 0)
                 if followid > 0:
-                    self.logger.debug('%s is already followed' % author['AuthorName'])
+                    self.logger.debug(f"{author['AuthorName']} is already followed")
                 elif author['GRfollow'] == "0":
-                    self.logger.debug('%s is manually unfollowed' % author['AuthorName'])
+                    self.logger.debug(f"{author['AuthorName']} is manually unfollowed")
                 else:
                     res = grfollow(author['AuthorID'], True)
                     if res.startswith('Unable'):
                         self.logger.warning(res)
                     try:
                         followid = res.split("followid=")[1]
-                        self.logger.debug('%s marked followed' % author['AuthorName'])
+                        self.logger.debug(f"{author['AuthorName']} marked followed")
                         count += 1
                     except IndexError:
                         followid = ''
                     db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, author['AuthorID']))
         finally:
             db.close()
-        self.data = "Added follow to %s %s" % (count, plural(count, "author"))
+        self.data = f"Added follow to {count} {plural(count, 'author')}"
 
     def _hcsync(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2240,20 +2239,20 @@ class Api(object):
         try:
             self.data = lazylibrarian.hc.hc_sync(library=library, userid=userid)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _grsync(self, **kwargs):
         TELEMETRY.record_usage_data()
         for item in ['shelf', 'status']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         library = kwargs.get('library', 'eBook')
         reset = 'reset' in kwargs
         try:
             self.data = grsync(kwargs['status'], kwargs['shelf'], library, reset)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _grfollow(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2263,7 +2262,7 @@ class Api(object):
         try:
             self.data = grfollow(authorid=kwargs['id'], follow=True)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _grunfollow(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2273,7 +2272,7 @@ class Api(object):
         try:
             self.data = grfollow(authorid=kwargs['id'], follow=False)
         except Exception as e:
-            self.data = "%s %s" % (type(e).__name__, str(e))
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _searchitem(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2309,7 +2308,7 @@ class Api(object):
             authorsearch = db.select('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
             if len(authorsearch):  # to stop error if try to remove an author while they are still loading
                 author_name = authorsearch[0]['AuthorName']
-                self.logger.debug("Removing all references to author: %s" % author_name)
+                self.logger.debug(f"Removing all references to author: {author_name}")
                 db.action('DELETE from authors WHERE AuthorID=?', (kwargs['id'],))
         finally:
             db.close()
@@ -2318,7 +2317,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['name', 'value', 'group']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         try:
             item = CONFIG.get_item(kwargs['name'])
@@ -2326,18 +2325,18 @@ class Api(object):
                 item.set_from_ui(kwargs['value'])
             CONFIG.save_config_and_backup_old(save_all=False, section=kwargs['group'])
         except Exception as e:
-            self.data = 'Unable to update CFG entry for %s: %s, %s' % (kwargs['group'], kwargs['name'], str(e))
+            self.data = f"Unable to update CFG entry for {kwargs['group']}: {kwargs['name']}, {str(e)}"
 
     def _readcfg(self, **kwargs):
         TELEMETRY.record_usage_data()
         for item in ['name', 'group']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         try:
             self.data = f"[{CONFIG.get_str(kwargs['name'])}]"
         except configparser.Error:
-            self.data = 'No config entry for %s: %s' % (kwargs['group'], kwargs['name'])
+            self.data = f"No config entry for {kwargs['group']}: {kwargs['name']}"
 
     @staticmethod
     def _loadcfg():
@@ -2352,7 +2351,7 @@ class Api(object):
             self.data = 'Missing parameter: id'
         else:
             count = get_series_authors(self.id)
-            self.data = "Added %s" % count
+            self.data = f"Added {count}"
 
     def _addseriesmembers(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2421,11 +2420,11 @@ class Api(object):
         TELEMETRY.record_usage_data()
         db = database.DBConnection()
         try:
-            dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
+            dbentry = db.match(f'SELECT {table}ID from {table}s WHERE {table}ID={itemid}')
             if dbentry:
-                db.action("UPDATE %ss SET Manual='%s' WHERE %sID=%s" % (table, state, table, itemid))
+                db.action(f"UPDATE {table}s SET Manual='{state}' WHERE {table}ID={itemid}")
             else:
-                self.data = "%sID %s not found" % (table, itemid)
+                self.data = f"{table}ID {itemid} not found"
         finally:
             db.close()
 
@@ -2449,7 +2448,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['id', 'img']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         self._setimage("author", kwargs['id'], kwargs['img'])
 
@@ -2457,24 +2456,24 @@ class Api(object):
         TELEMETRY.record_usage_data()
         for item in ['id', 'img']:
             if item not in kwargs:
-                self.data = 'Missing parameter: ' + item
+                self.data = f"Missing parameter: {item}"
                 return
         self._setimage("book", kwargs['id'], kwargs['img'])
 
     def _setimage(self, table, itemid, img):
         TELEMETRY.record_usage_data()
-        msg = "%s Image [%s] rejected" % (table, img)
+        msg = f"{table} Image [{img}] rejected"
         # Cache file image
         if path_isfile(img):
             extn = os.path.splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
-                destfile = os.path.join(DIRS.CACHEDIR, table, itemid + '.jpg')
+                destfile = os.path.join(DIRS.CACHEDIR, table, f"{itemid}.jpg")
                 try:
                     shutil.copy(img, destfile)
                     setperm(destfile)
                     msg = ''
                 except Exception as why:
-                    msg += " Failed to copy file: %s %s" % (type(why).__name__, str(why))
+                    msg += f" Failed to copy file: {type(why).__name__} {str(why)}"
             else:
                 msg += " invalid extension"
 
@@ -2498,12 +2497,12 @@ class Api(object):
 
         db = database.DBConnection()
         try:
-            dbentry = db.match('SELECT %sID from %ss WHERE %sID=%s' % (table, table, table, itemid))
+            dbentry = db.match(f"SELECT {table}ID from {table}s WHERE {table}ID={itemid}")
             if dbentry:
                 db.action("UPDATE %ss SET %sImg='%s' WHERE %sID=%s" %
                           (table, table, 'cache' + os.path.sep + itemid + '.jpg', table, itemid))
             else:
-                self.data = "%sID %s not found" % (table, itemid)
+                self.data = f"{table}ID {itemid} not found"
         finally:
             db.close()
 
@@ -2522,7 +2521,7 @@ class Api(object):
         if 'wait' in kwargs:
             self.data = de_duplicate(kwargs['id'])
         else:
-            threading.Thread(target=de_duplicate, name='API-DEDUPLICATE_%s' % kwargs['id'],
+            threading.Thread(target=de_duplicate, name=f"API-DEDUPLICATE_{kwargs['id']}",
                              args=[kwargs['id']]).start()
 
     def _setbookunlock(self, **kwargs):

@@ -32,7 +32,7 @@ def check_link():
         vers = {'version': 'unknown'}
     else:
         lazylibrarian.SAB_VER = versiontuple(vers['version'])
-        logger.debug("SAB version tuple %s" % str(lazylibrarian.SAB_VER))
+        logger.debug(f"SAB version tuple {str(lazylibrarian.SAB_VER)}")
     # check apikey is valid
     cats, _ = sab_nzbd(nzburl='get_cats')  # type: dict
     if not cats:
@@ -40,18 +40,17 @@ def check_link():
     # check category exists
     if CONFIG['SAB_CAT']:
         if 'categories' not in cats or not len(cats['categories']):
-            return "Failed to get sab_nzbd categories: %s" % str(cats)
+            return f"Failed to get sab_nzbd categories: {str(cats)}"
         if CONFIG['SAB_CAT'].split(',')[0] not in cats['categories']:
-            return "sab_nzbd: Unknown category [%s]\nValid categories:\n%s" % (
-                CONFIG['SAB_CAT'], str(cats['categories']))
-    return "sab_nzbd connection successful, version %s" % vers['version']
+            return f"sab_nzbd: Unknown category [{CONFIG['SAB_CAT']}]\nValid categories:\n{str(cats['categories'])}"
+    return f"sab_nzbd connection successful, version {vers['version']}"
 
 
 def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None, library='eBook', label=''):
     logger = logging.getLogger(__name__)
 
     if nzburl in ['delete', 'delhistory', 'pause'] and title == 'unknown':
-        res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
+        res = f'{nzburl} function unavailable in this version of sabnzbd, no nzo_ids'
         logger.debug(res)
         return False, res
 
@@ -64,12 +63,12 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 
     hostname = hostname.rstrip('/')
     if not hostname.startswith("http://") and not hostname.startswith("https://"):
-        hostname = 'http://' + hostname
+        hostname = f"http://{hostname}"
 
-    host = "%s:%s" % (hostname, port)
+    host = f"{hostname}:{port}"
 
     if CONFIG['SAB_SUBDIR']:
-        host = host + "/" + CONFIG['SAB_SUBDIR'].strip('/')
+        host = f"{host}/{CONFIG['SAB_SUBDIR'].strip('/')}"
 
     params = {}
 
@@ -79,7 +78,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         params['output'] = 'json'
         if CONFIG['SAB_API']:
             params['apikey'] = CONFIG['SAB_API']
-        title = 'LL.(%s)' % nzburl
+        title = f'LL.({nzburl})'
     elif nzburl == 'queue':
         params['mode'] = 'queue'
         params['limit'] = '50'
@@ -134,7 +133,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
             params['apikey'] = CONFIG['SAB_API']
         if remove_data:
             params['del_files'] = 1
-        title = 'LL.(Delete) ' + title
+        title = f"LL.(Delete) {title}"
     elif nzburl == 'delhistory':
         params['mode'] = 'history'
         params['output'] = 'json'
@@ -148,7 +147,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
             params['apikey'] = CONFIG['SAB_API']
         if remove_data:
             params['del_files'] = 1
-        title = 'LL.(DelHistory) ' + title
+        title = f"LL.(DelHistory) {title}"
     elif nzburl == 'pause':
         params['mode'] = 'queue'
         params['output'] = 'json'
@@ -160,7 +159,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
             params['ma_password'] = CONFIG['SAB_PASS']
         if CONFIG['SAB_API']:
             params['apikey'] = CONFIG['SAB_API']
-        title = 'LL.(Pause) ' + title
+        title = f"LL.(Pause) {title}"
     else:
         params['mode'] = 'addurl'
         params['output'] = 'json'
@@ -189,11 +188,11 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 #        params["script"] = lazylibrarian.SAB_SCRIPT
 
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug('sab params: %s' % repr(params))
+    loggerdlcomms.debug(f'sab params: {repr(params)}')
 
-    url = host + "/api?" + urlencode(params)
+    url = f"{host}/api?{urlencode(params)}"
 
-    loggerdlcomms.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
+    loggerdlcomms.debug(f'Request url for <a href="{url}">sab_nzbd</a>')
     proxies = proxy_list()
     try:
         timeout = CONFIG.get_int('HTTP_TIMEOUT')
@@ -204,30 +203,30 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
             r = requests.get(url, timeout=timeout, proxies=proxies, verify=False)
         result = r.json()
     except requests.exceptions.Timeout:
-        res = "Timeout connecting to SAB with URL: %s" % url
+        res = f"Timeout connecting to SAB with URL: {url}"
         logger.error(res)
         return False, res
     except Exception as e:
-        res = "Unable to connect to SAB with URL: %s, %s:%s" % (url, type(e).__name__, str(e))
+        res = f"Unable to connect to SAB with URL: {url}, {type(e).__name__}:{str(e)}"
         logger.error(res)
         return False, res
-    loggerdlcomms.debug("Result text from SAB: " + str(result))
+    loggerdlcomms.debug(f"Result text from SAB: {str(result)}")
 
     if title and title.startswith('LL.('):
         return result, ''
 
     if result['status'] is True:
-        logger.info("%s sent to SAB successfully." % title)
+        logger.info(f"{title} sent to SAB successfully.")
         # sab versions earlier than 0.8.0 don't return nzo_ids
         if 'nzo_ids' in result:
             if result['nzo_ids']:  # check its not empty
                 return result['nzo_ids'][0], ''
         return 'unknown', ''
     elif result['status'] is False:
-        res = "SAB returned Error: %s" % result['error']
+        res = f"SAB returned Error: {result['error']}"
         logger.error(res)
         return False, res
     else:
-        res = "Unknown error: %s" % str(result)
+        res = f"Unknown error: {str(result)}"
         logger.error(res)
         return False, res

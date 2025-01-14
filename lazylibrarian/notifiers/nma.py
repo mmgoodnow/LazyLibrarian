@@ -29,9 +29,9 @@ class NmaNotifier:
         if nma_priority is None:
             nma_priority = CONFIG['NMA_PRIORITY']
 
-        logger.debug("NMA: title: " + title)
-        logger.debug("NMA: event: " + event)
-        logger.debug("NMA: message: " + message)
+        logger.debug(f"NMA: title: {title}")
+        logger.debug(f"NMA: event: {event}")
+        logger.debug(f"NMA: message: {message}")
 
         batch = False
 
@@ -48,7 +48,7 @@ class NmaNotifier:
             logger.error(u"NMA: Could not send notification to NotifyMyAndroid")
             return False
         else:
-            logger.debug(u"NMA: Success. NotifyMyAndroid returned : %s" % response[nma_api][u'code'])
+            logger.debug(f"NMA: Success. NotifyMyAndroid returned : {response[nma_api][u'code']}")
             return True
 
     #

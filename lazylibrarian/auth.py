@@ -55,9 +55,9 @@ def check_auth(*args, **kwargs):
             for condition in conditions:
                 # A condition is just a callable that returns true or false
                 if not condition():
-                    raise cherrypy.HTTPRedirect("auth/login?from_page=%s" % get_params)
+                    raise cherrypy.HTTPRedirect(f"auth/login?from_page={get_params}")
         else:
-            raise cherrypy.HTTPRedirect("auth/login?from_page=%s" % get_params)
+            raise cherrypy.HTTPRedirect(f"auth/login?from_page={get_params}")
 
 
 cherrypy.tools.auth = cherrypy.Tool('before_handler', check_auth)
@@ -127,7 +127,7 @@ class AuthController(object):
     def on_login(username):
         logger = logging.getLogger(__name__)
         """Called on successful login"""
-        logger.info('%s successfully logged on.' % username)
+        logger.info(f'{username} successfully logged on.')
         # not needed or used for Mylar currently
 
     def on_logout(self, username):
@@ -140,7 +140,7 @@ class AuthController(object):
         from lazylibrarian.webServe import serve_template
         img = '/images/ll.png'
         if CONFIG['HTTP_ROOT']:
-            img = '/%s%s' % (CONFIG['HTTP_ROOT'], img)
+            img = f"/{CONFIG['HTTP_ROOT']}{img}"
         return serve_template(templatename="formlogin.html", username=escape(username, True),
                               title='Login', img=img, from_page=from_page)
 

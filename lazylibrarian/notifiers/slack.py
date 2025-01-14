@@ -14,11 +14,12 @@
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-from lazylibrarian.formatter import unaccented
 
 import requests
+
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.formatter import unaccented
+from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 
 
 class SlackNotifier:
@@ -35,9 +36,9 @@ class SlackNotifier:
         logger = logging.getLogger(__name__)
         url = CONFIG['SLACK_URL']
         if not url.startswith("http"):
-            url = 'https://' + url
+            url = f"https://{url}"
         if not url.endswith("/"):
-            url = url + '/'
+            url = f"{url}/"
 
         if slack_token is None:
             slack_token = CONFIG['SLACK_TOKEN']
@@ -46,7 +47,7 @@ class SlackNotifier:
         if event == "Test":
             logger.debug("Testing Slack notification")
         else:
-            logger.debug("Slack message: %s: %s" % (event, message))
+            logger.debug(f"Slack message: {event}: {message}")
 
         if slack_token.startswith(url):
             url = slack_token
@@ -56,9 +57,8 @@ class SlackNotifier:
 
         postdata = '{"username": "LazyLibrarian", '
         #   Removed attachment approach to text and icon_url in slack formatting cleanup effort - bbq 20180724
-        postdata += '"icon_url": "https://%s/%s/%s/raw/master/data/images/ll.png", ' % \
-                    (CONFIG['GIT_HOST'], CONFIG['GIT_USER'],
-                     CONFIG['GIT_REPO'])
+        postdata += (f'"icon_url": "https://{CONFIG["GIT_HOST"]}/{CONFIG["GIT_USER"]}/{CONFIG["GIT_REPO"]}'
+                     f'/raw/master/data/images/ll.png", ')
         postdata += '"text":"%s %s"}' % (message, event)
         r = requests.request(method,
                              url,
@@ -68,7 +68,7 @@ class SlackNotifier:
         if r.text.startswith('<!DOCTYPE html>'):
             logger.debug("Slack returned html errorpage")
             return "Invalid or missing Webhook"
-        logger.debug("Slack returned [%s]" % r.text)
+        logger.debug(f"Slack returned [{r.text}]")
         return r.text
 
     def _notify(self, message=None, event=None, slack_token=None, method=None, force=False):
@@ -82,7 +82,7 @@ class SlackNotifier:
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warning("Slack: could not convert message: %s" % e)
+            logger.warning(f"Slack: could not convert message: {e}")
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not CONFIG.get_bool('USE_SLACK') and not force:
             return False

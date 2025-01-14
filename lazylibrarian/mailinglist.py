@@ -52,8 +52,7 @@ def mailing_list(book_type, global_name, book_id):
                           (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
-                logger.debug("%s wanted by %s %s to author %s" % (book_id, cnt, plural(cnt, 'subscriber'),
-                                                                  data['Author']))
+                logger.debug(f"{book_id} wanted by {cnt} {plural(cnt, 'subscriber')} to author {data['Author']}")
 
             series = db.select('SELECT SeriesID from member WHERE BookID=?', (book_id,))
             for item in series:
@@ -65,8 +64,7 @@ def mailing_list(book_type, global_name, book_id):
                               (user['UserID'], booktype, book_id))
                     cnt += 1
                 if cnt:
-                    logger.debug("%s wanted by %s %s to series %s" % (book_id, cnt, plural(cnt, 'subscriber'),
-                                                                      item['SeriesID']))
+                    logger.debug(f"{book_id} wanted by {cnt} {plural(cnt, 'subscriber')} to series {item['SeriesID']}")
 
             for item in feeds:
                 users = db.select("SELECT UserID from subscribers WHERE Type='feed' and WantID=?", (item,))
@@ -76,12 +74,12 @@ def mailing_list(book_type, global_name, book_id):
                               (user['UserID'], booktype, book_id))
                     cnt += 1
                 if cnt:
-                    logger.debug("%s wanted by %s %s to feed %s" % (book_id, cnt, plural(cnt, 'subscriber'), item))
+                    logger.debug(f"{book_id} wanted by {cnt} {plural(cnt, 'subscriber')} to feed {item}")
 
         elif booktype == 'magazine':
             data = db.match("SELECT Title,IssueFile as filename from issues where IssueID=?", (book_id,))
             if not data:
-                logger.error('Invalid issueid [%s]' % book_id)
+                logger.error(f'Invalid issueid [{book_id}]')
                 return
             users = db.select("SELECT UserID from subscribers WHERE Type='magazine' and WantID=?", (data["Title"],))
             cnt = 0
@@ -90,13 +88,12 @@ def mailing_list(book_type, global_name, book_id):
                           (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
-                logger.debug("%s wanted by %s %s to magazine %s" % (book_id, cnt, plural(cnt, 'subscriber'),
-                                                                    data['Title']))
+                logger.debug(f"{book_id} wanted by {cnt} {plural(cnt, 'subscriber')} to magazine {data['Title']}")
         elif booktype == 'comic':
             try:
                 comicid, issueid = book_id.split('_')
             except ValueError:
-                logger.error("Invalid comicid/issueid [%s]" % book_id)
+                logger.error(f"Invalid comicid/issueid [{book_id}]")
                 return
             data = db.match("SELECT IssueFile as filename from comicissues where comicid=? and issueid=?",
                             (comicid, issueid))
@@ -107,9 +104,9 @@ def mailing_list(book_type, global_name, book_id):
                           (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
-                logger.debug("%s wanted by %s %s to comic %s" % (book_id, cnt, plural(cnt, 'subscriber'), comicid))
+                logger.debug(f"{book_id} wanted by {cnt} {plural(cnt, 'subscriber')} to comic {comicid}")
         else:
-            logger.error("Invalid booktype [%s]" % book_type)
+            logger.error(f"Invalid booktype [{book_type}]")
             return
 
         # now send to all users requesting it
@@ -121,14 +118,13 @@ def mailing_list(book_type, global_name, book_id):
         userlist = set(userlist)  # eg in case subscribed to author and series or book in multiple wishlist
 
         if not len(userlist):
-            logger.debug("%s %s not wanted by any users" % (book_type, global_name))
+            logger.debug(f"{book_type} {global_name} not wanted by any users")
             return
         else:
-            logger.debug("%s %s wanted by %s %s" % (book_type, global_name, len(userlist), plural(len(userlist),
-                                                                                                  'user')))
+            logger.debug(f"{book_type} {global_name} wanted by {len(userlist)} {plural(len(userlist), 'user')}")
 
         if not data or not data['filename'] or not path_exists(data['filename']):
-            logger.error("Unable to locate %s %s" % (booktype, book_id))
+            logger.error(f"Unable to locate {booktype} {book_id}")
             return
 
         filename = data['filename']
@@ -136,15 +132,14 @@ def mailing_list(book_type, global_name, book_id):
         limit = CONFIG.get_int('EMAIL_LIMIT')
         link = None
         if limit and fsize > limit * 1024 * 1024:
-            msg = '%s is too large (%s) to email' % (os.path.split(filename)[1], fsize)
+            msg = f'{os.path.split(filename)[1]} is too large ({fsize}) to email'
             logger.debug(msg)
             if CONFIG['CREATE_LINK']:
-                logger.debug("Creating link to %s" % filename)
+                logger.debug(f"Creating link to {filename}")
                 params = [CONFIG['CREATE_LINK'], filename]
                 rc, res, err = run_script(params)
                 if res and res.startswith('http'):
-                    msg = "%s is available to download, %s" % (
-                           os.path.basename(filename), res)
+                    msg = f"{os.path.basename(filename)} is available to download, {res}"
                     logger.debug(msg)
                     link = res
                     filename = ''
@@ -159,12 +154,12 @@ def mailing_list(book_type, global_name, book_id):
                 if booktype == 'ebook':
                     pref = res['BookType']
                     basename, extn = os.path.splitext(filename)
-                    prefname = "%s.%s" % (basename, pref)
+                    prefname = f"{basename}.{pref}"
                     if path_exists(prefname):
                         filename = prefname
                     else:
                         msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace('{link}', '').replace(
-                            '{method}', ' is available for download, but not as ' + pref)
+                            '{method}', f" is available for download, but not as {pref}")
                         filename = ''
                 result = None
                 if not link:
@@ -175,7 +170,7 @@ def mailing_list(book_type, global_name, book_id):
                     addrs = [res['SendTo']]
                 if filename:
                     for addr in addrs:
-                        logger.debug("Emailing %s to %s" % (filename, addr))
+                        logger.debug(f"Emailing {filename} to {addr}")
                         msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
                             '{method}', ' is attached').replace('{link}', '')
                         result = email_notifier.email_file(subject="Message from LazyLibrarian",
@@ -185,7 +180,7 @@ def mailing_list(book_type, global_name, book_id):
                 else:
                     for addr in addrs:
                         if not addr.endswith('@kindle.com'):  # don't send to kindle if no attachment
-                            logger.debug("Notifying %s available to %s" % (global_name, res['SendTo']))
+                            logger.debug(f"Notifying {global_name} available to {res['SendTo']}")
                             if not msg:
                                 msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
                                     '{link}', link).replace('{method}', ' is available for download ')
@@ -197,9 +192,9 @@ def mailing_list(book_type, global_name, book_id):
                               (user, booktype, book_id))
                 else:
                     # should we also delete from mailing list if email failed?
-                    msg = "Failed to email file %s to %s" % (os.path.split(filename)[1], res['SendTo'])
+                    msg = f"Failed to email file {os.path.split(filename)[1]} to {res['SendTo']}"
                     logger.error(msg)
     finally:
         db.close()
 
-    logger.debug("Emailed/Notified %s %s to %s %s" % (book_type, global_name, count, plural(count, 'user')))
+    logger.debug(f"Emailed/Notified {book_type} {global_name} to {count} {plural(count, 'user')}")

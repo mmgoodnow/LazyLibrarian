@@ -327,7 +327,7 @@ class LLConfigHandler(ConfigDict):
         thread_name("CONFIG2_WRITE")
         try:
             self.logger.debug(f'Saving configuration to {self.configfilename}')
-            savecount = self.save_config_to_filename(syspath(self.configfilename + '.new'), save_all)
+            savecount = self.save_config_to_filename(syspath(f"{self.configfilename}.new"), save_all)
             if savecount == 0:
                 return 0
             elif savecount < 0:
@@ -338,24 +338,21 @@ class LLConfigHandler(ConfigDict):
 
                 msg = ''
                 try:
-                    os.remove(syspath(self.configfilename + '.bak'))
+                    os.remove(syspath(f"{self.configfilename}.bak"))
                 except OSError as e:
                     if e.errno != 2:  # doesn't exist is ok
-                        msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', self.configfilename,
-                                                     '.bak', e.strerror)
+                        msg = f'{type(e).__name__} deleting backup file:{self.configfilename} .bak {e.strerror}'
                         self.logger.warning(msg)
                 try:
-                    os.rename(syspath(self.configfilename), syspath(self.configfilename + '.bak'))
+                    os.rename(syspath(self.configfilename), syspath(f"{self.configfilename}.bak"))
                 except OSError as e:
                     if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
-                        msg = '{} {} {} {}'.format('Unable to backup config file:', self.configfilename,
-                                                   type(e).__name__, e.strerror)
+                        msg = f'Unable to backup config file: {self.configfilename} {type(e).__name__} {e.strerror}'
                         self.logger.warning(msg)
                 try:
-                    os.rename(syspath(self.configfilename + '.new'), syspath(self.configfilename))
+                    os.rename(syspath(f"{self.configfilename}.new"), syspath(self.configfilename))
                 except OSError as e:
-                    msg = '{} {} {} {}'.format('Unable to rename new config file:', self.configfilename,
-                                               type(e).__name__, e.strerror)
+                    msg = f'Unable to rename new config file: {self.configfilename} {type(e).__name__} {e.strerror}'
                     self.logger.warning(msg)
 
                 if not msg:
@@ -391,7 +388,7 @@ class LLConfigHandler(ConfigDict):
 
         for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
             if sep in self.config[fname].get_str():
-                self.logger.warning('Please check your %s setting, contains "%s"' % (fname, sep))
+                self.logger.warning(f'Please check your {fname} setting, contains "{sep}"')
                 warnings += 1
 
         if str(self.config['HTTP_LOOK']) in ['legacy', 'default']:
@@ -402,7 +399,7 @@ class LLConfigHandler(ConfigDict):
         self.ensure_valid_homepage()
 
         if self.config['SSL_CERTS'].get_str() != '' and not path_exists(str(self.config['SSL_CERTS'])):
-            self.logger.warning("SSL_CERTS [%s] not found" % str(self.config['SSL_CERTS']))
+            self.logger.warning(f"SSL_CERTS [{str(self.config['SSL_CERTS'])}] not found")
             self.config['SSL_CERTS'].set_str('')
             warnings += 1
 
@@ -519,10 +516,10 @@ class LLConfigHandler(ConfigDict):
             if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
                 for word in wordlist:
                     if word in key and self[key] and len(self[key]) > 3:
-                        self.REDACTLIST.append(u"%s" % self[key])
+                        self.REDACTLIST.append(f"{self[key]}")
         for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
             if self[key]:
-                self.REDACTLIST.append(u"%s" % self[key])
+                self.REDACTLIST.append(f"{self[key]}")
 
         for name, definitions in ARRAY_DEFS.items():
             key = definitions[0]  # Primary key for this array type
@@ -536,8 +533,7 @@ class LLConfigHandler(ConfigDict):
                             self.REDACTLIST.append(f"{config['API']}")
 
         LOGCONFIG.redact_list_updated(self.REDACTLIST)
-        self.logger.debug("Redact list has %d %s" % (len(self.REDACTLIST),
-                                                     plural(len(self.REDACTLIST), "entry")))
+        self.logger.debug(f"Redact list has {len(self.REDACTLIST)} {plural(len(self.REDACTLIST), 'entry')}")
 
     def get_all_types_list(self) -> List[str]:
         """ Return a list of extensions that includes all types of items """

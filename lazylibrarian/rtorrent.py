@@ -31,13 +31,13 @@ def get_server():
 
     host = host.rstrip('/')
     if not host.startswith("http://") and not host.startswith("https://"):
-        host = 'http://' + host
+        host = f"http://{host}"
 
     if CONFIG['RTORRENT_USER']:
         user = CONFIG['RTORRENT_USER']
         password = CONFIG['RTORRENT_PASS']
         parts = host.split('://')
-        host = parts[0] + '://' + user + ':' + password + '@' + parts[1]
+        host = f"{parts[0]}://{user}:{password}@{parts[1]}"
 
     try:
         socket.setdefaulttimeout(20)  # so we don't freeze if server is not there
@@ -51,10 +51,10 @@ def get_server():
             server = ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
-        loggerdlcomms.debug("rTorrent client version = %s" % version)
+        loggerdlcomms.debug(f"rTorrent client version = {version}")
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed
-        logger.error("xmlrpc_client error: %s" % repr(e))
+        logger.error(f"xmlrpc_client error: {repr(e)}")
         return False, ''
     if version:
         return server, version
@@ -70,13 +70,13 @@ def add_torrent(tor_url, hash_id, data=None):
         return False, 'rTorrent unable to connect to server'
     try:
         if data:
-            logger.debug('Sending rTorrent content [%s...]' % str(data)[:40])
+            logger.debug(f'Sending rTorrent content [{str(data)[:40]}...]')
             if version.startswith('0.9') or version.startswith('1.'):
                 _ = server.load.raw('', Binary(data))
             else:
                 _ = server.load_raw(Binary(data))
         else:
-            logger.debug('Sending rTorrent url [%s...]' % str(tor_url)[:40])
+            logger.debug(f'Sending rTorrent url [{str(tor_url)[:40]}...]')
             if version.startswith('0.9') or version.startswith('1.'):
                 _ = server.load.normal('', tor_url)  # response isn't anything useful, always 0
             else:
@@ -109,7 +109,7 @@ def add_torrent(tor_url, hash_id, data=None):
             server.d.start(hash_id)
 
     except Exception as e:
-        res = "rTorrent Error: %s: %s" % (type(e).__name__, str(e))
+        res = f"rTorrent Error: {type(e).__name__}: {str(e)}"
         logger.error(res)
         return False, res
 
@@ -124,9 +124,9 @@ def add_torrent(tor_url, hash_id, data=None):
             label = server.d.get_custom1(hash_id)
 
         if label:
-            logger.debug('rTorrent downloading %s to %s with label %s' % (name, directory, label))
+            logger.debug(f'rTorrent downloading {name} to {directory} with label {label}')
         else:
-            logger.debug('rTorrent downloading %s to %s' % (name, directory))
+            logger.debug(f'rTorrent downloading {name} to {directory}')
         return hash_id, ''
     return False, 'rTorrent hashid not found'
 
@@ -156,7 +156,7 @@ def get_files(hash_id):
             cnt = 0
             files = []
             while cnt < size_files:
-                target = "%s:f%d" % (tor, cnt)
+                target = f"{tor}:f{cnt}"
                 path = server.f.path(target)
                 size = server.f.size_bytes(target)
                 files.append({"path": path, "size": size})
@@ -228,4 +228,4 @@ def check_link():
     server, version = get_server()
     if server is False:
         return "rTorrent login FAILED\nCheck debug log"
-    return "rTorrent login successful: rTorrent %s" % version
+    return f"rTorrent login successful: rTorrent {version}"

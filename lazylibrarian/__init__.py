@@ -154,7 +154,7 @@ def daemonize():
     else:
         threadcount = threading.active_count()
     if threadcount != 1:
-        logger.warning('There are %d active threads. Daemonizing may cause strange behavior.' % threadcount)
+        logger.warning(f'There are {threadcount} active threads. Daemonizing may cause strange behavior.')
 
     sys.stdout.flush()
     sys.stderr.flush()
@@ -165,7 +165,7 @@ def daemonize():
         if pid != 0:
             sys.exit(0)
     except OSError as e:
-        raise RuntimeError("1st fork failed: %s [%d]" % (e.strerror, e.errno))
+        raise RuntimeError(f"1st fork failed: {e.strerror} [{e.errno}]")
 
     os.setsid()  # @UndefinedVariable - only available in UNIX
 
@@ -179,7 +179,7 @@ def daemonize():
         if pid != 0:
             sys.exit(0)
     except OSError as e:
-        raise RuntimeError("2nd fork failed: %s [%d]" % (e.strerror, e.errno))
+        raise RuntimeError(f"2nd fork failed: {e.strerror} [{e.errno}]")
 
     dev_null = open('/dev/null', 'r')
     os.dup2(dev_null.fileno(), sys.stdin.fileno())
@@ -193,10 +193,10 @@ def daemonize():
     os.dup2(se.fileno(), sys.stderr.fileno())
 
     pid = os.getpid()
-    logger.debug("Daemonized to PID %d" % pid)
+    logger.debug(f"Daemonized to PID {pid}")
 
     if PIDFILE:
-        logger.debug("Writing PID %d to %s" % (pid, PIDFILE))
+        logger.debug(f"Writing PID {pid} to {PIDFILE}")
         with open(syspath(PIDFILE), 'w') as pidfile:
-            pidfile.write("%s\n" % pid)
+            pidfile.write(f"{pid}\n")
 

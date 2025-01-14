@@ -55,12 +55,12 @@ class PushoverNotifier:
         else:
             test_message = False
             uri = "/1/messages.json"
-        logger.debug("Pushover event: " + str(event))
-        logger.debug("Pushover message: " + str(message))
-        logger.debug("Pushover api: " + str(pushover_apitoken))
-        logger.debug("Pushover keys: " + str(pushover_keys))
-        logger.debug("Pushover device: " + str(pushover_device))
-        logger.debug("Pushover notification type: " + str(notification_type))
+        logger.debug(f"Pushover event: {str(event)}")
+        logger.debug(f"Pushover message: {str(message)}")
+        logger.debug(f"Pushover api: {str(pushover_apitoken)}")
+        logger.debug(f"Pushover keys: {str(pushover_keys)}")
+        logger.debug(f"Pushover device: {str(pushover_device)}")
+        logger.debug(f"Pushover notification type: {str(notification_type)}")
 
         http_handler = HTTPSConnection('api.pushover.net')
 
@@ -83,24 +83,24 @@ class PushoverNotifier:
         response = http_handler.getresponse()
         request_body = response.read()
         request_status = response.status
-        logger.debug("Pushover Response: %s" % request_status)
-        logger.debug("Pushover Reason: %s" % response.reason)
+        logger.debug(f"Pushover Response: {request_status}")
+        logger.debug(f"Pushover Reason: {response.reason}")
 
         if request_status == 200:
             if test_message:
                 logger.debug(request_body)
                 request_body = request_body.decode()
                 if 'devices' in request_body:
-                    return "Devices: %s" % request_body.split('[')[1].split(']')[0]
+                    return f"Devices: {request_body.split('[')[1].split(']')[0]}"
                 else:
                     return request_body
             else:
                 return True
         elif 400 <= request_status < 500:
-            logger.error("Pushover request failed: %s" % str(request_body))
+            logger.error(f"Pushover request failed: {str(request_body)}")
             return False
         else:
-            logger.error("Pushover notification failed: %s" % request_status)
+            logger.error(f"Pushover notification failed: {request_status}")
             return False
 
     def _notify(self, message=None, event=None, pushover_apitoken=None, pushover_keys=None,
@@ -117,12 +117,12 @@ class PushoverNotifier:
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warning("Pushover: could not convert  message: %s" % e)
+            logger.warning(f"Pushover: could not convert  message: {e}")
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not CONFIG.get_bool('USE_PUSHOVER') and not force:
             return False
 
-        logger.debug("Pushover: Sending notification " + str(message))
+        logger.debug(f"Pushover: Sending notification {str(message)}")
 
         return self._send_pushover(message, event, pushover_apitoken, pushover_keys,
                                    pushover_device, notification_type, method, force)

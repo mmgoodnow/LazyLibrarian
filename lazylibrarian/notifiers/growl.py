@@ -30,9 +30,9 @@ class GrowlNotifier:
         if growl_password is None:
             growl_password = CONFIG['GROWL_PASSWORD']
 
-        logger.debug(u"Growl: title: " + title)
-        logger.debug(u"Growl: event: " + event)
-        logger.debug(u"Growl: message: " + message)
+        logger.debug(f"Growl: title: {title}")
+        logger.debug(f"Growl: event: {event}")
+        logger.debug(f"Growl: message: {message}")
 
         # Split host and port
         try:

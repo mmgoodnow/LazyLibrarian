@@ -41,7 +41,7 @@ def add_torrent(link, directory=None, metainfo=None, provider_options=None):
         arguments['download-dir'] = directory
     arguments['paused'] = CONFIG.get_bool('TORRENT_PAUSED')
 
-    logger.debug('add_torrent args(%s)' % arguments)
+    logger.debug(f'add_torrent args({arguments})')
     response, res = torrent_action(method, arguments)  # type: dict
 
     if not response:
@@ -62,7 +62,7 @@ def add_torrent(link, directory=None, metainfo=None, provider_options=None):
 
             return retid, ''
 
-    res = 'Transmission returned %s' % response['result']
+    res = f"Transmission returned {response['result']}"
     logger.debug(res)
     return False, res
 
@@ -148,7 +148,7 @@ def get_torrent_files(torrentid):  # uses hashid
         response, _ = torrent_action(method, arguments)  # type: dict
         if response:
             if len(response['arguments']['torrents'][0]['files']):
-                loggerdlcomms.debug("get_torrent_files: %s" % str(response['arguments']['torrents'][0]['files']))
+                loggerdlcomms.debug(f"get_torrent_files: {str(response['arguments']['torrents'][0]['files'])}")
                 return response['arguments']['torrents'][0]['files']
         else:
             logger.debug('get_torrent_files: No response from transmission')
@@ -175,14 +175,14 @@ def get_torrent_progress(torrentid):  # uses hashid
                     err = response['arguments']['torrents'][0]['errorString']
                     res = response['arguments']['torrents'][0]['percentDone']
                     fin = (response['arguments']['torrents'][0]['status'] == 0)  # TR_STATUS_STOPPED == 0
-                    loggerdlcomms.debug("get_torrent_progress: %s,%s,%s" % (err, res, fin))
+                    loggerdlcomms.debug(f"get_torrent_progress: {err},{res},{fin}")
                     try:
                         res = int(float(res) * 100)
                         return res, err, fin
                     except ValueError:
                         continue
             except IndexError:
-                msg = '%s not found at transmission' % torrentid
+                msg = f'{torrentid} not found at transmission'
                 logger.debug(msg)
                 return -1, msg, False
         else:
@@ -194,7 +194,7 @@ def get_torrent_progress(torrentid):  # uses hashid
         if retries:
             time.sleep(1)
 
-    msg = '%s not found at transmission' % torrentid
+    msg = f'{torrentid} not found at transmission'
     logger.debug(msg)
     return -1, msg, False
 
@@ -258,11 +258,11 @@ def remove_torrent(torrentid, remove_data=False):
         status = response['arguments']['torrents'][0]['status']
         remove = False
         if finished:
-            logger.debug('%s has finished seeding, removing torrent and data' % name)
+            logger.debug(f'{name} has finished seeding, removing torrent and data')
             remove = True
         elif not CONFIG.get_bool('SEED_WAIT'):
             if (rpc_version < 14 and status == 8) or (rpc_version >= 14 and status in [5, 6]):
-                logger.debug('%s is seeding, removing torrent and data anyway' % name)
+                logger.debug(f'{name} is seeding, removing torrent and data anyway')
                 remove = True
         if remove:
             method = 'torrent-remove'
@@ -273,12 +273,12 @@ def remove_torrent(torrentid, remove_data=False):
             _, _ = torrent_action(method, arguments)
             return True
         else:
-            logger.debug('%s has not finished seeding, torrent will not be removed' % name)
+            logger.debug(f'{name} has not finished seeding, torrent will not be removed')
     except IndexError:
         # no torrents, already removed?
         return True
     except Exception as e:
-        logger.warning('Unable to remove torrent %s, %s %s' % (torrentid, type(e).__name__, str(e)))
+        logger.warning(f'Unable to remove torrent {torrentid}, {type(e).__name__} {str(e)}')
         return False
 
     return False
@@ -294,7 +294,7 @@ def check_link():
     tr_version = 0
     response, _ = torrent_action(method, arguments)  # type: dict
     if response:
-        return "Transmission login successful, v%s, rpc v%s" % (tr_version, rpc_version)
+        return f"Transmission login successful, v{tr_version}, rpc v{rpc_version}"
     return "Transmission login FAILED\nCheck debug log"
 
 
@@ -307,7 +307,7 @@ def torrent_action(method, arguments):
     password = CONFIG['TRANSMISSION_PASS']
 
     if host_url:
-        loggerdlcomms.debug("Using existing host %s" % host_url)
+        loggerdlcomms.debug(f"Using existing host {host_url}")
     else:
         host = CONFIG['TRANSMISSION_HOST']
         port = CONFIG.get_int('TRANSMISSION_PORT')
@@ -318,7 +318,7 @@ def torrent_action(method, arguments):
             return False, res
 
         if not host.startswith("http"):
-            host = 'http://' + host
+            host = f"http://{host}"
 
         host = host.strip('/')
 
@@ -330,16 +330,16 @@ def torrent_action(method, arguments):
             parts[0] = "http"
 
         if ':' not in parts[1]:
-            parts[1] += ":%s" % port
+            parts[1] += f":{port}"
 
         if not parts[2].endswith("/rpc"):
             if CONFIG['TRANSMISSION_BASE']:
-                parts[2] += "/%s/rpc" % CONFIG['TRANSMISSION_BASE'].strip('/')
+                parts[2] += f"/{CONFIG['TRANSMISSION_BASE'].strip('/')}/rpc"
             else:
                 parts[2] += "/transmission/rpc"
 
         host_url = urlunparse(parts)
-        loggerdlcomms.debug('Transmission host %s' % host_url)
+        loggerdlcomms.debug(f'Transmission host {host_url}')
 
     # blank username is valid
     auth = (username, password) if password else None
@@ -347,7 +347,7 @@ def torrent_action(method, arguments):
     timeout = CONFIG.get_int('HTTP_TIMEOUT')
     # Retrieve session id
     if session_id:
-        loggerdlcomms.debug('Using existing session_id %s' % session_id)
+        loggerdlcomms.debug(f'Using existing session_id {session_id}')
     else:
         loggerdlcomms.debug('Requesting session_id')
         try:
@@ -358,7 +358,7 @@ def torrent_action(method, arguments):
             else:
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout, verify=False)
         except Exception as e:
-            res = 'Transmission %s: %s' % (type(e).__name__, str(e))
+            res = f'Transmission {type(e).__name__}: {str(e)}'
             logger.error(res)
             return False, res
 
@@ -379,7 +379,7 @@ def torrent_action(method, arguments):
             session_id = response.headers['x-transmission-session-id']
 
         if not session_id:
-            res = "Expected a Session ID from Transmission, got %s" % response.status_code
+            res = f"Expected a Session ID from Transmission, got {response.status_code}"
             logger.error(res)
             return False, res
 
@@ -393,35 +393,35 @@ def torrent_action(method, arguments):
             res = response.json()
             tr_version = res['arguments']['version']
             rpc_version = res['arguments']['rpc-version']
-            logger.debug("Transmission v%s, rpc v%s" % (tr_version, rpc_version))
+            logger.debug(f"Transmission v{tr_version}, rpc v{rpc_version}")
 
     # Prepare real request
     headers = {'x-transmission-session-id': session_id}
     data = {'method': method, 'arguments': arguments}
-    loggerdlcomms.debug('Transmission request %s' % str(data))
+    loggerdlcomms.debug(f'Transmission request {str(data)}')
     try:
         response = requests.post(host_url, json=data, headers=headers, proxies=proxies,
                                  auth=auth, timeout=timeout)
         if response.status_code == 409:
             session_id = response.headers['x-transmission-session-id']
-            logger.debug("Retrying with new session_id %s" % session_id)
+            logger.debug(f"Retrying with new session_id {session_id}")
             headers = {'x-transmission-session-id': session_id}
             response = requests.post(host_url, json=data, headers=headers, proxies=proxies,
                                      auth=auth, timeout=timeout)
         if not str(response.status_code).startswith('2'):
-            res = "Expected a response from Transmission, got %s" % response.status_code
+            res = f"Expected a response from Transmission, got {response.status_code}"
             logger.error(res)
             return False, res
         try:
             res = response.json()
-            loggerdlcomms.debug('Transmission returned %s' % str(res))
+            loggerdlcomms.debug(f'Transmission returned {str(res)}')
         except ValueError:
-            res = "Expected json, Transmission returned %s" % response.text
+            res = f"Expected json, Transmission returned {response.text}"
             logger.error(res)
             return False, res
         return res, ''
 
     except Exception as e:
-        res = 'Transmission %s: %s' % (type(e).__name__, str(e))
+        res = f'Transmission {type(e).__name__}: {str(e)}'
         logger.error(res)
         return False, res

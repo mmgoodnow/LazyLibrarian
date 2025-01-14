@@ -53,7 +53,7 @@ def use_label(source, library):
     if source in ['DELUGERPC', 'DELUGEWEBUI']:
         labels = CONFIG['DELUGE_LABEL']
     elif source in ['TRANSMISSION', 'UTORRENT', 'RTORRENT', 'QBITTORRENT']:
-        labels = CONFIG['%s_LABEL' % source]
+        labels = CONFIG[f"{source}_LABEL"]
     elif source in ['SABNZBD']:
         labels = CONFIG['SAB_CAT']
     elif source in ['NZBGET']:
@@ -87,7 +87,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
     try:
         source = provider
         msg = ''
-        logger.debug("Starting IRC Download for [%s]" % dl_title)
+        logger.debug(f"Starting IRC Download for [{dl_title}]")
         fname = ""
         myprov = None
 
@@ -97,7 +97,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
                 break
 
         if not myprov:
-            msg = "%s server not found" % provider
+            msg = f"{provider} server not found"
         else:
             t = threading.Thread(target=irc_query, name='irc_query', args=(myprov, dl_title, dl_title, dl_url, False,))
             t.start()
@@ -124,11 +124,11 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
                 setperm(destfile)
                 remove_file(resultfile)
             except Exception as e:
-                msg = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
+                msg = f"{type(e).__name__} writing book to {destfile}, {e}"
                 logger.error(msg)
                 return False, msg
 
-            logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+            logger.debug(f"File {dl_title} has been downloaded from {dl_url}")
             if library == 'eBook':
                 db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
             elif library == 'AudioBook':
@@ -159,11 +159,11 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
             # new method, download nzb data, write to file, send file to sab, delete file
             data, success = fetch_url(nzburl, raw=True)
             if not success:
-                res = 'Failed to read nzb data for sabnzbd: %s' % data
+                res = f"Failed to read nzb data for sabnzbd: {data}"
                 logger.debug(res)
                 download_id = ''
             else:
-                logger.debug("Got %s bytes data" % len(data))
+                logger.debug(f"Got {len(data)} bytes data")
                 temp_filename = os.path.join(DIRS.CACHEDIR, "nzbfile.nzb")
                 with open(syspath(temp_filename), 'wb') as f:
                     f.write(data)
@@ -177,10 +177,10 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
                 if CONFIG['HTTP_ROOT']:
                     nzb_url += '/' + CONFIG['HTTP_ROOT']
                 nzb_url += '/nzbfile.nzb'
-                logger.debug("nzb_url [%s]" % nzb_url)
+                logger.debug(f"nzb_url [{nzb_url}]")
                 download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzb_url, remove_data=False, library=library, label=label)
                 # returns nzb_ids or False
-                logger.debug("Sab returned %s/%s" % (download_id, res))
+                logger.debug(f"Sab returned {download_id}/{res}")
                 # os.unlink(temp_filename)
                 # logger.debug("Temp file deleted")
         else:
@@ -193,7 +193,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         source = "NZBGET"
         data, success = fetch_url(nzburl, raw=True)
         if not success:
-            res = 'Failed to read nzb data for nzbget: %s' % data
+            res = f"Failed to read nzb data for nzbget: {data}"
             logger.debug(res)
             download_id = ''
         else:
@@ -214,7 +214,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         source = "BLACKHOLE"
         nzbfile, success = fetch_url(nzburl, raw=True)
         if not success:
-            res = 'Error fetching nzb from url [%s]: %s' % (nzburl, nzbfile)
+            res = f"Error fetching nzb from url [{nzburl}]: {nzbfile}"
             logger.warning(res)
             return False, res
 
@@ -231,7 +231,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
                 download_id = nzbname
 
             except Exception as e:
-                res = '%s not writable, NZB not saved. %s: %s' % (nzbpath, type(e).__name__, str(e))
+                res = f"{nzbpath} not writable, NZB not saved. {type(e).__name__}: {e}"
                 logger.error(res)
                 return False, res
 
@@ -255,7 +255,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         record_usage_data('Download/NZB/Success')
         return True, ''
     else:
-        res = 'Failed to send nzb to @ <a href="%s">%s</a>' % (nzburl, source)
+        res = f'Failed to send nzb to @ <a href="{nzburl}">{source}</a>'
         logger.error(res)
         return False, res
 
@@ -263,7 +263,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
 def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=''):
     logger = logging.getLogger(__name__)
     source = "DIRECT"
-    logger.debug("Starting Direct Download for [%s]" % dl_title)
+    logger.debug(f"Starting Direct Download for [{dl_title}]")
     headers = {'Accept-encoding': 'gzip', 'User-Agent': get_user_agent()}
     dl_url = make_unicode(dl_url)
     s = requests.Session()
@@ -272,7 +272,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         s.proxies.update(proxies)
     if provider == 'zlibrary':
         # do we need to log in?
-        #if CONFIG['BOK_PASS']:
+        # if CONFIG['BOK_PASS']:
         if not bok_login(s, headers):
             return False, 'Login failed'
         # zlibrary needs a referer header from a zlibrary host
@@ -280,7 +280,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         count, oldest = bok_dlcount()
         limit = CONFIG.get_int('BOK_DLLIMIT')
         if limit and count >= limit:
-            res = 'Reached Daily download limit (%s)' % limit
+            res = f"Reached Daily download limit ({limit})"
             delay = oldest + 24*60*60 - time.time()
             BLOCKHANDLER.block_provider(provider, res, delay=delay)
             return False, res
@@ -289,23 +289,23 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     while redirects < 5:
         redirects += 1
         try:
-            logger.debug("%s: [%s] %s" % (redirects, provider, str(headers)))
+            logger.debug(f"{redirects}: [{provider}] {headers}")
             r = session_get(s, dl_url, headers)
         except requests.exceptions.Timeout:
-            res = 'Timeout fetching file from url: %s' % dl_url
+            res = f"Timeout fetching file from url: {dl_url}"
             logger.warning(res)
             return False, res
         except Exception as e:
-            res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, str(e))
+            res = f"{type(e).__name__} fetching file from url: {dl_url}, {e}"
             logger.warning(res)
             return False, res
 
         if not str(r.status_code).startswith('2'):
-            res = "Got a %s response for %s" % (r.status_code, dl_url)
+            res = f"Got a {r.status_code} response for {dl_url}"
             logger.debug(res)
             return False, res
         elif len(r.content) < 1000:
-            res = "Only got %s bytes for %s" % (len(r.content), dl_title)
+            res = f"Only got {len(r.content)} bytes for {dl_title}"
             logger.debug(res)
             return False, res
         elif 'application' in r.headers['Content-Type']:
@@ -326,9 +326,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             if not basename and magic:
                 try:
                     mtype = magic.from_buffer(r.content).upper()
-                    logger.debug("magic reports %s" % mtype)
+                    logger.debug(f"magic reports {mtype}")
                 except Exception as e:
-                    logger.debug("%s reading magic from %s, %s" % (type(e).__name__, dl_title, e))
+                    logger.debug(f"{type(e).__name__} reading magic from {dl_title}, {e}")
                     mtype = ''
                 if 'EPUB' in mtype:
                     extn = 'epub'
@@ -342,14 +342,14 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     extn = 'cbz'
                 basename = dl_title
             if not extn:
-                logger.warning("Don't know the filetype for [%s]" % dl_title)
+                logger.warning(f"Don't know the filetype for [{dl_title}]")
                 basename = dl_title
             else:
                 extn = extn.lower()
             if '/' in basename:
                 basename = basename.split('/')[0]
 
-            logger.debug("File download got %s bytes for %s" % (len(r.content), basename))
+            logger.debug(f"File download got {len(r.content)} bytes for {basename}")
 
             basename = sanitize(basename)
             destdir = os.path.join(get_directory('Download'), basename)
@@ -374,7 +374,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 download_id = hashid
                 db = database.DBConnection()
                 try:
-                    logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+                    logger.debug(f"File {dl_title} has been downloaded from {dl_url}")
                     if library == 'eBook':
                         db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
                     elif library == 'AudioBook':
@@ -387,11 +387,11 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 record_usage_data('Download/Direct/Success')
                 return True, ''
             except Exception as e:
-                res = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
+                res = f"{type(e).__name__} writing book to {destfile}, {e}"
                 logger.error(res)
                 return False, res
         else:
-            res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
+            res = f"Got unexpected response type ({r.headers['Content-Type']}) for {dl_title}"
             if 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
                 if b'Daily limit reached' in r.content:
                     try:
@@ -401,7 +401,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                             CONFIG.set_int('BOK_DLLIMIT', n)
                     except IndexError:
                         limit = 'unknown'
-                    msg = "Daily limit (%s) reached" % limit
+                    msg = f"Daily limit ({limit}) reached"
                     BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
                     logger.warning(msg)
                     return False, msg
@@ -418,7 +418,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 r = session_get(s, dl_url, headers)
 
                 if not str(r.status_code).startswith('2'):
-                    return False, "Unable to fetch %s: %s" % (r.url, r.status_code)
+                    return False, f"Unable to fetch {r.url}: {r.status_code}"
                 try:
                     res = r.content
                     newsoup = BeautifulSoup(res, "html5lib")
@@ -442,17 +442,17 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     else:
                         return False, 'No link available'
                 except Exception as e:
-                    return False, "An error occurred parsing %s: %s" % (r.url, str(e))
+                    return False, f"An error occurred parsing {r.url}: {e}"
             else:
                 cache_location = os.path.join(DIRS.CACHEDIR, "HTMLCache")
                 myhash = md5_utf8(dl_url)
                 hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".html")
                 with open(syspath(hashfilename), "wb") as cachefile:
                     cachefile.write(r.content)
-                logger.debug("Saved html page: %s" % hashfilename)
+                logger.debug(f"Saved html page: {hashfilename}")
                 return False, res
 
-    res = 'Failed to download file @ <a href="%s">%s</a>' % (dl_url, dl_url)
+    res = f'Failed to download file @ <a href="{dl_url}">{dl_url}</a>'
     logger.error(res)
     return False, res
 
@@ -494,7 +494,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
         proxies = proxy_list()
 
         try:
-            logger.debug("Fetching %s" % tor_url)
+            logger.debug(f"Fetching {tor_url}")
             if tor_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                 r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies,
                                  verify=CONFIG['SSL_CERTS']
@@ -504,33 +504,33 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             if str(r.status_code).startswith('2'):
                 torrent = r.content
                 if not len(torrent):
-                    res = "Got empty response for %s" % tor_url
+                    res = f"Got empty response for {tor_url}"
                     logger.warning(res)
                     return False, res
                 elif len(torrent) < 100:
-                    res = "Only got %s bytes for %s" % (len(torrent), tor_url)
+                    res = f"Only got {len(torrent)} bytes for {tor_url}"
                     logger.warning(res)
                     return False, res
                 else:
-                    logger.debug("Got %s bytes for %s" % (len(torrent), tor_url))
+                    logger.debug(f"Got {len(torrent)} bytes for {tor_url}")
             else:
-                res = "Got a %s response for %s" % (r.status_code, tor_url)
+                res = f"Got a {r.status_code} response for {tor_url}"
                 logger.warning(res)
                 return False, res
 
         except requests.exceptions.Timeout:
-            res = 'Timeout fetching file from url: %s' % tor_url
+            res = f"Timeout fetching file from url: {tor_url}"
             logger.warning(res)
             return False, res
         except Exception as e:
             # some jackett providers redirect internally using http 301 to a magnet link
             # which requests can't handle, so throws an exception
-            logger.debug("Requests exception: %s" % str(e))
+            logger.debug(f"Requests exception: {e}")
             if "magnet:?" in str(e):
                 tor_url = 'magnet:?' + str(e).split('magnet:?')[1].strip("'")
-                logger.debug("Redirecting to %s" % tor_url)
+                logger.debug(f"Redirecting to {tor_url}")
             else:
-                res = '%s fetching file from url: %s, %s' % (type(e).__name__, tor_url, str(e))
+                res = f"{type(e).__name__} fetching file from url: {tor_url}, {e}"
                 logger.warning(res)
                 return False, res
 
@@ -541,7 +541,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
 
     if CONFIG.get_bool('TOR_DOWNLOADER_BLACKHOLE'):
         source = "BLACKHOLE"
-        logger.debug("Sending %s to blackhole" % tor_title)
+        logger.debug(f"Sending {tor_title} to blackhole")
         tor_name = clean_name(tor_title).replace(' ', '_')
         if tor_url and tor_url.startswith('magnet'):
             hashid = calculate_torrent_hash(tor_url)
@@ -552,7 +552,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 tor_path = os.path.join(CONFIG['TORRENT_DIR'], tor_name)
                 result = magnet2torrent(tor_url, tor_path)
                 if result is not False:
-                    logger.debug('Magnet file saved as: %s' % tor_path)
+                    logger.debug(f"Magnet file saved as: {tor_path}")
                     download_id = hashid
             else:
                 tor_name += '.magnet'
@@ -568,12 +568,12 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     msg += 'SettingPerm '
                     setperm(tor_path)
                     msg += 'Saved '
-                    logger.debug('Magnet file saved: %s' % tor_path)
+                    logger.debug(f"Magnet file saved: {tor_path}")
                     download_id = hashid
                 except Exception as e:
-                    res = "Failed to write magnet to file: %s %s" % (type(e).__name__, str(e))
+                    res = f"Failed to write magnet to file: {type(e).__name__} {e}"
                     logger.warning(res)
-                    logger.debug("Progress: %s Filename [%s]" % (msg, repr(tor_path)))
+                    logger.debug(f"Progress: {msg} Filename [{tor_path}]")
                     return False, res
         else:
             tor_name += '.torrent'
@@ -589,12 +589,12 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 msg += 'SettingPerm '
                 setperm(tor_path)
                 msg += 'Saved '
-                logger.debug('Torrent file saved: %s' % tor_name)
+                logger.debug(f"Torrent file saved: {tor_name}")
                 download_id = source
             except Exception as e:
-                res = "Failed to write torrent to file: %s %s" % (type(e).__name__, str(e))
+                res = f"Failed to write torrent to file: {type(e).__name__} {e}"
                 logger.warning(res)
-                logger.debug("Progress: %s Filename [%s]" % (msg, repr(tor_path)))
+                logger.debug(f"Progress: {msg} Filename [{tor_path}]")
                 return False, res
 
     else:
@@ -602,8 +602,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
         if not hashid:
             res = "Unable to calculate torrent hash from url/data"
             logger.error(res)
-            logger.debug("url: %s" % tor_url)
-            logger.debug("data: %s" % make_unicode(str(torrent[:50])))
+            logger.debug(f"url: {tor_url}")
+            logger.debug(f"data: {make_unicode(str(torrent[:50]))}")
             return False, res
 
         provider_options = {}
@@ -619,7 +619,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     break
 
         if CONFIG.get_bool('TOR_DOWNLOADER_UTORRENT') and CONFIG['UTORRENT_HOST']:
-            logger.debug("Sending %s to Utorrent" % tor_title)
+            logger.debug(f"Sending {tor_title} to Utorrent")
             source = "UTORRENT"
             download_id, res = utorrent.add_torrent(tor_url, hashid, provider_options)  # returns hash or False
             if download_id:
@@ -632,7 +632,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 tor_title = utorrent.name_torrent(download_id)
 
         if CONFIG.get_bool('TOR_DOWNLOADER_RTORRENT') and CONFIG['RTORRENT_HOST']:
-            logger.debug("Sending %s to rTorrent" % tor_title)
+            logger.debug(f"Sending {tor_title} to rTorrent")
             source = "RTORRENT"
             if not torrent and tor_url.startswith('magnet:?'):
                 logger.debug("Converting magnet to data for rTorrent")
@@ -644,10 +644,10 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 if not torrent:
                     logger.debug("Unable to convert magnet")
             if torrent:
-                logger.debug("Sending %s data to rTorrent" % tor_title)
+                logger.debug(f"Sending {tor_title} data to rTorrent")
                 download_id, res = rtorrent.add_torrent(tor_title, hashid, data=torrent)
             else:
-                logger.debug("Sending %s url to rTorrent" % tor_title)
+                logger.debug(f"Sending {tor_title} url to rTorrent")
                 download_id, res = rtorrent.add_torrent(tor_url, hashid)  # returns hash or False
             if download_id:
                 tor_title = rtorrent.get_name(download_id)
@@ -655,10 +655,11 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
         if CONFIG.get_bool('TOR_DOWNLOADER_QBITTORRENT') and CONFIG['QBITTORRENT_HOST']:
             source = "QBITTORRENT"
             if torrent:
-                logger.debug("Sending %s data to qBittorrent" % tor_title)
-                status, res = qbittorrent.add_file(torrent, hashid, tor_title, provider_options)  # returns True or False
+                logger.debug(f"Sending {tor_title} data to qBittorrent")
+                status, res = qbittorrent.add_file(torrent, hashid, tor_title, provider_options)
+                # returns True or False
             else:
-                logger.debug("Sending %s url to qBittorrent" % tor_title)
+                logger.debug(f"Sending {tor_title} url to qBittorrent")
                 status, res = qbittorrent.add_torrent(tor_url, hashid, provider_options)  # returns True or False
             if status:
                 download_id = hashid
@@ -672,13 +673,15 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             if label and not directory.endswith(label):
                 directory = os.path.join(directory, label)
             if torrent:
-                logger.debug("Sending %s data to Transmission:%s" % (tor_title, directory))
+                logger.debug(f"Sending {tor_title} data to Transmission:{directory}")
                 # transmission needs b64encoded metainfo to be unicode, not bytes
                 download_id, res = transmission.add_torrent(None, directory=directory,
-                                                            metainfo=make_unicode(b64encode(torrent)), provider_options=provider_options)
+                                                            metainfo=make_unicode(b64encode(torrent)),
+                                                            provider_options=provider_options)
             else:
-                logger.debug("Sending %s url to Transmission:%s" % (tor_title, directory))
-                download_id, res = transmission.add_torrent(tor_url, directory=directory, provider_options=provider_options)  # returns id or False
+                logger.debug(f"Sending {tor_title} url to Transmission:{directory}")
+                download_id, res = transmission.add_torrent(tor_url, directory=directory,
+                                                            provider_options=provider_options)  # returns id or False
             if download_id:
                 # transmission returns its own int, but we store hashid instead
                 download_id = hashid
@@ -688,7 +691,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
 
         if CONFIG.get_bool('TOR_DOWNLOADER_SYNOLOGY') and CONFIG.get_bool('USE_SYNOLOGY') and \
                 CONFIG['SYNOLOGY_HOST']:
-            logger.debug("Sending %s url to Synology" % tor_title)
+            logger.debug(f"Sending {tor_title} url to Synology")
             source = "SYNOLOGY_TOR"
             download_id, res = synology.add_torrent(tor_url)  # returns id or False
             if download_id:
@@ -701,11 +704,14 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 # no username, talk to the webui
                 source = "DELUGEWEBUI"
                 if torrent:
-                    logger.debug("Sending %s data to Deluge" % tor_title)
-                    download_id, res = deluge.add_torrent(tor_title, data=b64encode(torrent), provider_options=provider_options)
+                    logger.debug(f"Sending {tor_title} data to Deluge")
+                    download_id, res = deluge.add_torrent(tor_title, data=b64encode(torrent),
+                                                          provider_options=provider_options)
                 else:
-                    logger.debug("Sending %s url to Deluge" % tor_title)
-                    download_id, res = deluge.add_torrent(tor_url, provider_options=provider_options)  # can be link or magnet, returns hash or False
+                    logger.debug(f"Sending {tor_title} url to Deluge")
+                    download_id, res = deluge.add_torrent(tor_url,
+                                                          provider_options=provider_options)
+                    # can be link or magnet, returns hash or False
                 if download_id:
                     if not label:
                         label = use_label(source, library)
@@ -726,16 +732,16 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     client.connect()
                     args = {"name": tor_title}
                     if tor_url.startswith('magnet'):
-                        res = "Sending %s magnet to DelugeRPC" % tor_title
+                        res = f"Sending {tor_title} magnet to DelugeRPC"
                         logger.debug(res)
                         download_id = client.call('core.add_torrent_magnet', tor_url, args)
                     elif torrent:
-                        res = "Sending %s data to DelugeRPC" % tor_title
+                        res = f"Sending {tor_title} data to DelugeRPC"
                         logger.debug(res)
                         download_id = client.call('core.add_torrent_file', tor_title,
                                                   b64encode(torrent), args)
                     else:
-                        res = "Sending %s url to DelugeRPC" % tor_title
+                        res = f"Sending {tor_title} url to DelugeRPC" % tor_title
                         logger.debug(res)
                         download_id = client.call('core.add_torrent_url', tor_url, args)
                     if download_id:
@@ -757,7 +763,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                         return False, res
 
                 except Exception as e:
-                    res = 'DelugeRPC failed %s %s' % (type(e).__name__, str(e))
+                    res = f"DelugeRPC failed {type(e).__name__} {e}"
                     logger.error(res)
                     return False, res
 
@@ -771,7 +777,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
         try:
             if tor_title:
                 if make_unicode(download_id).upper() in make_unicode(tor_title).upper():
-                    logger.warning('%s: name contains hash, probably unresolved magnet' % source)
+                    logger.warning(f"{source}: name contains hash, probably unresolved magnet")
                 else:
                     tor_title = unaccented(tor_title, only_ascii=False)
                     # need to check against reject words list again as the name may have changed
@@ -786,14 +792,14 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     elif library == 'Comic':
                         reject_list = get_list(CONFIG['REJECT_COMIC'], ',')
                     else:
-                        logger.debug("Invalid library [%s] in tor_dl_method" % library)
+                        logger.debug(f"Invalid library [{library}] in tor_dl_method")
                         reject_list = []
 
                     rejected = False
                     lower_title = tor_title.lower()
                     for word in reject_list:
                         if word in lower_title:
-                            rejected = "Rejecting torrent name %s, contains %s" % (tor_title, word)
+                            rejected = f"Rejecting torrent name {tor_title}, contains {word}"
                             logger.debug(rejected)
                             break
                     if not rejected:
@@ -805,7 +811,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                             delete_task(source, download_id, True)
                         return False, rejected
                     else:
-                        logger.debug('%s setting torrent name to [%s]' % (source, tor_title))
+                        logger.debug(f"{source} setting torrent name to [{tor_title}]")
                         db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
 
             if library == 'eBook':
@@ -819,7 +825,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
         record_usage_data('Download/TOR/Success')
         return True, ''
 
-    res = 'Failed to send torrent to %s' % source
+    res = f"Failed to send torrent to {source}"
     logger.error(res)
     return False, res
 
@@ -842,10 +848,10 @@ def calculate_torrent_hash(link, data=None):
                 # noinspection PyTypeChecker
                 torrent_hash = sha1(bencode(info)).hexdigest()
             except Exception as e:
-                logger.error("Error calculating hash: %s" % e)
+                logger.error(f"Error calculating hash: {e}")
                 return ''
         else:
             logger.error("Cannot calculate torrent hash without magnet link or data")
             return ''
-    logger.debug('Torrent Hash: %s' % str(torrent_hash))
+    logger.debug(f"Torrent Hash: {torrent_hash}")
     return torrent_hash

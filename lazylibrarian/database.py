@@ -38,7 +38,7 @@ class DBConnection:
             # sync less often as using WAL mode
             self.connection.execute("PRAGMA synchronous = NORMAL")
             # 32,384 pages of cache
-            self.connection.execute("PRAGMA cache_size=-%s" % (32 * 1024))
+            self.connection.execute(f"PRAGMA cache_size=-{32 * 1024}")
             # for cascade deletes
             self.connection.execute("PRAGMA foreign_keys = ON")
             self.connection.execute("PRAGMA temp_store = 2")  # memory
@@ -143,16 +143,16 @@ class DBConnection:
                     self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                     self.dbcommslogger.debug(f'Database Error {str(e)}')
 
-                    self.logger.warning('Database Error: %s' % e)
-                    self.logger.error("Failed db query: [%s]" % query)
+                    self.logger.warning(f'Database Error: {e}')
+                    self.logger.error(f"Failed db query: [{query}]")
                     time.sleep(1)
                 else:
                     elapsed = time.time() - start
                     self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                     self.dbcommslogger.debug(f'Database OperationalError {str(e)}')
 
-                    self.logger.error('Database OperationalError: %s' % e)
-                    self.logger.error("Failed query: [%s]" % query)
+                    self.logger.error(f'Database OperationalError: {e}')
+                    self.logger.error(f"Failed query: [{query}]")
                     raise
 
             except sqlite3.IntegrityError as e:
@@ -170,9 +170,9 @@ class DBConnection:
                     self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                     self.dbcommslogger.debug(f'IntegrityError: {msg}')
 
-                    self.logger.error('Database IntegrityError: %s' % e)
-                    self.logger.error("Failed query: [%s]" % query)
-                    self.logger.error("Failed args: [%s]" % str(args))
+                    self.logger.error(f'Database IntegrityError: {e}')
+                    self.logger.error(f"Failed query: [{query}]")
+                    self.logger.error(f"Failed args: [{str(args)}]")
                     raise
 
             except sqlite3.DatabaseError as e:
@@ -180,8 +180,8 @@ class DBConnection:
                 self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                 self.dbcommslogger.debug(f'DatabaseError: {str(e)}')
 
-                self.logger.error('Fatal error executing %s :%s: %s' % (query, args, e))
-                self.logger.error("%s" % traceback.format_exc())
+                self.logger.error(f'Fatal error executing {query} :{args}: {e}')
+                self.logger.error(f"{traceback.format_exc()}")
                 raise
 
             except Exception as e:
@@ -189,7 +189,7 @@ class DBConnection:
                 self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
                 self.dbcommslogger.debug(f'CatchallError: {str(e)}')
 
-                self.logger.error('Exception executing %s :: %s' % (query, e))
+                self.logger.error(f'Exception executing {query} :: {e}')
                 raise
 
             finally:
@@ -221,14 +221,14 @@ class DBConnection:
 
     @staticmethod
     def gen_params(my_dict):
-        return [x + " = ?" for x in list(my_dict.keys())]
+        return [f"{x} = ?" for x in list(my_dict.keys())]
 
     def upsert(self, table_name, value_dict, key_dict):
         with db_lock:
             changes_before = self.connection.total_changes
 
-            query = "UPDATE " + table_name + " SET " + ", ".join(self.gen_params(value_dict)) + \
-                    " WHERE " + " AND ".join(self.gen_params(key_dict))
+            query = (f"UPDATE {table_name} SET {', '.join(self.gen_params(value_dict))} "
+                     f"WHERE {' AND '.join(self.gen_params(key_dict))}")
 
             self._action(query, list(value_dict.values()) + list(key_dict.values()))
 
@@ -238,7 +238,7 @@ class DBConnection:
             # -- update -- should be thread safe now, threading lock moved
 
             if self.connection.total_changes == changes_before:
-                query = "INSERT INTO " + table_name + " ("
-                query += ", ".join(list(value_dict.keys()) + list(key_dict.keys())) + ") VALUES ("
-                query += ", ".join(["?"] * len(list(value_dict.keys()) + list(key_dict.keys()))) + ")"
+                query = f"INSERT INTO {table_name} ("
+                query += f"{', '.join(list(value_dict.keys()) + list(key_dict.keys()))}) VALUES ("
+                query += f"{', '.join(['?'] * len(list(value_dict.keys()) + list(key_dict.keys())))})"
                 self._action(query, list(value_dict.values()) + list(key_dict.values()), suppress="UNIQUE")

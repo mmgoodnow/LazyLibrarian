@@ -19,11 +19,12 @@
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+
 import requests
 
+from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-from lazylibrarian.common import proxy_list
 
 
 class AndroidPNNotifier:
@@ -71,7 +72,7 @@ class AndroidPNNotifier:
             elif status == '400':
                 logger.error("ANDROIDPN: Wrong data sent to AndroidPN")
             else:
-                logger.error("ANDROIDPN: Got error code %s" % status)
+                logger.error(f"ANDROIDPN: Got error code {status}")
             return False
 
         except Exception as e:
@@ -87,7 +88,7 @@ class AndroidPNNotifier:
                 logger.error("ANDROIDPN: Notification failed.")
             else:
                 # noinspection PyUnresolvedReferences
-                logger.error("ANDROIDPN: Notification failed. Error code: " + str(e.code))
+                logger.error(f"ANDROIDPN: Notification failed. Error code: {str(e.code)}")
             return False
 
     def _notify(self, title, message, url=None, username=None, broadcast=None, force=False):
@@ -112,8 +113,9 @@ class AndroidPNNotifier:
             else:
                 broadcast = 'N'
 
-        logger.debug('ANDROIDPN: Sending notice: title="%s", message="%s", username=%s, url=%s, broadcast=%s' %
-                     (title, message, username, url, broadcast))
+        logger.debug(
+            f'ANDROIDPN: Sending notice: title="{title}", message="{message}", username={username}, '
+            f'url={url}, broadcast={broadcast}')
 
         if not username or not url:
             return False

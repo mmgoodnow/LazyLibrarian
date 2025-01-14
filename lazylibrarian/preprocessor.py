@@ -28,7 +28,7 @@ from lazylibrarian.images import shrink_mag, coverswap
 def preprocess_ebook(bookfolder):
     logger = logging.getLogger(__name__)
     loggerpostprocess = logging.getLogger('special.postprocess')
-    logger.debug("Preprocess ebook %s" % bookfolder)
+    logger.debug(f"Preprocess ebook {bookfolder}")
     ebook_convert = calibre_prg('ebook-convert')
     if not ebook_convert:
         logger.error("No ebook-convert found")
@@ -49,15 +49,15 @@ def preprocess_ebook(bookfolder):
                 break
 
     if not sourcefile:
-        logger.error("No suitable sourcefile found in %s" % bookfolder)
+        logger.error(f"No suitable sourcefile found in {bookfolder}")
         return
 
     basename, source_extn = os.path.splitext(sourcefile)
-    logger.debug("Wanted formats: %s" % CONFIG['EBOOK_WANTED_FORMATS'])
+    logger.debug(f"Wanted formats: {CONFIG['EBOOK_WANTED_FORMATS']}")
     wanted_formats = get_list(CONFIG['EBOOK_WANTED_FORMATS'])
     for ftype in wanted_formats:
         if not path_exists(os.path.join(bookfolder, basename + '.' + ftype)):
-            logger.debug("No %s" % ftype)
+            logger.debug(f"No {ftype}")
             params = [ebook_convert, os.path.join(bookfolder, sourcefile),
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
@@ -74,11 +74,11 @@ def preprocess_ebook(bookfolder):
                     created += ' '
                 created += ftype
             except Exception as e:
-                logger.error("%s" % e)
+                logger.error(f"{e}")
                 logger.error(repr(params))
                 return
         else:
-            logger.debug("Found %s" % ftype)
+            logger.debug(f"Found {ftype}")
 
     if wanted_formats and CONFIG.get_bool('DELETE_OTHER_FORMATS'):
         if CONFIG.get_bool('KEEP_OPF'):
@@ -88,10 +88,10 @@ def preprocess_ebook(bookfolder):
         for fname in listdir(bookfolder):
             filename, extn = os.path.splitext(fname)
             if not extn or extn.lstrip('.').lower() not in wanted_formats:
-                logger.debug("Deleting %s" % fname)
+                logger.debug(f"Deleting {fname}")
                 remove_file(os.path.join(bookfolder, fname))
     if created:
-        logger.debug("Created %s from %s" % (created, source_extn))
+        logger.debug(f"Created {created} from {source_extn}")
     else:
         logger.debug("No extra ebook formats created")
 
@@ -118,10 +118,10 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             params = [ffmpeg, "-version"]
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
             res = make_unicode(res).strip().split("Copyright")[0].split()[-1]
-            logger.debug("Found ffmpeg version %s" % res)
+            logger.debug(f"Found ffmpeg version {res}")
             ff_ver = res
         except Exception as e:
-            logger.debug("ffmpeg -version failed: %s %s" % (type(e).__name__, str(e)))
+            logger.debug(f"ffmpeg -version failed: {type(e).__name__} {str(e)}")
             ff_ver = ''
         finally:
             lazylibrarian.FFMPEGVER = ff_ver
@@ -141,12 +141,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     ff_aac = lyne.strip().split(' ')[0]
                     break
         except Exception as e:
-            logger.debug("ffmpeg -codecs failed: %s %s" % (type(e).__name__, str(e)))
+            logger.debug(f"ffmpeg -codecs failed: {type(e).__name__} {str(e)}")
             ff_aac = ''
         finally:
             lazylibrarian.FFMPEGAAC = ff_aac
 
-    logger.debug("Preprocess audio %s %s %s" % (bookfolder, authorname, bookname))
+    logger.debug(f"Preprocess audio {bookfolder} {authorname} {bookname}")
     if zipp:
         _ = zip_audio(bookfolder, bookname, bookid)
 
@@ -191,8 +191,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     if out_type in ['.m4b', '.m4a', '.aac', '.mp4']:
         force_mp4 = True
         if 'D' not in ff_aac or 'E' not in ff_aac:
-            logger.warning("Your version of ffmpeg does not report supporting read/write aac (%s) trying anyway" %
-                           ff_aac)
+            logger.warning(f"Your version of ffmpeg does not report supporting read/write aac ({ff_aac}) trying anyway")
     # else:  # should we force mp4 if input is mp4 but output is mp3?
     #     for part in parts:
     #         if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
@@ -207,28 +206,28 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             ffmpeg_options = pre + '-f mp4 ' + post
         else:
             ffmpeg_options = CONFIG['AUDIO_OPTIONS'] + ' -f mp4'
-        logger.debug("ffmpeg options: %s" % ffmpeg_options)
+        logger.debug(f"ffmpeg options: {ffmpeg_options}")
     else:
         ffmpeg_options = CONFIG['AUDIO_OPTIONS']
 
     with open(partslist, 'w', encoding="utf-8") as f:
         for part in parts:
-            f.write("file '%s'\n" % part[3])
+            f.write(f"file '{part[3]}'\n")
 
             if CONFIG.get_bool('KEEP_SEPARATEAUDIO') and ff_ver and tag and authorname and bookname:
                 if token or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
                     params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
-                              '-y', '-c:a', 'copy', '-metadata', "album=%s" % bookname,
-                              '-metadata', "artist=%s" % authorname,
-                              '-metadata', "track=%s" % part[0],
-                              os.path.join(bookfolder, "tempaudio%s" % extn)]
+                              '-y', '-c:a', 'copy', '-metadata', f"album={bookname}",
+                              '-metadata', f"artist={authorname}",
+                              '-metadata', f"track={part[0]}",
+                              os.path.join(bookfolder, f"tempaudio{extn}")]
                     if loggerpostprocess.isEnabledFor(logging.DEBUG):
                         params.append('-report')
                         logger.debug(str(params))
                         ffmpeg_env = os.environ.copy()
                         ffmpeg_env["FFREPORT"] = "file=" + \
-                            DIRS.get_tmpfilename("ffmpeg-tag-%s.log" % now().replace(':', '-').replace(' ', '-'))
+                            DIRS.get_tmpfilename(f"ffmpeg-tag-{now().replace(':', '-').replace(' ', '-')}.log")
                     else:
                         ffmpeg_env = None
                     try:
@@ -239,19 +238,19 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                             _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
                         remove_file(os.path.join(bookfolder, part[3]))
-                        os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
+                        os.rename(os.path.join(bookfolder, f"tempaudio{extn}"),
                                   os.path.join(bookfolder, part[3]))
-                        logger.debug("Metadata written to %s" % part[3])
+                        logger.debug(f"Metadata written to {part[3]}")
                     except subprocess.CalledProcessError as e:
-                        logger.error("%s: %s" % (type(e).__name__, str(e)))
+                        logger.error(f"{type(e).__name__}: {str(e)}")
                         return
                     except Exception as e:
-                        logger.error("%s: %s" % (type(e).__name__, str(e)))
+                        logger.error(f"{type(e).__name__}: {str(e)}")
                         return
 
     bookfile = namevars['AudioSingleFile']
     if not bookfile:
-        bookfile = "%s - %s" % (authorname, bookname)
+        bookfile = f"{authorname} - {bookname}"
     outfile = bookfile + out_type
 
     if ff_ver and merge:
@@ -266,7 +265,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                    DIRS.get_tmpfilename("ffmpeg-meta-%s.log" % now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename(f"ffmpeg-meta-{now().replace(':', '-').replace(' ', '-')}.log")
             else:
                 ffmpeg_env = None
             try:
@@ -278,9 +277,9 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
                 logger.debug("Metadata written to metadata.ll")
             except subprocess.CalledProcessError as e:
-                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                logger.error(f"{type(e).__name__}: {str(e)}")
             except Exception as e:
-                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                logger.error(f"{type(e).__name__}: {str(e)}")
                 return
 
             part_durations = []
@@ -292,7 +291,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     logger.debug(str(params))
                     ffmpeg_env = os.environ.copy()
                     ffmpeg_env["FFREPORT"] = "file=" + \
-                        DIRS.get_tmpfilename("ffmpeg-part-%s.log" % now().replace(':', '-').replace(' ', '-'))
+                        DIRS.get_tmpfilename(f"ffmpeg-part-{now().replace(':', '-').replace(' ', '-')}.log")
                 else:
                     ffmpeg_env = None
                 try:
@@ -309,15 +308,15 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                             h, m, s = duration.split(':')
                             secs = check_float(s, 0) + (check_int(m, 0) * 60) + (check_int(h, 0) * 3600)
                             part_durations.append([part[0], secs])
-                            logger.debug("Part %s, duration %s" % (part[0], secs))
+                            logger.debug(f"Part {part[0]}, duration {secs}")
                         except IndexError:
                             pass
 
                 except subprocess.CalledProcessError as e:
-                    logger.error("%s: %s" % (type(e).__name__, str(e)))
+                    logger.error(f"{type(e).__name__}: {str(e)}")
                     return
                 except Exception as e:
-                    logger.error("%s: %s" % (type(e).__name__, str(e)))
+                    logger.error(f"{type(e).__name__}: {str(e)}")
                     return
 
             if part_durations:
@@ -337,10 +336,10 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     for item in part_durations:
                         if item[0]:
                             f.write("[CHAPTER]\nTIMEBASE=1/1000\n")
-                            f.write("START=%s\n" % int(start))
+                            f.write(f"START={int(start)}\n")
                             start = start + (1000 * item[1])
-                            f.write("END=%s\n" % int(start))
-                            f.write("title=Chapter %s\n" % item[0])
+                            f.write(f"END={int(start)}\n")
+                            f.write(f"title=Chapter {item[0]}\n")
 
             params = [ffmpeg]
             params.extend(ffmpeg_params)
@@ -352,12 +351,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                    DIRS.get_tmpfilename("ffmpeg-merge-%s.log" % now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename(f"ffmpeg-merge-{now().replace(':', '-').replace(' ', '-')}.log")
             else:
                 ffmpeg_env = None
             res = ''
             try:
-                logger.debug("Merging %d files" % len(parts))
+                logger.debug(f"Merging {len(parts)} files")
                 if os.name != 'nt':
                     res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
                                                   stderr=subprocess.STDOUT, env=ffmpeg_env)
@@ -365,15 +364,15 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
             except subprocess.CalledProcessError as e:
-                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                logger.error(f"{type(e).__name__}: {str(e)}")
                 return
             except Exception as e:
-                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                logger.error(f"{type(e).__name__}: {str(e)}")
                 if res:
                     logger.error(res)
                 return
 
-            logger.info("%d files merged into %s" % (len(parts), outfile))
+            logger.info(f"{len(parts)} files merged into {outfile}")
 
         if tag:
             extn = os.path.splitext(outfile)[1]
@@ -418,27 +417,27 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     if bookfile:
                         title = bookfile
                     else:
-                        title = "%s - %s" % (authorname, bookname)
+                        title = f"{authorname} - {bookname}"
                         if match['SeriesDisplay']:
                             series = match['SeriesDisplay'].split('<br>')[0].strip()
                             if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
-                                title = "%s (%s)" % (title, series)
+                                title = f"{title} ({series})"
                                 outfile, extn = os.path.splitext(outfile)
-                                outfile = "%s (%s)%s" % (outfile, series, extn)
-                    params.extend(['-metadata', "title=%s" % title])
+                                outfile = f"{outfile} ({series}){extn}"
+                    params.extend({'-metadata', f"title={title}"})
                     for item in ['artist', 'album_artist', 'composer', 'album', 'author',
                                  'date', 'comment', 'description', 'genre', 'media_type']:
                         value = eval(item)
                         if value:
-                            params.extend(['-metadata', "%s=%s" % (item, value)])
+                            params.extend(['-metadata', f"{item}={value}"])
                 else:
-                    params.extend(['-metadata', "album=%s" % bookname,
-                                   '-metadata', "artist=%s" % authorname,
-                                   '-metadata', "title=%s" % bookfile])
+                    params.extend(['-metadata', f"album={bookname}",
+                                   '-metadata', f"artist={authorname}",
+                                   '-metadata', f"title={bookfile}"])
             finally:
                 db.close()
 
-            tempfile = os.path.join(bookfolder, "tempaudio%s" % extn)
+            tempfile = os.path.join(bookfolder, f"tempaudio{extn}")
             if extn == '.m4b':
                 # some versions of ffmpeg will not add tags to m4b files, but they will add them to m4a
                 b2a = True
@@ -452,7 +451,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                    DIRS.get_tmpfilename("ffmpeg-merge_tag-%s.log" % now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename(f"ffmpeg-merge_tag-{now().replace(':', '-').replace(' ', '-')}.log")
             else:
                 ffmpeg_env = None
             try:
@@ -467,16 +466,16 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 if b2a:
                     tempfile.replace('.m4a', '.m4b')
                 os.rename(tempfile, outfile)
-                logger.debug("Metadata written to %s" % outfile)
+                logger.debug(f"Metadata written to {outfile}")
             except subprocess.CalledProcessError as e:
-                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                logger.error(f"{type(e).__name__}: {str(e)}")
                 return
             except Exception as e:
-                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                logger.error(f"{type(e).__name__}: {str(e)}")
                 return
 
         if not CONFIG.get_bool('KEEP_SEPARATEAUDIO') and len(parts) > 1:
-            logger.debug("Removing %d part files" % len(parts))
+            logger.debug(f"Removing {len(parts)} part files")
             for part in parts:
                 remove_file(os.path.join(bookfolder, part[3]))
 
@@ -486,7 +485,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
 def preprocess_magazine(bookfolder, cover=0):
     logger = logging.getLogger(__name__)
-    logger.debug("Preprocess magazine %s cover=%s" % (bookfolder, cover))
+    logger.debug(f"Preprocess magazine {bookfolder} cover={cover}")
     try:
         sourcefile = None
         for fname in listdir(bookfolder):
@@ -496,7 +495,7 @@ def preprocess_magazine(bookfolder, cover=0):
                 break
 
         if not sourcefile:
-            logger.error("No suitable sourcefile found in %s" % bookfolder)
+            logger.error(f"No suitable sourcefile found in {bookfolder}")
             return
 
         dpi = CONFIG.get_int('SHRINK_MAG')
@@ -512,14 +511,14 @@ def preprocess_magazine(bookfolder, cover=0):
         srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, sourcefile))
 
         if dpi:
-            logger.debug("Resizing %s to %s dpi" % (srcfile, dpi))
+            logger.debug(f"Resizing {srcfile} to {dpi} dpi")
             shrunkfile = shrink_mag(srcfile, dpi)
             old_size = os.stat(srcfile).st_size
             if shrunkfile:
                 new_size = os.stat(shrunkfile).st_size
             else:
                 new_size = 0
-            logger.debug("New size %s, was %s" % (human_size(new_size), human_size(old_size)))
+            logger.debug(f"New size {human_size(new_size)}, was {human_size(old_size)}")
             if new_size and new_size < old_size:
                 remove_file(srcfile)
                 os.rename(shrunkfile, srcfile)

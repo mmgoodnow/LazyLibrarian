@@ -42,7 +42,7 @@ class UtorrentClient(object):
             self.logger.error('Invalid Utorrent host or port, check your config')
 
         if not host.startswith("http://") and not host.startswith("https://"):
-            host = 'http://' + host
+            host = f"http://{host}"
 
         host = host.rstrip('/')
 
@@ -50,9 +50,9 @@ class UtorrentClient(object):
             host = host[:-4]
 
         if CONFIG['UTORRENT_BASE']:
-            host = "%s:%s/%s" % (host, port, CONFIG['UTORRENT_BASE'].strip('/'))
+            host = f"{host}:{port}/{CONFIG['UTORRENT_BASE'].strip('/')}"
         else:
-            host = "%s:%s" % (host, port)
+            host = f"{host}:{port}"
 
         self.base_url = host
         self.username = CONFIG['UTORRENT_USER']
@@ -83,8 +83,8 @@ class UtorrentClient(object):
         try:
             response = self.opener.open(url)
         except Exception as err:
-            self.logger.error('%s getting Token. uTorrent responded with: %s' % (type(err).__name__, str(err)))
-            self.loggerdlcomms.debug('URL: %s' % url)
+            self.logger.error(f'{type(err).__name__} getting Token. uTorrent responded with: {str(err)}')
+            self.loggerdlcomms.debug(f'URL: {url}')
             return None
         match = re.search(UtorrentClient.TOKEN_REGEX, response.read())
         return match.group(1)
@@ -185,8 +185,8 @@ class UtorrentClient(object):
         return self._action(params)
 
     def _action(self, params, body=None, content_type=None):
-        url = "%s/gui/?token=%s&%s" % (self.base_url, self.token, urlencode(params))
-        self.loggerdlcomms.debug("uTorrent params %s" % str(params))
+        url = f"{self.base_url}/gui/?token={self.token}&{urlencode(params)}"
+        self.loggerdlcomms.debug(f"uTorrent params {str(params)}")
         request = Request(url)
         if CONFIG['PROXY_HOST']:
             for item in get_list(CONFIG['PROXY_TYPE']):
@@ -203,12 +203,12 @@ class UtorrentClient(object):
             response = self.opener.open(request)
             res = response.code
             js = json.loads(response.read())
-            self.loggerdlcomms.debug("uTorrent response code %s" % res)
+            self.loggerdlcomms.debug(f"uTorrent response code {res}")
             self.loggerdlcomms.debug(str(js))
             return res, js
         except Exception as err:
-            self.logger.debug('URL: %s' % url)
-            self.logger.debug('uTorrent webUI raised the following error: ' + str(err))
+            self.logger.debug(f'URL: {url}')
+            self.logger.debug(f"uTorrent webUI raised the following error: {str(err)}")
             return 0, str(err)
 
 
@@ -220,7 +220,7 @@ def check_link():
             try:
                 _ = client.list()
             except Exception as err:
-                return "uTorrent list FAILED: %s %s" % (type(err).__name__, str(err))
+                return f"uTorrent list FAILED: {type(err).__name__} {str(err)}"
 
             # we would also like to check lazylibrarian.utorrent_label
             # but uTorrent only sends us a list of labels that have active torrents
@@ -230,13 +230,13 @@ def check_link():
             return "uTorrent login successful"
         return "uTorrent login FAILED\nCheck debug log"
     except Exception as err:
-        return "uTorrent login FAILED: %s %s" % (type(err).__name__, str(err))
+        return f"uTorrent login FAILED: {type(err).__name__} {str(err)}"
 
 
 # noinspection PyUnresolvedReferences
 def label_torrent(hashid, label):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("set label %s for %s" % (label, hashid))
+    loggerdlcomms.debug(f"set label {label} for {hashid}")
     uclient = UtorrentClient()
     torrent_list = uclient.list()
     for torrent in torrent_list[1].get('torrents'):
@@ -248,7 +248,7 @@ def label_torrent(hashid, label):
 
 def dir_torrent(hashid):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("get directory for %s" % hashid)
+    loggerdlcomms.debug(f"get directory for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -260,7 +260,7 @@ def dir_torrent(hashid):
 
 def name_torrent(hashid):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("get name for %s" % hashid)
+    loggerdlcomms.debug(f"get name for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -272,14 +272,14 @@ def name_torrent(hashid):
 
 def pause_torrent(hashid):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("pause %s" % hashid)
+    loggerdlcomms.debug(f"pause {hashid}")
     uclient = UtorrentClient()
     return uclient.pause(hashid)
 
 
 def progress_torrent(hashid):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("get progress for %s" % hashid)
+    loggerdlcomms.debug(f"get progress for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -292,7 +292,7 @@ def progress_torrent(hashid):
 
 def list_torrent(hashid):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("get file list for %s" % hashid)
+    loggerdlcomms.debug(f"get file list for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -304,7 +304,7 @@ def list_torrent(hashid):
 
 def remove_torrent(hashid, remove_data=False):
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("remove torrent %s remove_data=%s" % (hashid, remove_data))
+    loggerdlcomms.debug(f"remove torrent {hashid} remove_data={remove_data}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -322,7 +322,7 @@ def add_torrent(link, hashid, provider_options=None):
     uclient = UtorrentClient()
     uclient.add_url(link)
     loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug("Add hashid %s" % hashid)
+    loggerdlcomms.debug(f"Add hashid {hashid}")
     
     if provider_options:
         if "seed_ratio" in provider_options:

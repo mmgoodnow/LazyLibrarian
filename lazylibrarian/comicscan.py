@@ -12,17 +12,17 @@
 
 
 import datetime
+import logging
 import os
+import threading
 import traceback
 import uuid
-import logging
-import threading
 from shutil import copyfile
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
 from lazylibrarian.formatter import plural, check_int, now, get_list, unaccented, sanitize
 from lazylibrarian.images import create_mag_cover
@@ -68,7 +68,7 @@ def comic_scan(comicid=None):
 
                 if issuefile and not path_isfile(issuefile):
                     db.action('DELETE from comicissues where issuefile=?', (issuefile,))
-                    logger.info('Issue %s - %s deleted as not found on disk' % (title, issueid))
+                    logger.info(f'Issue {title} - {issueid} deleted as not found on disk')
 
                     new_value_dict = {
                         "LastAcquired": None,  # clear magazine dates
@@ -77,7 +77,7 @@ def comic_scan(comicid=None):
                         "IssueStatus": "Skipped"  # assume there are no issues now
                     }
                     db.upsert("comics", new_value_dict, control_value_dict)
-                    logger.debug('Comic %s (%s) details reset' % (title, comicid))
+                    logger.debug(f'Comic {title} ({comicid}) details reset')
 
             # now check the comic titles and delete any with no issues
             if CONFIG.get_bool('COMIC_DELFOLDER'):
@@ -89,10 +89,10 @@ def comic_scan(comicid=None):
                     comicid = mag['ComicID']
                     issues = mag['issues']
                     if not issues:
-                        logger.debug('Comic %s deleted as no issues found' % title)
+                        logger.debug(f'Comic {title} deleted as no issues found')
                         db.action('DELETE from comics WHERE ComicID=?', (comicid,))
 
-        logger.info(' Checking [%s] for %s' % (mag_path, CONFIG['COMIC_TYPE']))
+        logger.info(f" Checking [{mag_path}] for {CONFIG['COMIC_TYPE']}")
 
         for rootdir, _, filenames in walk(mag_path):
             for fname in filenames:
@@ -118,7 +118,7 @@ def comic_scan(comicid=None):
                             searchterm = title
                             issuelink = res.get('Web')
                             issuedescription = res.get('Summary')
-                            logger.debug("Metadata found %s (%s) Issue %s" % (title, comicid, issue))
+                            logger.debug(f"Metadata found {title} ({comicid}) Issue {issue}")
 
                     res = cv_identify(fname)
                     if not res:
@@ -144,16 +144,16 @@ def comic_scan(comicid=None):
                         last = res[3]['last']
                         serieslink = res[3]['link']
                         seriesdescription = res[3]['description']
-                        logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))
+                        logger.debug(f"Found {title} ({comicid}) Issue {issue}")
 
                         # is this comicid already in the database?
                         mag_entry = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
                         if mag_entry:
-                            logger.debug("ComicID %s already exists" % comicid)
+                            logger.debug(f"ComicID {comicid} already exists")
                             if aka:
                                 akas = get_list(mag_entry['aka'])
                                 if aka not in akas:
-                                    logger.debug("Adding aka %s to %s" % (aka, comicid))
+                                    logger.debug(f"Adding aka {aka} to {comicid}")
                                     akas.append(aka)
                                     new_value_dict = {"aka": ','.join(akas)}
                                     control_value_dict = {"ComicID": comicid}
@@ -162,17 +162,17 @@ def comic_scan(comicid=None):
                             # is the aka id in the database
                             mag_entry = db.match("SELECT * from comics WHERE instr(aka, ?) > 0", (aka,))
                             if mag_entry:
-                                logger.debug("aka %s exists for %s" % (aka, comicid))
+                                logger.debug(f"aka {aka} exists for {comicid}")
                                 comicid = mag_entry['ComicID']  # use aka as comicid
                         if not mag_entry:
                             mag_entry = db.match('SELECT * from comics WHERE Title=?', (title,))
                             if mag_entry:
                                 aka = comicid
                                 comicid = mag_entry['ComicID']
-                                logger.debug("%s exists for %s" % (comicid, title))
+                                logger.debug(f"{comicid} exists for {title}")
                                 akas = get_list(mag_entry['aka'])
                                 if aka not in akas:
-                                    logger.debug("Adding aka %s to %s" % (aka, comicid))
+                                    logger.debug(f"Adding aka {aka} to {comicid}")
                                     akas.append(aka)
                                     control_value_dict = {"ComicID": comicid}
                                     new_value_dict = {"aka": ','.join(akas)}
@@ -198,7 +198,7 @@ def comic_scan(comicid=None):
                                 "Description": seriesdescription,
                                 "aka": aka
                             }
-                            logger.debug("Adding comic %s (%s)" % (title, comicid))
+                            logger.debug(f"Adding comic {title} ({comicid})")
                             db.upsert("comics", new_value_dict, control_value_dict)
                             lastacquired = None
                             latestissue = issue
@@ -222,19 +222,19 @@ def comic_scan(comicid=None):
                                 "IssueFile": issuefile
                             }
                             if not iss_entry:
-                                logger.debug("Adding issue %s %s" % (title, issue))
+                                logger.debug(f"Adding issue {title} {issue}")
                                 coverfile = create_mag_cover(issuefile, refresh=True)
                                 if coverfile and path_isfile(coverfile):
-                                    hashname = os.path.join(DIRS.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                    hashname = os.path.join(DIRS.CACHEDIR, 'comic', f'{myhash}.jpg')
                                     copyfile(coverfile, hashname)
                                     setperm(hashname)
-                                    new_value_dict['Cover'] = 'cache/comic/%s.jpg' % myhash
+                                    new_value_dict['Cover'] = f'cache/comic/{myhash}.jpg'
                                 else:
                                     new_value_dict['Cover'] = 'images/nocover.png'
                                 new_value_dict['Description'] = issuedescription
                                 new_value_dict['Link'] = issuelink
                             else:
-                                logger.debug("Updating issue %s %s" % (title, issue))
+                                logger.debug(f"Updating issue {title} {issue}")
                             if not issuedescription or not issuelink or not contributors:
                                 # get issue details from series page
                                 res = ''
@@ -268,7 +268,7 @@ def comic_scan(comicid=None):
                             with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                                 f.write(u'comic')
                         except IOError as e:
-                            logger.warning("Unable to create/write to ignorefile: %s" % str(e))
+                            logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
                         # see if this issues date values are useful
                         control_value_dict = {"ComicID": comicid}
@@ -276,7 +276,7 @@ def comic_scan(comicid=None):
                             new_value_dict = {
                                 "Added": iss_acquired,
                                 "LastAcquired": iss_acquired,
-                                "LatestCover": 'cache/comic/%s.jpg' % myhash,
+                                "LatestCover": f'cache/comic/{myhash}.jpg',
                                 "LatestIssue": latestissue,
                                 "IssueStatus": "Open"
                             }
@@ -295,23 +295,23 @@ def comic_scan(comicid=None):
 
                             if not latestissue or issue >= latestissue:
                                 new_value_dict["LatestIssue"] = issue
-                                new_value_dict["LatestCover"] = 'cache/comic/%s.jpg' % myhash
+                                new_value_dict["LatestCover"] = f'cache/comic/{myhash}.jpg'
                             db.upsert("comics", new_value_dict, control_value_dict)
                     else:
-                        logger.debug("No match for %s" % fname)
+                        logger.debug(f"No match for {fname}")
         if CONFIG.get_bool('FULL_SCAN') and not onetitle:
             magcount = db.match("select count(*) from comics")
             isscount = db.match("select count(*) from comicissues")
-            logger.info("Comic scan complete, found %s %s, %s %s" %
-                        (magcount['count(*)'], plural(magcount['count(*)'], "comic"),
-                         isscount['count(*)'], plural(isscount['count(*)'], "issue")))
+            logger.info(
+                f"Comic scan complete, found {magcount['count(*)']} {plural(magcount['count(*)'], 'comic')}, "
+                f"{isscount['count(*)']} {plural(isscount['count(*)'], 'issue')}")
         else:
             logger.info("Comic scan complete")
         lazylibrarian.COMIC_UPDATE = 0
     except Exception:
         lazylibrarian.COMIC_UPDATE = 0
-        logger.error('Unhandled exception in comic_scan: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in comic_scan: {traceback.format_exc()}')
     finally:
         if 'COMICSCAN' in threading.current_thread().name:
-            threading.current_thread().name = 'WEBSERVER'       
+            threading.current_thread().name = 'WEBSERVER'
         db.close()

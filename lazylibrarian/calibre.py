@@ -9,23 +9,25 @@
 #  GNU General Public License for more details.
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
-import os
-import string
-import re
 import json
-import time
-import cherrypy
 import logging
+import os
+import re
+import string
+import time
 
+import cherrypy
+from rapidfuzz import fuzz
+
+from lazylibrarian import database
+from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.common import run_script
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import database
 from lazylibrarian.filesystem import get_directory
 from lazylibrarian.formatter import unaccented, get_list
-from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
-from rapidfuzz import fuzz
+
 
 # calibredb custom_columns
 # calibredb add_custom_column label name bool
@@ -43,9 +45,9 @@ def calibre_list(col_read, col_toread):
 
     fieldlist = 'title,authors'
     if col_read:
-        fieldlist += ',*' + col_read
+        fieldlist += f",*{col_read}"
     if col_toread:
-        fieldlist += ',*' + col_toread
+        fieldlist += f",*{col_toread}"
     res, err, rc = calibredb("list", "", ['--for-machine', '--fields', fieldlist])
     if rc:
         if res:
@@ -81,13 +83,13 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                 toreadlist = get_readinglist("ToRead", userid)
                 readlist = get_readinglist("HaveRead", userid)
             else:
-                return "Error: Unable to get user column settings for %s" % userid
+                return f"Error: Unable to get user column settings for {userid}"
 
         if not userid:
             return "Error: Unable to find current userid"
 
         if not col_read and not col_toread:
-            return "User %s has no calibre columns set" % username
+            return f"User {username} has no calibre columns set"
 
         # check user columns exist in calibre and create if not
         res = calibredb('custom_columns')
@@ -112,39 +114,40 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
         map_ctol = {}
         map_ltoc = {}
         if col_read:
-            readcol = '*' + col_read
+            readcol = f"*{col_read}"
         if col_toread:
-            toreadcol = '*' + col_toread
+            toreadcol = f"*{col_toread}"
 
         calibrelist = calibre_list(col_read, col_toread)
         if not isinstance(calibrelist, list):
             # got an error message from calibredb
-            return '"%s"' % calibrelist
+            return f'"{calibrelist}"'
 
         for item in calibrelist:
             if toreadcol and toreadcol in item or readcol and readcol in item:
                 authorname, _, added = add_author_name_to_db(item['authors'], refresh=False, addbooks=False,
-                                                             reason="sync_calibre_list: %s" % item['title'],
+                                                             reason=f"sync_calibre_list: {item['title']}",
                                                              title=item['title'])
                 if authorname:
                     if authorname != item['authors']:
-                        logger.debug("Changed authorname for [%s] from [%s] to [%s]" %
-                                     (item['title'], item['authors'], authorname))
+                        logger.debug(
+                            f"Changed authorname for [{item['title']}] from [{item['authors']}] to [{authorname}]")
                         item['authors'] = authorname
                     bookid, mtype = find_book_in_db(authorname, item['title'], ignored=False, library='eBook',
-                                                    reason='sync_calibre_list: %s' % item['title'])
+                                                    reason=f"sync_calibre_list: {item['title']}")
                     if bookid and mtype == "Ignored":
-                        logger.warning("Book %s by %s is marked Ignored in database, importing anyway" %
-                                       (item['title'], authorname))
+                        logger.warning(
+                            f"Book {item['title']} by {authorname} is marked Ignored in database, importing anyway")
                     if not bookid:
-                        searchterm = "%s <ll> %s" % (item['title'], authorname)
+                        searchterm = f"{item['title']} <ll> {authorname}"
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         if results:
                             result = results[0]
                             if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
                                     and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
-                                logger.debug("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
-                                                                           result['authorname'], result['bookname']))
+                                logger.debug(
+                                    f"Found ({result['author_fuzz']}% {result['book_fuzz']}%) "
+                                    f"{result['authorname']}: {result['bookname']}")
                                 bookid = result['bookid']
                                 import_book(bookid, reason="Added by calibre sync")
                     if bookid:
@@ -154,11 +157,11 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                         map_ctol[str(item['id'])] = str(bookid)
                         map_ltoc[str(bookid)] = str(item['id'])
                     else:
-                        logger.warning('Calibre Book [%s] by [%s] is not in lazylibrarian database' %
-                                       (item['title'], authorname))
+                        logger.warning(
+                            f"Calibre Book [{item['title']}] by [{authorname}] is not in lazylibrarian database")
                         nomatch += 1
                 else:
-                    logger.warning('Calibre Author [%s] not matched in lazylibrarian database' % (item['authors']))
+                    logger.warning(f"Calibre Author [{item['authors']}] not matched in lazylibrarian database")
                     nomatch += 1
 
         # Now check current users lazylibrarian read/toread against the calibre library, warn about missing ones
@@ -170,19 +173,19 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                 cmd = "SELECT AuthorID,BookName from books where BookID=?"
                 book = db.match(cmd, (bookid,))
                 if not book:
-                    logger.error('Error finding bookid %s' % bookid)
+                    logger.error(f'Error finding bookid {bookid}')
                 else:
                     cmd = "SELECT AuthorName from authors where AuthorID=?"
                     author = db.match(cmd, (book['AuthorID'],))
                     if not author:
-                        logger.error('Error finding authorid %s' % book['AuthorID'])
+                        logger.error(f"Error finding authorid {book['AuthorID']}")
                     else:
                         match = False
                         high = 0
                         highname = ''
                         for item in calibrelist:
                             if item['authors'] == author['AuthorName'] and item['title'] == book['BookName']:
-                                logger.debug("Exact match for %s [%s]" % (idlist[0], book['BookName']))
+                                logger.debug(f"Exact match for {idlist[0]} [{book['BookName']}]")
                                 map_ctol[str(item['id'])] = str(bookid)
                                 map_ltoc[str(bookid)] = str(item['id'])
                                 match = True
@@ -198,18 +201,19 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                                         highid = item['id']
 
                             if high > 95:
-                                logger.debug("Found ratio match %s%% [%s] for %s [%s]" %
-                                             (high, highname, idlist[0], book['BookName']))
+                                logger.debug(
+                                    f"Found ratio match {high}% [{highname}] for {idlist[0]} [{book['BookName']}]")
                                 map_ctol[str(highid)] = str(bookid)
                                 map_ltoc[str(bookid)] = str(highid)
                                 match = True
 
                         if not match:
-                            logger.warning("No match for %s %s by %s in calibre database, closest match %s%% [%s]" %
-                                           (idlist[0], book['BookName'], author['AuthorName'], high, highname))
+                            logger.warning(
+                                f"No match for {idlist[0]} {book['BookName']} by {author['AuthorName']} "
+                                f"in calibre database, closest match {high}% [{highname}]")
                             nomatch += 1
 
-        logger.debug("BookID mapping complete, %s match %s, nomatch %s" % (username, len(map_ctol), nomatch))
+        logger.debug(f"BookID mapping complete, {username} match {len(map_ctol)}, nomatch {nomatch}")
 
         # now sync the lists
         if not userid:
@@ -233,56 +237,54 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     if str(item['id']) in map_ctol:
                         calibre_toread.append(map_ctol[str(item['id'])])
                     else:
-                        logger.warning("Calibre to_read book %s:%s has no lazylibrarian bookid" %
-                                       (item['authors'], item['title']))
+                        logger.warning(
+                            f"Calibre to_read book {item['authors']}:{item['title']} has no lazylibrarian bookid")
                 if readcol and readcol in item and item[readcol]:  # only if True
                     if str(item['id']) in map_ctol:
                         calibre_read.append(map_ctol[str(item['id'])])
                     else:
-                        logger.warning("Calibre read book %s:%s has no lazylibrarian bookid" %
-                                       (item['authors'], item['title']))
+                        logger.warning(
+                            f"Calibre read book {item['authors']}:{item['title']} has no lazylibrarian bookid")
 
-            logger.debug("Found %s calibre read, %s calibre toread" % (len(calibre_read), len(calibre_toread)))
-            logger.debug("Found %s lazylib read, %s lazylib toread" % (len(readlist), len(toreadlist)))
+            logger.debug(f"Found {len(calibre_read)} calibre read, {len(calibre_toread)} calibre toread")
+            logger.debug(f"Found {len(readlist)} lazylib read, {len(toreadlist)} lazylib toread")
 
             added_to_ll_toread = list(set(toreadlist) - set(last_toread))
             removed_from_ll_toread = list(set(last_toread) - set(toreadlist))
             added_to_ll_read = list(set(readlist) - set(last_read))
             removed_from_ll_read = list(set(last_read) - set(readlist))
-            logger.debug("lazylibrarian changes to copy to calibre: %s %s %s %s" % (len(added_to_ll_toread),
-                                                                                    len(removed_from_ll_toread),
-                                                                                    len(added_to_ll_read),
-                                                                                    len(removed_from_ll_read)))
+            logger.debug(
+                f"lazylibrarian changes to copy to calibre: {len(added_to_ll_toread)} {len(removed_from_ll_toread)}"
+                f" {len(added_to_ll_read)} {len(removed_from_ll_read)}")
 
             added_to_calibre_toread = list(set(calibre_toread) - set(last_toread))
             removed_from_calibre_toread = list(set(last_toread) - set(calibre_toread))
             added_to_calibre_read = list(set(calibre_read) - set(last_read))
             removed_from_calibre_read = list(set(last_read) - set(calibre_read))
-            logger.debug("calibre changes to copy to lazylibrarian: %s %s %s %s" % (len(added_to_calibre_toread),
-                                                                                    len(removed_from_calibre_toread),
-                                                                                    len(added_to_calibre_read),
-                                                                                    len(removed_from_calibre_read)))
+            logger.debug(
+                f"calibre changes to copy to lazylibrarian: {len(added_to_calibre_toread)} "
+                f"{len(removed_from_calibre_toread)} {len(added_to_calibre_read)} {len(removed_from_calibre_read)}")
 
             calibre_changes = 0
             for item in added_to_calibre_read:
                 if item not in readlist:
                     readlist.append(item)
-                    logger.debug("Lazylibrarian marked %s as read" % item)
+                    logger.debug(f"Lazylibrarian marked {item} as read")
                     calibre_changes += 1
             for item in added_to_calibre_toread:
                 if item not in toreadlist:
                     toreadlist.append(item)
-                    logger.debug("Lazylibrarian marked %s as to_read" % item)
+                    logger.debug(f"Lazylibrarian marked {item} as to_read")
                     calibre_changes += 1
             for item in removed_from_calibre_read:
                 if item in readlist:
                     readlist.remove(item)
-                    logger.debug("Lazylibrarian removed %s from read" % item)
+                    logger.debug(f"Lazylibrarian removed {item} from read")
                     calibre_changes += 1
             for item in removed_from_calibre_toread:
                 if item in toreadlist:
                     toreadlist.remove(item)
-                    logger.debug("Lazylibrarian removed %s from to_read" % item)
+                    logger.debug(f"Lazylibrarian removed {item} from to_read")
                     calibre_changes += 1
             if calibre_changes:
                 set_readinglist("ToRead", userid, toreadlist)
@@ -303,7 +305,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     else:
                         ll_changes += 1
                 else:
-                    logger.warning("Unable to set calibre %s true for %s" % (col_toread, item))
+                    logger.warning(f"Unable to set calibre {col_toread} true for {item}")
             for item in removed_from_ll_toread:
                 if item in map_ltoc:
                     res, err, rc = calibredb('set_custom', [col_toread, map_ltoc[item], ''], [])
@@ -318,7 +320,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     else:
                         ll_changes += 1
                 else:
-                    logger.warning("Unable to clear calibre %s for %s" % (col_toread, item))
+                    logger.warning(f"Unable to clear calibre {col_toread} for {item}")
 
             for item in added_to_ll_read:
                 if item in map_ltoc:
@@ -334,7 +336,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     else:
                         ll_changes += 1
                 else:
-                    logger.warning("Unable to set calibre %s true for %s" % (col_read, item))
+                    logger.warning(f"Unable to set calibre {col_read} true for {item}")
 
             for item in removed_from_ll_read:
                 if item in map_ltoc:
@@ -350,7 +352,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     else:
                         ll_changes += 1
                 else:
-                    logger.warning("Unable to clear calibre %s for %s" % (col_read, item))
+                    logger.warning(f"Unable to clear calibre {col_read} for {item}")
 
             # store current sync list as comparison for next sync
             control_value_dict = {"UserID": userid, "Label": col_read}
@@ -360,7 +362,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
             new_value_dict = {"Date": str(time.time()), "Synclist": ', '.join(toreadlist)}
             db.upsert("sync", new_value_dict, control_value_dict)
 
-            msg = "%s sync updated: %s calibre, %s lazylibrarian" % (username, ll_changes, calibre_changes)
+            msg = f"{username} sync updated: {ll_changes} calibre, {calibre_changes} lazylibrarian"
     finally:
         db.close()
     return msg
@@ -380,11 +382,11 @@ def calibre_test():
         vernum = res.split('(calibre ')[1]
         if ')' in vernum:
             vernum = vernum.split(')')[0]
-        res = 'calibredb ok, version ' + vernum
+        res = f"calibredb ok, version {vernum}"
 
         # get a list of categories and counters from the database in CSV format
         cats, err, rc = calibredb('list_categories', ['-ic'])
-        logger.debug("Calibredb list_categories " + cats)
+        logger.debug(f"Calibredb list_categories {cats}")
         cnt = 0
         if not len(cats):
             res += '\nDatabase READ Failed'
@@ -398,7 +400,7 @@ def calibre_test():
         if cnt:
             res += '\nDatabase READ ok'
             wrt, err, rc = calibredb('add', ['--authors', 'LazyLibrarian', '--title', 'dummy', '--empty'], [])
-            logger.debug("Calibredb add  " + wrt)
+            logger.debug(f"Calibredb add  {wrt}")
             # Answer should look like "Added book ids: bookID" (string may be translated!)
             # or "add Integration status: True Added book ids: bookID"
             try:
@@ -448,18 +450,18 @@ def calibredb(cmd=None, prelib=None, postlib=None):
         params.extend(prelib)
 
     if cmd != "--version":
-        params.extend(['--with-library', '%s' % dest_url])
+        params.extend(['--with-library', f'{dest_url}'])
     if postlib:
         params.extend(postlib)
 
     logger.debug(f"Run calibre: '{params}'")
     rc, res, err = run_script(params)
-    logger.debug("calibredb rc %s" % rc)
+    logger.debug(f"calibredb rc {rc}")
     wsp = re.escape(string.whitespace)
     nres = re.sub(r'[' + wsp + ']', ' ', res)
     nerr = re.sub(r'[' + wsp + ']', ' ', err)
-    logger.debug("calibredb res %d[%s]" % (len(nres), nres))
-    logger.debug("calibredb err %d[%s]" % (len(nerr), nerr))
+    logger.debug(f"calibredb res {len(nres)}[{nres}]")
+    logger.debug(f"calibredb err {len(nerr)}[{nerr}]")
 
     if rc:
         if 'Errno 111' in err:
@@ -503,11 +505,11 @@ def get_calibre_id(data):
         calibre_id = ''
     if not calibre_id:
         # ask calibre for id of this issue
-        res, err, rc = calibredb('search', ['author:"%s" title:"%s"' % (author, title)])
+        res, err, rc = calibredb('search', [f'author:"{author}" title:"{title}"'])
         if not rc:
             try:
                 calibre_id = res.split(',')[0].strip()
             except IndexError:
                 calibre_id = ''
-    logger.debug('Calibre ID [%s]' % calibre_id)
+    logger.debug(f'Calibre ID [{calibre_id}]')
     return calibre_id

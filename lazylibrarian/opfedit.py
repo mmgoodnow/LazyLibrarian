@@ -37,7 +37,7 @@ def opf_read(filename):
     subjects = 0
     creators = 0
     replaces = []
-    outfile = filename + '_mod'
+    outfile = f"{filename}_mod"
     f = open(outfile, 'w')
     with open(filename, 'r') as i:
         data = i.readlines()
@@ -64,7 +64,7 @@ def opf_read(filename):
                     new_lyne, token, value = extract_key(subject, lyne)
                     indexed = "subject_%02d" % subjects
                     subjects += 1
-                    new_lyne = new_lyne.replace('$$subject$$', '$$%s$$' % indexed)
+                    new_lyne = new_lyne.replace('$$subject$$', f'$${indexed}$$')
                     replaces.append((indexed, value))
 
                 if scheme in lyne:
@@ -75,8 +75,8 @@ def opf_read(filename):
                     indexed = "_%02d" % creators
                     creators += 1
                     new_lyne, role, fileas, value = extract_creator(lyne)
-                    replaces.append(('role' + indexed, role))
-                    replaces.append(('creator' + indexed, value))
+                    replaces.append((f"role{indexed}", role))
+                    replaces.append((f"creator{indexed}", value))
                     found = False
                     for item in replaces:
                         if item[0] == 'fileas':
@@ -84,8 +84,8 @@ def opf_read(filename):
                             break
                     if not found:
                         replaces.append(('fileas', fileas))
-                    new_lyne = new_lyne.replace('$$role$$', '$$role%s$$' % indexed).replace(
-                                                '$$creator$$', '$$creator%s$$' % indexed)
+                    new_lyne = new_lyne.replace('$$role$$', f'$$role{indexed}$$').replace(
+                                                '$$creator$$', f'$$creator{indexed}$$')
 
                 if content in lyne:
                     new_lyne, token, value = extract_content(content, lyne)
@@ -108,28 +108,28 @@ def extract_key(key, data):
     ident = key.split(':', 1)[1].split('>')[0]
     endkey = key.replace('<', '</')
     value = data.split(key, 1)[1].split(endkey, 1)[0]
-    return data.replace(key + value + endkey, key + '$$' + ident + '$$' + endkey), ident, value
+    return data.replace(key + value + endkey, f"{key}$${ident}$${endkey}"), ident, value
 
 
 def extract_scheme(data):
     ident = data.split('scheme="', 1)[1].split('"')[0]
     value = data.split('>', 1)[1].split('<')[0]
-    return data.replace('>' + value + '<', '>$$%s$$<' % ident), ident, value
+    return data.replace(f">{value}<", f'>$${ident}$$<'), ident, value
 
 
 def extract_content(key, data):
     ident = data.split('name="', 1)[1].split('"')[0]
     value = data.split(key, 1)[1].split('"')[0]
-    return data.replace(key + value + '"', key + '$$%s$$"' % ident), ident, value
+    return data.replace(f"{key + value}\"", f"{key}$${ident}$$\""), ident, value
 
 
 def extract_creator(data):
     fileas = data.split('file-as="', 1)[1].split('"')[0]
     role = data.split('role="', 1)[1].split('"')[0]
     value = data.split('>', 1)[1].split('<')[0]
-    return data.replace('>' + value + '<', '>$$creator$$<').replace(
-        'role="' + role + '"', 'role="$$role$$"').replace(
-        'file-as="' + fileas + '"', 'file-as="$$fileas$$"'), role, fileas, value
+    return data.replace(f">{value}<", '>$$creator$$<').replace(
+        f"role=\"{role}\"", 'role="$$role$$"').replace(
+        f"file-as=\"{fileas}\"", 'file-as="$$fileas$$"'), role, fileas, value
 
 
 def opf_write(filename, replaces):
@@ -137,10 +137,10 @@ def opf_write(filename, replaces):
         return ''
     with open(filename, 'r') as i:
         data = i.readlines()
-        outfile = filename + '_mod'
+        outfile = f"{filename}_mod"
         f = open(outfile, 'w')
         for lyne in data:
             for item in replaces:
-                lyne = lyne.replace('$$%s$$' % item[0], escape(item[1]))
+                lyne = lyne.replace(f'$${item[0]}$$', escape(item[1]))
             f.write(lyne)
     return outfile

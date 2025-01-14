@@ -3,8 +3,8 @@
 # Purpose:
 #   Handle blocking behaviour, keep track of blocked providers, etc
 
-import time
 import logging
+import time
 from typing import Dict, Optional
 
 from lazylibrarian.configtypes import ConfigDict
@@ -49,17 +49,17 @@ class BlockHandler:
             delay = self._config.get_int('BLOCKLIST_TIMER') if self._config is not None else 3600
 
         if delay == 0:
-            logger.debug('Not blocking %s,%s as timer is zero' % (who, why))
+            logger.debug(f'Not blocking {who},{why} as timer is zero')
             return 0
 
         if len(why) > 80:
             why = why[:80]
 
         timestr = pretty_approx_time(delay)
-        logger.info("Blocking provider %s for %s because %s" % (who, timestr, why))
+        logger.info(f"Blocking provider {who} for {timestr} because {why}")
         self.replace_provider_entry(who, delay, why)
-        logger.debug("Provider Blocklist contains %s %s" % (len(self._provider_list),
-                                                            plural(len(self._provider_list), 'entry')))
+        logger.debug(
+            f"Provider Blocklist contains {len(self._provider_list)} {plural(len(self._provider_list), 'entry')}")
         return delay
 
     def number_blocked(self) -> int:

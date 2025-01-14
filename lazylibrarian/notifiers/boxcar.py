@@ -45,10 +45,10 @@ class BoxcarNotifier:
         returns: True if the message succeeded, False otherwise
         """
         logger = logging.getLogger(__name__)
-        logger.debug('Boxcar notification: %s' % msg)
-        logger.debug('Title: %s' % title)
-        logger.debug('Token: %s' % token)
-        logger.debug('Subscribe: %s' % subscribe)
+        logger.debug(f'Boxcar notification: {msg}')
+        logger.debug(f'Title: {title}')
+        logger.debug(f'Token: {token}')
+        logger.debug(f'Subscribe: {subscribe}')
 
         # build up the URL and parameters
         msg = msg.strip()
@@ -98,17 +98,17 @@ class BoxcarNotifier:
             elif status == '400':
                 logger.error("BOXCAR: Wrong data send to boxcar.")
             else:
-                logger.error("BOXCAR: Got error code %s" % status)
+                logger.error(f"BOXCAR: Got error code {status}")
             return False
 
         except Exception as e:
             # if we get an error back that doesn't have an error code then who knows what's really happening
             # URLError doesn't return a code, just a reason. HTTPError gives a code
             if not hasattr(e, 'code'):
-                logger.error("BOXCAR: Boxcar notification failed: %s" % str(e))
+                logger.error(f"BOXCAR: Boxcar notification failed: {str(e)}")
             else:
                 # noinspection PyUnresolvedReferences
-                logger.error("BOXCAR: Boxcar notification failed. Error code: %s" % str(e.code))
+                logger.error(f"BOXCAR: Boxcar notification failed. Error code: {str(e.code)}")
             return False
 
     def _notify(self, title, message, username=None, force=False):

@@ -43,10 +43,10 @@ class PushbulletNotifier:
             if CONFIG['PUSHBULLET_DEVICEID']:
                 pushbullet_deviceid = CONFIG['PUSHBULLET_DEVICEID']
 
-        logger.debug("Pushbullet event: " + str(event))
-        logger.debug("Pushbullet message: " + str(message))
-        logger.debug("Pushbullet api: " + str(pushbullet_token))
-        logger.debug("Pushbullet devices: " + str(pushbullet_deviceid))
+        logger.debug(f"Pushbullet event: {str(event)}")
+        logger.debug(f"Pushbullet message: {str(message)}")
+        logger.debug(f"Pushbullet api: {str(pushbullet_token)}")
+        logger.debug(f"Pushbullet devices: {str(pushbullet_deviceid)}")
 
         pb = PushBullet(str(pushbullet_token))
 
@@ -55,8 +55,8 @@ class PushbulletNotifier:
             ret = ""
             for device in devices:
                 if device["active"]:
-                    logger.info("Pushbullet: %s [%s]" % (device["nickname"], device["iden"]))
-                    ret += "\nPushbullet: %s [%s]" % (device["nickname"], device["iden"])
+                    logger.info(f"Pushbullet: {device['nickname']} [{device['iden']}]")
+                    ret += f"\nPushbullet: {device['nickname']} [{device['iden']}]"
             _ = pb.push_note(pushbullet_deviceid, str(event), str(message))
             return ret
         else:
@@ -76,12 +76,12 @@ class PushbulletNotifier:
         try:
             message = unaccented(message)
         except Exception as e:
-            logger.warning("Pushbullet: could not convert  message: %s" % e)
+            logger.warning(f"Pushbullet: could not convert  message: {e}")
 
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not CONFIG['USE_PUSHBULLET'] and not force:
             return False
-        logger.debug("Pushbullet: Sending notification " + str(message))
+        logger.debug(f"Pushbullet: Sending notification {str(message)}")
 
         return self._send_pushbullet(message, event, pushbullet_token, pushbullet_deviceid, force=force)
 

@@ -11,18 +11,18 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import logging
 import os
 import re
+import threading
 import traceback
 import uuid
-import logging
-import threading
 from hashlib import sha1
 from shutil import copyfile
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year
@@ -64,7 +64,7 @@ def magazine_scan(title=None):
 
                 if issuefile and not path_isfile(issuefile):
                     db.action('DELETE from Issues where issuefile=?', (issuefile,))
-                    logger.info('Issue %s - %s deleted as not found on disk' % (title, issuedate))
+                    logger.info(f'Issue {title} - {issuedate} deleted as not found on disk')
                     control_value_dict = {"Title": title}
                     new_value_dict = {
                         "LastAcquired": None,  # clear magazine dates
@@ -73,7 +73,7 @@ def magazine_scan(title=None):
                         "IssueStatus": "Skipped"  # assume there are no issues now
                     }
                     db.upsert("magazines", new_value_dict, control_value_dict)
-                    logger.debug('Magazine %s details reset' % title)
+                    logger.debug(f'Magazine {title} details reset')
 
             # now check the magazine titles and delete any with no issues
             if CONFIG.get_bool('MAG_DELFOLDER'):
@@ -82,10 +82,10 @@ def magazine_scan(title=None):
                     title = mag['Title']
                     issues = mag['counter']
                     if not issues:
-                        logger.debug('Magazine %s deleted as no issues found' % title)
+                        logger.debug(f'Magazine {title} deleted as no issues found')
                         db.action('DELETE from magazines WHERE Title=?', (title,))
 
-        logger.info(' Checking [%s] for %s' % (mag_path, CONFIG['MAG_TYPE']))
+        logger.info(f" Checking [{mag_path}] for {CONFIG['MAG_TYPE']}")
 
         booktypes = ''
         count = -1
@@ -95,7 +95,7 @@ def magazine_scan(title=None):
             if count == 0:
                 booktypes = book_type
             else:
-                booktypes = booktypes + '|' + book_type
+                booktypes = f"{booktypes}|{book_type}"
 
         # massage the MAG_DEST_FILE config parameter into something we can use
         # with regular expression matching
@@ -110,13 +110,13 @@ def magazine_scan(title=None):
         match = match_string.replace(
             "\\$IssueDate", "(?P<issuedate>.*?)").replace(
             "\\$Title", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
-        loggermatching.debug("Pattern [%s]" % match)
+        loggermatching.debug(f"Pattern [{match}]")
 
         # noinspection PyBroadException
         try:
             pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
         except Exception as e:
-            logger.error("Pattern failed for [%s] %s" % (matchto, str(e)))
+            logger.error(f"Pattern failed for [{matchto}] {str(e)}")
             pattern = None
 
         if pattern:
@@ -131,7 +131,7 @@ def magazine_scan(title=None):
                             if match:
                                 title = match.group("title").strip()
                                 issuedate = match.group("issuedate").strip()
-                                loggermatching.debug("Title pattern [%s][%s] %s" % (title, issuedate, fname))
+                                loggermatching.debug(f"Title pattern [{title}][{issuedate}] {fname}")
                                 if title.isdigit():
                                     match = False
                                 else:
@@ -141,7 +141,7 @@ def magazine_scan(title=None):
                                         title = parent
                                     match = True
                             if not match:
-                                logger.debug("Title pattern match failed for [%s]" % fname)
+                                logger.debug(f"Title pattern match failed for [{fname}]")
                         except Exception:
                             match = False
 
@@ -166,7 +166,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(issuedate, dic).split()
                             regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            loggermatching.debug("Date regex [%s][%s][%s]" % (regex_pass, issuedate, year))
+                            loggermatching.debug(f"Date regex [{regex_pass}][{issuedate}][{year}]")
                             if regex_pass:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)
@@ -179,7 +179,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(fname, dic).split()
                             regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            loggermatching.debug("File regex [%s][%s][%s]" % (regex_pass, issuedate, year))
+                            loggermatching.debug(f"File regex [{regex_pass}][{issuedate}][{year}]")
                             if regex_pass:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)
@@ -189,14 +189,14 @@ def magazine_scan(title=None):
                                 issuedate = ''
 
                         if not issuedate:
-                            logger.warning("Invalid name format for [%s]" % fname)
+                            logger.warning(f"Invalid name format for [{fname}]")
                             continue
 
                         issuefile = os.path.join(rootdir, fname)  # full path to issue.pdf
                         mtime = os.path.getmtime(syspath(issuefile))
                         iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
-                        logger.debug("Found %s Issue %s" % (title, issuedate))
+                        logger.debug(f"Found {title} Issue {issuedate}")
 
                         if not mag_entry:
                             # need to add a new magazine to the database
@@ -213,7 +213,7 @@ def magazine_scan(title=None):
                                 "Regex": None,
                                 "CoverPage": 1
                             }
-                            logger.debug("Adding magazine %s" % title)
+                            logger.debug(f"Adding magazine {title}")
                             db.upsert("magazines", new_value_dict, control_value_dict)
                             magissuedate = None
                             magazineadded = None
@@ -232,12 +232,11 @@ def magazine_scan(title=None):
                             if issuedate and issuedate.isdigit():
                                 if len(issuedate) == 8:
                                     if check_year(issuedate[:4]):
-                                        filedate = 'Issue %d %s' % (int(issuedate[4:]), issuedate[:4])
+                                        filedate = f'Issue {int(issuedate[4:])} {issuedate[:4]}'
                                     else:
-                                        filedate = 'Vol %d Iss %d' % (int(issuedate[:4]), int(issuedate[4:]))
+                                        filedate = f'Vol {int(issuedate[:4])} Iss {int(issuedate[4:])}'
                                 elif len(issuedate) == 12:
-                                    filedate = 'Vol %d Iss %d %s' % (int(issuedate[4:8]), int(issuedate[8:]),
-                                                                     issuedate[:4])
+                                    filedate = f'Vol {int(issuedate[4:8])} Iss {int(issuedate[8:])} {issuedate[:4]}'
                                 else:
                                     filedate = str(issuedate).zfill(4)
 
@@ -247,11 +246,11 @@ def magazine_scan(title=None):
                             #    filedate = filedate[:-3]
 
                             newfname = CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
-                                                                                     '$IssueDate', filedate)
+                                '$IssueDate', filedate)
                             newfname = newfname + extn
 
                             new_path = CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
-                                                                                       '$IssueDate', filedate)
+                                '$IssueDate', filedate)
                             if CONFIG.get_bool('MAG_RELATIVE'):
                                 new_path = os.path.join(get_directory('eBook'), new_path)
 
@@ -262,7 +261,7 @@ def magazine_scan(title=None):
                             if newissuefile != issuefile:
                                 if not path_isdir(new_path):
                                     make_dirs(new_path)
-                                logger.debug("Rename %s -> %s" % (repr(issuefile), repr(newissuefile)))
+                                logger.debug(f"Rename {repr(issuefile)} -> {repr(newissuefile)}")
                                 newissuefile = safe_move(issuefile, newissuefile)
                                 for e in ['.jpg', '.opf']:
                                     if path_exists(issuefile.replace(extn, e)):
@@ -278,7 +277,7 @@ def magazine_scan(title=None):
                         issuedate = str(issuedate).zfill(4)  # for sorting issue numbers
 
                         # is this issue already in the database?
-                        issue_id = create_id("%s %s" % (title, issuedate))
+                        issue_id = create_id(f"{title} {issuedate}")
                         iss_entry = db.match('SELECT Title,IssueFile,Cover from issues WHERE Title=? and IssueDate=?',
                                              (title, issuedate))
 
@@ -287,17 +286,17 @@ def magazine_scan(title=None):
                         if not iss_entry or iss_entry['IssueFile'] != issuefile:
                             coverfile = create_mag_cover(issuefile, pagenum=magcoverpage, refresh=new_entry)
                             if coverfile:
-                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', f'{myhash}.jpg')
                                 copyfile(coverfile, hashname)
                                 setperm(hashname)
-                                cover = 'cache/magazine/%s.jpg' % myhash
+                                cover = f'cache/magazine/{myhash}.jpg'
                             else:
                                 cover = 'data/images/nocover.jpg'
                             new_entry = True  # new entry or name changed
                             if not iss_entry:
-                                logger.debug("Adding issue %s %s" % (title, issuedate))
+                                logger.debug(f"Adding issue {title} {issuedate}")
                             else:
-                                logger.debug("Updating issue %s %s" % (title, issuedate))
+                                logger.debug(f"Updating issue {title} {issuedate}")
                             control_value_dict = {"Title": title, "IssueDate": issuedate}
                             new_value_dict = {
                                 "IssueAcquired": iss_acquired,
@@ -307,7 +306,7 @@ def magazine_scan(title=None):
                             }
                             db.upsert("Issues", new_value_dict, control_value_dict)
                         else:
-                            logger.debug("Issue %s %s already exists" % (title, issuedate))
+                            logger.debug(f"Issue {title} {issuedate} already exists")
                             cover = iss_entry['Cover']
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
@@ -315,7 +314,7 @@ def magazine_scan(title=None):
                             with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                                 f.write(u"magazine")
                         except IOError as e:
-                            logger.warning("Unable to create/write to ignorefile: %s" % str(e))
+                            logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
                         if not CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')
@@ -358,16 +357,17 @@ def magazine_scan(title=None):
             if CONFIG.get_bool('FULL_SCAN') and not onetitle:
                 magcount = db.match("select count(*) from magazines")
                 isscount = db.match("select count(*) from issues")
-                logger.info("Magazine scan complete, found %s %s, %s %s" %
-                            (magcount['count(*)'], plural(magcount['count(*)'], "magazine"),
-                             isscount['count(*)'], plural(isscount['count(*)'], "issue")))
+                logger.info(
+                    f"Magazine scan complete, found {magcount['count(*)']} "
+                    f"{plural(magcount['count(*)'], 'magazine')}, "
+                    f"{isscount['count(*)']} {plural(isscount['count(*)'], 'issue')}")
             else:
                 logger.info("Magazine scan complete")
         lazylibrarian.MAG_UPDATE = 0
 
     except Exception:
         lazylibrarian.MAG_UPDATE = 0
-        logger.error('Unhandled exception in magazine_scan: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in magazine_scan: {traceback.format_exc()}')
     finally:
         if 'MAGAZINE_SCAN' in threading.current_thread().name:
             threading.current_thread().name = 'WEBSERVER'

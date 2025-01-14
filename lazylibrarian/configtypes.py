@@ -118,7 +118,7 @@ class ConfigItem:
     def get_float(self) -> float:
         self._on_read(False)
         return 0.0
-    
+
     def set_float(self, value: float) -> float:
         return False
 
@@ -235,11 +235,11 @@ class ConfigInt(ConfigItem):
             return 0
 
     def set_int(self, value: int) -> bool:
-        if type(value) != int:
+        if not isinstance(value, int):
             try:
                 value = int(value)
             except (ValueError, TypeError):
-                return self._on_type_mismatch(value, 'int/' + type(value))
+                return self._on_type_mismatch(value, f"int/{type(value)}")
         return self._on_set(value)
 
     def set_str(self, value: str) -> bool:
@@ -271,6 +271,7 @@ class ConfigInt(ConfigItem):
             value = 0
         return self.set_int(value)
 
+
 class ConfigFloat(ConfigItem):
     """ A config item that is a float """
 
@@ -289,15 +290,15 @@ class ConfigFloat(ConfigItem):
             try:
                 value = float(value)
             except (ValueError, TypeError):
-                return self._on_type_mismatch(value, 'float/' + type(value))
+                return self._on_type_mismatch(value, f"float/{type(value)}")
         return self._on_set(float(value))
 
     def set_float(self, value: float) -> bool:
-        if type(value) != float:
+        if not isinstance(value, float):
             try:
                 value = float(value)
             except (ValueError, TypeError):
-                return self._on_type_mismatch(value, 'float/' + type(value))
+                return self._on_type_mismatch(value, f"float/{type(value)}")
         return self._on_set(value)
 
     def set_str(self, value: str) -> bool:
@@ -328,6 +329,7 @@ class ConfigFloat(ConfigItem):
         except Exception:
             value = 0
         return self.set_float(value)
+
 
 class ConfigRangedInt(ConfigInt):
     """ An int config item that must be in a particular range """
@@ -788,8 +790,8 @@ class ConfigDict:
         else:
             self._handle_access_error(key, Access.READ_ERR)
             return 0
-        
-    def set_float(self, key:str, value: float):
+
+    def set_float(self, key: str, value: float):
         if key.upper() in self.config:
             self.config[key.upper()].set_float(value)
         else:

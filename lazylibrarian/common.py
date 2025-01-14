@@ -55,7 +55,7 @@ def get_user_agent() -> str:
     if CONFIG['USER_AGENT']:
         return CONFIG['USER_AGENT']
     else:
-        return 'LazyLibrarian' + ' (' + platform.system() + ' ' + platform.release() + ')'
+        return f"LazyLibrarian ({platform.system()} {platform.release()})"
 
 
 def get_readinglist(table, user):
@@ -286,23 +286,23 @@ def log_header(online=True) -> str:
     logger = logging.getLogger(__name__)
     popen_list = [sys.executable, DIRS.FULL_PATH]
     popen_list += DIRS.ARGS
-    header = "Startup cmd: %s\n" % str(popen_list)
-    header += "config file: %s\n" % CONFIG.configfilename
-    header += 'Interface: %s\n' % CONFIG['HTTP_LOOK']
-    header += 'Loglevel: %s\n' % logging.getLevelName(logger.getEffectiveLevel())
-    header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
+    header = f"Startup cmd: {str(popen_list)}\n"
+    header += f"config file: {CONFIG.configfilename}\n"
+    header += f"Interface: {CONFIG['HTTP_LOOK']}\n"
+    header += f'Loglevel: {logging.getLevelName(logger.getEffectiveLevel())}\n'
+    header += f'Sys_Encoding: {lazylibrarian.SYS_ENCODING}\n'
     for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
             timestamp = CONFIG.get_int(item)
-            header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
+            header += f'{item.lower()}: {time.ctime(timestamp)}\n'
         else:
-            header += '%s: %s\n' % (item.lower(), CONFIG[item])
+            header += f'{item.lower()}: {CONFIG[item]}\n'
     try:
-        header += 'package version: %s\n' % lazylibrarian.version.PACKAGE_VERSION
+        header += f'package version: {lazylibrarian.version.PACKAGE_VERSION}\n'
     except AttributeError:
         pass
     try:
-        header += 'packaged by: %s\n' % lazylibrarian.version.PACKAGED_BY
+        header += f'packaged by: {lazylibrarian.version.PACKAGED_BY}\n'
     except AttributeError:
         pass
 
@@ -317,21 +317,21 @@ def log_header(online=True) -> str:
         if value.isdigit():
             db_version = int(value)
     uname = platform.uname()
-    header += "db version: %s\n" % db_version
+    header += f"db version: {db_version}\n"
     header += "Python version: %s\n" % sys.version.split('\n')
-    header += "uname: %s\n" % str(uname)
-    header += "Platform: %s\n" % platform.platform(aliased=True)
+    header += f"uname: {str(uname)}\n"
+    header += f"Platform: {platform.platform(aliased=True)}\n"
     if uname[0] == 'Darwin':
-        header += "mac_ver: %s\n" % str(platform.mac_ver())
+        header += f"mac_ver: {str(platform.mac_ver())}\n"
     elif uname[0] == 'Windows':
-        header += "win_ver: %s\n" % str(platform.win32_ver())
-    header += "apscheduler: %s\n" % getattr(apscheduler, '__version__', None)
-    header += "httplib2: %s\n" % getattr(httplib2, '__version__', None)
+        header += f"win_ver: {str(platform.win32_ver())}\n"
+    header += f"apscheduler: {getattr(apscheduler, '__version__', None)}\n"
+    header += f"httplib2: {getattr(httplib2, '__version__', None)}\n"
     if 'urllib3' in globals():
-        header += "urllib3: %s\n" % getattr(urllib3, '__version__', None)
+        header += f"urllib3: {getattr(urllib3, '__version__', None)}\n"
     else:
         header += "urllib3: not found\n"
-    header += "requests: %s\n" % getattr(requests, '__version__', None)
+    header += f"requests: {getattr(requests, '__version__', None)}\n"
     if online:
         try:
             if CONFIG.get_bool('SSL_VERIFY'):
@@ -347,44 +347,44 @@ def log_header(online=True) -> str:
                 header += 'tls: missing required functionality. Try upgrading to v1.2 or newer. You have '
         except Exception as err:
             tls_version = str(err)
-        header += "tls: %s\n" % tls_version
+        header += f"tls: {tls_version}\n"
 
-    header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
-    header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
-    header += "mako: %s\n" % getattr(mako, '__version__', None)
-    header += "webencodings: %s\n" % getattr(webencodings, 'VERSION', None)
-    header += "pypdf: %s\n" % getattr(pypdf, '__version__', None)
+    header += f"cherrypy: {getattr(cherrypy, '__version__', None)}\n"
+    header += f"sqlite3: {getattr(sqlite3, 'sqlite_version', None)}\n"
+    header += f"mako: {getattr(mako, '__version__', None)}\n"
+    header += f"webencodings: {getattr(webencodings, 'VERSION', None)}\n"
+    header += f"pypdf: {getattr(pypdf, '__version__', None)}\n"
     from lazylibrarian.notifiers import APPRISE_VER
     if APPRISE_VER and APPRISE_VER[0].isdigit():
-        header += "apprise: %s\n" % APPRISE_VER
+        header += f"apprise: {APPRISE_VER}\n"
     else:
         header += "apprise: not found\n"
     if lazylibrarian.UNRARLIB == 1:
         vers = lazylibrarian.RARFILE.unrarlib.RARGetDllVersion()
-        header += "unrar: %s\n" % vers
+        header += f"unrar: {vers}\n"
     elif lazylibrarian.UNRARLIB == 2:
         import lib.UnRAR2 as UnRAR2
         vers = getattr(UnRAR2, '__version__', None)
-        header += "unrar2: %s\n" % vers
+        header += f"unrar2: {vers}\n"
         if os.name == 'nt':
             vers = UnRAR2.windows.RARGetDllVersion()
-            header += "unrar dll: %s\n" % vers
+            header += f"unrar dll: {vers}\n"
     else:
         header += "unrar: not found\n"
 
-    header += "bs4: %s\n" % getattr(bs4, '__version__', None)
-    header += "html5lib: %s\n" % getattr(html5lib, '__version__', None)
+    header += f"bs4: {getattr(bs4, '__version__', None)}\n"
+    header += f"html5lib: {getattr(html5lib, '__version__', None)}\n"
 
     try:
         import PIL
         vers = getattr(PIL, '__version__', None)
-        header += "python imaging: %s\n" % vers
+        header += f"python imaging: {vers}\n"
         import lib.icrawler as icrawler
-        header += "icrawler: %s\n" % getattr(icrawler, '__version__', None)
+        header += f"icrawler: {getattr(icrawler, '__version__', None)}\n"
     except ImportError:
         header += "python imaging: not found, unable to use icrawler\n"
 
-    header += "openssl: %s\n" % getattr(ssl, 'OPENSSL_VERSION', None)
+    header += f"openssl: {getattr(ssl, 'OPENSSL_VERSION', None)}\n"
     X509 = None
     cryptography = None
     try:
@@ -408,13 +408,13 @@ def log_header(online=True) -> str:
         x509 = X509()
         if getattr(x509, "_x509", None) is None:
             header += "pyOpenSSL: module missing required functionality. Try upgrading to v0.14 or newer. You have "
-        header += "pyOpenSSL: %s\n" % getattr(OpenSSL, '__version__', None)
+        header += f"pyOpenSSL: {getattr(OpenSSL, '__version__', None)}\n"
 
     if OpenSSL:
         try:
             import OpenSSL.SSL
         except (ImportError, AttributeError) as err:
-            header += 'pyOpenSSL missing SSL module/attribute: %s\n' % err
+            header += f'pyOpenSSL missing SSL module/attribute: {err}\n'
 
     if OpenSSL:
         try:
@@ -432,7 +432,7 @@ def log_header(online=True) -> str:
             if getattr(Extensions, "get_extension_for_class", None) is None:
                 header += "cryptography: module missing required functionality."
                 header += " Try upgrading to v1.3.4 or newer. You have "
-            header += "cryptography: %s\n" % getattr(cryptography, '__version__', None)
+            header += f"cryptography: {getattr(cryptography, '__version__', None)}\n"
         except ImportError:
             header += "cryptography Extensions: not found\n"
 
@@ -444,7 +444,7 @@ def log_header(online=True) -> str:
             vers = "installed"
     except Exception:
         vers = "not found"
-    header += "Rapidfuzz: %s\n" % vers
+    header += f"Rapidfuzz: {vers}\n"
     try:
         import magic
         try:
@@ -457,7 +457,7 @@ def log_header(online=True) -> str:
             vers = 'not found'
     except Exception:  # magic might fail for multiple reasons
         vers = 'not found'
-    header += "magic: %s\n" % vers
+    header += f"magic: {vers}\n"
 
     return header
 
@@ -470,9 +470,9 @@ def zip_audio(source, zipname, bookid):
         Return full path to zipfile
     """
     logger = logging.getLogger(__name__)
-    zip_file = os.path.join(source, zipname + '.zip')
+    zip_file = os.path.join(source, f"{zipname}.zip")
     if not path_exists(zip_file):
-        logger.debug('Zipping up %s' % zipname)
+        logger.debug(f'Zipping up {zipname}')
         namevars = lazylibrarian.bookrename.name_vars(bookid)
         singlefile = namevars['AudioSingleFile']
 
@@ -487,7 +487,7 @@ def zip_audio(source, zipname, bookid):
                         if bname != singlefile:
                             cnt += 1
                             myzip.write(os.path.join(rootdir, filename), filename)
-        logger.debug('Zipped up %s files' % cnt)
+        logger.debug(f'Zipped up {cnt} files')
         _ = setperm(zip_file)
     return zip_file
 
@@ -509,7 +509,7 @@ def run_script(params):
         dlcommslogger.debug(make_unicode(err))
         return p.returncode, make_unicode(res), make_unicode(err)
     except Exception as er:
-        err = "run_script exception: %s %s" % (type(er).__name__, str(er))
+        err = f"run_script exception: {type(er).__name__} {str(er)}"
         logger.error(err)
         return 1, '', err
 
@@ -530,14 +530,14 @@ def calibre_prg(prgname):
     if not target or not os.path.exists(target):
         target = os.path.join(os.getcwd(), prgname)
         if not os.path.exists(target):
-            logger.debug("%s not found" % target)
+            logger.debug(f"{target} not found")
             if os.name == 'nt':
                 try:
                     params = ["where", prgname]
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                     target = make_unicode(res).strip()
                 except Exception as err:
-                    logger.debug("where %s failed: %s %s" % (prgname, type(err).__name__, str(err)))
+                    logger.debug(f"where {prgname} failed: {type(err).__name__} {str(err)}")
                     target = ''
             else:
                 try:
@@ -545,17 +545,17 @@ def calibre_prg(prgname):
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                     target = make_unicode(res).strip()
                 except Exception as err:
-                    logger.debug("which %s failed: %s %s" % (prgname, type(err).__name__, str(err)))
+                    logger.debug(f"which {prgname} failed: {type(err).__name__} {str(err)}")
                     target = ''
     if target:
-        logger.debug("Using %s" % target)
+        logger.debug(f"Using {target}")
         try:
             params = [target, "--version"]
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
             res = make_unicode(res).strip().split("(")[1].split(")")[0]
-            logger.debug("Found %s version %s" % (prgname, res))
+            logger.debug(f"Found {prgname} version {res}")
         except Exception as err:
-            logger.debug("%s --version failed: %s %s" % (prgname, type(err).__name__, str(err)))
+            logger.debug(f"{prgname} --version failed: {type(err).__name__} {str(err)}")
             target = ''
     return target
 

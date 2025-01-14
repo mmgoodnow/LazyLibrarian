@@ -55,7 +55,7 @@ def gr_api_sleep():
         sleep_time = 1.0 - delay
         lazylibrarian.TIMERS['SLEEP_GR'] += sleep_time
         cachelogger = logging.getLogger('special.cache')
-        cachelogger.debug("GoodReads sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_GR']))
+        cachelogger.debug(f"GoodReads sleep {sleep_time:.3f}, total {lazylibrarian.TIMERS['SLEEP_GR']:.3f}")
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_GR'] = time_now
 
@@ -129,25 +129,25 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
         # but if it takes more than 30 loops the requests library stops trying
         # Retrying with verify off seems to clear it
         if not retry:
-            logger.error("fetch_url: TooManyRedirects getting response from %s" % url)
-            return "TooManyRedirects %s" % str(e), False
-        logger.debug("Retrying - got TooManyRedirects on %s" % url)
+            logger.error(f"fetch_url: TooManyRedirects getting response from {url}")
+            return f"TooManyRedirects {str(e)}", False
+        logger.debug(f"Retrying - got TooManyRedirects on {url}")
         try:
             r = requests.get(url, verify=False, params=payload, headers=headers)
-            logger.debug("TooManyRedirects retry status code %s" % r.status_code)
+            logger.debug(f"TooManyRedirects retry status code {r.status_code}")
         except Exception as e:
-            return "Exception %s: %s" % (type(e).__name__, str(e)), False
+            return f"Exception {type(e).__name__}: {str(e)}", False
     except requests.exceptions.Timeout as e:
         if not retry:
-            logger.error("fetch_url: Timeout getting response from %s" % url)
-            return "Timeout %s" % str(e), False
-        logger.debug("fetch_url: retrying - got timeout on %s" % url)
+            logger.error(f"fetch_url: Timeout getting response from {url}")
+            return f"Timeout {str(e)}", False
+        logger.debug(f"fetch_url: retrying - got timeout on {url}")
         try:
             r = requests.get(url, verify=verify, params=payload, headers=headers)
         except Exception as e:
-            return "Exception %s: %s" % (type(e).__name__, str(e)), False
+            return f"Exception {type(e).__name__}: {str(e)}", False
     except Exception as e:
-        return "Exception %s: %s" % (type(e).__name__, str(e)), False
+        return f"Exception {type(e).__name__}: {str(e)}", False
 
     if str(r.status_code).startswith('2'):  # (200 OK etc)
         if raw:
@@ -197,7 +197,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
         msg = responses[r.status_code]
     else:
         msg = r.text
-    return "Response status %s: %s" % (r.status_code, msg), False
+    return f"Response status {r.status_code}: {msg}", False
 
 
 def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> (str, bool, bool):
@@ -208,12 +208,12 @@ def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> 
 
     logger = logging.getLogger(__name__)
     had_cache = False
-    cachefile = DIRS.get_cachefile(img_type.value, img_id + '.jpg')
-    link = 'cache/%s/%s.jpg' % (img_type.value, img_id)
+    cachefile = DIRS.get_cachefile(img_type.value, f"{img_id}.jpg")
+    link = f'cache/{img_type.value}/{img_id}.jpg'
     if path_isfile(cachefile):
         if not refresh:  # overwrite any cached image
             cachelogger = logging.getLogger('special.cache')
-            cachelogger.debug("Cached %s image exists %s" % (img_type.name, cachefile))
+            cachelogger.debug(f"Cached {img_type.name} image exists {cachefile}")
             return link, True, True
         else:
             had_cache = True
@@ -226,22 +226,22 @@ def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> 
                     img.write(result)
                 return link, True, False
             except Exception as e:
-                logger.error("%s writing image to %s, %s" % (type(e).__name__, cachefile, str(e)))
-                logger.error("Image url: %s" % img_url)
+                logger.error(f"{type(e).__name__} writing image to {cachefile}, {str(e)}")
+                logger.error(f"Image url: {img_url}")
                 return str(e), False, False
         return result, False, False
 
     if not path_isfile(img_url) and img_url.endswith('.jpg'):
         # icrawler might give us jpg or png
-        img_url = img_url[:-4] + '.png'
+        img_url = f"{img_url[:-4]}.png"
     if path_isfile(img_url):
         try:
             shutil.copyfile(img_url, cachefile)
             return link, True, had_cache
         except Exception as e:
-            logger.error("%s copying image to %s, %s" % (type(e).__name__, cachefile, str(e)))
+            logger.error(f"{type(e).__name__} copying image to {cachefile}, {str(e)}")
             return str(e), False, False
-    msg = "No file [%s]" % img_url
+    msg = f"No file [{img_url}]"
     logger.debug(msg)
     return msg, False, False
 
@@ -264,6 +264,7 @@ def html_request(my_url, use_cache=True, expire=True) -> (Any, bool):
 
 class CacheRequest(ABC):
     """ Handle cache requests for LazyLibrarian. Use a concrete subclass of this """
+
     def __init__(self, url: str, use_cache: bool, expire: bool):
         self.url = url
         self.use_cache = use_cache
@@ -279,7 +280,7 @@ class CacheRequest(ABC):
 
     @classmethod
     def cachedir_name(cls) -> str:
-        return cls.name() + "Cache"
+        return f"{cls.name()}Cache"
 
     @abc.abstractmethod
     def read_from_cache(self, hashfilename: str) -> (str, bool):
@@ -345,7 +346,7 @@ class CacheRequest(ABC):
             if self.expire and cache_modified_time < time_now - expiry:
                 # Cache entry is too old, delete it
                 cachelogger = logging.getLogger('special.cache')
-                cachelogger.debug("Expiring %s" % myhash)
+                cachelogger.debug(f"Expiring {myhash}")
                 os.remove(syspath(hashfilename))
                 return False
             else:
@@ -355,7 +356,7 @@ class CacheRequest(ABC):
 
     def get_hashed_filename(self, cache_location: str) -> (str, str):
         myhash = md5_utf8(self.url)
-        hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + "." + self.name().lower())
+        hashfilename = os.path.join(cache_location, myhash[0], myhash[1], f"{myhash}.{self.name().lower()}")
         return hashfilename, myhash
 
 
@@ -377,13 +378,13 @@ class XMLCacheRequest(CacheRequest):
                     result = result.decode('utf-16').encode('utf-8')
                     source = ElementTree.fromstring(result)
                 except (ElementTree.ParseError, UnicodeEncodeError, UnicodeDecodeError):
-                    self.logger.error("Error parsing xml from %s" % hashfilename)
+                    self.logger.error(f"Error parsing xml from {hashfilename}")
                     source = None
             except ElementTree.ParseError:
-                self.logger.error("Error parsing xml from %s" % hashfilename)
+                self.logger.error(f"Error parsing xml from {hashfilename}")
                 source = None
         if source is None:
-            self.logger.error("Error reading xml from %s" % hashfilename)
+            self.logger.error(f"Error reading xml from {hashfilename}")
             # normally delete bad data, but keep for inspection if debug logging cache
             if not self.cachelogger.isEnabledFor(logging.DEBUG):
                 remove_file(hashfilename)
@@ -410,17 +411,17 @@ class XMLCacheRequest(CacheRequest):
                     if not docache:
                         return source, False
                 except (ElementTree.ParseError, UnicodeEncodeError, UnicodeDecodeError):
-                    self.logger.error("Error parsing xml from %s" % self.url)
+                    self.logger.error(f"Error parsing xml from {self.url}")
                     source = None
             except ElementTree.ParseError:
-                self.logger.error("Error parsing xml from %s" % self.url)
+                self.logger.error(f"Error parsing xml from {self.url}")
                 source = None
 
         if source is not None:
             with open(syspath(filename), "wb") as cachefile:
                 cachefile.write(result)
         else:
-            self.logger.error("Error getting xml data from %s" % self.url)
+            self.logger.error(f"Error getting xml data from {self.url}")
             return None, False
         return source, True
 
@@ -455,7 +456,7 @@ class JSONCacheRequest(CacheRequest):
             finally:
                 f.close()
         except ValueError:
-            self.logger.error("Error decoding json from %s" % hashfilename)
+            self.logger.error(f"Error decoding json from {hashfilename}")
             # normally delete bad data, but keep for inspection if debug logging cache
             # if not self.cachelogger.isEnabledFor(logging.DEBUG):
             remove_file(hashfilename)
@@ -468,8 +469,8 @@ class JSONCacheRequest(CacheRequest):
             if not docache:
                 return source, False
         except Exception as e:
-            self.logger.error("%s decoding json from %s" % (type(e).__name__, self.url))
-            self.logger.debug("%s : %s" % (e, result))
+            self.logger.error(f"{type(e).__name__} decoding json from {self.url}")
+            self.logger.debug(f"{e} : {result}")
             return None, False
         json.dump(source, open(filename, "w"))
         return source, True
@@ -533,7 +534,7 @@ def clean_cache():
             else:
                 old = 0
             db.action("DELETE from pastissues WHERE Added>0 and Added<?", (too_old,))
-            msg = "Cleaned %i old pastissues, kept %i" % (old, total - old)
+            msg = f"Cleaned {old} old pastissues, kept {total - old}"
             result.append(msg)
             logger.debug(msg)
     finally:
@@ -575,8 +576,8 @@ class FileCleaner(CacheCleaner):
             else:
                 for cached_file in listdir(self.cache):
                     self.clean_file(os.path.join(self.cache, cached_file))
-        msg = "Cleaned %i %s %s from %s, kept %i" % \
-              (self.cleaned, self.name(), plural(self.cleaned, "file"), self.source(), self.kept)
+        msg = (f"Cleaned {self.cleaned} {self.name()} {plural(self.cleaned, 'file')} from {self.source()}, "
+               f"kept {self.kept}")
         self.logger.debug(msg)
         return msg
 
@@ -591,10 +592,12 @@ class FileCleaner(CacheCleaner):
         return self.basedir
 
     @abc.abstractmethod
-    def name(self) -> str: pass
+    def name(self) -> str:
+        pass
 
     @abc.abstractmethod
-    def clean_file(self, filename): pass
+    def clean_file(self, filename):
+        pass
 
 
 class FileExpirer(FileCleaner):
@@ -663,7 +666,7 @@ class OrphanCleaner(FileCleaner):
             item = self.db.match(query, (match,))
             self.remove_if(filename, not item)
         except IndexError:
-            self.logger.error('Clean Cache: Error splitting %s' % filename)
+            self.logger.error(f'Clean Cache: Error splitting {filename}')
 
 
 class UnreferencedCleaner(FileCleaner):
@@ -721,10 +724,10 @@ class DBCleaner(CacheCleaner):
                 self.kept += 1
             else:
                 self.cleaned += 1
-                self.logger.debug('%s missing for %s %s' % (self.typestr, item[self.fname], imgfile))
+                self.logger.debug(f'{self.typestr} missing for {item[self.fname]} {imgfile}')
                 updatequery = f"update {self.table} set {self.fimg}='{self.fallback}' where {self.fid}=?"
                 self.db.action(updatequery, (item[self.fid],))
 
-        msg = "Cleaned %i missing %s, kept %i" % (self.cleaned, plural(self.cleaned, self.typestr), self.kept)
+        msg = f"Cleaned {self.cleaned} missing {plural(self.cleaned, self.typestr)}, kept {self.kept}"
         self.logger.debug(msg)
         return msg

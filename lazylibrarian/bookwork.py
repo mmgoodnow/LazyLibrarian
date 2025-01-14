@@ -14,22 +14,23 @@
 import logging
 import os
 import re
-import time
 import threading
+import time
 import traceback
-
 from urllib.parse import quote_plus, quote, urlencode
+
+import requests
+from rapidfuzz import fuzz
+
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.common import proxy_list
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, quotes
 from lazylibrarian.processcontrol import get_info_on_caller
-import requests
-from rapidfuzz import fuzz
 
 
 def set_all_book_authors():
@@ -51,7 +52,7 @@ def set_all_book_authors():
             totalrefs += newrefs
     finally:
         db.close()
-    msg = "Added %s new authors to database, %s new bookauthors" % (totalauthors, totalrefs)
+    msg = f"Added {totalauthors} new authors to database, {totalrefs} new bookauthors"
     logger.debug(msg)
     return totalauthors, totalrefs
 
@@ -85,7 +86,7 @@ def set_book_authors(book):
                     authorid = exists['authorid']
                 else:
                     # try to add new author to database by name
-                    reason = "set_book_authors: %s" % book['bookname']
+                    reason = f"set_book_authors: {book['bookname']}"
                     authorname, authorid, new = lazylibrarian.importer.add_author_name_to_db(authorname,
                                                                                              refresh=False,
                                                                                              addbooks=False,
@@ -99,7 +100,7 @@ def set_book_authors(book):
                     newrefs += 1
         except Exception as e:
             logger = logging.getLogger(__name__)
-            logger.error("Error parsing authorlist for %s: %s %s" % (book['bookname'], type(e).__name__, str(e)))
+            logger.error(f"Error parsing authorlist for {book['bookname']}: {type(e).__name__} {str(e)}")
     finally:
         db.close()
     return newauthors, newrefs
@@ -115,20 +116,20 @@ def set_all_book_series():
         db.close()
     counter = 0
     if books:
-        logger.info('Checking series for %s %s' % (len(books), plural(len(books), "book")))
+        logger.info(f"Checking series for {len(books)} {plural(len(books), 'book')}")
         for book in books:
             if CONFIG['BOOK_API'] == 'GoodReads':
                 workid = book['WorkID']
                 if not workid:
-                    logger.debug("No workid for book %s: %s" % (book['BookID'], book['BookName']))
+                    logger.debug(f"No workid for book {book['BookID']}: {book['BookName']}")
             elif CONFIG['BOOK_API'] == 'GoogleBooks':
                 workid = book['BookID']
                 if not workid:
-                    logger.debug("No bookid for book: %s" % book['BookName'])
+                    logger.debug(f"No bookid for book: {book['BookName']}")
             elif CONFIG['BOOK_API'] == 'OpenLibrary':
                 workid = book['WorkID']
                 if not workid:
-                    logger.debug("No workid for book %s: %s" % (book['BookID'], book['BookName']))
+                    logger.debug(f"No workid for book {book['BookID']}: {book['BookName']}")
             else:
                 workid = None
             if workid:
@@ -137,8 +138,8 @@ def set_all_book_series():
                     counter += 1
                     set_series(serieslist, book['BookID'])
     delete_empty_series()
-    msg = 'Updated %s %s' % (counter, plural(counter, "book"))
-    logger.info('Series check complete: ' + msg)
+    msg = f"Updated {counter} {plural(counter, 'book')}"
+    logger.info(f"Series check complete: {msg}")
     return msg
 
 
@@ -167,23 +168,23 @@ def set_series(serieslist=None, bookid=None, reason=""):
 
                 if match:
                     seriesid = match['SeriesID']
-                    debug_msg = "Series %s exists (%s) %s" % (item[2], seriesid, match['Status'])
+                    debug_msg = f"Series {item[2]} exists ({seriesid}) {match['Status']}"
                     logger.info(debug_msg)
                     if match['Status'] in ['Paused', 'Ignored']:
                         members = []
                     else:
                         members, _api_hits = get_series_members(seriesid, item[2])
-                        debug_msg = "Existing series %s has %s members" % (item[2], len(members))
+                        debug_msg = f"Existing series {item[2]} has {len(members)} members"
                         logger.info(debug_msg)
                         api_hits += _api_hits
                 else:
                     # new series, need to set status and get SeriesID
-                    debug_msg = "Series %s is new" % item[2]
+                    debug_msg = f"Series {item[2]} is new"
                     logger.info(debug_msg)
                     if item[0]:
                         seriesid = item[0]
                         members, _api_hits = get_series_members(seriesid, item[2])
-                        debug_msg = "New series %s:%s has %s members" % (item[2], seriesid, len(members))
+                        debug_msg = f"New series {item[2]}:{seriesid} has {len(members)} members"
                         logger.info(debug_msg)
                         api_hits += _api_hits
                     else:
@@ -194,17 +195,17 @@ def set_series(serieslist=None, bookid=None, reason=""):
                             if not cnt:
                                 break
                             res += 1
-                        seriesid = 'LL' + str(res)
-                        debug_msg = "Series %s set LL seriesid %s" % (item[2], seriesid)
+                        seriesid = f"LL{str(res)}"
+                        debug_msg = f"Series {item[2]} set LL seriesid {seriesid}"
                         logger.info(debug_msg)
                         members = []
                         newserieslist.append(item)
                         if not reason:
                             program, method, lineno = get_info_on_caller(depth=1)
-                            reason = "%s:%s:%s" % (program, method, lineno)
+                            reason = f"{program}:{method}:{lineno}"
 
-                        reason = "Bookid %s: %s" % (bookid, reason)
-                        debug_msg = "Adding new series %s:%s" % (item[2], seriesid)
+                        reason = f"Bookid {bookid}: {reason}"
+                        debug_msg = f"Adding new series {item[2]}:{seriesid}"
                         logger.info(debug_msg)
                         db.action('INSERT into series (SeriesID, SeriesName, Status, Updated, Reason) '
                                   'VALUES (?, ?, ?, ?, ?)',
@@ -229,7 +230,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                             if check_year(member[5], past=1800, future=0):
                                 bookdate = member[5]
                                 if check_int(member[6], 0) and check_int(member[7], 0):
-                                    bookdate = "%s-%s-%s" % (member[5], member[6], member[7])
+                                    bookdate = f"{member[5]}-{member[6]}-{member[7]}"
                                 control_value_dict = {"BookID": bookid}
                                 new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
                                 db.upsert("books", new_value_dict, control_value_dict)
@@ -266,8 +267,8 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
                 if CONFIG.get_bool('AUDIO_TAB'):
                     new_astatus = match['Status']
                 if new_status or new_astatus:
-                    logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
-                    msg = "[%s] Series (%s) is %s" % (threadname, item[2], match['Status'])
+                    logger.debug(f"Marking {bookname} as {match['Status']}, series {item[2]}")
+                    msg = f"[{threadname}] Series ({item[2]}) is {match['Status']}"
                     db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
                     break
 
@@ -282,9 +283,9 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
                 if CONFIG.get_bool('AUDIO_TAB'):
                     new_astatus = wanted_status
                 if new_status or new_astatus:
-                    logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
+                    logger.debug(f'Marking {bookname} as {wanted_status}, author {authstatus}')
                     match = db.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
-                    msg = "[%s] Author (%s) is %s" % (threadname, match['AuthorName'], authstatus)
+                    msg = f"[{threadname}] Author ({match['AuthorName']}) is {authstatus}"
                     db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
     finally:
         db.close()
@@ -294,7 +295,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
     if new_astatus:
         adefault = new_astatus
 
-    logger.debug("%s %s %s" % (bookname, default, adefault))
+    logger.debug(f"{bookname} {default} {adefault}")
     return default, adefault
 
 
@@ -308,7 +309,7 @@ def delete_empty_series():
         for item in series:
             match = db.match('SELECT BookID from member where SeriesID=?', (item['SeriesID'],))
             if not match:
-                logger.info('Deleting empty series %s:%s' % (item['SeriesName'], item['SeriesID']))
+                logger.info(f"Deleting empty series {item['SeriesName']}:{item['SeriesID']}")
                 count += 1
                 db.action('DELETE from series where SeriesID=?', (item['SeriesID'],))
     finally:
@@ -332,12 +333,12 @@ def set_work_id(books=None):
             books = db.select(cmd)
             if books:
                 counter = 0
-                logger.debug('Setting WorkID for %s %s' % (len(books), plural(len(books), "book")))
+                logger.debug(f"Setting WorkID for {len(books)} {plural(len(books), 'book')}")
                 page = ''
                 for book in books:
                     bookid = book['BookID']
                     if not bookid:
-                        logger.debug("No bookid for %s" % book['BookName'])
+                        logger.debug(f"No bookid for {book['BookName']}")
                     else:
                         if page:
                             page += ','
@@ -353,7 +354,7 @@ def set_work_id(books=None):
         counter = 0
         params = {"key": CONFIG['GR_API']}
         for page in pages:
-            url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' + urlencode(params)])
+            url = '/'.join([CONFIG['GR_URL'], f"book/id_to_work_id/{page}?{urlencode(params)}"])
             try:
                 rootxml, _ = gr_xml_request(url, use_cache=False)
                 if rootxml is None:
@@ -367,7 +368,7 @@ def set_work_id(books=None):
                         for item in ids:
                             workid = item.text
                             if not workid:
-                                logger.debug("No workid returned for %s" % books[cnt])
+                                logger.debug(f"No workid returned for {books[cnt]}")
                             else:
                                 counter += 1
                                 control_value_dict = {"BookID": books[cnt]}
@@ -376,12 +377,12 @@ def set_work_id(books=None):
                             cnt += 1
 
             except Exception as e:
-                logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
+                logger.error(f"{type(e).__name__} parsing id_to_work_id page: {str(e)}")
     finally:
         db.close()
 
-    msg = 'Updated %s %s' % (counter, plural(counter, "id"))
-    logger.debug("set_work_id complete: " + msg)
+    msg = f"Updated {counter} {plural(counter, 'id')}"
+    logger.debug(f"set_work_id complete: {msg}")
     return msg
 
 
@@ -393,7 +394,7 @@ def librarything_wait():
     if delay < 1.0:
         sleep_time = 1.0 - delay
         lazylibrarian.TIMERS['SLEEP_LT'] += sleep_time
-        logger.debug("LibraryThing sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_LT']))
+        logger.debug(f"LibraryThing sleep {sleep_time:.3f}, total {lazylibrarian.TIMERS['SLEEP_LT']:.3f}")
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_LT'] = time_now
 
@@ -432,9 +433,9 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
     if item:
         cache_location = os.path.join(DIRS.CACHEDIR, cache_location)
         if bookid:
-            workfile = os.path.join(cache_location, str(bookid) + '.html')
+            workfile = os.path.join(cache_location, f"{str(bookid)}.html")
         else:
-            workfile = os.path.join(cache_location, str(seriesid) + '.html')
+            workfile = os.path.join(cache_location, f"{str(seriesid)}.html")
 
         # does the workpage need to expire? For now only expire if it was an error page
         # (small file) or a series page as librarything might get better info over time, more series members etc
@@ -453,11 +454,11 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
             lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
             if bookid:
                 if reason:
-                    logger.debug("get_bookwork: Returning Cached entry for %s %s" % (bookid, reason))
+                    logger.debug(f"get_bookwork: Returning Cached entry for {bookid} {reason}")
                 else:
-                    logger.debug("get_bookwork: Returning Cached workpage for %s" % bookid)
+                    logger.debug(f"get_bookwork: Returning Cached workpage for {bookid}")
             else:
-                logger.debug("get_bookwork: Returning Cached seriespage for %s" % item['seriesName'])
+                logger.debug(f"get_bookwork: Returning Cached seriespage for {item['seriesName']}")
 
             with open(syspath(workfile), "r", errors="backslashreplace") as cachefile:
                 source = cachefile.read()
@@ -474,11 +475,11 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
             if bookid:
                 title = safe_unicode(item['BookName'])
                 author = safe_unicode(item['AuthorName'])
-                url = '/'.join([CONFIG['LT_URL'], 'api/whatwork.php?author=%s&title=%s' %
-                                (quote_plus(author), quote_plus(title))])
+                url = '/'.join(
+                    [CONFIG['LT_URL'], f'api/whatwork.php?author={quote_plus(author)}&title={quote_plus(title)}'])
             else:
                 seriesname = safe_unicode(item['seriesName'])
-                url = '/'.join([CONFIG['LT_URL'], 'series/%s' % quote_plus(seriesname)])
+                url = '/'.join([CONFIG['LT_URL'], f'series/{quote_plus(seriesname)}'])
 
             librarything_wait()
             result, success = fetch_url(url)
@@ -496,7 +497,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
                     # if no workpage link, try isbn instead
                     if item['BookISBN']:
                         url = '/'.join([CONFIG['LT_URL'],
-                                        'api/whatwork.php?isbn=' + item['BookISBN']])
+                                        f"api/whatwork.php?isbn={item['BookISBN']}"])
                         librarything_wait()
                         result, success = fetch_url(url)
                         if success:
@@ -512,35 +513,35 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
                                 except IndexError:
                                     errmsg = "Unknown Error"
                                 # still cache if whatwork returned a result without a link, so we don't keep retrying
-                                logger.debug("Librarything: [%s] for ISBN %s" % (errmsg, item['BookISBN']))
+                                logger.debug(f"Librarything: [{errmsg}] for ISBN {item['BookISBN']}")
                                 success = True
                     else:
                         # still cache if whatwork returned a result without a link, so we don't keep retrying
-                        msg = "Librarything: [" + errmsg + "] for "
-                        logger.debug(msg + item['AuthorName'] + ' ' + item['BookName'])
+                        msg = f"Librarything: [{errmsg}] for "
+                        logger.debug(f"{msg + item['AuthorName']} {item['BookName']}")
                         success = True
             if success:
                 with open(syspath(workfile), "w") as cachefile:
                     cachefile.write(result)
                     if bookid:
-                        logger.debug("get_bookwork: Caching workpage for %s" % workfile)
+                        logger.debug(f"get_bookwork: Caching workpage for {workfile}")
                     else:
-                        logger.debug("get_bookwork: Caching series page for %s" % workfile)
+                        logger.debug(f"get_bookwork: Caching series page for {workfile}")
                     # return None if we got an error page back
                     if '</request><error>' in result:
                         return None
                 return result
             else:
                 if bookid:
-                    logger.debug("get_bookwork: Unable to cache workpage, got %s" % result)
+                    logger.debug(f"get_bookwork: Unable to cache workpage, got {result}")
                 else:
-                    logger.debug("get_bookwork: Unable to cache series page, got %s" % result)
+                    logger.debug(f"get_bookwork: Unable to cache series page, got {result}")
             return None
     else:
         if bookid:
-            logger.debug('Get Book Work - Invalid bookID [%s]' % bookid)
+            logger.debug(f'Get Book Work - Invalid bookID [{bookid}]')
         else:
-            logger.debug('Get Book Work - Invalid seriesID [%s]' % seriesid)
+            logger.debug(f'Get Book Work - Invalid seriesID [{seriesid}]')
         return None
 
 
@@ -554,7 +555,7 @@ def set_work_pages():
                "and books.AuthorID = authors.AuthorID")
         books = db.select(cmd)
         if books:
-            logger.debug('Setting WorkPage for %s %s' % (len(books), plural(len(books), "book")))
+            logger.debug(f"Setting WorkPage for {len(books)} {plural(len(books), 'book')}")
             counter = 0
             for book in books:
                 bookid = book['BookID']
@@ -566,11 +567,11 @@ def set_work_pages():
                     counter += 1
                 else:
                     if check_int(LAST_NEW, 0) + 43200 < time.time():
-                        logger.debug('No WorkPage found for %s: %s' % (book['AuthorName'], book['BookName']))
+                        logger.debug(f"No WorkPage found for {book['AuthorName']}: {book['BookName']}")
                     if worklink is None:
                         break
-            msg = 'Updated %s %s' % (counter, plural(counter, "page"))
-            logger.debug("set_work_pages complete: " + msg)
+            msg = f"Updated {counter} {plural(counter, 'page')}"
+            logger.debug(f"set_work_pages complete: {msg}")
         else:
             msg = 'No missing WorkPages'
             logger.debug(msg)
@@ -609,7 +610,7 @@ def get_all_series_authors():
     finally:
         db.close()
     if series:
-        logger.debug('Getting series authors for %s series' % len(series))
+        logger.debug(f'Getting series authors for {len(series)} series')
         counter = 0
         total = 0
         for entry in series:
@@ -619,9 +620,9 @@ def get_all_series_authors():
                 counter += 1
                 total += result
             else:
-                logger.debug('No series info found for series %s' % seriesid)
-        msg = 'Updated authors for %s series, added %s new %s' % (counter, total, plural(total, "author"))
-        logger.debug("Series pages complete: " + msg)
+                logger.debug(f'No series info found for series {seriesid}')
+        msg = f"Updated authors for {counter} series, added {total} new {plural(total, 'author')}"
+        logger.debug(f"Series pages complete: {msg}")
     else:
         msg = 'No entries in the series table'
         logger.debug(msg)
@@ -634,21 +635,21 @@ def get_book_authors(bookid):
     authorlist = []
     if CONFIG['BOOK_API'] == 'GoodReads':
         params = {"key": CONFIG['GR_API']}
-        url = '/'.join([CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(params)])
+        url = '/'.join([CONFIG['GR_URL'], f"book/show/{bookid}?{urlencode(params)}"])
         try:
             rootxml, _ = gr_xml_request(url)
             if rootxml is None:
-                logger.debug("Error requesting book %s" % bookid)
+                logger.debug(f"Error requesting book {bookid}")
                 return []
         except Exception as e:
-            logger.error("%s finding book %s: %s" % (type(e).__name__, bookid, str(e)))
+            logger.error(f"{type(e).__name__} finding book {bookid}: {str(e)}")
             return []
 
         book = rootxml.find('book')
         authors = book.find('authors')
         anames = authors.iter('author')
         if anames is None:
-            logger.warning('No authors found for %s' % bookid)
+            logger.warning(f'No authors found for {bookid}')
             return []
         for aname in anames:
             author = {}
@@ -685,7 +686,7 @@ def get_book_authors(bookid):
                     author['status'] = col[5].split('<')[0]
                     authorlist.append(author)
             except IndexError:
-                logger.debug('Error parsing authorlist for %s' % bookid)
+                logger.debug(f'Error parsing authorlist for {bookid}')
     return authorlist
 
 
@@ -699,11 +700,11 @@ def add_series_members(seriesid, refresh=False):
     try:
         series = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
         if not series:
-            logger.error("Error getting series name for %s" % seriesid)
+            logger.error(f"Error getting series name for {seriesid}")
             return 0
         lazylibrarian.SERIES_UPDATE = True
         seriesname = series['SeriesName']
-        logger.debug("Updating series members for %s:%s" % (seriesid, seriesname))
+        logger.debug(f"Updating series members for {seriesid}:{seriesname}")
         entrystatus = series['Status']
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action("UPDATE series SET Status='Active' WHERE SeriesID=?", (seriesid,))
@@ -728,11 +729,11 @@ def add_series_members(seriesid, refresh=False):
                               (seriesid, member[0], member[3], bookid), suppress='UNIQUE')
             if bookid and not book:
                 # new addition to series, try to import with default newbook/newauthor statuses
-                lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason="Series: %s" % seriesname)
+                lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason=f"Series: {seriesname}")
                 newbook = db.match("select * from books where bookid=?", (bookid,))
                 if newbook:
-                    logger.debug("Status=%s, AudioStatus=%s, Series=%s" % (newbook['Status'], newbook['AudioStatus'],
-                                                                           series['Status']))
+                    logger.debug(
+                        f"Status={newbook['Status']}, AudioStatus={newbook['AudioStatus']}, Series={series['Status']}")
                     # see if this series status overrides defaults
                     if series['Status'] in ['Paused', 'Ignored', 'Wanted']:
                         wanted_status = 'Skipped'
@@ -740,12 +741,10 @@ def add_series_members(seriesid, refresh=False):
                             wanted_status = 'Wanted'
                         if CONFIG.get_bool('EBOOK_TAB') and newbook['Status'] != wanted_status:
                             db.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
-                            logger.debug("Series [%s] set status to %s for %s" %
-                                         (seriesname, wanted_status, member[1]))
+                            logger.debug(f"Series [{seriesname}] set status to {wanted_status} for {member[1]}")
                         if CONFIG.get_bool('AUDIO_TAB') and newbook['AudioStatus'] != wanted_status:
                             db.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
-                            logger.debug("Series [%s] set audiostatus to %s for %s" %
-                                         (seriesname, wanted_status, member[1]))
+                            logger.debug(f"Series [{seriesname}] set audiostatus to {wanted_status} for {member[1]}")
                     else:
                         # see if author status overrides defaults
                         author = db.match('select Status from authors WHERE AuthorID=?', (member[4],))
@@ -755,19 +754,16 @@ def add_series_members(seriesid, refresh=False):
                                 wanted_status = 'Wanted'
                             if CONFIG.get_bool('EBOOK_TAB') and newbook['Status'] != wanted_status:
                                 db.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
-                                logger.debug("Author %s set status to %s for %s" %
-                                             (member[4], wanted_status, member[1]))
+                                logger.debug(f"Author {member[4]} set status to {wanted_status} for {member[1]}")
                             if CONFIG.get_bool('AUDIO_TAB') and newbook['AudioStatus'] != wanted_status:
                                 db.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
-                                logger.debug("Author %s set audiostatus to %s for %s" %
-                                             (member[4], wanted_status, member[1]))
+                                logger.debug(f"Author {member[4]} set audiostatus to {wanted_status} for {member[1]}")
                 count += 1
         db.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
-        logger.debug("Found %s series %s, %s new for %s" % (len(members), plural(len(members), "member"),
-                                                            count, seriesname))
+        logger.debug(f"Found {len(members)} series {plural(len(members), 'member')}, {count} new for {seriesname}")
         searchlogger = logging.getLogger('special.searching')
         for member in members:
-            searchlogger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
+            searchlogger.debug(f"{member[0]}: {member[1]} [{member[2]}]")
 
         cmd = ("select sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
                "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
@@ -780,8 +776,8 @@ def add_series_members(seriesid, refresh=False):
                       (check_int(res[1], 0), check_int(res[0], 0), seriesid))
 
     except Exception as e:
-        logger.error("%s adding series %s: %s" % (type(e).__name__, seriesid, str(e)))
-        logger.error('%s' % traceback.format_exc())
+        logger.error(f"{type(e).__name__} adding series {seriesid}: {str(e)}")
+        logger.error(f'{traceback.format_exc()}')
     finally:
         db.close()
         if 'SERIESMEMBERS' in threading.current_thread().name:
@@ -801,11 +797,11 @@ def get_series_authors(seriesid):
         start = int(result['counter'])
         result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
         if not result:
-            logger.error("Error getting series name for %s" % seriesid)
+            logger.error(f"Error getting series name for {seriesid}")
             return 0
         if result['Status'] in ['Paused', 'Ignored']:
-            logger.debug("Not getting additional series authors for %s, status is %s" %
-                         (result['SeriesName'], result['Status']))
+            logger.debug(
+                f"Not getting additional series authors for {result['SeriesName']}, status is {result['Status']}")
             return 0
 
         seriesname = result['SeriesName']
@@ -827,15 +823,15 @@ def get_series_authors(seriesid):
                     # goodreads gives us all the info we need, librarything/google doesn't
                     base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
                     params = {"key": CONFIG['GR_API']}
-                    searchname = "%s %s" % (clean_name(bookname), clean_name(authorname))
+                    searchname = f"{clean_name(bookname)} {clean_name(authorname)}"
                     searchterm = quote_plus(make_utf8bytes(searchname)[0])
-                    set_url = base_url + searchterm + '&' + urlencode(params)
+                    set_url = f"{base_url + searchterm}&{urlencode(params)}"
                     try:
                         rootxml, in_cache = gr_xml_request(set_url)
                         if not in_cache:
                             api_hits += 1
                         if rootxml is None:
-                            logger.warning('Error getting XML for %s' % searchname)
+                            logger.warning(f'Error getting XML for {searchname}')
                         else:
                             resultxml = rootxml.iter('work')
                             for item in resultxml:
@@ -858,20 +854,19 @@ def get_series_authors(seriesid):
                                         authorid = item.find('./best_book/author/id').text
                                     except (KeyError, AttributeError):
                                         authorid = ""
-                                    logger.debug("Author Search found %s %s, authorid %s" %
-                                                 (author, booktitle, authorid))
+                                    logger.debug(f"Author Search found {author} {booktitle}, authorid {authorid}")
                                     break
                         if not authorid:  # try again with title only
                             searchname = clean_name(bookname)
                             if not searchname:
                                 searchname = bookname
                             searchterm = quote_plus(make_utf8bytes(searchname)[0])
-                            set_url = base_url + searchterm + '&' + urlencode(params)
+                            set_url = f"{base_url + searchterm}&{urlencode(params)}"
                             rootxml, in_cache = gr_xml_request(set_url)
                             if not in_cache:
                                 api_hits += 1
                             if rootxml is None:
-                                logger.warning('Error getting XML for %s' % searchname)
+                                logger.warning(f'Error getting XML for {searchname}')
                             else:
                                 resultxml = rootxml.iter('work')
                                 for item in resultxml:
@@ -891,24 +886,23 @@ def get_series_authors(seriesid):
                                             authorid = item.find('./best_book/author/id').text
                                         except (KeyError, AttributeError):
                                             authorid = ""
-                                        logger.debug("Title Search found %s %s, authorid %s" %
-                                                     (author, booktitle, authorid))
+                                        logger.debug(f"Title Search found {author} {booktitle}, authorid {authorid}")
                                         break
                         if not authorid:
-                            logger.warning("GoodReads doesn't know about %s %s" % (authorname, bookname))
+                            logger.warning(f"GoodReads doesn't know about {authorname} {bookname}")
                     except Exception as e:
-                        logger.error("Error finding goodreads results: %s %s" % (type(e).__name__, str(e)))
+                        logger.error(f"Error finding goodreads results: {type(e).__name__} {str(e)}")
 
                 if authorid:
                     lazylibrarian.importer.add_author_to_db(refresh=False, authorid=authorid, addbooks=False,
-                                                            reason="get_series_authors: %s" % seriesname)
+                                                            reason=f"get_series_authors: {seriesname}")
 
         result = db.match("select count(*) as counter from authors")
     finally:
         db.close()
     finish = int(result['counter'])
     newauth = finish - start
-    logger.info("Added %s new %s for %s" % (newauth, plural(newauth, "author"), seriesname))
+    logger.info(f"Added {newauth} new {plural(newauth, 'author')} for {seriesname}")
     return newauth
 
 
@@ -927,29 +921,29 @@ def get_series_members(seriesid=None, seriesname=None):
         if result:
             source = seriesid[:2]
             if result['Status'] in ['Paused', 'Ignored']:
-                logger.debug("Not getting additional series members for %s, status is %s" %
-                             (result['SeriesName'], result['Status']))
+                logger.debug(
+                    f"Not getting additional series members for {result['SeriesName']}, status is {result['Status']}")
                 return results, api_hits, source
 
         if not source or source == 'GR':
             params = {"format": "xml", "key": CONFIG['GR_API']}
-            url = '/'.join([CONFIG['GR_URL'], 'series/%s?%s' % (seriesid[2:], urlencode(params))])
+            url = '/'.join([CONFIG['GR_URL'], f'series/{seriesid[2:]}?{urlencode(params)}'])
             try:
                 rootxml, in_cache = gr_xml_request(url)
                 if not in_cache:
                     api_hits += 1
             except Exception as e:
-                logger.error("%s finding series %s: %s" % (type(e).__name__, seriesid, str(e)))
+                logger.error(f"{type(e).__name__} finding series {seriesid}: {str(e)}")
                 return [], api_hits, source
 
             if rootxml is None:
-                logger.debug("Series %s:%s not recognised at goodreads" % (seriesid, seriesname))
+                logger.debug(f"Series {seriesid}:{seriesname} not recognised at goodreads")
             else:
                 source = 'GR'
                 works = rootxml.find('series/series_works')
                 books = works.iter('series_work')
                 if books is None:
-                    logger.warning('No books found for %s' % seriesid)
+                    logger.warning(f'No books found for {seriesid}')
                     return [], api_hits, source
                 for book in books:
                     mydict = {}
@@ -1010,10 +1004,10 @@ def get_series_members(seriesid=None, seriesname=None):
                                     order = row.split('class="order">')[1].split('<')[0]
                                     results.append([order, bookname, authorname, '', '', '', '', '', ''])
                                 except IndexError:
-                                    logger.debug('Incomplete data in series table for series %s' % seriesid)
+                                    logger.debug(f'Incomplete data in series table for series {seriesid}')
                     except IndexError:
                         if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
-                            logger.debug('Error in series table for series %s' % seriesid)
+                            logger.debug(f'Error in series table for series {seriesid}')
     finally:
         db.close()
     first = False
@@ -1031,27 +1025,27 @@ def get_series_members(seriesid=None, seriesname=None):
             if re.search(r'\d+ of \d+', str(order)) or \
                     re.search(r'\d+/\d+', str(order)):
                 rejected = 'Set or Part'
-                logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
+                logger.debug(f'Rejected {bookname}: {order}, {rejected}')
             if not rejected:
                 # allow date ranges eg 1981-95
                 m = re.search(r'(\d+)-(\d+)', str(order))
                 if m:
                     if check_year(m.group(1), past=1800, future=0):
-                        logger.debug("Allow %s, looks like a date range" % order)
+                        logger.debug(f"Allow {order}, looks like a date range")
                     else:
-                        rejected = 'Set or Part %s' % m.group(0)
-                        logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
+                        rejected = f'Set or Part {m.group(0)}'
+                        logger.debug(f'Rejected {bookname}: {order}, {rejected}')
 
         if not rejected and CONFIG.get_bool('NO_NONINTEGER_SERIES') and '.' in str(item[0]):
-            rejected = 'Rejected non-integer %s' % item[0]
-            logger.debug('Rejected %s, %s' % (bookname, rejected))
+            rejected = f'Rejected non-integer {item[0]}'
+            logger.debug(f'Rejected {bookname}, {rejected}')
         if not rejected and check_int(item[0], 0) == 1:
             first = True
 
         if not rejected:
             filtered.append(item)
     if len(filtered) and not first:
-        logger.warning("Series %s (%s) has %s members but no book 1" % (seriesid, seriesname, len(filtered)))
+        logger.warning(f"Series {seriesid} ({seriesname}) has {len(filtered)} members but no book 1")
     return filtered, api_hits
 
 
@@ -1069,14 +1063,14 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
 
     baseurl = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes?q='])
 
-    urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
+    urls = [baseurl + quote_plus(f'inauthor:{author} intitle:{title}')]
     if isbn:
-        urls.insert(0, baseurl + quote_plus('isbn:' + isbn))
+        urls.insert(0, baseurl + quote_plus(f"isbn:{isbn}"))
 
     for url in urls:
-        url += '&key=' + CONFIG['GB_API']
+        url += f"&key={CONFIG['GB_API']}"
         if CONFIG['GB_COUNTRY'] and len(CONFIG['GB_COUNTRY']) == 2:
-            url += '&country=' + CONFIG['GB_COUNTRY']
+            url += f"&country={CONFIG['GB_COUNTRY']}"
         results, cached = json_request(url, expire=expire)
         if results is None:  # there was an error
             return None
@@ -1095,9 +1089,9 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                     high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
                 fuzzlogger = logging.getLogger('special.fuzz')
                 if book_fuzz < CONFIG.get_int('MATCH_RATIO'):
-                    fuzzlogger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
+                    fuzzlogger.debug(f"Book fuzz failed, {book_fuzz} [{res['name']}][{title}]")
                 elif auth_fuzz < CONFIG.get_int('MATCH_RATIO'):
-                    fuzzlogger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
+                    fuzzlogger.debug(f"Author fuzz failed, {auth_fuzz} [{res['author']}][{author}]")
                 else:
                     return res
             if 'isbn:' in url:
@@ -1105,12 +1099,13 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
             else:
                 stype = 'inauthor:intitle result'
             if high_parts:
-                logger.debug("No GoogleBooks match in %d %s%s (%d%%/%d%%) cached=%s [%s:%s]" %
-                             (len(results['items']), stype, plural(len(results['items'])), high_parts[0],
-                              high_parts[1], cached, author, title))
+                logger.debug(
+                    f"No GoogleBooks match in {len(results['items'])} {stype}{plural(len(results['items']))} "
+                    f"({high_parts[0]}%/{high_parts[1]}%) cached={cached} [{author}:{title}]")
             else:
-                logger.debug("No GoogleBooks match in %d %s%s cached=%s [%s:%s]" %
-                             (len(results['items']), stype, plural(len(results['items'])), cached, author, title))
+                logger.debug(
+                    f"No GoogleBooks match in {len(results['items'])} {stype}{plural(len(results['items']))} "
+                    f"cached={cached} [{author}:{title}]")
             fuzzlogger = logging.getLogger('special.fuzz')
             fuzzlogger.debug(str(high_parts))
     return {}
@@ -1186,7 +1181,7 @@ def google_book_dict(item):
                     series = series.split('(')[1].strip()
                     series_num = series_num.rstrip(')')
                     # has to be unicode for isnumeric()
-                    if not (u"%s" % series_num).isnumeric():
+                    if not f"{series_num}".isnumeric():
                         series = ""
                         series_num = ""
                 except (IndexError, ValueError):
@@ -1212,17 +1207,15 @@ def ensure_series_in_db(seriesid, seriesname, bookid, reason):
         else:
             match = db.match('SELECT SeriesName,Status from series WHERE SeriesID=?', (seriesid,))
             if match:
-                logger.warning("Ignoring name mismatch for series %s, [%s][%s]" % (seriesid, seriesname,
-                                                                                   match['SeriesName']))
+                logger.warning(f"Ignoring name mismatch for series {seriesid}, [{seriesname}][{match['SeriesName']}]")
                 if match['Status'] not in ['Paused', 'Ignored']:
                     add_series_members(seriesid)
             else:
                 match = db.match('SELECT SeriesID,Status from series WHERE SeriesName=?', (seriesname,))
                 if match:
-                    logger.warning("SeriesID mismatch for series %s [%s][%s]" % (seriesname, seriesid,
-                                                                                 match['SeriesID']))
+                    logger.warning(f"SeriesID mismatch for series {seriesname} [{seriesid}][{match['SeriesID']}]")
                 # new series or series with new provider
-                reason = "Bookid %s: %s" % (bookid, reason)
+                reason = f"Bookid {bookid}: {reason}"
                 db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated, Reason) '
                           'VALUES (?, ?, ?, ?, ?)',
                           (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'], time.time(), reason))
@@ -1243,11 +1236,11 @@ def get_work_series(bookid=None, source='GR', reason=""):
 
     if source == 'GR':
         url = '/'.join([CONFIG['GR_URL'], "work/"])
-        seriesurl = url + bookid + "/series?format=xml&key=" + CONFIG['GR_API']
+        seriesurl = f"{url + bookid}/series?format=xml&key={CONFIG['GR_API']}"
 
         rootxml, _ = gr_xml_request(seriesurl)
         if rootxml is None:
-            logger.warning('Error getting XML for %s' % seriesurl)
+            logger.warning(f'Error getting XML for {seriesurl}')
         else:
             resultxml = rootxml.iter('series_work')
             for item in resultxml:
@@ -1261,19 +1254,19 @@ def get_work_series(bookid=None, source='GR', reason=""):
                     continue
 
                 if CONFIG.get_bool('NO_SINGLE_BOOK_SERIES') and seriescount == '1':
-                    logger.debug("Ignoring goodreads single-book-series (%s) %s" % (seriesid, seriesname))
+                    logger.debug(f"Ignoring goodreads single-book-series ({seriesid}) {seriesname}")
                 elif CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
-                    logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
+                    logger.debug(f"Ignoring non-integer series member ({seriesnum}) {seriesname}")
                 elif CONFIG.get_bool('NO_SETS') and seriesnum and (not (
                         not re.search(r'\d+ of \d+', seriesnum) and not re.search(r'\d+/\d+', seriesnum)) or
                                                                    re.search(r'\d+-\d+', seriesnum)):
-                    logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
+                    logger.debug(f"Ignoring set or part ({seriesnum}) {seriesname}")
                 elif seriesname and seriesid:
                     seriesname = clean_name(seriesname, '&/')
                     if seriesname:
                         seriesnum = clean_name(seriesnum)
-                        serieslist.append(('GR' + seriesid, seriesnum, seriesname))
-                        ensure_series_in_db('GR' + seriesid, seriesname, bookid, reason)
+                        serieslist.append((f"GR{seriesid}", seriesnum, seriesname))
+                        ensure_series_in_db(f"GR{seriesid}", seriesname, bookid, reason)
 
     elif source == 'HC':
         series_results = []
@@ -1287,17 +1280,17 @@ def get_work_series(bookid=None, source='GR', reason=""):
             seriesnum = item[2]
 
             if CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
-                logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
+                logger.debug(f"Ignoring non-integer series member ({seriesnum}) {seriesname}")
             elif CONFIG.get_bool('NO_SETS') and seriesnum and (not (not re.search(r'\d+ of \d+', seriesnum)
                                                                     and not re.search(r'\d+/\d+', seriesnum))
                                                                or re.search(r'\d+-\d+', seriesnum)):
-                logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
+                logger.debug(f"Ignoring set or part ({seriesnum}) {seriesname}")
             elif seriesname and seriesid:
                 seriesname = clean_name(seriesname, '&/')
                 if seriesname:
                     seriesnum = clean_name(seriesnum)
-                    serieslist.append(('HC' + seriesid, seriesnum, seriesname))
-                    ensure_series_in_db('HC' + seriesid, seriesname, bookid, reason)
+                    serieslist.append((f"HC{seriesid}", seriesnum, seriesname))
+                    ensure_series_in_db(f"HC{seriesid}", seriesname, bookid, reason)
     else:
         work = get_bookwork(bookid, "Series")
         if work:
@@ -1397,12 +1390,12 @@ def genre_filter(genre):
         db = database.DBConnection()
         try:
             res = db.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
-                           ("%s %s" % (words[0], words[1]),))
+                           (f"{words[0]} {words[1]}",))
             if len(res):
                 return ""
 
             res = db.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
-                           ("%s %s" % (words[1], words[0]),))
+                           (f"{words[1]} {words[0]}",))
         finally:
             db.close()
         if len(res):
@@ -1420,12 +1413,12 @@ def get_gr_genres(bookid, refresh=False):
         genre_limit = 3
 
     url = '/'.join([CONFIG['GR_URL'],
-                    'book/show/' + bookid + '.xml?key=' + CONFIG['GR_API']])
+                    f"book/show/{bookid}.xml?key={CONFIG['GR_API']}"])
     genres = []
     try:
         rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
     except Exception as e:
-        logger.error("%s fetching book genres: %s" % (type(e).__name__, str(e)))
+        logger.error(f"{type(e).__name__} fetching book genres: {str(e)}")
         return genres, False
 
     if rootxml is None:
@@ -1438,7 +1431,7 @@ def get_gr_genres(bookid, refresh=False):
         if shelves is None:
             return genres, in_cache
     except (KeyError, AttributeError):
-        logger.error("Error reading shelves for GoodReads bookid %s" % bookid)
+        logger.error(f"Error reading shelves for GoodReads bookid {bookid}")
 
     for shelf in shelves:
         # check shelf name is used by >= users
@@ -1457,8 +1450,8 @@ def get_gr_genres(bookid, refresh=False):
             cnt -= 1
             if not cnt:
                 break
-    logger.debug("GoodReads bookid %s %d from %d %s, cached=%s" %
-                 (bookid, len(genres), len(res), plural(len(res), "genre"), in_cache))
+    logger.debug(
+        f"GoodReads bookid {bookid} {len(genres)} from {len(res)} {plural(len(res), 'genre')}, cached={in_cache}")
     return genres, in_cache
 
 
@@ -1467,11 +1460,11 @@ def get_book_pubdate(bookid, refresh=False):
     bookdate = "0000"
     if bookid.isdigit():  # goodreads bookid
         url = '/'.join([CONFIG['GR_URL'],
-                        'book/show/' + bookid + '.xml?key=' + CONFIG['GR_API']])
+                        f"book/show/{bookid}.xml?key={CONFIG['GR_API']}"])
         try:
             rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
         except Exception as e:
-            logger.error("%s fetching book publication date: %s" % (type(e).__name__, str(e)))
+            logger.error(f"{type(e).__name__} fetching book publication date: {str(e)}")
             return bookdate, False
 
         if rootxml is None:
@@ -1495,9 +1488,9 @@ def get_book_pubdate(bookid, refresh=False):
             else:
                 bookdate = '0000'
         except (KeyError, AttributeError):
-            logger.error("Error reading pubdate for GoodReads bookid %s pubdate [%s]" % (bookid, bookdate))
+            logger.error(f"Error reading pubdate for GoodReads bookid {bookid} pubdate [{bookdate}]")
 
-        logger.debug("GoodReads bookid %s pubdate [%s] cached=%s" % (bookid, bookdate, in_cache))
+        logger.debug(f"GoodReads bookid {bookid} pubdate [{bookdate}] cached={in_cache}")
         return bookdate, in_cache
     else:
         if not CONFIG['GB_API']:
@@ -1505,10 +1498,10 @@ def get_book_pubdate(bookid, refresh=False):
             return bookdate, False
 
         url = '/'.join([CONFIG['GB_URL'],
-                        'books/v1/volumes/%s?key=%s' % (bookid, CONFIG['GB_API'])])
+                        f"books/v1/volumes/{bookid}?key={CONFIG['GB_API']}"])
         jsonresults, in_cache = json_request(url)
         if not jsonresults:
-            logger.debug('No results found for %s' % bookid)
+            logger.debug(f'No results found for {bookid}')
         else:
             book = google_book_dict(jsonresults)
             if book['date']:
@@ -1521,7 +1514,7 @@ def thinglang(isbn):
     # if no language found, librarything return value is "invalid" or "unknown"
     # librarything returns plain text, not xml
     logger = logging.getLogger(__name__)
-    book_url = '/'.join([CONFIG['LT_URL'], 'api/thinglang.php?isbn=' + isbn])
+    book_url = '/'.join([CONFIG['LT_URL'], f"api/thinglang.php?isbn={isbn}"])
     proxies = proxy_list()
     booklang = ''
     try:
@@ -1529,11 +1522,11 @@ def thinglang(isbn):
         timeout = CONFIG.get_int('HTTP_TIMEOUT')
         r = requests.get(book_url, timeout=timeout, proxies=proxies)
         resp = r.text
-        logger.debug("LibraryThing reports language [%s] for %s" % (resp, isbn))
+        logger.debug(f"LibraryThing reports language [{resp}] for {isbn}")
         if 'invalid' not in resp and 'unknown' not in resp and '<' not in resp:
             booklang = resp
     except Exception as e:
-        logger.error("%s finding language: %s" % (type(e).__name__, str(e)))
+        logger.error(f"{type(e).__name__} finding language: {str(e)}")
     finally:
         return booklang
 
@@ -1560,14 +1553,14 @@ def isbnlang(isbn):
                         book_language = lazylibrarian.isbn_979_dict[item]
                         break
                 if book_language:
-                    logger.debug("ISBN979 returned %s for %s" % (book_language, isbnhead))
+                    logger.debug(f"ISBN979 returned {book_language} for {isbnhead}")
             elif len(isbn) == 10 or (len(isbn) == 13 and isbn.startswith('978')):
                 for item in lazylibrarian.isbn_978_dict:
                     if isbnhead.startswith(item):
                         book_language = lazylibrarian.isbn_978_dict[item]
                         break
                 if book_language:
-                    logger.debug("ISBN978 returned %s for %s" % (book_language, isbnhead))
+                    logger.debug(f"ISBN978 returned {book_language} for {isbnhead}")
 
             if not book_language:
                 # Nothing in the isbn dictionary, try any cached results
@@ -1594,7 +1587,7 @@ def isbn_from_words(words):
     try:
         res = db.match("SELECT ISBN from isbn WHERE Words=?", (words,))
         if res:
-            logger.debug('Found cached ISBN for %s' % words)
+            logger.debug(f'Found cached ISBN for {words}')
             return res['ISBN']
 
         baseurl = "http://www.google.com/search?q=ISBN+"
@@ -1611,7 +1604,7 @@ def isbn_from_words(words):
 
         # take the first valid looking answer
         res = re_isbn13.findall(content)
-        logger.debug('Found %s ISBN13 for %s' % (len(res), words))
+        logger.debug(f'Found {len(res)} ISBN13 for {words}')
         for item in res:
             if len(item) > 13:
                 item = item.replace('-', '').replace(' ', '')
@@ -1620,7 +1613,7 @@ def isbn_from_words(words):
                 return item
 
         res = re_isbn10.findall(content)
-        logger.debug('Found %s ISBN10 for %s' % (len(res), words))
+        logger.debug(f'Found {len(res)} ISBN10 for {words}')
         for item in res:
             if len(item) > 10:
                 item = item.replace('-', '').replace(' ', '')
@@ -1630,5 +1623,5 @@ def isbn_from_words(words):
     finally:
         db.close()
 
-    logger.debug('No valid ISBN found for %s' % words)
+    logger.debug(f'No valid ISBN found for {words}')
     return None

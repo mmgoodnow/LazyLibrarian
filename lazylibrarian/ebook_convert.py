@@ -47,11 +47,11 @@ def convert(input_file, output_format):
     if not ebook_directory:
         calibreid = ''
 
-    params = [converter, input_file, basename + '.' + output_format]
+    params = [converter, input_file, f"{basename}.{output_format}"]
     try:
         _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
         if calibreid:  # tell calibre about the new format
-            params = [calibredb, "add_format", "--with-library", "%s" % ebook_directory]
+            params = [calibredb, "add_format", "--with-library", f"{ebook_directory}"]
 
             # Add user authentication if provided
             if CONFIG.get_bool('CALIBRE_USE_SERVER') and CONFIG['CALIBRE_USER'] and \
@@ -59,9 +59,9 @@ def convert(input_file, output_format):
                 params.extend(['--username', CONFIG['CALIBRE_USER'],
                                '--password', CONFIG['CALIBRE_PASS']])
 
-            params.extend([calibreid, "%s" % basename + '.' + output_format])
+            params.extend([calibreid, f"{basename}.{output_format}"])
             _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
-        return basename + '.' + output_format
+        return f"{basename}.{output_format}"
     except Exception as e:
-        sys.stderr.write("%s\n" % e)
+        sys.stderr.write(f"{e}\n")
         raise Exception(e)

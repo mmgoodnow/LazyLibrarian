@@ -10,23 +10,23 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
 import logging
+import time
 import traceback
 from urllib.parse import urlparse, urlencode, quote
 
+import requests
+from bs4 import BeautifulSoup
+
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import database
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import get_user_agent
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes, seconds_to_midnight, get_list
 from lazylibrarian.telemetry import TELEMETRY
-
-from bs4 import BeautifulSoup
-import requests
 
 
 def redirect_url(genhost, url):
@@ -47,12 +47,12 @@ def redirect_url(genhost, url):
         if host.netloc.lower() != 'libgen.io':
             # noinspection PyArgumentList,PyProtectedMember
             myurl = myurl._replace(**{"netloc": host.netloc})
-            logger.debug('Redirected libgen.io to [%s]' % host.netloc)
+            logger.debug(f'Redirected libgen.io to [{host.netloc}]')
     elif host.path:
         if host.path.lower() != 'libgen.io':
             # noinspection PyArgumentList,PyProtectedMember
             myurl = myurl._replace(**{"netloc": host.netloc})
-            logger.debug('Redirected libgen.io to [%s]' % host.netloc)
+            logger.debug(f'Redirected libgen.io to [{host.netloc}]')
     return myurl.geturl()
 
 
@@ -67,7 +67,7 @@ def bok_sleep():
     if delay < limit:
         sleep_time = limit - delay
         lazylibrarian.TIMERS['SLEEP_BOK'] += sleep_time
-        cachelogger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
+        cachelogger.debug(f"B-OK sleep {sleep_time:.3f}, total {lazylibrarian.TIMERS['SLEEP_BOK']:.3f}")
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_BOK'] = time_now
 
@@ -75,14 +75,14 @@ def bok_sleep():
 def session_get(sess, url, headers):
     logger = logging.getLogger(__name__)
     if headers.get('Referer', '').startswith('https') and url.startswith('http:'):
-        url = 'https:' + url[5:]
+        url = f"https:{url[5:]}"
     if url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
         response = sess.get(url, headers=headers, timeout=90,
                             verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
     else:
         response = sess.get(url, headers=headers, timeout=90, verify=False)
     if not str(response.status_code).startswith('2'):
-        logger.debug("b-ok response: %s" % response.status_code)
+        logger.debug(f"b-ok response: {response.status_code}")
     return response
 
 
@@ -91,7 +91,7 @@ def bok_login(sess, headers):
     host = CONFIG['BOK_HOST']
     remix_userid = ''
     remix_userkey = ''
-    logger.debug("Logging in to %s" % host)
+    logger.debug(f"Logging in to {host}")
     if 'singlelogin' in host or 'z-library' in host:
         try:
             remix_userid = host.split('remix_userid=')[1].split('&')[0]
@@ -111,18 +111,18 @@ def bok_login(sess, headers):
 
     bok_login_url = f"{host}/login"
     data = {
-            "password": CONFIG['BOK_PASS'],
-            "auth": "1"
-        }
+        "password": CONFIG['BOK_PASS'],
+        "auth": "1"
+    }
 
     if bok_login_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
         response = sess.post(bok_login_url, data=data, timeout=90, headers=headers,
                              verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
     else:
         response = sess.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
-    logger.debug("b-ok login response: %s" % response.status_code)
+    logger.debug(f"b-ok login response: {response.status_code}")
     if not str(response.status_code).startswith('2'):
-        logger.error("Login Response:%s" % response.text)
+        logger.error(f"Login Response:{response.text}")
         return False
     # use these login cookies for all 1-lib, z-library, b-ok domains
     for c in sess.cookies:
@@ -142,14 +142,14 @@ def direct_bok(book=None, prov=None, test=False):
         return [], "provider is already blocked"
 
     bok_today = bok_dlcount()[0]
-    if bok_today and bok_today >= CONFIG.get_int(prov + '_DLLIMIT'):
+    if bok_today and bok_today >= CONFIG.get_int(f"{prov}_DLLIMIT"):
         if test:
             return False
         return [], "download limit reached"
 
-    host = CONFIG[prov + '_HOST'].rstrip('/')
+    host = CONFIG[f"{prov}_HOST"].rstrip('/')
     if not host.startswith('http'):
-        host = 'http://' + host
+        host = f"http://{host}"
     sterm = make_unicode(book['searchterm'])
     results = []
     page = 1
@@ -157,7 +157,7 @@ def direct_bok(book=None, prov=None, test=False):
     next_page = True
     if test:
         book['bookid'] = '0'
-    
+
     headers = {'User-Agent': get_user_agent()}
     s = requests.Session()
     if not bok_login(s, headers):
@@ -167,15 +167,15 @@ def direct_bok(book=None, prov=None, test=False):
     if 'singlelogin' in host or 'z-library' in host:
         host = host.replace('singlelogin', 'z-library').split('/?')[0]
         # not sure if this number is important, maybe any referer will do?
-        headers['Referer'] = '%s/?ts=1505' % host
+        headers['Referer'] = f'{host}/?ts=1505'
 
-    providerurl = url_fix(host + "/s/?q=")
+    providerurl = url_fix(f"{host}/s/?q=")
     while next_page:
         params = {}
         if page > 1:
             params['page'] = page
 
-        search_url = providerurl + quote(make_utf8bytes(book['searchterm'])[0]) + "%s" % urlencode(params)
+        search_url = f"{providerurl + quote(make_utf8bytes(book['searchterm'])[0])}{urlencode(params)}"
         next_page = False
         bok_sleep()
         response = session_get(s, search_url, headers)
@@ -183,22 +183,21 @@ def direct_bok(book=None, prov=None, test=False):
         if len(result) < 100:  # may return a "blocked" message
             # may return 404 if no results, not really an error
             if '404' in result:
-                logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
-                                                                                  search_url))
+                logger.debug(f"No results found from {provider} for {sterm}, got 404 for {search_url}")
                 if test:
                     return 0
             elif 'Denied' in result:
-                logger.debug("%s, check your USER-AGENT string" % result)
+                logger.debug(f"{result}, check your USER-AGENT string")
                 if test:
                     return False
             elif '111' in result:
                 # may have ip based access limits
-                logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
+                logger.error(f'Access forbidden. Please wait a while before trying {provider} again.')
                 errmsg = result
                 BLOCKHANDLER.block_provider(provider, errmsg)
             else:
                 logger.debug(search_url)
-                logger.debug('Error fetching page data from %s: %s' % (provider, result))
+                logger.debug(f'Error fetching page data from {provider}: {result}')
                 errmsg = result
                 TELEMETRY.record_usage_data("bokError")
             if test:
@@ -206,7 +205,7 @@ def direct_bok(book=None, prov=None, test=False):
             return results, errmsg
 
         if len(result):
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
+            logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
             try:
                 soup = BeautifulSoup(result, "html5lib")
                 rows = soup.select("div.book-item.exactMatch")
@@ -214,7 +213,7 @@ def direct_bok(book=None, prov=None, test=False):
                     logger.debug("No exactmatch book-item divs found in results")
                     rows = []
 
-                logger.debug("Found %s rows for %s" % (len(rows), book['searchterm']))
+                logger.debug(f"Found {len(rows)} rows for {book['searchterm']}")
                 for row in rows:
                     if BLOCKHANDLER.is_blocked(provider):
                         next_page = False
@@ -257,11 +256,11 @@ def direct_bok(book=None, prov=None, test=False):
                                     link = ''
                                     if 'WARNING' in result and '24 hours' in result:
                                         msg = result.split('WARNING')[1].split('24 hours')[0]
-                                        msg = 'WARNING' + msg + '24 hours'
+                                        msg = f"WARNING{msg}24 hours"
                                         count, oldest = bok_dlcount()
-                                        if count and count >= CONFIG.get_int(prov + '_DLLIMIT'):
+                                        if count and count >= CONFIG.get_int(f"{prov}_DLLIMIT"):
                                             # rolling 24hr delay if limit reached
-                                            delay = oldest + 24*60*60 - time.time()
+                                            delay = oldest + 24 * 60 * 60 - time.time()
                                         else:
                                             delay = seconds_to_midnight()
                                         BLOCKHANDLER.block_provider(provider, msg, delay=delay)
@@ -278,21 +277,20 @@ def direct_bok(book=None, prov=None, test=False):
                                 elif link and len(link) > 2:
                                     url = host + link
                                 else:
-                                    logger.debug("Link unavailable for %s" % title.strip())
+                                    logger.debug(f"Link unavailable for {title.strip()}")
                                     url = None
                                     removed += 1
                             except Exception as e:
-                                logger.error("An error occurred parsing %s in the %s parser: %s" %
-                                             (url, provider, str(e)))
-                                logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                                logger.error(f"An error occurred parsing {url} in the {provider} parser: {str(e)}")
+                                logger.debug(f'{provider}: {traceback.format_exc()}')
                                 TELEMETRY.record_usage_data("bokParserError")
                                 url = None
 
                     if url:
                         if author:
-                            title = author.strip() + ' ' + title.strip()
+                            title = f"{author.strip()} {title.strip()}"
                         if extn:
-                            title = title + '.' + extn
+                            title = f"{title}.{extn}"
 
                         results.append({
                             'bookid': book['bookid'],
@@ -301,18 +299,18 @@ def direct_bok(book=None, prov=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': 'direct',
-                            'priority': CONFIG[prov + '_DLPRIORITY'],
+                            'priority': CONFIG[f"{prov}_DLPRIORITY"],
                             'prov_page': prov_page
                         })
-                        logger.debug('Found %s, Size %s' % (title, size))
+                        logger.debug(f'Found {title}, Size {size}')
                     next_page = True
 
             except Exception as e:
-                logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                logger.error(f"An error occurred in the {provider} parser: {str(e)}")
+                logger.debug(f'{provider}: {traceback.format_exc()}')
 
         if test:
-            logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
+            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} ({removed} removed)")
             return len(results)
 
         page += 1
@@ -326,7 +324,7 @@ def direct_bok(book=None, prov=None, test=False):
             errmsg = "provider_is_blocked"
             next_page = False
 
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
     return results, errmsg
 
 
@@ -343,7 +341,7 @@ def direct_bfi(book=None, prov=None, test=False):
 
     host = CONFIG['BFI_HOST'].rstrip('/')
     if not host.startswith('http'):
-        host = 'http://' + host
+        host = f"http://{host}"
 
     sterm = make_unicode(book['searchterm'])
     results = []
@@ -355,25 +353,24 @@ def direct_bfi(book=None, prov=None, test=False):
         "q": make_utf8bytes(book['searchterm'])[0]
     }
 
-    providerurl = url_fix(host + "/s/")
-    search_url = providerurl + "?%s" % urlencode(params)
+    providerurl = url_fix(f"{host}/s/")
+    search_url = f"{providerurl}?{urlencode(params)}"
 
     result, success = fetch_url(search_url)
     if not success:
         # may return 404 if no results, not really an error
         if '404' in result:
-            logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
-                                                                              search_url))
+            logger.debug(f"No results found from {provider} for {sterm}, got 404 for {search_url}")
             if test:
                 return 0
         elif '111' in result:
             # may have ip based access limits
-            logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
+            logger.error(f'Access forbidden. Please wait a while before trying {provider} again.')
             errmsg = result
             BLOCKHANDLER.block_provider(provider, errmsg)
         else:
             logger.debug(search_url)
-            logger.debug('Error fetching page data from %s: %s' % (provider, result))
+            logger.debug(f'Error fetching page data from {provider}: {result}')
             errmsg = result
             TELEMETRY.record_usage_data("bfiError")
         if test:
@@ -381,7 +378,7 @@ def direct_bfi(book=None, prov=None, test=False):
         return results, errmsg
 
     if len(result):
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
+        logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
         try:
             soup = BeautifulSoup(result, "html5lib")
             try:
@@ -413,9 +410,9 @@ def direct_bfi(book=None, prov=None, test=False):
 
                 if url:
                     if author:
-                        title = author.strip() + ' ' + title.strip()
+                        title = f"{author.strip()} {title.strip()}"
                     if extn:
-                        title = title + '.' + extn
+                        title = f"{title}.{extn}"
 
                     results.append({
                         'bookid': book['bookid'],
@@ -424,23 +421,23 @@ def direct_bfi(book=None, prov=None, test=False):
                         'tor_url': url,
                         'tor_size': str(size),
                         'tor_type': 'direct',
-                        'priority': CONFIG[prov + '_DLPRIORITY']
+                        'priority': CONFIG[f"{prov}_DLPRIORITY"]
                     })
-                    logger.debug('Found %s, Size %s' % (title, size))
+                    logger.debug(f'Found {title}, Size {size}')
 
         except Exception as e:
-            logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-            logger.debug('%s: %s' % (provider, traceback.format_exc()))
+            logger.error(f"An error occurred in the {provider} parser: {str(e)}")
+            logger.debug(f'{provider}: {traceback.format_exc()}')
             TELEMETRY.record_usage_data("bfiParserError")
 
     if test:
-        logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
+        logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} ({removed} removed)")
         return len(results)
 
     if BLOCKHANDLER.is_blocked(provider):
         errmsg = "provider_is_blocked"
 
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
     return results, errmsg
 
 
@@ -461,7 +458,7 @@ def direct_gen(book=None, prov=None, test=False):
         if entry['NAME'].lower() == prov.lower():
             host = entry['HOST'].rstrip('/')
             if not host.startswith('http'):
-                host = 'http://' + host
+                host = f"http://{host}"
             search = entry['SEARCH']
             if not search:
                 search = 'search.php'
@@ -471,7 +468,7 @@ def direct_gen(book=None, prov=None, test=False):
             break
 
     if not host:
-        return [], "Unknown Provider [%s]" % prov
+        return [], f"Unknown Provider [{prov}]"
 
     sterm = make_unicode(book['searchterm'])
 
@@ -527,31 +524,30 @@ def direct_gen(book=None, prov=None, test=False):
         if page > 1:
             params['page'] = page
 
-        providerurl = url_fix(host + "/%s" % search)
-        search_url = providerurl + "?%s" % urlencode(params)
+        providerurl = url_fix(f"{host}/{search}")
+        search_url = f"{providerurl}?{urlencode(params)}"
         next_page = False
         result, success = fetch_url(search_url)
         if not success:
             # may return 404 if no results, not really an error
             if '404' in result:
-                logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
-                                                                                  search_url))
+                logger.debug(f"No results found from {provider} for {sterm}, got 404 for {search_url}")
             elif '111' in result:
                 # looks like libgen has ip based access limits
-                logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
+                logger.error(f'Access forbidden. Please wait a while before trying {provider} again.')
                 errmsg = result
                 BLOCKHANDLER.block_provider(prov, errmsg)
             else:
                 logger.debug(search_url)
-                logger.debug('Error fetching page data from %s: %s' % (provider, result))
+                logger.debug(f'Error fetching page data from {provider}: {result}')
                 errmsg = result
                 TELEMETRY.record_usage_data("libgenError")
             if test:
-                return 0
+                return False
             return results, errmsg
 
         if len(result):
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
+            logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
             try:
                 soup = BeautifulSoup(result, 'html5lib')
                 rows = []
@@ -573,7 +569,7 @@ def direct_gen(book=None, prov=None, test=False):
                 if len(rows) > 1:  # skip table headers
                     rows = rows[1:]
 
-                logger.debug("libgen returned %s %s" % (len(rows), plural(len(rows), "row")))
+                logger.debug(f"libgen returned {len(rows)} {plural(len(rows), 'row')}")
                 for row in rows:
                     author = ''
                     title = ''
@@ -599,7 +595,7 @@ def direct_gen(book=None, prov=None, test=False):
                                 year = ''
                                 publisher = ''
                                 language = ''
-                                for f in range(4, len(td)-1):
+                                for f in range(4, len(td) - 1):
                                     if 'Issue: ' in td[f].text:
                                         issue = td[f].text.split('Issue: ')[1].strip()
                                     elif 'Year: ' in td[f].text:
@@ -612,10 +608,11 @@ def direct_gen(book=None, prov=None, test=False):
                                         if '<br' in str(td[f]) and td[f].text[0].isdigit():
                                             size = str(td[f]).split('>')[1].split('<br')[0]
                                             extn = str(td[f]).split('<br')[1].split('>')[1].split('<')[0]
-                                    logger.debug("Title: %s Issue:%s Year:%s Pub:%s Lang:%s Size: %s" %
-                                                 (title, issue, year, publisher, language, size))
+                                    logger.debug(
+                                        f"Title: {title} Issue:{issue} Year:{year} Pub:{publisher} "
+                                        f"Lang:{language} Size: {size}")
                         except Exception as e:
-                            logger.debug('Error parsing libgen comic results: %s' % str(e))
+                            logger.debug(f'Error parsing libgen comic results: {str(e)}')
                             TELEMETRY.record_usage_data("libgenComicError")
                             pass
 
@@ -643,7 +640,7 @@ def direct_gen(book=None, prov=None, test=False):
                                 for d in data:
                                     links.append(d.get('href'))
                         except IndexError as e:
-                            logger.debug('Error parsing libgen fiction results: %s' % str(e))
+                            logger.debug(f'Error parsing libgen fiction results: {str(e)}')
                             TELEMETRY.record_usage_data("libgenFictionError")
                             pass
 
@@ -666,7 +663,7 @@ def direct_gen(book=None, prov=None, test=False):
                                 for d in data:
                                     links.append(d.get('href'))
                         except IndexError as e:
-                            logger.debug('Error parsing libgen search.php results; %s' % str(e))
+                            logger.debug(f'Error parsing libgen search.php results; {str(e)}')
                             TELEMETRY.record_usage_data("libgenSearchError")
                             pass
 
@@ -674,9 +671,9 @@ def direct_gen(book=None, prov=None, test=False):
 
                     if links and title:
                         if author:
-                            title = author.strip() + ' ' + title.strip()
+                            title = f"{author.strip()} {title.strip()}"
                         if extn:
-                            title = title + '.' + extn
+                            title = f"{title}.{extn}"
 
                         success = False
                         bookresult = None
@@ -688,7 +685,7 @@ def direct_gen(book=None, prov=None, test=False):
                                 # booksdescr is a direct link to book
                                 url = link
                                 if not url.startswith('http'):
-                                    url = url_fix(host + "/" + url)
+                                    url = url_fix(f"{host}/{url}")
                                     logger.debug(url)
                                 success = True
                                 break
@@ -696,16 +693,16 @@ def direct_gen(book=None, prov=None, test=False):
                                 url = redirect_url(host, link)
                             else:
                                 if "/index.php?" in link:
-                                    link = 'md5' + link.split('md5')[1]
+                                    link = f"md5{link.split('md5')[1]}"
                                 if "/ads.php?" in link:
-                                    url = url_fix(host + "/" + link)
+                                    url = url_fix(f"{host}/{link}")
                                 else:
-                                    url = url_fix(host + "/ads.php?" + link)
+                                    url = url_fix(f"{host}/ads.php?{link}")
 
                             # redirect page for other sources [libgen.me, library1.org, booksdl.org]
                             bookresult, success = fetch_url(url)
                             if not success:
-                                logger.debug('Error fetching link data from %s: %s' % (provider, bookresult))
+                                logger.debug(f'Error fetching link data from {provider}: {bookresult}')
                                 logger.debug(url)
                             else:
                                 break
@@ -737,9 +734,9 @@ def direct_gen(book=None, prov=None, test=False):
                                         url = url_fix(host + url)
                                     else:
                                         url = redirect_url(host, url)
-                                    logger.debug("Download URL: %s" % url)
+                                    logger.debug(f"Download URL: {url}")
                             except Exception as e:
-                                logger.error('%s parsing bookresult: %s' % (type(e).__name__, str(e)))
+                                logger.error(f'{type(e).__name__} parsing bookresult: {str(e)}')
                                 url = None
 
                         if url:
@@ -747,7 +744,7 @@ def direct_gen(book=None, prov=None, test=False):
                                 prov_page = url_fix(host + prov_page)
                             results.append({
                                 'bookid': book['bookid'],
-                                'tor_prov': provider + '/' + search,
+                                'tor_prov': f"{provider}/{search}",
                                 'tor_title': title,
                                 'tor_url': url,
                                 'tor_size': str(size),
@@ -755,16 +752,16 @@ def direct_gen(book=None, prov=None, test=False):
                                 'priority': priority,
                                 'prov_page': prov_page
                             })
-                            logger.debug('Found %s, Size %s' % (title, size))
+                            logger.debug(f'Found {title}, Size {size}')
                         next_page = True
 
             except Exception as e:
-                logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
-                logger.debug('%s: %s' % (provider, traceback.format_exc()))
+                logger.error(f"An error occurred in the {provider} parser: {str(e)}")
+                logger.debug(f'{provider}: {traceback.format_exc()}')
                 TELEMETRY.record_usage_data("libgenParserError")
 
             if test:
-                logger.debug("Test found %s %s" % (len(results), plural(len(results), "result")))
+                logger.debug(f"Test found {len(results)} {plural(len(results), 'result')}")
                 return len(results)
 
         page += 1
@@ -788,14 +785,14 @@ def direct_gen(book=None, prov=None, test=False):
             logger.warning('No results found from provider')
             next_page = False
 
-    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
     return results, errmsg
 
 
 def bok_dlcount() -> (int, int):
     db = database.DBConnection()
     try:
-        yesterday = time.time() - 24*60*60
+        yesterday = time.time() - 24 * 60 * 60
         grabs = db.select("SELECT completed from wanted WHERE nzbprov='zlibrary' and completed > ? order by completed",
                           (yesterday,))
     finally:

@@ -523,7 +523,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
 DefaultArrayDef = Tuple[str, str, List[ConfigItem]]
 
 ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
-    'NEWZNAB': ('HOST', 'Newznab_%i', [
+    'NEWZNAB': ('HOST', 'Newznab_%s', [
         ConfigStr('', 'NAME', 'Newznab', persist=False),
         ConfigStr('', "DISPNAME", ''),
         ConfigBool('', "ENABLED", False),
@@ -548,7 +548,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigDownloadTypes('', "DLTYPES", 'A,E,M'),
         ConfigInt('', "LASTUSED", 0),
     ]),
-    'TORZNAB': ('HOST', 'Torznab_%i', [
+    'TORZNAB': ('HOST', 'Torznab_%s', [
         ConfigStr('', 'NAME', 'Torznab', persist=False),
         ConfigStr('', "DISPNAME", ''),
         ConfigBool('', "ENABLED", False),
@@ -576,7 +576,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigInt('', "SEED_DURATION", 0),
         ConfigInt('', "LASTUSED", 0),
     ]),
-    'RSS': ('HOST', 'RSS_%i', [
+    'RSS': ('HOST', 'RSS_%s', [
         ConfigStr('', 'NAME', 'RSS', persist=False),
         ConfigStr('', "DISPNAME", ''),
         ConfigBool('', "ENABLED", False),
@@ -585,7 +585,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigDownloadTypes('', "DLTYPES", 'E'),
         ConfigStr('', "LABEL", ''),
     ]),
-    'IRC': ('SERVER', 'IRC_%i', [
+    'IRC': ('SERVER', 'IRC_%s', [
         ConfigStr('', 'NAME', 'IRC', persist=False),
         ConfigStr('', "DISPNAME", ''),
         ConfigBool('', "ENABLED", False),
@@ -597,7 +597,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigDownloadTypes('', "DLTYPES", 'E'),
         ConfigConnection('', 'CONNECTION')
     ]),
-    'GEN': ('HOST', 'GEN_%i', [
+    'GEN': ('HOST', 'GEN_%s', [
         ConfigStr('', 'NAME', 'GEN', persist=False),
         ConfigStr('', "DISPNAME", ''),
         ConfigBool('', "ENABLED", False),
@@ -606,7 +606,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
         ConfigInt('', "DLPRIORITY", 0),
         ConfigDownloadTypes('', "DLTYPES", 'E'),
     ]),
-    'APPRISE': ('URL', 'APPRISE_%i', [
+    'APPRISE': ('URL', 'APPRISE_%s', [
         ConfigStr('', 'NAME', 'APPRISE', persist=False),
         ConfigStr('', 'DISPNAME', 'Apprise'),
         ConfigBool('', 'SNATCH', False),

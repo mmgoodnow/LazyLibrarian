@@ -13,6 +13,7 @@ import sys
 import traceback
 from datetime import datetime
 from typing import Optional
+
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, get_list
@@ -171,7 +172,7 @@ def syspath(path: str, prefix: bool = True) -> str:
     prefix on Windows, set `prefix` to False---but only do this if you
     *really* know what you're doing.
     """
-    DIRS.permlogger.debug("%s:%s [%s] %s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
+    DIRS.permlogger.debug(f"{os.path.__name__}:{sys.version[0:5]} [{repr(path)}] {isinstance(path, str)}")
 
     if os.path.__name__ != 'ntpath':
         return path
@@ -203,7 +204,7 @@ def syspath(path: str, prefix: bool = True) -> str:
         if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
             if path.startswith(u'\\\\'):
                 # UNC path. Final path should look like \\?\UNC\...
-                path = u'UNC' + path[1:]
+                path = f"UNC{path[1:]}"
             path = WINDOWS_MAGIC_PREFIX + path
 
     return path
@@ -220,9 +221,9 @@ def remove_file(name: str) -> bool:
         if err.errno == 2:  # does not exist is ok
             pass
         else:
-            logger.warning("Failed to remove %s : %s" % (name, err.strerror))
+            logger.warning(f"Failed to remove {name} : {err.strerror}")
     except Exception as err:
-        logger.warning("Failed to remove %s : %s" % (name, str(err)))
+        logger.warning(f"Failed to remove {name} : {str(err)}")
     return ok
 
 
@@ -240,9 +241,9 @@ def remove_dir(name: str, remove_contents: bool = False) -> bool:
         if err.errno == 2:  # does not exist is ok
             pass
         else:
-            logger.warning("Failed to remove %s : %s" % (name, err.strerror))
+            logger.warning(f"Failed to remove {name} : {err.strerror}")
     except Exception as err:
-        logger.warning("Failed to remove %s : %s" % (name, str(err)))
+        logger.warning(f"Failed to remove {name} : {str(err)}")
     return ok
 
 
@@ -261,7 +262,7 @@ def listdir(name: str):
             return os.listdir(dname)
         except Exception as err:
             logger = logging.getLogger(__name__)
-            logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(err)))
+            logger.error(f"Listdir [{name}][{dname}] failed: {str(err)}")
             return []
 
     return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
@@ -295,7 +296,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
                 nondirs.append(name)
         except Exception as err:
             logger = logging.getLogger(__name__)
-            logger.error("[%s][%s] %s" % (repr(top), repr(name), str(err)))
+            logger.error(f"[{repr(top)}][{repr(name)}] {str(err)}")
     if topdown:
         yield top, dirs, nondirs
     for name in dirs:
@@ -328,21 +329,20 @@ def setperm(file_or_dir) -> bool:
     st = os.stat(syspath(file_or_dir))
     old_perm = oct(st.st_mode)[-3:].zfill(3)
     if old_perm == want_perm:
-        DIRS.permlogger.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
+        DIRS.permlogger.debug(f"Permission for {file_or_dir} is already {want_perm}")
         return True
 
     try:
         os.chmod(syspath(file_or_dir), perm)
     except Exception as err:
-        logger.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir,
-                                                                    type(err).__name__, str(err)))
+        logger.debug(f"Error setting permission {want_perm} for {file_or_dir}: {type(err).__name__} {str(err)}")
         return False
 
     st = os.stat(syspath(file_or_dir))
     new_perm = oct(st.st_mode)[-3:].zfill(3)
 
     if new_perm == want_perm:
-        DIRS.permlogger.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
+        DIRS.permlogger.debug(f"Set permission {want_perm} for {file_or_dir}, was {old_perm}")
         return True
     else:
         if os.name == 'nt':
@@ -388,7 +388,7 @@ def make_dirs(dest_path, new=False) -> bool:
             dest_path = parent
 
     for entry in to_make:
-        DIRS.permlogger.debug("mkdir: [%s]" % repr(entry))
+        DIRS.permlogger.debug(f"mkdir: [{repr(entry)}]")
         try:
             os.mkdir(entry)  # mkdir uses umask, so set perm ourselves
             _ = setperm(entry)  # failing to set perm might not be fatal
@@ -400,12 +400,12 @@ def make_dirs(dest_path, new=False) -> bool:
             # but that returns Error 5 Access is denied
             # Trap errno 17 (linux file exists) and 183 (windows already exists)
             if why.errno in [17, 183]:
-                DIRS.permlogger.debug("Ignoring mkdir already exists errno %s: [%s]" % (why.errno, repr(entry)))
+                DIRS.permlogger.debug(f"Ignoring mkdir already exists errno {why.errno}: [{repr(entry)}]")
             elif 'exists' in str(why):
-                DIRS.permlogger.debug("Ignoring %s: [%s]" % (why, repr(entry)))
+                DIRS.permlogger.debug(f"Ignoring {why}: [{repr(entry)}]")
             else:
                 logger = logging.getLogger(__name__)
-                logger.error('Unable to create directory %s: [%s]' % (why, repr(entry)))
+                logger.error(f'Unable to create directory {why}: [{repr(entry)}]')
                 return False
     return True
 
@@ -440,9 +440,9 @@ def safe_move(src, dst, action='move'):
 
         except (IOError, OSError) as err:  # both needed for different python versions
             if err.errno == 22:  # bad mode or filename
-                logger.debug("src=[%s] dst=[%s]" % (src, dst))
+                logger.debug(f"src=[{src}] dst=[{dst}]")
                 drive, path = os.path.splitdrive(dst)
-                logger.debug("drive=[%s] path=[%s]" % (drive, path))
+                logger.debug(f"drive=[{drive}] path=[{path}]")
                 # strip some characters windows can't handle
                 newpath = replace_all(path, lazylibrarian.DICTS.get('filename_dict', {}))
                 # windows filenames can't end in space or dot
@@ -451,7 +451,7 @@ def safe_move(src, dst, action='move'):
                 # anything left? has it changed?
                 if newpath and newpath != path:
                     dst = os.path.join(drive, newpath)
-                    logger.debug("dst=[%s]" % dst)
+                    logger.debug(f"dst=[{dst}]")
                 else:
                     raise
             else:
@@ -528,7 +528,7 @@ def csv_file(search_dir: str, library: str) -> str:
                         return os.path.join(search_dir, fname)
         except Exception as err:
             logger = logging.getLogger(__name__)
-            logger.warning('Listdir error [%s]: %s %s' % (search_dir, type(err).__name__, str(err)))
+            logger.warning(f'Listdir error [{search_dir}]: {type(err).__name__} {str(err)}')
     return ''
 
 
@@ -555,7 +555,7 @@ def book_file(search_dir: str, booktype: str, config: ConfigDict, recurse=False)
                         if config.is_valid_booktype(item, booktype=booktype):
                             return os.path.join(r, item)
             except Exception:
-                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
+                logger.error(f'Unhandled exception in book_file: {traceback.format_exc()}')
         else:
             # noinspection PyBroadException
             try:
@@ -563,7 +563,7 @@ def book_file(search_dir: str, booktype: str, config: ConfigDict, recurse=False)
                     if config.is_valid_booktype(fname, booktype=booktype):
                         return os.path.join(make_unicode(search_dir), fname)
             except Exception:
-                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
+                logger.error(f'Unhandled exception in book_file: {traceback.format_exc()}')
     return ""
 
 
@@ -588,15 +588,15 @@ def get_directory(dirname):
     logger = logging.getLogger(__name__)
     if usedir and len(usedir) >= 2 and usedir[0] == ".":
         if usedir[1] == "/" or usedir[1] == "\\":
-            usedir = DIRS.PROG_DIR + "/" + usedir[2:]
+            usedir = f"{DIRS.PROG_DIR}/{usedir[2:]}"
             if os.path.__name__ == 'ntpath':
                 usedir = usedir.replace('/', '\\')
     if usedir and not path_isdir(usedir):
         try:
             os.makedirs(syspath(usedir))
-            logger.info("Created new %s folder: %s" % (dirname, usedir))
+            logger.info(f"Created new {dirname} folder: {usedir}")
         except OSError as e:
-            logger.warning('Unable to create folder %s: %s, using %s' % (usedir, str(e), DIRS.DATADIR))
+            logger.warning(f'Unable to create folder {usedir}: {str(e)}, using {DIRS.DATADIR}')
             usedir = DIRS.DATADIR
     if usedir and path_isdir(usedir):
         try:
@@ -604,17 +604,14 @@ def get_directory(dirname):
                 f.write('test')
             os.remove(syspath(os.path.join(usedir, 'll_temp')))
         except Exception as why:
-            logger.warning("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DIRS.DATADIR, str(why)))
+            logger.warning(f"{dirname} dir [{repr(usedir)}] not writeable, using {DIRS.DATADIR}: {str(why)}")
             usedir = syspath(usedir)
-            logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
-                                                                                    oct(os.stat(usedir).st_mode),
-                                                                                    os.stat(usedir).st_uid,
-                                                                                    os.stat(usedir).st_gid,
-                                                                                    os.access(usedir, os.W_OK),
-                                                                                    os.access(usedir, os.X_OK)))
+            logger.debug(
+                f"Folder: {usedir} Mode: {oct(os.stat(usedir).st_mode)} UID: {os.stat(usedir).st_uid} "
+                f"GID: {os.stat(usedir).st_gid} W_OK: {os.access(usedir, os.W_OK)} X_OK: {os.access(usedir, os.X_OK)}")
             usedir = DIRS.DATADIR
     else:
-        logger.warning("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DIRS.DATADIR))
+        logger.warning(f"{dirname} dir [{repr(usedir)}] not found, using {DIRS.DATADIR}")
         usedir = DIRS.DATADIR
 
     return make_unicode(usedir)

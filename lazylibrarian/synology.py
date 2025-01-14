@@ -26,7 +26,7 @@ def _get_json(url, params):
     # Get JSON response from URL
     # Return json,True or error_msg,False
 
-    url += "/?%s" % urlencode(params)
+    url += f"/?{urlencode(params)}"
     result, success = fetch_url(url, retry=False)
     if success:
         try:
@@ -35,7 +35,7 @@ def _get_json(url, params):
         except (ValueError, AttributeError):
             return "Could not convert response to json", False
 
-    return "getJSON returned %s" % result, False
+    return f"getJSON returned {result}", False
 
 
 def _error_msg(errnum, api):
@@ -74,14 +74,14 @@ def _error_msg(errnum, api):
         return login_errors[errnum]
     if errnum in create_errors:
         return create_errors[errnum]
-    return "Unknown error code in %s: %s" % (api, str(errnum))
+    return f"Unknown error code in {api}: {str(errnum)}"
 
 
 def _login(hosturl):
     # Query the DownloadStation for api info and then log user in
     # return auth_cgi,task_cgi,sid or "","",""
     logger = logging.getLogger(__name__)
-    url = hosturl + 'query.cgi'
+    url = f"{hosturl}query.cgi"
     params = {
         "api": "SYNO.API.Info",
         "version": "1",
@@ -91,11 +91,11 @@ def _login(hosturl):
 
     result, success = _get_json(url, params)
     if not success:
-        logger.debug("Synology Failed to get API info: %s" % result)
+        logger.debug(f"Synology Failed to get API info: {result}")
         return "", "", ""
     if not result['success']:
         errnum = result['error']['code']
-        logger.debug("Synology API Error: %s" % _error_msg(errnum, "query"))
+        logger.debug(f"Synology API Error: {_error_msg(errnum, 'query')}")
         return "", "", ""
     auth_cgi = result['data']['SYNO.API.Auth']['path']
     auth_version = result['data']['SYNO.API.Auth']['maxVersion']
@@ -116,13 +116,13 @@ def _login(hosturl):
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology v%s Login Error: %s" % (params['version'], _error_msg(errnum, "login")))
+            logger.debug(f"Synology v{params['version']} Login Error: {_error_msg(errnum, 'login')}")
             return "", "", ""
         else:
-            TELEMETRY.record_usage_data('Synology/Login/v%s' % params['version'])
+            TELEMETRY.record_usage_data(f"Synology/Login/v{params['version']}")
             return hosturl + auth_cgi, hosturl + task_cgi, result['data']['sid']
     else:
-        logger.debug("Synology v%s Failed to login: %s" % (params['version'], repr(result)))
+        logger.debug(f"Synology v{params['version']} Failed to login: {repr(result)}")
         return "", "", ""
 
 
@@ -158,13 +158,13 @@ def _list_tasks(task_cgi, sid):
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology Task Error: %s" % _error_msg(errnum, "list"))
+            logger.debug(f"Synology Task Error: {_error_msg(errnum, 'list')}")
         else:
             items = result['data']
-            logger.debug("Synology Nr. Tasks = %s" % items['total'])
+            logger.debug(f"Synology Nr. Tasks = {items['total']}")
             return items['tasks']
     else:
-        logger.debug("Synology Failed to get task list: " + result)
+        logger.debug(f"Synology Failed to get task list: {result}")
     return ""
 
 
@@ -183,17 +183,17 @@ def _get_info(task_cgi, sid, download_id):
 
     logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
-    logger.debug("Result from getInfo = %s" % repr(result))
+    logger.debug(f"Result from getInfo = {repr(result)}")
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology GetInfo Error: %s" % _error_msg(errnum, "getinfo"))
+            logger.debug(f"Synology GetInfo Error: {_error_msg(errnum, 'getinfo')}")
         else:
             if result and 'data' in result:
                 try:
                     return result['data']['tasks'][0]
                 except KeyError:
-                    logger.debug("Synology GetInfo invalid result: %s" % repr(result['data']))
+                    logger.debug(f"Synology GetInfo invalid result: {repr(result['data'])}")
                     return ""
     return ""
 
@@ -213,18 +213,18 @@ def _delete_task(task_cgi, sid, download_id, remove_data):
 
     logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
-    logger.debug("Result from delete: %s" % repr(result))
+    logger.debug(f"Result from delete: {repr(result)}")
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology Delete Error: %s" % _error_msg(errnum, "delete"))
+            logger.debug(f"Synology Delete Error: {_error_msg(errnum, 'delete')}")
         else:
             try:
                 errnum = result['data'][0]['error']
             except (KeyError, TypeError):
                 errnum = 0
             if errnum:
-                logger.debug("Synology Delete exited: %s" % _error_msg(errnum, "delete"))
+                logger.debug(f"Synology Delete exited: {_error_msg(errnum, 'delete')}")
                 return False
             return True
     return False
@@ -244,18 +244,18 @@ def _pause_task(task_cgi, sid, download_id):
 
     logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
-    logger.debug("Result from pause: %s" % repr(result))
+    logger.debug(f"Result from pause: {repr(result)}")
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology Pause Error: %s" % _error_msg(errnum, "pause"))
+            logger.debug(f"Synology Pause Error: {_error_msg(errnum, 'pause')}")
         else:
             try:
                 errnum = result['data'][0]['error']
             except (KeyError, TypeError):
                 errnum = 0
             if errnum:
-                logger.debug("Synology Pause exited: %s" % _error_msg(errnum, "pause"))
+                logger.debug(f"Synology Pause exited: {_error_msg(errnum, 'pause')}")
                 return False
             return True
     return False
@@ -276,13 +276,13 @@ def _add_torrent_uri(task_cgi, sid, torurl):
 
     logger = logging.getLogger(__name__)
     result, success = _get_json(task_cgi, params)
-    logger.debug("Result from create = %s" % repr(result))
+    logger.debug(f"Result from create = {repr(result)}")
     res = ''
     if success:
         errnum = 0
         if not result['success']:
             errnum = result['error']['code']
-            res = "Synology Create Error: %s" % _error_msg(errnum, "create")
+            res = f"Synology Create Error: {_error_msg(errnum, 'create')}"
             logger.debug(res)
         if not errnum or errnum == 100:
             # DownloadStation doesn't return the download_id for the newly added uri
@@ -314,20 +314,20 @@ def _add_torrent_uri(task_cgi, sid, torurl):
                                     # if the original is still active we might find it further down the list
                                     _ = _delete_task(task_cgi, sid, task['id'], False)
                                 else:
-                                    res = "Synology task [%s] failed: %s" % (task['title'], errmsg)
+                                    res = f"Synology task [{task['title']}] failed: {errmsg}"
                                     logger.warning(res)
                                     return False, res
                             else:
-                                logger.debug('Synology task %s for %s' % (task['id'], task['title']))
+                                logger.debug(f"Synology task {task['id']} for {task['title']}")
                                 return task['id'], ''
                     except KeyError:
-                        res = "Unable to get uri for [%s] from getInfo" % task['title']
+                        res = f"Unable to get uri for [{task['title']}] from getInfo"
                         logger.debug(res)
-            res = "Synology URL [%s] was not found in tasklist" % torurl
+            res = f"Synology URL [{torurl}] was not found in tasklist"
             logger.debug(res)
             return False, res
     else:
-        res = "Synology Failed to add task: %s" % result
+        res = f"Synology Failed to add task: {result}"
         logger.debug(res)
     return False, res
 
@@ -341,9 +341,9 @@ def _host_url():
         logger.debug(f"Invalid Synology host or port, check your config: {host}:{port}")
         return False
     if not host.startswith("http://") and not host.startswith("https://"):
-        host = 'http://' + host
+        host = f"http://{host}"
     host = host.rstrip('/')
-    return "%s:%s/webapi/" % (host, port)
+    return f"{host}:{port}/webapi/"
 
 
 #

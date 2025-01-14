@@ -1,3 +1,4 @@
+import http.client
 import json
 import logging
 import os
@@ -5,10 +6,12 @@ import platform
 import re
 import time
 import traceback
-import http.client
+
 import cherrypy
-import lazylibrarian
 import requests
+from rapidfuzz import fuzz
+
+import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookwork import get_status, isbn_from_words, isbnlang
@@ -18,7 +21,6 @@ from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import md5_utf8, make_unicode, is_valid_isbn, get_list, format_author_name, \
     date_format, thread_name, now, today, plural, unaccented, replace_all, check_year, check_int
 from lazylibrarian.images import cache_bookimg, get_book_cover
-from rapidfuzz import fuzz
 
 
 def test_auth(userid=None):
@@ -38,7 +40,7 @@ def hc_api_sleep(limit=1.1):  # official limit is 60 requests per minute. limit=
         sleep_time = limit - delay
         lazylibrarian.TIMERS['SLEEP_HC'] += sleep_time
         cachelogger = logging.getLogger('special.cache')
-        cachelogger.debug("HardCover sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_HC']))
+        cachelogger.debug(f"HardCover sleep {sleep_time:.3f}, total {lazylibrarian.TIMERS['SLEEP_HC']:.3f}")
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_HC'] = time_now
 
@@ -52,17 +54,6 @@ def get_current_userid():
         userid = cookie['ll_uid'].value
     else:
         msg = 'No current userid'
-    if userid:
-        # need to collect the users apikey from the database
-        db = database.DBConnection()
-        user = db.match("select distinct userid from sync where instr(label, 'hc_') = 1")
-        db.close()
-        if not user or not user[0]:
-            msg = 'No users with HardCover sync enabled'
-        else:
-            userid = user[0]
-    if msg:
-        logger.debug(msg)
     return userid, msg
 
 
@@ -80,7 +71,7 @@ def validate_bookdict(bookdict):
     logger = logging.getLogger(__name__)
     if not bookdict.get('auth_name') or bookdict.get('auth_name') == 'Unknown':
         rejected = 'name', "Authorname Unknown"
-        logger.debug('Rejecting %s, %s' % (bookdict.get('title'), rejected[1]))
+        logger.debug(f"Rejecting {bookdict.get('title')}, {rejected[1]}")
         return rejected
 
     # these are reject reasons we might want to override, so optionally add to database as "ignored"
@@ -101,11 +92,11 @@ def validate_bookdict(bookdict):
                         lang = item
                         break
                 if not lang:
-                    rejected = 'lang', 'Invalid language: %s' % str(languages)
+                    rejected = 'lang', f'Invalid language: {str(languages)}'
             elif bookdict.get('isbn'):
                 lang, _, _ = isbnlang(bookdict['isbn'])
                 if lang and lang not in wantedlanguages:
-                    rejected = 'lang', 'Invalid language: %s' % lang
+                    rejected = 'lang', f'Invalid language: {lang}'
 
                 if not lang:
                     if "Unknown" not in wantedlanguages:
@@ -126,13 +117,14 @@ def validate_bookdict(bookdict):
             if not exists:
                 in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
                                                                   source='hc_id', ignored=False, library='eBook',
-                                                                  reason='hc_get_author_books %s,%s' %
-                                                                  (bookdict['auth_id'], bookdict['title']))
+                                                                  reason=f"hc_get_author_books {bookdict['auth_id']},"
+                                                                         f"{bookdict['title']}")
                 if not in_db:
                     in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
                                                                       source='bookid', ignored=False, library='eBook',
-                                                                      reason='hc_get_author_books %s,%s' %
-                                                                      (bookdict['auth_id'], bookdict['title']))
+                                                                      reason=f"hc_get_author_books "
+                                                                             f"{bookdict['auth_id']},"
+                                                                             f"{bookdict['title']}")
                 if in_db and in_db[0]:
                     cmd = "SELECT BookID,hc_id FROM books WHERE BookID=?"
                     exists = db.match(cmd, (in_db[0],))
@@ -146,22 +138,24 @@ def validate_bookdict(bookdict):
                 # which that is, keep the old one which is already linked to other db tables
                 # but allow info (dates etc.) to be updated
                 if bookdict['bookid'] != exists['BookID']:
-                    rejected = 'dupe', 'Duplicate id (%s/%s)' % (bookdict['bookid'], exists['BookID'])
+                    rejected = 'dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"
                     if not exists['hc_id']:
-                        db.action("UPDATE books SET hc_id=? WHERE BookID=?", (bookdict['bookid'], exists['BookID']))
+                        db.action("UPDATE books SET hc_id=? WHERE BookID=?", (bookdict['bookid'],
+                                                                              exists['BookID']))
 
             if not rejected and bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
                 # try isbn lookup by name
                 title = bookdict.get('title')
                 if title:
                     try:
-                        res = isbn_from_words(unaccented(title, only_ascii=False) + ' ' +
-                                              unaccented(bookdict['auth_name'], only_ascii=False))
+                        res = isbn_from_words(
+                            f"{unaccented(title, only_ascii=False)} "
+                            f"{unaccented(bookdict['auth_name'], only_ascii=False)}")
                     except Exception as e:
                         res = None
-                        logger.warning("Error from isbn: %s" % e)
+                        logger.warning(f"Error from isbn: {e}")
                     if res:
-                        logger.debug("isbn found %s for %s" % (res, bookdict['bookid']))
+                        logger.debug(f"isbn found {res} for {bookdict['bookid']}")
                         if len(res) in [10, 13]:
                             bookdict['isbn'] = res
 
@@ -179,7 +173,7 @@ def validate_bookdict(bookdict):
                 badwords = get_list(CONFIG['REJECT_WORDS'], ',')
                 for word in badwords:
                     if (' ' in word and word in name) or word in namewords:
-                        rejected = 'word', 'Name contains [%s]' % word
+                        rejected = 'word', f'Name contains [{word}]'
                         break
 
             if not rejected:
@@ -189,41 +183,40 @@ def validate_bookdict(bookdict):
                     m = re.search(r'(\d+)-(\d+)', book_name)
                     if m:
                         if check_year(m.group(1), past=1800, future=0):
-                            logger.debug("Allow %s, looks like a date range" % book_name)
+                            logger.debug(f"Allow {book_name}, looks like a date range")
                         else:
-                            rejected = 'set', 'Set or Part %s' % m.group(0)
+                            rejected = 'set', f'Set or Part {m.group(0)}'
                     if re.search(r'\d+ of \d+', book_name) or \
                             re.search(r'\d+/\d+', book_name) and not re.search(r'\d+/\d+/\d+', book_name):
                         rejected = 'set', 'Set or Part'
                     elif re.search(r'\w+\s*/\s*\w+', book_name):
                         rejected = 'set', 'Set or Part'
                     if rejected:
-                        logger.debug('Rejected %s, %s' % (book_name, rejected[1]))
+                        logger.debug(f'Rejected {book_name}, {rejected[1]}')
                 if rejected and rejected[0] not in ignorable:
-                    logger.debug('Rejecting %s, %s' % (bookdict['title'], rejected[1]))
+                    logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
             elif rejected and not (rejected[0] in ignorable and CONFIG.get_bool('IMP_IGNORE')):
-                logger.debug('Rejecting %s, %s' % (bookdict['title'], rejected[1]))
+                logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
             else:
-                logger.debug("Found title: %s" % bookdict['title'])
+                logger.debug(f"Found title: {bookdict['title']}")
                 if not rejected and CONFIG.get_bool('NO_FUTURE'):
                     publish_date = bookdict.get('publish_date')
                     if publish_date > today()[:len(publish_date)]:
-                        rejected = 'future', 'Future publication date [%s]' % publish_date
+                        rejected = 'future', f'Future publication date [{publish_date}]'
                         if ignorable is None:
-                            logger.debug('Rejecting %s, %s' % (bookdict['title'], rejected[1]))
+                            logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
                         else:
-                            logger.debug("Not rejecting %s (future pub date %s) as %s" %
-                                         (bookdict['title'], publish_date, ignorable))
+                            logger.debug(
+                                f"Not rejecting {bookdict['title']} (future pub date {publish_date}) as {ignorable}")
                     if not rejected and CONFIG.get_bool('NO_PUBDATE'):
                         if not publish_date or publish_date == '0000':
                             rejected = 'date', 'No publication date'
                     if ignorable is None:
-                        logger.debug('Rejecting %s, %s' % (bookdict['title'], rejected[1]))
+                        logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
                     else:
-                        logger.debug("Not rejecting %s (no pub date) as %s" %
-                                     (bookdict['title'], ignorable))
+                        logger.debug(f"Not rejecting {bookdict['title']} (no pub date) as {ignorable}")
     except Exception:
-        logger.error('Unhandled exception in validate_bookdict: %s' % traceback.format_exc())
+        logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
         logger.error(f"{bookdict}")
     finally:
         db.close()
@@ -234,15 +227,15 @@ class HardCover:
     def __init__(self, name=''):
 
         self.hc_url = 'https://api.hardcover.app/'
-        self.graphql_url = self.hc_url + 'v1/graphql'
-        self.book_url = self.hc_url.replace('api.', '') + 'books/'
-        self.auth_url = self.hc_url.replace('api.', '') + 'authors/'
+        self.graphql_url = f"{self.hc_url}v1/graphql"
+        self.book_url = f"{self.hc_url.replace('api.', '')}books/"
+        self.auth_url = f"{self.hc_url.replace('api.', '')}authors/"
         self.HC_WHOAMI = 'query whoami { me { id } }'
         # this will need changing when we get access to other users book lists
         self.apikey = CONFIG.get_str('HC_API')
 
-#       user_id = result of whoami/userid
-#       status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
+        #       user_id = result of whoami/userid
+        #       status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
         self.HC_USERBOOKS = '''
             query mybooks { user_books(order_by: {date_added: desc} where:
               {status_id: {_eq: [status]}, user_id: {_eq: [whoami]}})
@@ -326,8 +319,8 @@ query FindBookByName {
         self.HC_ISBN10_BOOKS = self.HC_FINDBOOK.replace('[where]', '{isbn_10: {_eq: "[isbn]"}}'
                                                         ).replace('[order]', '')
 
-# queries using bookid, authorid, seriesid should be faster if we query using _by_pk e.g.
-# query books_by_pk rather than query books but at the moment that's not the case.
+        # queries using bookid, authorid, seriesid should be faster if we query using _by_pk e.g.
+        # query books_by_pk rather than query books but at the moment that's not the case.
 
         self.HC_BOOKID_BOOKS = self.HC_FINDBOOK.replace('books([order] where: [where])', 'books_by_pk(id: [bookid])')
 
@@ -347,15 +340,15 @@ query SeriesByPK {
         title
         release_date
         release_year
+        default_physical_edition{
+          language {
+            language
+          }
+        }
         contributions {
           author {
             id
             name
-          }
-        }
-        editions {
-          language {
-            language
           }
         }
         compilation
@@ -416,7 +409,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         if CONFIG['CURRENT_VERSION']:
             self.user_agent += CONFIG['CURRENT_VERSION']
         else:
-            self.user_agent += platform.system() + ' ' + platform.release()
+            self.user_agent += f"{platform.system()} {platform.release()}"
         self.user_agent += ')'
 
     def is_in_cache(self, expiry: int, hashfilename: str, myhash: str) -> bool:
@@ -425,7 +418,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             time_now = time.time()
             if expiry and cache_modified_time < time_now - expiry:
                 # Cache entry is too old, delete it
-                self.cachelogger.debug("Expiring %s" % myhash)
+                self.cachelogger.debug(f"Expiring {myhash}")
                 os.remove(syspath(hashfilename))
                 return False
             else:
@@ -442,7 +435,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
     @staticmethod
     def get_hashed_filename(cache_location: str, url: str) -> (str, str):
         myhash = md5_utf8(url)
-        hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".json")
+        hashfilename = os.path.join(cache_location, myhash[0], myhash[1], f"{myhash}.json")
         return hashfilename, myhash
 
     def result_from_cache(self, searchcmd: str, refresh=False) -> (str, bool):
@@ -452,14 +445,14 @@ query FindAuthor { authors_by_pk(id: [authorid])
                    }
         query = {'query': searchcmd}
         cache_location = DIRS.get_cachedir('JSONCache')
-        filename = self.graphql_url + '/' + str(query)
+        filename = f"{self.graphql_url}/{str(query)}"
         hashfilename, myhash = self.get_hashed_filename(cache_location, filename)
         # CACHE_AGE is in days, so get it to seconds
         expire_older_than = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60
         valid_cache = self.is_in_cache(expire_older_than, hashfilename, myhash)
         if valid_cache and not refresh:
             lazylibrarian.CACHE_HIT += 1
-            self.cachelogger.debug("CacheHandler: Returning CACHED response %s" % (hashfilename,))
+            self.cachelogger.debug(f"CacheHandler: Returning CACHED response {hashfilename}")
             source, ok = self.read_from_cache(hashfilename)
             if ok:
                 res = json.loads(source)
@@ -480,7 +473,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 r = None
             if success:
                 res = r.json()
-                self.cachelogger.debug("CacheHandler: Storing %s %s" % ('json', myhash))
+                self.cachelogger.debug(f"CacheHandler: Storing json {myhash}")
                 with open(syspath(hashfilename), "w") as cachefile:
                     cachefile.write(json.dumps(res))
             else:
@@ -534,8 +527,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
     def get_series_members(self, series_ident=None, series_title='', queue=None, refresh=False):
         resultlist = []
         resultdict = {}
-        series_name = ''
-        series_id = ''
         author_name = ''
         api_hits = 0
         cache_hits = 0
@@ -547,16 +538,15 @@ query FindAuthor { authors_by_pk(id: [authorid])
             self.logger.error(str(results['errors']))
         if 'data' in results and 'series_by_pk' in results['data']:
             wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
-            series_id = 'HC' + str(results['data']['series_by_pk']['id'])
+            series_id = f"HC{str(results['data']['series_by_pk']['id'])}"
             if series_id != series_ident:
-                self.logger.debug("Series id mismatch for %s, %s" % (series_id, series_ident))
+                self.logger.debug(f"Series id mismatch for {series_id}, {series_ident}")
             series_name = results['data']['series_by_pk']['name']
-            primary_books_count = results['data']['series_by_pk']['primary_books_count']
+            # primary_books_count = results['data']['series_by_pk']['primary_books_count']
             if series_name != series_title:
                 match = fuzz.partial_ratio(series_name, series_title)
                 if match < 95:
-                    self.logger.debug("Series name mismatch for %s, %s%% %s/%s" %
-                                      (series_id, match, series_name, series_title))
+                    self.logger.debug(f"Series name mismatch for {series_id}, {match}% {series_name}/{series_title}")
 
             for entry in results['data']['series_by_pk']['book_series']:
                 book_id = entry['book_id']
@@ -568,36 +558,26 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 authorlink = entry['book']['contributions'][0]['author']['id']
                 pubyear = entry['book']['release_year']
                 pubdate = entry['book']['release_date']
-                editions = entry['book']['editions']
+                edition = entry['book']['default_physical_edition']
                 compilation = entry['book']['compilation']
-                languages = []
-                for lang in editions:
-                    if lang.get('language'):
-                        res = lang['language']
-                        languages.append(res.get('language'))
-                languages = set(languages)
+                language = ""
+                if 'language' in edition and edition.get('language'):
+                        language = edition['language']['language']
 
                 if not author_name:
                     author_name = authorname
                 # pick the first entry for each position that is non compilation and in a language we want
-                if not compilation and position and (position not in resultdict or resultdict[position][1] != author_name):
-                    valid_lang = False
-                    if not languages:
-                        valid_lang = True
-                    else:
-                        for lang in languages:
-                            if lang in wantedlanguages:
-                                valid_lang = True
-                                break
-                    if valid_lang:
+                if not compilation and position and (position not in resultdict or
+                                                     resultdict[position][1] != author_name):
+                    if not language or 'All' in wantedlanguages or language in wantedlanguages:
                         resultdict[position] = [book_title, authorname, authorlink, book_id, pubyear, pubdate]
             for item in resultdict:
                 res = [item]
                 res.extend(resultdict[item])
                 resultlist.append(res)
             resultlist = sorted(resultlist)
-            self.logger.debug("Found %s for series %s: %s" % (len(resultlist), series_id, series_name))
-            self.logger.debug("Used %s api hit, %s in cache" % (api_hits, cache_hits))
+            self.logger.debug(f"Found {len(resultlist)} for series {series_id}: {series_name}")
+            self.logger.debug(f"Used {api_hits} api hit, {cache_hits} in cache")
 
         if queue:
             queue.put(resultlist)
@@ -715,36 +695,36 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 highest_fuzz = max(author_fuzz + book_fuzz, isbn_fuzz)
 
                 resultlist.append({
-                        'authorname': bookdict['auth_name'],
-                        'bookid': bookdict['bookid'],
-                        'authorid': bookdict['auth_id'],
-                        'bookname': bookdict['title'],
-                        'booksub': bookdict['subtitle'],
-                        'bookisbn': bookdict['isbn'],
-                        'bookpub': bookdict['publishers'],
-                        'bookdate': bookdict['publish_date'],
-                        'booklang': bookdict['languages'],
-                        'booklink': bookdict['link'],
-                        'bookrate': bookdict['bookrate'],
-                        'bookrate_count': bookdict['bookrate_count'],
-                        'bookimg': bookdict['cover'],
-                        'bookpages': bookdict['bookpages'],
-                        'bookgenre': bookdict['genres'],
-                        'bookdesc': bookdict['bookdesc'],
-                        'workid': bookdict['bookid'],  # TODO should this be canonical id?
-                        'author_fuzz': round(author_fuzz, 2),
-                        'book_fuzz': round(book_fuzz, 2),
-                        'isbn_fuzz': round(isbn_fuzz, 2),
-                        'highest_fuzz': round(highest_fuzz, 2),
-                        'source': "HardCover"
-                    })
+                    'authorname': bookdict['auth_name'],
+                    'bookid': bookdict['bookid'],
+                    'authorid': bookdict['auth_id'],
+                    'bookname': bookdict['title'],
+                    'booksub': bookdict['subtitle'],
+                    'bookisbn': bookdict['isbn'],
+                    'bookpub': bookdict['publishers'],
+                    'bookdate': bookdict['publish_date'],
+                    'booklang': bookdict['languages'],
+                    'booklink': bookdict['link'],
+                    'bookrate': bookdict['bookrate'],
+                    'bookrate_count': bookdict['bookrate_count'],
+                    'bookimg': bookdict['cover'],
+                    'bookpages': bookdict['bookpages'],
+                    'bookgenre': bookdict['genres'],
+                    'bookdesc': bookdict['bookdesc'],
+                    'workid': bookdict['bookid'],  # TODO should this be canonical id?
+                    'author_fuzz': round(author_fuzz, 2),
+                    'book_fuzz': round(book_fuzz, 2),
+                    'isbn_fuzz': round(isbn_fuzz, 2),
+                    'highest_fuzz': round(highest_fuzz, 2),
+                    'source': "HardCover"
+                })
                 resultcount += 1
 
-            self.logger.debug("Used %s api hit, %s in cache" % (api_hits, cache_hits))
+            self.logger.debug(f"Used {api_hits} api hit, {cache_hits} in cache")
             queue.put(resultlist)
 
         except Exception:
-            self.logger.error('Unhandled exception in HC.find_results: %s' % traceback.format_exc())
+            self.logger.error(f'Unhandled exception in HC.find_results: {traceback.format_exc()}')
 
     def find_author_id(self, refresh=False):
         api_hits = 0
@@ -754,7 +734,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
         if not title:
             # we only have an authorname. Return id of matching author with the most books
-            self.logger.debug("Searching for author %s, refresh=%s" % (authorname, refresh))
+            self.logger.debug(f"Searching for author {authorname}, refresh={refresh}")
             searchcmd = self.HC_FINDAUTHORBYNAME.replace('[authorname]', authorname)
             results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
             api_hits += not in_cache
@@ -778,11 +758,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 if res:
                     if res['authorname'] != authorname:
                         res['aka'] = authorname
-                    self.logger.debug("Authorname search used %s api hit" % api_hits)
+                    self.logger.debug(f"Authorname search used {api_hits} api hit")
                     return res
         else:
             # search for the title and then check the authorname matches
-            self.logger.debug("Searching for title %s, refresh=%s" % (title, refresh))
+            self.logger.debug(f"Searching for title {title}, refresh={refresh}")
             searchcmd = self.HC_FINDBOOKBYNAME.replace('[title]', title)
             results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
             api_hits += not in_cache
@@ -815,7 +795,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         if res:
                             if res['authorname'] != authorname:
                                 res['aka'] = authorname
-                            self.logger.debug("Title search used %s api hit" % api_hits)
+                            self.logger.debug(f"Title search used {api_hits} api hit")
                             return res
 
                 # get the authorid from the book page as it's not in the title search results
@@ -839,10 +819,10 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         if res:
                             if res['authorname'] != authorname:
                                 res['aka'] = authorname
-                            self.logger.debug("Author/book search used %s api hit" % api_hits)
+                            self.logger.debug(f"Author/book search used {api_hits} api hit")
                             return res
 
-        self.logger.debug("No results. Used %s api hit" % api_hits)
+        self.logger.debug(f"No results. Used {api_hits} api hit")
         return {}
 
     def get_author_info(self, authorid=None, refresh=False):
@@ -856,7 +836,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         api_hits = 0
         cache_hits = 0
 
-        self.logger.debug("Getting HC author info for %s, refresh=%s" % (authorid, refresh))
+        self.logger.debug(f"Getting HC author info for {authorid}, refresh={refresh}")
         searchcmd = self.HC_AUTHORINFO.replace('[authorid]', str(authorid))
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
         api_hits += not in_cache
@@ -889,15 +869,15 @@ query FindAuthor { authors_by_pk(id: [authorid])
             words = author_name.split(',')
             if len(words) == 2:
                 if words[0].strip().strip('.').lower in postfix:
-                    author_name = words[1].strip() + ' ' + words[0].strip()
+                    author_name = f"{words[1].strip()} {words[0].strip()}"
                 else:
                     author_name = author_name.split(',')[0]
 
         if not author_name:
-            self.logger.warning("Rejecting authorid %s, no authorname" % authorid)
+            self.logger.warning(f"Rejecting authorid {authorid}, no authorname")
             return {}
 
-        self.logger.debug("[%s] Returning HC info for authorID: %s" % (author_name, authorid))
+        self.logger.debug(f"[{author_name}] Returning HC info for authorID: {authorid}")
         author_dict = {
             'authorid': str(authorid),
             'authorlink': author_link,
@@ -908,7 +888,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             'totalbooks': totalbooks,
             'authorname': format_author_name(author_name, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
         }
-        self.logger.debug("AuthorInfo used %s api hit, %s in cache" % (api_hits, cache_hits))
+        self.logger.debug(f"AuthorInfo used {api_hits} api hit, {cache_hits} in cache")
         return author_dict
 
     def build_bookdict(self, book_data):
@@ -1131,7 +1111,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         bookdict['book_status'] = 'Ignored'
                         bookdict['audio_status'] = 'Ignored'
                         book_ignore_count += 1
-                        reason = "Ignored: %s" % rejected[1]
+                        reason = f"Ignored: {rejected[1]}"
                         rejected = ''
                     elif rejected[0] == 'lang':
                         bad_lang += 1
@@ -1141,7 +1121,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         removed_results += 1
 
                 elif 'author_update' in entryreason:
-                    reason = 'Author: %s' % bookdict['auth_name']
+                    reason = f"Author: {bookdict['auth_name']}"
                 else:
                     reason = entryreason
                 if rejected:
@@ -1164,13 +1144,12 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     else:
                         serieslist = []
                         locked = False
-                        self.logger.debug("Inserting new book [%s] for [%s]" % (bookdict['title'],
-                                                                                bookdict['auth_name']))
+                        self.logger.debug(f"Inserting new book [{bookdict['title']}] for [{bookdict['auth_name']}]")
                         if 'author_update' in entryreason:
-                            reason = 'Author: %s' % bookdict['auth_name']
+                            reason = f"Author: {bookdict['auth_name']}"
                         else:
                             reason = entryreason
-                        reason = "[%s] %s" % (thread_name(), reason)
+                        reason = f"[{thread_name()}] {reason}"
                         added_count += 1
                         if not bookdict['languages']:
                             bookdict['languages'] = 'Unknown'
@@ -1192,14 +1171,14 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         if not cover_link:  # no results on search or failed to cache it
                             cover_link = 'images/nocover.png'
 
-                        db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
-                                  'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
-                                  'WorkPage, AudioStatus, ScanResult, OriginalPubDate, hc_id) ' +
-                                  'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                  (authorid, bookdict['title'], cover_link, bookdict['link'],
-                                   bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
-                                   bookdict['book_status'], '', bookdict['audio_status'], reason,
-                                   bookdict['first_publish_year'], bookdict['bookid']))
+                        db.action(
+                            f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, BookDate, "
+                            f"BookLang, BookAdded, Status, WorkPage, AudioStatus, ScanResult, OriginalPubDate, "
+                            f"hc_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            (authorid, bookdict['title'], cover_link, bookdict['link'],
+                             bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
+                             bookdict['book_status'], '', bookdict['audio_status'], reason,
+                             bookdict['first_publish_year'], bookdict['bookid']))
 
                     # Leave alone if locked
                     if locked:
@@ -1209,19 +1188,19 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                 and bookdict['publish_date'] and bookdict['publish_date'] != '0000' \
                                 and bookdict['publish_date'] <= today()[:len(bookdict['publish_date'])]:
                             # was rejected on previous scan but bookdate has become valid
-                            self.logger.debug("valid bookdate [%s] previous scanresult [%s]" %
-                                              (bookdict['publish_date'], exists['ScanResult']))
+                            self.logger.debug(
+                                f"valid bookdate [{bookdict['publish_date']}] previous scanresult "
+                                f"[{exists['ScanResult']}]")
 
-                            update_value_dict["ScanResult"] = "bookdate %s is now valid" % bookdict['publish_date']
+                            update_value_dict["ScanResult"] = f"bookdate {bookdict['publish_date']} is now valid"
                         elif not exists:
                             update_value_dict["ScanResult"] = reason
 
                         if "ScanResult" in update_value_dict:
-                            self.searchinglogger.debug("entry status %s %s,%s" % (entrystatus, bookstatus,
-                                                                                  audiostatus))
+                            self.searchinglogger.debug(f"entry status {entrystatus} {bookstatus},{audiostatus}")
                             book_status, audio_status = get_status(bookdict['bookid'], serieslist, bookstatus,
                                                                    audiostatus, entrystatus)
-                            self.searchinglogger.debug("status is now %s,%s" % (book_status, audio_status))
+                            self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
                             update_value_dict["Status"] = book_status
                             update_value_dict["AudioStatus"] = audio_status
 
@@ -1235,25 +1214,25 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     else:
                         typ = 'Updated'
                         updated_count += 1
-                    msg = "[%s] %s book: %s [%s] status %s" % (bookdict['auth_name'], typ, bookdict['title'],
-                                                               bookdict['languages'], bookstatus)
+                    msg = (f"[{bookdict['auth_name']}] {typ} book: {bookdict['title']} [{bookdict['languages']}] "
+                           f"status {bookstatus}")
                     if CONFIG.get_bool('AUDIO_TAB'):
-                        msg += " audio %s" % audiostatus
+                        msg += f" audio {audiostatus}"
                     self.logger.debug(msg)
 
                     if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):
                         for item in bookdict['series']:
                             ser_name = item[0]
-                            ser_id = 'HC' + str(item[1])
+                            ser_id = f"HC{str(item[1])}"
                             if ser_id in series_updates:
-                                self.logger.debug("Series %s:%s already updated" % (ser_id, ser_name))
+                                self.logger.debug(f"Series {ser_id}:{ser_name} already updated")
                             else:
                                 exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
                                 if not exists:
                                     exists = db.match("SELECT * from series WHERE seriesname=? "
                                                       "and instr(seriesid, 'HC') = 1", (ser_name,))
                                 if not exists:
-                                    self.logger.debug("New series: %s:%s" % (ser_id, ser_name))
+                                    self.logger.debug(f"New series: {ser_id}:{ser_name}")
                                     db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
                                               'Updated, Reason) VALUES (?,?,?,?,?)',
                                               (ser_id, ser_name, 'Paused', time.time(), ser_name))
@@ -1262,23 +1241,22 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
                                 series_updates.append(ser_id)
                                 if exists['Status'] in ['Paused', 'Ignored']:
-                                    self.logger.debug("Not getting additional series members for %s, "
-                                                      "status is %s" % (ser_name, exists['Status']))
+                                    self.logger.debug(
+                                        f"Not getting additional series members for {ser_name}, status is "
+                                        f"{exists['Status']}")
                                 else:
                                     seriesmembers = self.get_series_members(ser_id, ser_name)
                                     if len(seriesmembers) == 1:
-                                        self.logger.debug("Found member %s for series %s" % (seriesmembers[0][1],
-                                                                                             ser_name))
+                                        self.logger.debug(f"Found member {seriesmembers[0][1]} for series {ser_name}")
                                     else:
-                                        self.logger.debug("Found %s members for series %s" % (len(seriesmembers),
-                                                                                              ser_name))
+                                        self.logger.debug(f"Found {len(seriesmembers)} members for series {ser_name}")
                                     # position, book_title, author_name, author_id, book_id
                                     for member in seriesmembers:
                                         db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
                                                   (ser_id, member[0]))
                                         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
                                         if not exists:
-                                            reason = "Series contributing author %s:%s" % (ser_name, member[1])
+                                            reason = f"Series contributing author {ser_name}:{member[1]}"
                                             lazylibrarian.importer.add_author_name_to_db(author=member[2],
                                                                                          refresh=False,
                                                                                          addbooks=False,
@@ -1286,8 +1264,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                                                                          )
                                             auth_name, ex = lazylibrarian.importer.get_preferred_author_name(member[2])
                                             if not ex:
-                                                self.logger.debug("Unable to add %s for %s, author not in database" %
-                                                                  (member[2], member[1]))
+                                                self.logger.debug(
+                                                    f"Unable to add {member[2]} for {member[1]}, "
+                                                    f"author not in database")
                                                 continue
                                         else:
                                             cmd = "SELECT * from authors WHERE authorname=?"
@@ -1301,19 +1280,19 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                                         akas.append(member[2])
                                                         db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
                                                                   (', '.join(akas), auth_id))
-                                                match = db.match('SELECT * from seriesauthors WHERE ' +
-                                                                 'SeriesID=? and AuthorID=?',
-                                                                 (ser_id, auth_id))
+                                                match = db.match(
+                                                    f"SELECT * from seriesauthors WHERE SeriesID=? "
+                                                    f"and AuthorID=?", (ser_id, auth_id))
                                                 if not match:
-                                                    self.logger.debug("Adding %s as series author for %s" %
-                                                                      (auth_name, ser_name))
+                                                    self.logger.debug(
+                                                        f"Adding {auth_name} as series author for {ser_name}")
                                                     new_authors += 1
                                                     db.action('INSERT INTO seriesauthors (SeriesID, '
                                                               'AuthorID) VALUES (?, ?)',
                                                               (ser_id, auth_id), suppress='UNIQUE')
 
-                                                    self.logger.debug("Inserting new member [%s] for %s" %
-                                                                      (member[0], ser_name))
+                                                    self.logger.debug(
+                                                        f"Inserting new member [{member[0]}] for {ser_name}")
 
                                                     cmd = "SELECT BookID FROM books WHERE BookID=?"
                                                     # make sure bookid is in database, if not, add it
@@ -1352,9 +1331,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
                                                             db.action('INSERT INTO member (SeriesID, BookID, '
                                                                       'SeriesNum) VALUES (?,?,?)',
-                                                                      (ser_id, member[4], member[0]), suppress="UNIQUE")
-                                                    ser = db.match("select count(*) as counter from member " +
-                                                                   "where seriesid=?", (ser_id,))
+                                                                      (ser_id, member[4], member[0]),
+                                                                      suppress="UNIQUE")
+                                                    ser = db.match(
+                                                        f"select count(*) as counter from member where seriesid=?",
+                                                        (ser_id,))
                                                     if ser:
                                                         counter = check_int(ser['counter'], 0)
                                                         db.action("UPDATE series SET Total=? WHERE SeriesID=?",
@@ -1389,32 +1370,30 @@ query FindAuthor { authors_by_pk(id: [authorid])
             db.upsert("authors", new_value_dict, control_value_dict)
 
             resultcount = added_count + updated_count
-            self.logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
-            self.logger.debug("Added %s new %s" % (new_authors, plural(new_authors, "author")))
-            self.logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
-            self.logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results,
-                                                                                              "result")))
-            self.logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
-            self.logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
-            self.logger.debug("Imported/Updated %s %s in %s secs using %s api %s" %
-                              (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
-                               api_hits, plural(api_hits, "hit")))
+            self.logger.debug(f"Found {locked_count} locked {plural(locked_count, 'book')}")
+            self.logger.debug(f"Added {new_authors} new {plural(new_authors, 'author')}")
+            self.logger.debug(f"Removed {bad_lang} unwanted language {plural(bad_lang, 'result')}")
+            self.logger.debug(f"Removed {removed_results} incorrect/incomplete {plural(removed_results, 'result')}")
+            self.logger.debug(f"Removed {duplicates} duplicate {plural(duplicates, 'result')}")
+            self.logger.debug(f"Ignored {book_ignore_count} {plural(book_ignore_count, 'book')}")
+            self.logger.debug(
+                f"Imported/Updated {resultcount} {plural(resultcount, 'book')} in "
+                f"{int(time.time() - auth_start)} secs using {api_hits} api {plural(api_hits, 'hit')}")
             if cover_count:
-                self.logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count,
-                                                                                     "cover"), cover_time))
+                self.logger.debug(f"Fetched {cover_count} {plural(cover_count, 'cover')} in {cover_time:.2f} sec")
 
             control_value_dict = {"authorname": entry_name.replace('"', '""')}
             new_value_dict = {
-                              "GR_book_hits": api_hits,
-                              "GR_lang_hits": 0,
-                              "LT_lang_hits": lt_lang_hits,
-                              "GB_lang_change": 0,
-                              "cache_hits": cache_hits,
-                              "bad_lang": bad_lang,
-                              "bad_char": removed_results,
-                              "uncached": not_cached,
-                              "duplicates": duplicates
-                              }
+                "GR_book_hits": api_hits,
+                "GR_lang_hits": 0,
+                "LT_lang_hits": lt_lang_hits,
+                "GB_lang_change": 0,
+                "cache_hits": cache_hits,
+                "bad_lang": bad_lang,
+                "bad_char": removed_results,
+                "uncached": not_cached,
+                "duplicates": duplicates
+            }
             db.upsert("stats", new_value_dict, control_value_dict)
         finally:
             db.close()
@@ -1433,11 +1412,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict, _ = self.get_bookdict(bookid)
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
-            self.logger.debug("No bookstatus passed, using default %s" % bookstatus)
+            self.logger.debug(f"No bookstatus passed, using default {bookstatus}")
         if not audiostatus:
             audiostatus = CONFIG['NEWAUDIO_STATUS']
-            self.logger.debug("No audiostatus passed, using default %s" % audiostatus)
-        self.logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
+            self.logger.debug(f"No audiostatus passed, using default {audiostatus}")
+        self.logger.debug(f"bookstatus={bookstatus}, audiostatus={audiostatus}")
         bookdict['book_status'] = bookstatus
         bookdict['audio_status'] = audiostatus
         rejected = validate_bookdict(bookdict)
@@ -1454,50 +1433,49 @@ query FindAuthor { authors_by_pk(id: [authorid])
             bookdate = bookdict['publish_date']
             msg = ''
             if rejected[0] == 'name':
-                msg = 'Book %s authorname invalid' % title
+                msg = f'Book {title} authorname invalid'
             elif rejected[0] == 'lang':
-                msg = 'Book %s Language [%s] does not match preference' % (title, lang)
+                msg = f'Book {title} Language [{lang}] does not match preference'
 
             elif rejected[0] in ['publisher']:
-                msg = 'Book %s Publisher [%s] does not match preference' % (title, lang)
+                msg = f'Book {title} Publisher [{lang}] does not match preference'
 
             elif CONFIG.get_bool('NO_PUBDATE'):
                 if not bookdate or bookdate == '0000':
-                    msg = 'Book %s Publication date [%s] does not match preference' % (title, bookdate)
+                    msg = f'Book {title} Publication date [{bookdate}] does not match preference'
 
             elif CONFIG.get_bool('NO_FUTURE'):
                 # may have yyyy or yyyy-mm-dd
                 if bookdate > today()[:len(bookdate)]:
-                    msg = 'Book %s Future publication date [%s] does not match preference' % (title, bookdate)
+                    msg = f'Book {title} Future publication date [{bookdate}] does not match preference'
 
             elif CONFIG.get_bool('NO_SETS'):
                 if re.search(r'\d+ of \d+', title) or re.search(r'\d+/\d+', title):
-                    msg = 'Book %s Set or Part' % title
+                    msg = f'Book {title} Set or Part'
                 # allow date ranges eg 1981-95
                 m = re.search(r'(\d+)-(\d+)', title)
                 if m:
                     if check_year(m.group(1), past=1800, future=0):
-                        self.logger.debug("Allow %s, looks like a date range" % m.group(1))
+                        self.logger.debug(f"Allow {m.group(1)}, looks like a date range")
                         msg = ''
             if msg:
-                self.logger.warning(msg + ' : adding anyway')
+                self.logger.warning(f"{msg} : adding anyway")
 
         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
         if not exists:
-            reason = "%s:%s" % (reason, bookdict['bookid'])
+            reason = f"{reason}:{bookdict['bookid']}"
             lazylibrarian.importer.add_author_name_to_db(author=bookdict['auth_name'], refresh=False,
                                                          addbooks=False, reason=reason)
         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
         if not exists:
-            self.logger.debug("Unable to add %s for %s, author not found" %
-                              (bookdict['auth_name'], bookdict['bookid']))
+            self.logger.debug(f"Unable to add {bookdict['auth_name']} for {bookdict['bookid']}, author not found")
         else:
             db = database.DBConnection()
             cmd = "SELECT * from authors WHERE authorname=?"
             exists = db.match(cmd, (auth_name,))
             if not exists:
-                self.logger.debug("Unable to add %s for %s, author not in database" % (bookdict['auth_name'],
-                                                                                       bookdict['bookid']))
+                self.logger.debug(
+                    f"Unable to add {bookdict['auth_name']} for {bookdict['bookid']}, author not in database")
             else:
                 auth_id = exists['AuthorID']
                 cover_link = bookdict['cover']
@@ -1507,14 +1485,14 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     cover_link = cache_bookimg(cover_link, bookdict['bookid'], 'hc')
                 if not cover_link:  # no results on search or failed to cache it
                     cover_link = 'images/nocover.png'
-                db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
-                          'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
-                          'WorkPage, AudioStatus, ScanResult, OriginalPubDate, hc_id) ' +
-                          'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                          (auth_id, bookdict['title'], cover_link, bookdict['link'],
-                           bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
-                           bookdict['book_status'], '', bookdict['audio_status'], reason,
-                           bookdict['first_publish_year'], bookdict['bookid']))
+                db.action(
+                    f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, BookDate, BookLang, "
+                    f"BookAdded, Status, WorkPage, AudioStatus, ScanResult, OriginalPubDate, hc_id) "
+                    f"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (auth_id, bookdict['title'], cover_link, bookdict['link'],
+                     bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
+                     bookdict['book_status'], '', bookdict['audio_status'], reason,
+                     bookdict['first_publish_year'], bookdict['bookid']))
             db.close()
 
         return
@@ -1523,7 +1501,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         msg = ''
         if not userid:
             userid, msg = get_current_userid()
-        if msg:
+        if not userid:
             return msg
 
         #   Read the users bearer token here and pass to self.apikey
@@ -1650,7 +1628,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                                                                   source='',
                                                                                   ignored=False,
                                                                                   library='eBook',
-                                                                                  reason='hc_sync %s' % hc_id)
+                                                                                  reason=f'hc_sync {hc_id}')
                                 if in_db and in_db[0]:
                                     cmd = "SELECT BookID,hc_id,bookname FROM books WHERE BookID=?"
                                     exists = db.match(cmd, (in_db[0],))
@@ -1717,13 +1695,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     if item not in mapp[2]:
                         mapp[2].append(item)
                         cnt += 1
-                msg += f"Added {cnt} to {mapp[3]}" + '\n'
+                msg += f"Added {cnt} to {mapp[3]}\n"
                 cnt = 0
                 for item in removals:
                     if item in mapp[2]:
                         mapp[2].remove(item)
                         cnt += 1
-                msg += f"Removed {cnt} from {mapp[3]}" + '\n'
+                msg += f"Removed {cnt} from {mapp[3]}\n"
 
             #
             # sync changes to HC
@@ -1795,9 +1773,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 # mapp[2] is now the definitive list to store as last sync for status mapp[3]
                 listmsg = f"HardCover {mapp[3]} contains {len(mapp[2])}"
                 self.syncinglogger.debug(listmsg)
-                msg += listmsg + '\n'
+                msg += f"{listmsg}\n"
                 set_readinglist(mapp[3], userid, mapp[2])
-                label = 'hc_' + mapp[3]
+                label = f"hc_{mapp[3]}"
                 booklist = ','.join(mapp[2])
                 db.upsert("sync", {'SyncList': booklist}, {'UserID': userid, 'Label': label})
 

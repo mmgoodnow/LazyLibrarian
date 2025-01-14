@@ -41,10 +41,10 @@ class SearchResult:
             return "Invalid provider, unable to print self"
 
         # noinspection PyUnresolvedReferences
-        my_string = self.provider.name + " @ " + self.url + "\n"
+        my_string = f"{self.provider.name} @ {self.url}\n"
         my_string += "Extra Info:\n"
         for extra in self.extraInfo:
-            my_string += "  " + extra + "\n"
+            my_string += f"  {extra}\n"
         return my_string
 
 

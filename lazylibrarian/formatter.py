@@ -143,7 +143,7 @@ def book_series(bookname):
         if bookname[0] == "(" and bookname[-1] == ")":
             parts = bookname[1:-1].split(':', 1)
             if parts[0][-1].isdigit():
-                bookname = '(%s, %s)' % (parts[1], parts[0])
+                bookname = f'({parts[1]}, {parts[0]})'
 
     # These are words that don't indicate a following series name/number eg "FIRST 3 chapters"
     non_series_words = ['series', 'unabridged', 'volume', 'phrase', 'from', 'chapters', 'season',
@@ -338,7 +338,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
 
     m = m.zfill(2)
     d = d.zfill(2)
-    datestr = "%s-%s-%s %s:%s:00" % (y, m, d, hh, mm)
+    datestr = f"{y}-{m}-{d} {hh}:{mm}:00"
     if not formatstr:
         if len(dateparts) == 1:
             return datestr[:4]  # only year
@@ -355,7 +355,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
             formattedstr = formattedstr.replace('$B', monthname[0].title()).replace('$b', monthname[1].title())
         return formattedstr
     except (NameError, IndexError):
-        logger.error("Invalid datestr [%s] for %s" % (datestr, formatstr))
+        logger.error(f"Invalid datestr [{datestr}] for {formatstr}")
         return datestr
 
 
@@ -426,7 +426,7 @@ def plural(var, phrase=""):
     res = translates.get(phrase, '')
     if res:
         return res
-    return '%ss' % phrase
+    return f'{phrase}s'
 
 
 def check_int(var, default, positive=True):
@@ -466,7 +466,7 @@ def pretty_approx_time(seconds: int) -> str:
     hours, rem = divmod(rem, 3600)
     minutes, seconds = divmod(rem, 60)
     locals_ = locals()
-    magnitudes_str = ("{n} {magnitude}".format(n=int(locals_[magnitude]), magnitude=magnitude)
+    magnitudes_str = (f"{int(locals_[magnitude])} {magnitude}"
                       for magnitude in ("days", "hours", "minutes", "seconds") if locals_[magnitude])
     return ", ".join(magnitudes_str)
 
@@ -475,9 +475,9 @@ def human_size(num):
     num = check_int(num, 0)
     for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
         if abs(num) < 1024.0:
-            return "%3.2f%s" % (num, unit)
+            return f"{num:3.2f}{unit}"
         num /= 1024.0
-    return "%.2f%s" % (num, 'PiB')
+    return f"{num:.2f}PiB"
 
 
 def size_in_bytes(size):
@@ -608,7 +608,7 @@ def make_bytestr(txt):
         except (UnicodeDecodeError, LookupError):
             pass
     logger = logging.getLogger(__name__)
-    logger.debug("Unable to encode name [%s]" % repr(txt))
+    logger.debug(f"Unable to encode name [{repr(txt)}]")
     return txt
 
 
@@ -674,11 +674,11 @@ def split_title(author, book):
     returns the book name part split into (name, subtitle and series)
     """
     matchlogger = logging.getLogger('special.matching')
-    matchlogger.debug("%s [%s]" % (author, book))
+    matchlogger.debug(f"{author} [{book}]")
     bookseries = ''
     # Strip author from title, eg Tom Clancy: Ghost Protocol
-    if book.startswith(author + ':'):
-        book = book.split(author + ':')[1].strip()
+    if book.startswith(f"{author}:"):
+        book = book.split(f"{author}:")[1].strip()
     brace = book.rfind('(') + 1
     if brace and book.endswith(')'):
         # if title ends with words in braces, split on last brace
@@ -693,14 +693,14 @@ def split_title(author, book):
             book = book.strip().rstrip(':').strip()
         else:
             parts = book.rsplit('(', 1)
-            parts[1] = '(' + parts[1]
+            parts[1] = f"({parts[1]}"
             bookname = parts[0].strip()
             booksub = parts[1].rstrip(':').strip()
             if booksub.find(')'):
                 for item in ImportPrefs.SPLIT_LIST:
                     if f"({item})" == booksub.lower():
                         booksub = ""
-            matchlogger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
+            matchlogger.debug(f"[{bookname}][{booksub}][{bookseries}]")
             return bookname, booksub, bookseries
 
     # if not (words in braces at end of string)
@@ -721,7 +721,7 @@ def split_title(author, book):
                 break
 
     logger = logging.getLogger(__name__)
-    logger.debug("Name[%s] Sub[%s] Series[%s]" % (bookname, booksub, bookseries))
+    logger.debug(f"Name[{bookname}] Sub[{booksub}] Series[{bookseries}]")
     return bookname, booksub, bookseries
 
 
@@ -751,19 +751,19 @@ def format_author_name(author: str, postfix: List[str]) -> str:
                 if forename.endswith('.') and len(forename) > 2 and forename.count('.') == 1:
                     forename = forename.strip('.')
                 surname = words[0].strip()
-            if author != forename + ' ' + surname:
-                fuzzlogger.debug('Formatted authorname [%s] to [%s %s]' % (author, forename, surname))
-                author = forename + ' ' + surname
+            if author != f"{forename} {surname}":
+                fuzzlogger.debug(f'Formatted authorname [{author}] to [{forename} {surname}]')
+                author = f"{forename} {surname}"
     # reformat any initials, we want to end up with L.E. Modesitt Jr
     if len(author) > 2 and author[1] in '. ':
         surname = author
         forename = ''
         while len(surname) > 2 and surname[1] in '. ':
-            forename = forename + surname[0] + '.'
+            forename = f"{forename + surname[0]}."
             surname = surname[2:].strip()
-        if author != forename + ' ' + surname:
-            fuzzlogger.debug('Stripped authorname [%s] to [%s %s]' % (author, forename, surname))
-            author = forename + ' ' + surname
+        if author != f"{forename} {surname}":
+            fuzzlogger.debug(f'Stripped authorname [{author}] to [{forename} {surname}]')
+            author = f"{forename} {surname}"
 
     res = ' '.join(author.split())  # ensure no extra whitespace
     if res.isupper() or res.islower():
@@ -781,7 +781,7 @@ def sort_definite(title: str, articles=List[str]) -> str:
         return title
     word = words.pop(0)
     if word.lower() in articles:
-        return ' '.join(words) + ', ' + word
+        return f"{' '.join(words)}, {word}"
     return title
 
 
@@ -793,7 +793,7 @@ def surname_first(authorname: str, postfixes: List[str]) -> str:
     res = words.pop()
 
     if res.strip('.').lower() in postfixes:
-        res = words.pop() + ' ' + res
+        res = f"{words.pop()} {res}"
     return res + ', ' + ' '.join(words)
 
 
@@ -804,7 +804,7 @@ def clean_name(name, extras=None):
     if extras and "'" in extras:
         name = replace_all(name, lazylibrarian.DICTS.get('apostrophe_dict', {}))
 
-    valid_name_chars = u"-_.() %s" % extras
+    valid_name_chars = f"-_.() {extras}"
     cleaned = u''.join(c for c in name if c in valid_name_chars or c.isalnum())
     cleaned = cleaned.strip()
     if cleaned:
@@ -888,7 +888,7 @@ def replace_quotes_with(text, char):
     """
     if not text:
         return ''
-    replaces = re.compile('[%s]' % re.escape(''.join(quotes)))
+    replaces = re.compile(f"[{re.escape(''.join(quotes))}]")
     return replaces.sub(char, text)
 
 

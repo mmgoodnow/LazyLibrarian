@@ -33,8 +33,8 @@ class CustomNotifier:
             return False
 
         logger = logging.getLogger(__name__)
-        logger.debug('Custom Event: %s' % event)
-        logger.debug('Custom Message: %s' % message)
+        logger.debug(f'Custom Event: {event}')
+        logger.debug(f'Custom Message: {message}')
         db = database.DBConnection()
         try:
             if event == "Test":
@@ -79,7 +79,7 @@ class CustomNotifier:
             wanted_dictionary = dict(list(zip(list(wanted.keys()), wanted)))
             for item in wanted_dictionary:
                 if item in ['Status', 'BookID']:  # rename to avoid clash
-                    dictionary['Wanted_' + item] = wanted_dictionary[item]
+                    dictionary[f"Wanted_{item}"] = wanted_dictionary[item]
                 else:
                     dictionary[item] = wanted_dictionary[item]
 
@@ -102,7 +102,7 @@ class CustomNotifier:
 
                 rc, res, err = run_script(params)
                 if rc:
-                    logger.error("Custom notifier returned %s: res[%s] err[%s]" % (rc, res, err))
+                    logger.error(f"Custom notifier returned {rc}: res[{res}] err[{err}]")
                     return False
                 else:
                     logger.debug(res)
@@ -112,7 +112,7 @@ class CustomNotifier:
                 return False
 
         except Exception as e:
-            logger.warning('Error sending custom notification: %s' % e)
+            logger.warning(f'Error sending custom notification: {e}')
             return False
 
     #
