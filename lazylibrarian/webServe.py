@@ -2203,8 +2203,9 @@ class WebInterface:
         try:
             authorsearch = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
             if authorsearch:  # to stop error if try to refresh an author while they are still loading
-                threading.Thread(target=add_author_to_db, name=f'REFRESHAUTHOR_{authorid}',
-                                 args={None, True, authorid, True, f"WebServer refresh_author {authorid}"}).start()
+                threading.Thread(target=add_author_to_db, name=f"REFRESHAUTHOR_{authorid}",
+                                 args=[None, True, authorid, True, f"WebServer refresh_author {authorid}"]).start()
+
                 raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
             else:
                 logger.debug(f'refresh_author Invalid authorid [{authorid}]')
