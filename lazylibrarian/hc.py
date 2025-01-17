@@ -48,7 +48,6 @@ def hc_api_sleep(limit=1.1):  # official limit is 60 requests per minute. limit=
 def get_current_userid():
     userid = ''
     msg = ''
-    logger = logging.getLogger(__name__)
     cookie = cherrypy.request.cookie
     if 'll_uid' in list(cookie.keys()):
         userid = cookie['ll_uid'].value
@@ -296,6 +295,7 @@ query FindAuthorID {
     id
     name
     books_count
+    slug
   }
 }
 '''
@@ -327,13 +327,48 @@ query FindBookByName {
         self.HC_AUTHORID_BOOKS = self.HC_FINDBOOK.replace('[where]',
                                                           '{contributions: {author: {id: {_eq: "[authorid]"}}}}'
                                                           ).replace('[order]', '')
+
         self.HC_BOOK_SERIES = '''
+
+query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
+    {
+      position
+      series {
+        name
+        id
+      }
+      book {
+        id
+        title
+        release_date
+        release_year
+        contributions {
+          author {
+            id
+            name
+          }
+        }
+        editions {
+          language {
+            language
+          }
+        }
+      }
+    }
+}
+'''
+
+        self.HC_BOOK_SERIES_BY_PK = '''
 query SeriesByPK {
   series_by_pk(id: "[seriesid]") {
     id
     name
+    books_count
     primary_books_count
-    book_series {
+    book_series
+        (where: {book: {book_status_id: {_eq: "1"}, compilation: {_eq: false}}}
+        order_by: [{position: asc}, {book: {users_count: desc}}])
+    {
       book_id
       position
       book {
@@ -530,13 +565,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
         author_name = ''
         api_hits = 0
         cache_hits = 0
-        searchcmd = self.HC_BOOK_SERIES.replace('[seriesid]', str(series_ident)[2:])
+        searchcmd = self.HC_BOOK_SERIES_BY_PK.replace('[seriesid]', str(series_ident)[2:])
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
         api_hits += not in_cache
         cache_hits += in_cache
         if 'errors' in results:
             self.logger.error(str(results['errors']))
-        if 'data' in results and 'series_by_pk' in results['data']:
+        if 'data' in results and 'series_by_pk' in results['data'] and results['data']['series_by_pk']:
             wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
             series_id = f"HC{str(results['data']['series_by_pk']['id'])}"
             if series_id != series_ident:
@@ -561,8 +596,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 edition = entry['book']['default_physical_edition']
                 compilation = entry['book']['compilation']
                 language = ""
-                if 'language' in edition and edition.get('language'):
-                        language = edition['language']['language']
+                if edition and 'language' in edition and edition.get('language'):
+                    language = edition['language']['language']
 
                 if not author_name:
                     author_name = authorname
