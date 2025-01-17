@@ -83,7 +83,10 @@ def next_run_time(when_run: str, test_now: Optional[datetime.datetime] = None):
     """
     logger = logging.getLogger(__name__)
     try:
-        when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S %Z')
+        # split timezone off as strptime() doesn't recognise all timezones
+        # and now() doesn't include timezone, so assume both times are local timezone
+        when_run = ' '.join(when_run.split()[:2])
+        when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S')
         timenow = datetime.datetime.now() if not test_now else test_now
         td = when_run - timenow
         diff = td.total_seconds()  # time difference in seconds
