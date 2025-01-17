@@ -168,8 +168,10 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'checkRunningJobs': (0, 'ensure all needed jobs are running'),
             'vacuum': (1, 'vacuum the database'),
             'getWorkSeries': (0, '&id= &source= Get series from Librarything using BookID or GoodReads using WorkID'),
-            'addSeriesMembers': (1, '&id= add series members to database using SeriesID'),
-            'getSeriesMembers': (0, '&id= Get list of series members using SeriesID'),
+            'addSeriesMembers': (1, '&id= [&refresh] add series members to database using SeriesID'
+                                    'including paused/ignored series if refresh'),
+            'getSeriesMembers': (0, '&id= [&name=] [&refresh] Get list of series members using SeriesID, '
+                                    'including paused/ignored series if refresh'),
             'getSeriesAuthors': (1, '&id= Get all authors for a series and import them'),
             'getWorkPage': (0, '&id= Get url of Librarything BookWork using BookID'),
             'getBookCovers': (1, '[&wait] Check all books for cached cover and download one if missing'),
@@ -2356,18 +2358,21 @@ class Api(object):
     def _addseriesmembers(self, **kwargs):
         TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
+        self.refresh = 'refresh' in kwargs
         if not self.id:
             self.data = 'Missing parameter: id'
         else:
-            self.data = add_series_members(self.id)
+            self.data = add_series_members(self.id, self.refresh)
 
     def _getseriesmembers(self, **kwargs):
         TELEMETRY.record_usage_data()
-        self.id = kwargs.get('id')
+        self.id = kwargs.get('id', '')
+        self.name = kwargs.get('name', '')
+        self.refresh = 'refresh' in kwargs
         if not self.id:
             self.data = 'Missing parameter: id'
         else:
-            self.data = get_series_members(self.id)
+            self.data = get_series_members(self.id, self.name, self.refresh)
 
     def _getbookauthors(self, **kwargs):
         TELEMETRY.record_usage_data()
