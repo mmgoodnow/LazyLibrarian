@@ -427,7 +427,7 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
                     try:
                         shutil.rmtree(f"{csvfile}.fail")
                     except Exception as why:
-                        logger.warning(f"Unable to remove {csvfile + '.fail'}, {type(why).__name__} {why}")
+                        logger.warning(f"Unable to remove {csvfile}.fail, {type(why).__name__} {why}")
                 try:
                     _ = safe_move(csvfile, f"{csvfile}.fail")
                 except Exception as e:

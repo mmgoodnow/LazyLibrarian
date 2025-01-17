@@ -216,7 +216,7 @@ def serve_template(templatename, **kwargs):
                                                'SendTo, Perms) VALUES (?, ?, ?, ?, ?, ?, ?)')
                                         db.action(cmd, (pwd_generator(), user, fullname, md5_utf8(new_pwd),
                                                         email, '', lazylibrarian.perm_friend))
-                                        msg = f"New user added from proxy auth: {user}: {'Friend'}"
+                                        msg = f"New user added from proxy auth: {user}: Friend"
                                         msg += f"<br>Email sent to {email}"
                                         cnt = db.match("select count(*) as counter from users")
                                         if cnt['counter'] > 1:
@@ -4169,16 +4169,16 @@ class WebInterface:
 
         if redirect == "author":
             if 'eBook' in library:
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library={'eBook'}")
+                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library=eBook")
             if 'Audio' in library:
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library={'AudioBook'}")
+                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library=AudioBook")
         elif redirect in ["books", "audio"]:
             raise cherrypy.HTTPRedirect(redirect)
         elif redirect == "members":
             raise cherrypy.HTTPRedirect(f"series_members?seriesid={seriesid}&ignored=False")
         elif 'Audio' in library:
-            raise cherrypy.HTTPRedirect(f"manage?library={'AudioBook'}")
-        raise cherrypy.HTTPRedirect(f"manage?library={'eBook'}")
+            raise cherrypy.HTTPRedirect(f"manage?library=AudioBook")
+        raise cherrypy.HTTPRedirect(f"manage?library=eBook")
 
     # WALL #########################################################
 
@@ -4211,12 +4211,12 @@ class WebInterface:
                     fname, extn = os.path.splitext(this_issue['Cover'])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     if path_isfile(imgfile):
-                        this_issue['Cover'] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        this_issue['Cover'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                     else:
                         imgfile = os.path.join(DIRS.CACHEDIR, this_issue['Cover'][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_issue['Cover'] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                            this_issue['Cover'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 this_issue['Title'] = issue['Title'].replace('&amp;', '&')
                 mod_issues.append(this_issue)
                 count += 1
@@ -4258,12 +4258,12 @@ class WebInterface:
                     fname, extn = os.path.splitext(this_issue['Cover'])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     if path_isfile(imgfile):
-                        this_issue['Cover'] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        this_issue['Cover'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                     else:
                         imgfile = os.path.join(DIRS.CACHEDIR, this_issue['Cover'][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_issue['Cover'] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                            this_issue['Cover'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 mod_issues.append(this_issue)
                 count += 1
                 if maxcount and count >= maxcount:
@@ -4308,12 +4308,12 @@ class WebInterface:
                 fname, extn = os.path.splitext(item['BookImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
-                    item['BookImg'] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                    item['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 else:
                     imgfile = os.path.join(DIRS.CACHEDIR, item['BookImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['BookImg'] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        item['BookImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
@@ -4346,12 +4346,12 @@ class WebInterface:
                 fname, extn = os.path.splitext(item['AuthorImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
-                    item['AuthorImg'] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                    item['AuthorImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 else:
                     imgfile = os.path.join(DIRS.CACHEDIR, item['AuthorImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['AuthorImg'] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        item['AuthorImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
@@ -4383,12 +4383,12 @@ class WebInterface:
                 fname, extn = os.path.splitext(item['BookImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
-                    item['BookImg'] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                    item['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 else:
                     imgfile = os.path.join(DIRS.CACHEDIR, item['BookImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['BookImg'] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        item['BookImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
@@ -4606,12 +4606,12 @@ class WebInterface:
                         fname, extn = os.path.splitext(row[1])
                         imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                         if path_isfile(imgfile):
-                            row[1] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                            row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                         else:
                             imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
-                                row[1] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                                row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                     row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
@@ -4814,12 +4814,12 @@ class WebInterface:
                     fname, extn = os.path.splitext(row[1])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     if path_isfile(imgfile):
-                        row[1] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                     else:
                         imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            row[1] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                            row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0])
                 row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0])
 
@@ -5175,12 +5175,12 @@ class WebInterface:
                         fname, extn = os.path.splitext(row[1])
                         imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                         if path_isfile(imgfile):
-                            row[1] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                            row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                         else:
                             imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
-                                row[1] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                                row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                     row[0] = quote_plus(make_utf8bytes(row[0])[0])
 
             loggerserverside.debug(f"get_mags returning {displaystart} to {displaystart + displaylength}")
@@ -5378,12 +5378,12 @@ class WebInterface:
                     fname, extn = os.path.splitext(row[1])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     if path_isfile(imgfile):
-                        row[1] = f"{'cache/'}{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                     else:
                         imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            row[1] = f"{'cache/'}{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                            row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0])
                 if row[2] and row[2].isdigit():
                     if len(row[2]) == 8:

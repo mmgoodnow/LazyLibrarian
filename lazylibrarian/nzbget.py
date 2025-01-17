@@ -91,7 +91,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
     elif nzbid:
         msg = f"lazylibrarian connected to {cmd} {nzbid}"
     else:
-        msg = f"lazylibrarian connected to drop off {nzb.name + '.nzb'} any moment now."
+        msg = f"lazylibrarian connected to drop off {nzb.name}.nzb any moment now."
 
     try:
         if nzb_get_rpc.writelog("INFO", msg):
@@ -105,7 +105,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
                 logger.debug(res)
                 return False, res
             else:
-                logger.warning(f"Successfully connected to NZBget, but unable to send {nzb.name + '.nzb'}")
+                logger.warning(f"Successfully connected to NZBget, but unable to send {nzb.name}.nzb")
 
     except HTTPException as e:
         res = "Please check your NZBget host and port (if it is running). "
@@ -199,10 +199,10 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
             logger.debug("NZB sent to NZBget successfully")
             return nzbget_result, ''
         else:
-            res = f"NZBget could not add {nzb.name + '.nzb'} to the queue"
+            res = f"NZBget could not add {nzb.name}.nzb to the queue"
             logger.error(res)
             return False, res
     except Exception as e:
-        res = f"Connect Error to NZBget: could not add {nzb.name + '.nzb'} to the queue: {type(e).__name__} {e}"
+        res = f"Connect Error to NZBget: could not add {nzb.name}.nzb to the queue: {type(e).__name__} {e}"
         logger.error(res)
         return False, res
