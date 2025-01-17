@@ -906,7 +906,7 @@ def get_series_authors(seriesid):
     return newauth
 
 
-def get_series_members(seriesid=None, seriesname=None):
+def get_series_members(seriesid=None, seriesname=None, refresh=False):
     """ Ask librarything, hardcover or goodreads for details on all books in a series
         order, bookname, authorname, workid, authorid, pubyear, pubmonth, pubday, bookid
         (workid, authorid, pubdates, bookid are currently goodreads only)
@@ -920,7 +920,7 @@ def get_series_members(seriesid=None, seriesname=None):
         result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
         if result:
             source = seriesid[:2]
-            if result['Status'] in ['Paused', 'Ignored']:
+            if not refresh and result['Status'] in ['Paused', 'Ignored']:
                 logger.debug(
                     f"Not getting additional series members for {result['SeriesName']}, status is {result['Status']}")
                 return results, api_hits, source
