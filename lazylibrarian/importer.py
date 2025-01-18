@@ -750,7 +750,7 @@ def de_duplicate(authorid):
         logger.warning(msg)
     finally:
         db.close()
-    logger.info(f"Deleted {total} duplicate {plural(dupes, 'title')} for {authorname}")
+    logger.info(f"Deleted {total} duplicate {plural(total, 'entry')} for {authorname}")
 
 
 def update_totals(authorid):
