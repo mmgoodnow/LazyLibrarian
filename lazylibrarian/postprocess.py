@@ -1708,10 +1708,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                     # use url and status for identifier because magazine id isn't unique
                     if book['Status'] == "Snatched":
-                        q = 'UPDATE wanted SET Status="Failed",DLResult=? WHERE NZBurl=? and Status="Snatched"'
+                        q = "UPDATE wanted SET Status='Failed',DLResult=? WHERE NZBurl=? and Status='Snatched'"
                         db.action(q, (dlresult, book['NZBurl']))
                     else:  # don't overwrite dlresult reason for the abort
-                        q = 'UPDATE wanted SET Status="Failed" WHERE NZBurl=? and Status="Aborted"'
+                        q = "UPDATE wanted SET Status='Failed' WHERE NZBurl=? and Status='Aborted'"
                         db.action(q, (book['NZBurl'],))
 
                     if CONFIG.get_bool('DEL_FAILED'):

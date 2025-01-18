@@ -119,7 +119,7 @@ class DBConnection:
         start = time.time()
 
         if '"' in query:
-            program, method, lineno = get_info_on_caller(depth=3)
+            program, method, lineno = get_info_on_caller(depth=2)
             self.logger.warning(f'Malformed Query: {query}: {program}, {method}, {lineno}')
             query = query.replace('"', "'")
 
