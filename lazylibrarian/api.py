@@ -1554,10 +1554,10 @@ class Api(object):
         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
         name_exploded = replace_all(kwargs['name'], dic).split()
 
-        regex_pass, issuedate, year = get_issue_date(name_exploded)
+        issuenum_type, issuedate, year = get_issue_date(name_exploded)
 
-        if regex_pass:
-            if int(regex_pass) > 9:  # we think it's an issue number
+        if issuenum_type:
+            if int(issuenum_type) > 9:  # we think it's an issue number
                 if issuedate.isdigit():
                     issuedate = issuedate.zfill(4)  # pad with leading zeros
             if dirname:
@@ -1569,9 +1569,9 @@ class Api(object):
                     fname = CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate)
                 self.data = os.path.join(dirname, f"{fname}.{name_exploded[-1]}")
             else:
-                self.data = f"Regex {regex_pass} [{issuedate}] {year}"
+                self.data = f"Regex {issuenum_type} [{issuedate}] {year}"
         else:
-            self.data = f"Regex {regex_pass} [{issuedate}] {year}"
+            self.data = f"Regex {issuenum_type} [{issuedate}] {year}"
 
     def _createmagcovers(self, **kwargs):
         TELEMETRY.record_usage_data()

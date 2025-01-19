@@ -5452,30 +5452,30 @@ class WebInterface:
         datetype = magazine['DateType']
         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
         issuenum_exploded = replace_all(issuenum, dic).split()
-        regex_pass, issuedate, year = get_issue_date(issuenum_exploded, datetype=datetype)
+        issuenum_type, issuedate, year = get_issue_date(issuenum_exploded, datetype=datetype)
 
-        if regex_pass:
-            logger.debug(f'Issue {issuedate} (regex {regex_pass}) for {issuenum}, {datetype}')
+        if issuenum_type:
+            logger.debug(f'Issue {issuedate} (regex {issuenum_type}) for {issuenum}, {datetype}')
             datetype_ok = True
 
             if datetype:
                 # check all wanted parts are in the regex result
                 # Day Month Year Vol Iss (MM needs two months)
 
-                if 'M' in datetype and regex_pass not in [1, 2, 3, 4, 5, 6, 7, 12]:
+                if 'M' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 12]:
                     datetype_ok = False
-                elif 'D' in datetype and regex_pass not in [3, 5, 6]:
+                elif 'D' in datetype and issuenum_type not in [3, 5, 6]:
                     datetype_ok = False
-                elif 'MM' in datetype and regex_pass not in [1]:  # bi monthly
+                elif 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
                     datetype_ok = False
-                elif 'V' in datetype and 'I' in datetype and regex_pass not in [8, 9, 17, 18]:
+                elif 'V' in datetype and 'I' in datetype and issuenum_type not in [8, 9, 17, 18]:
                     datetype_ok = False
-                elif 'V' in datetype and regex_pass not in [2, 10, 11, 12, 13, 14, 17, 18]:
+                elif 'V' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 17, 18]:
                     datetype_ok = False
-                elif 'I' in datetype and regex_pass not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
+                elif 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
                     datetype_ok = False
-                elif 'Y' in datetype and regex_pass not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
-                                                            12, 13, 15, 16, 18]:
+                elif 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
+                                                               12, 13, 15, 16, 18]:
                     datetype_ok = False
                 else:
                     datetype_ok = False

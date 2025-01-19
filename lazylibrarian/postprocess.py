@@ -340,8 +340,8 @@ def process_issues(source_dir=None, title=''):
                         found_title = False
 
             if found_title:
-                regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(filename_words, res['DateType'])
-                if regex_pass:
+                issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(filename_words, res['DateType'])
+                if issuenum_type:
                     # suppress the "-01" day on monthly magazines
                     # if re.match(r'\d+-\d\d-01', str(issuedate)):
                     #    issuedate = issuedate[:-3]
@@ -1286,10 +1286,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     logger.debug(f"Looks like an invalid or missing date, retrying {book['NZBtitle']}")
                                     dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
                                            '[': ' ', ']': ' ', '#': '# '}
-                                    regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(
+                                    issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(
                                         replace_all(book['NZBtitle'].lower(), dic).split(), data['DateType'])
-                                    if regex_pass:
-                                        if regex_pass in [10, 12, 13] and year:
+                                    if issuenum_type:
+                                        if issuenum_type in [10, 12, 13] and year:
                                             iss_date = "%s%04d" % (year, int(issuedate))
                                         elif str(issuedate).isdigit():
                                             iss_date = str(issuedate).zfill(4)

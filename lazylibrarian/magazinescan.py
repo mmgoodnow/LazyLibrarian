@@ -149,7 +149,7 @@ def magazine_scan(title=None):
                             title = os.path.basename(rootdir).strip()
                             issuedate = ''
 
-                        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
+                        dic = {'.': ' ', '-': ' ', '/': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
                                '#': '# '}
                         datetype = ''
 
@@ -164,10 +164,10 @@ def magazine_scan(title=None):
 
                         if issuedate:
                             exploded = replace_all(issuedate, dic).split()
-                            regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
+                            issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            loggermatching.debug(f"Date regex [{regex_pass}][{issuedate}][{year}]")
-                            if regex_pass:
+                            loggermatching.debug(f"Date regex [{issuenum_type}][{issuedate}][{year}]")
+                            if issuenum_type:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)
                                     if 'Y' in datetype:
@@ -177,10 +177,10 @@ def magazine_scan(title=None):
 
                         if not issuedate:
                             exploded = replace_all(fname, dic).split()
-                            regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
+                            issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            loggermatching.debug(f"File regex [{regex_pass}][{issuedate}][{year}]")
-                            if regex_pass:
+                            loggermatching.debug(f"File regex [{issuenum_type}][{issuedate}][{year}]")
+                            if issuenum_type:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)
                                     if 'Y' in datetype:

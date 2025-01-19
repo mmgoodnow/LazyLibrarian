@@ -37,7 +37,7 @@ def cron_search_magazines():
 
 
 def search_magazines(mags=None, reset=False):
-    # produce a list of magazines to search for, tor, nzb, torznab, rss
+    # produce a list of magazines to search for, then search all enabled providers
     TELEMETRY.record_usage_data('Search/Magazine')
     logger = logging.getLogger(__name__)
     loggersearching = logging.getLogger('special.searching')
@@ -76,18 +76,20 @@ def search_magazines(mags=None, reset=False):
 
         for searchmag in searchmags:
             bookid = searchmag['Title']
-            searchterm = searchmag['Regex']
+            searchterms = get_list(searchmag['Regex'], ',')
             datetype = searchmag['DateType']
             if not datetype:
                 datetype = ''
 
-            if not searchterm:
-                dic = {'...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '', ',': '', '*': ''}
+            if not searchterms:
+                dic = {'...': '', ' & ': ' and ', ' + ': ' plus ', ' = ': ' ', '?': '', '$': 's',
+                       '"': '', ',': '', '*': ''}
                 searchterm = replace_all(searchmag['Title'], dic)
-                searchterm = re.sub(r'[.\-/]', ' ', searchterm)
+                searchterms = [re.sub(r'[.\-/]', ' ', searchterm)]  # single item in a list
 
-            searchlist.append({"bookid": bookid, "searchterm": searchterm, "datetype": datetype,
-                               "library": 'magazine'})
+            for searchterm in searchterms:
+                searchlist.append({"bookid": bookid, "searchterm": searchterm, "datetype": datetype,
+                                   "library": 'magazine'})
 
         if not searchlist:
             logger.warning('There is nothing to search for.  Mark some magazines as active.')
@@ -224,8 +226,7 @@ def search_magazines(mags=None, reset=False):
 
                     # Need to make sure that substrings of magazine titles don't get found
                     # (e.g. Maxim USA will find Maximum PC USA) so split into "words"
-                    dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
-                           '#': '# '}
+                    dic = {'.': ' ', '-': ' ', '/': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
                     nzbtitle_formatted = replace_all(nzbtitle, dic)
 
                     # remove extra spaces if they're in a row
@@ -336,30 +337,31 @@ def search_magazines(mags=None, reset=False):
                             rejects += 1
                         else:
                             datetype = book['datetype']
-                            regex_pass, issuedate, year = get_issue_date(nzbtitle_exploded, datetype=datetype)
-                            if regex_pass:
+                            issuenum_type, issuedate, year = get_issue_date(nzbtitle_exploded, datetype=datetype)
+                            if issuenum_type:
                                 logger.debug(
-                                    f'Issue {issuedate} (regex {regex_pass}) for {nzbtitle_formatted}, {datetype}')
+                                    f'Issue {issuedate} (datestyle {issuenum_type}) for {nzbtitle_formatted},'
+                                    f' {datetype}')
                                 datetype_ok = True
 
                                 if datetype:
-                                    # check all wanted parts are in the regex result
+                                    # check all wanted parts are in the result
                                     # Day Month Year Vol Iss (MM needs two months)
 
-                                    if 'M' in datetype and regex_pass not in [1, 2, 3, 4, 5, 6, 7, 12]:
+                                    if 'M' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 12]:
                                         datetype_ok = False
-                                    elif 'D' in datetype and regex_pass not in [3, 5, 6]:
+                                    elif 'D' in datetype and issuenum_type not in [3, 5, 6]:
                                         datetype_ok = False
-                                    elif 'MM' in datetype and regex_pass not in [1]:  # bi monthly
+                                    elif 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
                                         datetype_ok = False
-                                    elif 'V' in datetype and 'I' in datetype and regex_pass not in [8, 9, 17, 18]:
+                                    elif 'V' in datetype and 'I' in datetype and issuenum_type not in [8, 9, 17, 18]:
                                         datetype_ok = False
-                                    elif 'V' in datetype and regex_pass not in [2, 10, 11, 12, 13, 14, 17, 18]:
+                                    elif 'V' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 17, 18]:
                                         datetype_ok = False
-                                    elif 'I' in datetype and regex_pass not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
+                                    elif 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
                                         datetype_ok = False
-                                    elif 'Y' in datetype and regex_pass not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
-                                                                                12, 13, 15, 16, 18]:
+                                    elif 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
+                                                                                   12, 13, 15, 16, 18]:
                                         datetype_ok = False
                             else:
                                 datetype_ok = False
@@ -415,10 +417,10 @@ def search_magazines(mags=None, reset=False):
                                     # invalid comparison of date and issue number
                                     comp_date = 0
                                     if re.match(r'\d+-\d\d-\d\d', str(control_date)):
-                                        if regex_pass > 9 and year:
+                                        if issuenum_type > 9 and year:
                                             # we assumed it was an issue number, but it could be a date
                                             year = check_int(year, 0)
-                                            if regex_pass in [10, 12, 13]:
+                                            if issuenum_type in [10, 12, 13]:
                                                 issuedate = int(issuedate[:4])
                                             issuenum = check_int(issuedate, 0)
                                             if year and 1 <= issuenum <= 12:
@@ -571,7 +573,7 @@ def download_maglist(maglist, table='wanted'):
 
 def get_issue_date(nzbtitle_exploded, datetype=''):
     logger = logging.getLogger(__name__)
-    regex_pass = 0
+    issuenum_type = 0
     issuedate = ''
     year = 0
     if not datetype:
@@ -612,41 +614,41 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                         # bimonthly, for now just use first month
                         month = min(month, month2)
                         day = 1
-                        regex_pass = 1
+                        issuenum_type = 1
                     else:
                         day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos - 2]), 0)
                         if pos > 2 and nzbtitle_exploded[pos - 3].lower().strip('.') in nouns:
                             # definitely an issue number
                             if 'Y' in datetype:
                                 issuedate = str(day)
-                                regex_pass = 10
+                                issuenum_type = 10
                                 break
                             elif 'I' in datetype:
                                 issuedate = str(day)
-                                regex_pass = 11
+                                issuenum_type = 11
                                 break
                             else:
-                                regex_pass = 4
+                                issuenum_type = 4
                                 day = 1
                         elif day > 31:  # probably issue number nn
                             if 'Y' in datetype:
                                 issuedate = str(day)
-                                regex_pass = 10
+                                issuenum_type = 10
                                 break
                             elif 'I' in datetype:
                                 issuedate = str(day)
-                                regex_pass = 11
+                                issuenum_type = 11
                                 break
                             else:
-                                regex_pass = 4
+                                issuenum_type = 4
                                 day = 1
                         elif day:
-                            regex_pass = 3
+                            issuenum_type = 3
                         else:
-                            regex_pass = 4
+                            issuenum_type = 4
                             day = 1
                 else:
-                    regex_pass = 4
+                    issuenum_type = 4
                     day = 1
 
                 if not issuedate:
@@ -655,14 +657,14 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     _ = datetime.date(year, month, day)
                     break
                 except ValueError:
-                    regex_pass = 0
+                    issuenum_type = 0
                 except OverflowError:
                     logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
-                    regex_pass = 0
+                    issuenum_type = 0
         pos += 1
 
     # MonthName DD YYYY or MonthName DD, YYYY
-    if not regex_pass:
+    if not issuenum_type:
         pos = 0
         while pos < len(nzbtitle_exploded):
             year = check_year(nzbtitle_exploded[pos])
@@ -673,18 +675,18 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     try:
                         _ = datetime.date(year, month, day)
                         issuedate = "%04d-%02d-%02d" % (year, month, day)
-                        regex_pass = 5
+                        issuenum_type = 5
                         break
                     except ValueError:
-                        regex_pass = 0
+                        issuenum_type = 0
                     except OverflowError:
                         logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
-                        regex_pass = 0
+                        issuenum_type = 0
 
             pos += 1
 
     # YYYY MM_or_MonthName or YYYY MM_or_MonthName DD
-    if not regex_pass:
+    if not issuenum_type:
         pos = 0
         while pos < len(nzbtitle_exploded):
             year = check_year(nzbtitle_exploded[pos])
@@ -696,26 +698,26 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     if pos + 2 < len(nzbtitle_exploded):
                         day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos + 2]), 0)
                         if day:
-                            regex_pass = 6
+                            issuenum_type = 6
                         else:
-                            regex_pass = 7
+                            issuenum_type = 7
                             day = 1
                     else:
-                        regex_pass = 7
+                        issuenum_type = 7
                         day = 1
                     try:
                         _ = datetime.date(year, month, day)
                         issuedate = "%04d-%02d-%02d" % (year, month, day)
                         break
                     except ValueError:
-                        regex_pass = 0
+                        issuenum_type = 0
                     except OverflowError:
                         logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
-                        regex_pass = 0
+                        issuenum_type = 0
             pos += 1
 
     # scan for a year in the name
-    if not regex_pass:
+    if not issuenum_type:
         pos = 0
         while pos < len(nzbtitle_exploded):
             year = check_year(nzbtitle_exploded[pos])
@@ -737,15 +739,15 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
             if vol and iss:
                 if year:
                     issuedate = "%s%04d%04d" % (year, vol, iss)
-                    regex_pass = 8
+                    issuenum_type = 8
                 else:
                     issuedate = "%04d%04d" % (vol, iss)
-                    regex_pass = 9
+                    issuenum_type = 9
                 break
             pos += 1
 
     # Issue/No/Nr/Vol/# nn with/without year in any position
-    if not regex_pass:
+    if not issuenum_type:
         pos = 0
         while pos < len(nzbtitle_exploded):
             # might be "Vol.3" or "#12" with no space between noun and number
@@ -755,21 +757,21 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     issue = check_int(splitted[1], 0)
                     if issue:
                         issuedate = str(issue)
-                        # we searched for year prior to regex 8/9
+                        # we searched for year prior to datestyle 8/9
                         if year:
-                            regex_pass = 10  # Issue/No/Nr/Vol nn, YYYY
+                            issuenum_type = 10  # Issue/No/Nr/Vol nn, YYYY
                         else:
-                            regex_pass = 11  # Issue/No/Nr/Vol nn
+                            issuenum_type = 11  # Issue/No/Nr/Vol nn
                         break
                 if pos + 1 < len(nzbtitle_exploded):
                     issue = check_int(nzbtitle_exploded[pos + 1], 0)
                     if issue:
                         issuedate = str(issue)
-                        # we searched for year prior to regex 8/9
+                        # we searched for year prior to datestyle 8/9
                         if year:
-                            regex_pass = 10  # Issue/No/Nr/Vol nn, YYYY
+                            issuenum_type = 10  # Issue/No/Nr/Vol nn, YYYY
                         else:
-                            regex_pass = 11  # Issue/No/Nr/Vol nn
+                            issuenum_type = 11  # Issue/No/Nr/Vol nn
                         break
                     # No. 19.2 -> 2019 02 but 02 might be a number, not a month
                     issue = nzbtitle_exploded[pos + 1]
@@ -780,12 +782,12 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                         if len(issuedate) == 1:
                             issuedate = f'0{issuedate}'
                         if len(year) == 4 and len(issuedate) == 2:
-                            regex_pass = 10
+                            issuenum_type = 10
                             break
             pos += 1
 
     # nn YYYY issue number without "Nr" before it
-    if not regex_pass and year:
+    if not issuenum_type and year:
         pos = 1
         while pos < len(nzbtitle_exploded):
             year = check_year(nzbtitle_exploded[pos])
@@ -793,12 +795,12 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                 issue = check_int(nzbtitle_exploded[pos - 1], 0)
                 if issue:
                     issuedate = str(issue)
-                    regex_pass = 12
+                    issuenum_type = 12
                     break
             pos += 1
 
     # issue and year as a single 6 digit string e.g. 222015
-    if not regex_pass:
+    if not issuenum_type:
         pos = 0
         while pos < len(nzbtitle_exploded):
             issue = nzbtitle_exploded[pos]
@@ -807,12 +809,12 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                 if year:
                     issue = int(issue[:2])
                     issuedate = str(issue).zfill(4)
-                    regex_pass = 13
+                    issuenum_type = 13
                     break
             pos += 1
 
     # issue as a 3 or more digit string with leading zero e.g. 0063
-    if not regex_pass:
+    if not issuenum_type:
         pos = 0
         while pos < len(nzbtitle_exploded):
             issue = nzbtitle_exploded[pos]
@@ -820,17 +822,17 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                 if (len(issue) > 2 and issue[0] == '0') or (datetype and 'I' in datetype):
                     issuedate = issue
                     year = 0
-                    regex_pass = 14
+                    issuenum_type = 14
                     break
             pos += 1
 
-    # Annual - only a year found, year was found prior to regex 8/9
-    if not regex_pass and year:
+    # Annual - only a year found, year was found prior to datestyle 8/9
+    if not issuenum_type and year:
         issuedate = f"{year}-01-01"
-        regex_pass = 15
+        issuenum_type = 15
 
     # YYYYIIII internal issuedates for filenames
-    if not regex_pass:
+    if not issuenum_type:
         pos = 0
         while pos < len(nzbtitle_exploded):
             issue = nzbtitle_exploded[pos]
@@ -839,16 +841,16 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     if check_year(issue[:4]):  # YYYYIIII
                         year = issue[:4]
                         issuedate = issue
-                        regex_pass = 16
+                        issuenum_type = 16
                         break
                     else:
                         issuedate = issue  # VVVVIIII
-                        regex_pass = 17
+                        issuenum_type = 17
                         break
                 elif len(issuedate) == 12:  # YYYYVVVVIIII
                     year = issue[:4]
                     issuedate = issue
-                    regex_pass = 18
+                    issuenum_type = 18
                     break
             pos += 1
-    return regex_pass, issuedate, year
+    return issuenum_type, issuedate, year
