@@ -126,13 +126,13 @@ def get_current_version() -> str:
     # Establish the version of the installed app for Source or GIT only
     # Global variable set in LazyLibrarian.py on startup as it should be
     logger = logging.getLogger(__name__)
-    if CONFIG['INSTALL_TYPE'] == 'win':
+    if 'win' in CONFIG['INSTALL_TYPE']:
         logger.debug('Windows install - no update available')
 
         # Don't have a way to update exe yet, but don't want to set VERSION to None
         version_string = 'Windows Install'
 
-    elif CONFIG['INSTALL_TYPE'] == 'git':
+    elif 'git' in CONFIG['INSTALL_TYPE']:
         output, _ = run_git('rev-parse HEAD')
 
         if not output:
@@ -148,7 +148,7 @@ def get_current_version() -> str:
 
         version_string = cur_commit_hash
 
-    elif CONFIG['INSTALL_TYPE'] in ['source']:
+    elif 'source' in CONFIG['INSTALL_TYPE']:
         version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
         if not version_file.startswith(DIRS.PROG_DIR):
             old_location = os.path.join(DIRS.PROG_DIR, 'version.txt')
@@ -171,7 +171,7 @@ def get_current_version() -> str:
             else:
                 version_string = 'Invalid Version file'
                 return version_string
-    elif CONFIG['INSTALL_TYPE'] in ['package']:
+    elif 'package' in CONFIG['INSTALL_TYPE']:
         try:
             v = version.LAZYLIBRARIAN_HASH
         except AttributeError:
