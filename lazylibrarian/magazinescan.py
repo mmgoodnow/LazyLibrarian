@@ -166,7 +166,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(issuedate, dic).split()
                             issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            loggermatching.debug(f"Date regex [{issuenum_type}][{issuedate}][{year}]")
+                            loggermatching.debug(f"Date style [{issuenum_type}][{issuedate}][{year}]")
                             if issuenum_type:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)
@@ -179,7 +179,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(fname, dic).split()
                             issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            loggermatching.debug(f"File regex [{issuenum_type}][{issuedate}][{year}]")
+                            loggermatching.debug(f"Filename date style [{issuenum_type}][{issuedate}][{year}]")
                             if issuenum_type:
                                 if issuedate.isdigit() and 'I' in datetype:
                                     issuedate = issuedate.zfill(4)

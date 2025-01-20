@@ -351,7 +351,7 @@ def process_issues(source_dir=None, title=''):
                     else:
                         logger.warning(f'Failed to process {f}')
                 else:
-                    loggermatching.debug(f'regex failed for {f}')
+                    loggermatching.debug(f'Unrecognised date style for {f}')
         if 'IMPORTISSUES' in threading.current_thread().name:
             threading.current_thread().name = 'WEBSERVER'
         return True
