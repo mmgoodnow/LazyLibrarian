@@ -116,6 +116,8 @@ def direct_bok(book=None, prov=None, test=False):
 
     zlib, profile = bok_login()
     if not zlib:
+        if test:
+            return False
         return [], "Invalid credentials"
 
     dl_limit = profile["user"]["downloads_limit"]

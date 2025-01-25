@@ -153,8 +153,14 @@
                 host = $("#" + prov.toLowerCase() + "_host").val();
                 api = $("#" + prov.toLowerCase() + "_seeders").val();
             }
-            if ( 'BOK BFI'.indexOf(prov) >= 0 ) {
+            if ( 'BFI'.indexOf(prov) >= 0 ) {
                 host = $("#" + prov.toLowerCase() + "_host").val();
+            }
+            if ( 'BOK'.indexOf(prov) >= 0 ) {
+                host = $("#" + prov.toLowerCase() + "_host").val();
+                let email = $("#" + prov.toLowerCase() + "_email").val();
+                let pass = $("#" + prov.toLowerCase() + "_pass").val();
+                api = email + ' : ' + pass
             }
             if ( prov.indexOf('gen_') === 0 ) {
                 host = $("#" + prov.toLowerCase() + "_host").val();

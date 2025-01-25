@@ -96,6 +96,10 @@ def test_provider(name: str, host=None, api=None):
         logger.debug(f"Testing provider {name}")
         if host:
             CONFIG.set_str('BOK_HOST', host)
+        if api:
+            email, pwd = api.split(' : ', 1)
+            CONFIG.set_str('BOK_EMAIL', email)
+            CONFIG.set_str('BOK_PASS', pwd)
         return direct_bok(book, prov=name, test=True), "ZLibrary"
     if name == 'BFI':
         logger.debug(f"Testing provider {name}")
