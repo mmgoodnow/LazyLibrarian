@@ -52,7 +52,7 @@ def mailing_list(book_type, global_name, book_id):
                           (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
-                logger.debug(f"{book_id} wanted by {cnt} {plural(cnt, 'subscriber')} to author {data['Author']}")
+                logger.debug(f"{book_id} wanted by {cnt} {plural(cnt, 'subscriber')} to author {data['AuthorID']}")
 
             series = db.select('SELECT SeriesID from member WHERE BookID=?', (book_id,))
             for item in series:

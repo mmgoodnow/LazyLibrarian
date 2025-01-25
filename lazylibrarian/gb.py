@@ -150,6 +150,8 @@ class GoogleBooks:
                                 try:
                                     # skip if language is not in valid list -
                                     booklang = book['lang']
+                                    if not booklang:
+                                        booklang = 'Unknown'
                                     if booklang not in valid_langs:
                                         self.logger.debug(
                                             f"Skipped {book['name']} with language {booklang}")
@@ -336,7 +338,8 @@ class GoogleBooks:
                                     else:  # No match anywhere, accept google language
                                         booklang = googlelang
 
-                            # skip if language is in ignore list
+                            if not booklang:
+                                booklang = 'Unknown'
                             if booklang not in valid_langs:
                                 self.logger.debug(f"Skipped [{book['name']}] with language {booklang}")
                                 ignored += 1

@@ -68,8 +68,8 @@ def hc_sync(library='', userid=None):
 
 def validate_bookdict(bookdict):
     logger = logging.getLogger(__name__)
-    if not bookdict.get('auth_name') or bookdict.get('auth_name') == 'Unknown':
-        rejected = 'name', "Authorname Unknown"
+    if not bookdict.get('auth_id') or not bookdict.get('auth_name'):
+        rejected = 'name', "Authorname or ID not found"
         logger.debug(f"Rejecting {bookdict.get('title')}, {rejected[1]}")
         return rejected
 
@@ -82,7 +82,7 @@ def validate_bookdict(bookdict):
     db = database.DBConnection()
     try:
         wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
-        if wantedlanguages and 'All' not in wantedlanguages:
+        if 'All' not in wantedlanguages:
             lang = ''
             languages = get_list(bookdict.get('languages'))
             if languages:
@@ -90,16 +90,14 @@ def validate_bookdict(bookdict):
                     if item in wantedlanguages:
                         lang = item
                         break
-                if not lang:
-                    rejected = 'lang', f'Invalid language: {str(languages)}'
             elif bookdict.get('isbn'):
                 lang, _, _ = isbnlang(bookdict['isbn'])
-                if lang and lang not in wantedlanguages:
-                    rejected = 'lang', f'Invalid language: {lang}'
 
-                if not lang:
-                    if "Unknown" not in wantedlanguages:
-                        rejected = 'lang', 'No language'
+            if not lang:
+                lang = 'Unknown'
+
+            if lang not in wantedlanguages:
+                rejected = 'lang', f'Invalid language [{lang}]'
 
             if not rejected and not bookdict['title']:
                 rejected = 'name', 'No title'
@@ -595,7 +593,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 pubdate = entry['book']['release_date']
                 edition = entry['book']['default_physical_edition']
                 compilation = entry['book']['compilation']
-                language = ""
+                language = ''
                 if edition and 'language' in edition and edition.get('language'):
                     language = edition['language']['language']
 
@@ -604,7 +602,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 # pick the first entry for each position that is non compilation and in a language we want
                 if not compilation and position and (position not in resultdict or
                                                      resultdict[position][1] != author_name):
-                    if not language or 'All' in wantedlanguages or language in wantedlanguages:
+                    if not language:
+                        language = 'Unknown'
+                    if 'All' in wantedlanguages or language in wantedlanguages:
                         resultdict[position] = [book_title, authorname, authorlink, book_id, pubyear, pubdate]
             for item in resultdict:
                 res = [item]
@@ -927,21 +927,17 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return author_dict
 
     def build_bookdict(self, book_data):
-        bookdict = {}
+        bookdict = {'languages': '', 'publishers': '', 'auth_name': '', 'auth_id': '0',
+                    'cover': '', 'isbn': '', 'series': []}
         if 'contributions' in book_data and len(book_data['contributions']):
             author = book_data['contributions'][0]
             bookdict['auth_name'] = " ".join(author['author']['name'].split())
             bookdict['auth_id'] = str(author['author']['id'])
-        else:
-            bookdict['auth_name'] = 'Unknown'
-            bookdict['auth_id'] = '0'
         bookdict['title'] = book_data.get('title', '')
         bookdict['subtitle'] = book_data.get('subtitle', '')
-        bookdict['cover'] = ""
         if 'cached_image' in book_data and book_data['cached_image'].get('url'):
             bookdict['cover'] = book_data['cached_image']['url']
         editions = book_data.get('editions', [])
-        bookdict['isbn'] = ""
         for edition in editions:
             if edition.get('isbn_13'):
                 bookdict['isbn'] = edition['isbn_13']
@@ -949,7 +945,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
             if edition.get('isbn_10'):
                 bookdict['isbn'] = edition['isbn_10']
                 break
-        bookdict['series'] = []
         bookseries = book_data.get('book_series', [])
         for series in bookseries:
             bookdict['series'].append([series['series']['name'], series['series']['id'], series['position']])
@@ -986,7 +981,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
             genres = list(set(genres))
             bookgenre = ', '.join(genres[:genre_limit])
         bookdict['genres'] = bookgenre
-        bookdict['languages'] = ""
         langs = []
         for edition in editions:
             if edition.get('language'):
@@ -995,7 +989,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     langs.append(lang)
         if langs:
             bookdict['languages'] = ', '.join(set(langs))
-        bookdict['publishers'] = ""
         pubs = []
         for edition in editions:
             if edition.get('publisher'):

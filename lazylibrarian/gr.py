@@ -642,6 +642,9 @@ class GoodReads:
                                 rejected = 'isbn', 'No ISBN'
                                 self.logger.debug(f'Rejecting {bookname}, {rejected[1]}')
 
+                            if not book_language:
+                                book_language = 'Unknown'
+
                             if "All" not in valid_langs:  # do we care about language
                                 if book_language not in valid_langs:
                                     rejected = 'lang', f'Invalid language [{book_language}]'

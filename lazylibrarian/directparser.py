@@ -13,20 +13,19 @@
 import logging
 import time
 import traceback
-from urllib.parse import urlparse, urlencode, quote
+from urllib.parse import urlparse, urlencode
 
-import requests
 from bs4 import BeautifulSoup
 
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.common import get_user_agent
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
-    make_utf8bytes, seconds_to_midnight, get_list
+    make_utf8bytes, get_list
 from lazylibrarian.telemetry import TELEMETRY
+from lib.zlibrary import Zlibrary
 
 
 def redirect_url(genhost, url):
@@ -86,53 +85,27 @@ def session_get(sess, url, headers):
     return response
 
 
-def bok_login(sess, headers):
+def bok_login():
     logger = logging.getLogger(__name__)
-    host = CONFIG['BOK_HOST']
-    remix_userid = ''
-    remix_userkey = ''
-    logger.debug(f"Logging in to {host}")
-    if 'singlelogin' in host or 'z-library' in host:
-        try:
-            remix_userid = host.split('remix_userid=')[1].split('&')[0]
-            remix_userkey = host.split('remix_userkey=')[1].split('&')[0]
-        except IndexError:
-            pass
-        host = host.replace('singlelogin', 'z-library').split('/?')[0]
-        if remix_userid and remix_userkey:
-            my_cookies = {'remix_userid': remix_userid,
-                          'remix_userkey': remix_userkey,
-                          'siteLanguage': 'en'}
-            requests.utils.add_dict_to_cookiejar(sess.cookies, my_cookies)
-            return True
-
-    if not CONFIG['BOK_PASS']:
-        return True
-
-    bok_login_url = f"{host}/login"
-    data = {
-        "password": CONFIG['BOK_PASS'],
-        "auth": "1"
-    }
-
-    if bok_login_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
-        response = sess.post(bok_login_url, data=data, timeout=90, headers=headers,
-                             verify=CONFIG['SSL_CERTS'] if CONFIG['SSL_CERTS'] else True)
+    if CONFIG['BOK_REMIX_USERID'] and CONFIG['BOK_REMIX_USERKEY']:
+        zlib = Zlibrary(remix_userid=CONFIG['BOK_REMIX_USERID'], remix_userkey=CONFIG['BOK_REMIX_USERKEY'])
+    elif CONFIG['BOK_EMAIL'] and CONFIG['BOK_PASS']:
+        zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
     else:
-        response = sess.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
-    logger.debug(f"b-ok login response: {response.status_code}")
-    if not str(response.status_code).startswith('2'):
-        logger.error(f"Login Response:{response.text}")
-        return False
-    # use these login cookies for all 1-lib, z-library, b-ok domains
-    for c in sess.cookies:
-        c.domain = ''
-    return True
+        logger.error("Zlibrary check credentials")
+        return None, []
+    profile = zlib.getProfile()
+    if not profile:
+        logger.error("Zlibrary invalid credentials")
+        return None, []
+    if not CONFIG['BOK_REMIX_USERID'] or not CONFIG['BOK_REMIX_USERKEY']:
+        CONFIG['BOK_REMIX_USERID'] = profile["user"]["id"]
+        CONFIG['BOK_REMIX_USERKEY'] = profile["user"]["remix_userkey"]
+    return zlib, profile
 
 
 def direct_bok(book=None, prov=None, test=False):
     logger = logging.getLogger(__name__)
-    errmsg = ''
     provider = "zlibrary"
     if not prov:
         prov = 'BOK'
@@ -141,191 +114,61 @@ def direct_bok(book=None, prov=None, test=False):
             return False
         return [], "provider is already blocked"
 
-    bok_today = bok_dlcount()[0]
-    if bok_today and bok_today >= CONFIG.get_int(f"{prov}_DLLIMIT"):
-        if test:
-            return False
-        return [], "download limit reached"
+    zlib, profile = bok_login()
+    if not zlib:
+        return [], "Invalid credentials"
 
-    host = CONFIG[f"{prov}_HOST"].rstrip('/')
-    if not host.startswith('http'):
-        host = f"http://{host}"
-    sterm = make_unicode(book['searchterm'])
-    results = []
-    page = 1
-    removed = 0
-    next_page = True
+    dl_limit = profile["user"]["downloads_limit"]
+    dl_today = profile["user"]["downloads_today"]
+
+    logger.debug(f"z-library user has used {dl_today} of {dl_limit} downloads")
+    CONFIG.set_int('BOK_DLLIMIT', dl_limit)
+
+    limit = 50
     if test:
         book['bookid'] = '0'
+        limit = 10
 
-    headers = {'User-Agent': get_user_agent()}
-    s = requests.Session()
-    if not bok_login(s, headers):
+    searchresults = zlib.search(book['searchterm'], limit=limit)
+    if not searchresults or not searchresults.get('success', 0):
         if test:
             return False
-        return results, "Login failed"
-    if 'singlelogin' in host or 'z-library' in host:
-        host = host.replace('singlelogin', 'z-library').split('/?')[0]
-        # not sure if this number is important, maybe any referer will do?
-        headers['Referer'] = f'{host}/?ts=1505'
+        return [], "No results from zlibrary"
 
-    providerurl = url_fix(f"{host}/s/?q=")
-    while next_page:
-        params = {}
-        if page > 1:
-            params['page'] = page
-
-        search_url = f"{providerurl + quote(make_utf8bytes(book['searchterm'])[0])}{urlencode(params)}"
-        next_page = False
-        bok_sleep()
-        response = session_get(s, search_url, headers)
-        result = response.text
-        if len(result) < 100:  # may return a "blocked" message
-            # may return 404 if no results, not really an error
-            if '404' in result:
-                logger.debug(f"No results found from {provider} for {sterm}, got 404 for {search_url}")
-                if test:
-                    return 0
-            elif 'Denied' in result:
-                logger.debug(f"{result}, check your USER-AGENT string")
-                if test:
-                    return False
-            elif '111' in result:
-                # may have ip based access limits
-                logger.error(f'Access forbidden. Please wait a while before trying {provider} again.')
-                errmsg = result
-                BLOCKHANDLER.block_provider(provider, errmsg)
-            else:
-                logger.debug(search_url)
-                logger.debug(f'Error fetching page data from {provider}: {result}')
-                errmsg = result
-                TELEMETRY.record_usage_data("bokError")
-            if test:
-                return False
-            return results, errmsg
-
-        if len(result):
-            logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
-            try:
-                soup = BeautifulSoup(result, "html5lib")
-                rows = soup.select("div.book-item.exactMatch")
-                if not rows:
-                    logger.debug("No exactmatch book-item divs found in results")
-                    rows = []
-
-                logger.debug(f"Found {len(rows)} rows for {book['searchterm']}")
-                for row in rows:
-                    if BLOCKHANDLER.is_blocked(provider):
-                        next_page = False
-                        break
-                    url = None
-                    size = 0
-                    prov_page = ''
-                    newsoup = BeautifulSoup(str(row), "html5lib")
-                    bookcard = newsoup.find("z-bookcard")
-                    if bookcard:
-                        url = host + bookcard["href"]
-                        filesize = bookcard["filesize"]
-                        if filesize:
-                            size = size_in_bytes(filesize.upper())
-                        extn = bookcard["extension"]
-                        author_div = bookcard.find("div", {"slot": "author"})
-                        author = author_div.contents[0] if author_div.contents else None
-                        title_div = bookcard.find("div", {"slot": "title"})
-                        title = title_div.contents[0] if title_div.contents else None
-                    else:
-                        logger.debug("No z-bookcard found")
-                        author = None
-                        title = None
-                        extn = None
-
-                    if url:
-                        bok_sleep()
-
-                        response = session_get(s, url, headers)
-                        result = response.text
-                        if not str(response.status_code).startswith('2'):
-                            logger.debug(str(result)[:20])
-                        else:
-                            try:
-                                newsoup = BeautifulSoup(result, "html5lib")
-                                # a = newsoup.find('a', {"class": "dlButton"})
-                                # if not a:
-                                a = newsoup.find('a', {"class": "addDownloadedBook"})
-                                if not a:
-                                    link = ''
-                                    if 'WARNING' in result and '24 hours' in result:
-                                        msg = result.split('WARNING')[1].split('24 hours')[0]
-                                        msg = f"WARNING{msg}24 hours"
-                                        count, oldest = bok_dlcount()
-                                        if count and count >= CONFIG.get_int(f"{prov}_DLLIMIT"):
-                                            # rolling 24hr delay if limit reached
-                                            delay = oldest + 24 * 60 * 60 - time.time()
-                                        else:
-                                            delay = seconds_to_midnight()
-                                        BLOCKHANDLER.block_provider(provider, msg, delay=delay)
-                                        logger.warning(msg)
-                                        url = None
-                                    elif 'Too many requests' in result:
-                                        BLOCKHANDLER.block_provider(provider, result)
-                                        logger.warning(result)
-                                        url = None
-                                else:
-                                    link = a.get('href')
-                                if 'download_location=' in link:
-                                    url = link.split('download_location=')[1].split('&')[0]
-                                elif link and len(link) > 2:
-                                    url = host + link
-                                else:
-                                    logger.debug(f"Link unavailable for {title.strip()}")
-                                    url = None
-                                    removed += 1
-                            except Exception as e:
-                                logger.error(f"An error occurred parsing {url} in the {provider} parser: {str(e)}")
-                                logger.debug(f'{provider}: {traceback.format_exc()}')
-                                TELEMETRY.record_usage_data("bokParserError")
-                                url = None
-
-                    if url:
-                        if author:
-                            title = f"{author.strip()} {title.strip()}"
-                        if extn:
-                            title = f"{title}.{extn}"
-
-                        results.append({
-                            'bookid': book['bookid'],
-                            'tor_prov': provider,
-                            'tor_title': title,
-                            'tor_url': url,
-                            'tor_size': str(size),
-                            'tor_type': 'direct',
-                            'priority': CONFIG[f"{prov}_DLPRIORITY"],
-                            'prov_page': prov_page
-                        })
-                        logger.debug(f'Found {title}, Size {size}')
-                    next_page = True
-
-            except Exception as e:
-                logger.error(f"An error occurred in the {provider} parser: {str(e)}")
-                logger.debug(f'{provider}: {traceback.format_exc()}')
-
-        if test:
-            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} ({removed} removed)")
-            return len(results)
-
-        page += 1
-        if 0 < CONFIG.get_int('MAX_PAGES') < page:
-            logger.warning('Maximum results page search reached, still more results available')
-            next_page = False
+    logger.debug(f"{provider} returned {len(searchresults['books'])}")
+    results = []
+    removed = 0
+    for item in searchresults['books']:
+        author = item['author']
+        title = item['title']
+        extn = item['extension']
+        size = item['filesize']
+        dl = f"{item['id']}^{item['hash']}"
+        if not author or not title or not size or not dl:
+            removed += 1
         else:
-            bok_sleep()
+            if author:
+                title = f"{author.strip()} {title.strip()}"
+            if extn:
+                title = f"{title}.{extn}"
+            results.append({
+                'bookid': book['bookid'],
+                'tor_prov': provider,
+                'tor_title': title,
+                'tor_url': dl,
+                'tor_size': size,
+                'tor_type': 'direct',
+                'priority': CONFIG[f"{prov}_DLPRIORITY"],
+                'prov_page': item['href']
+            })
+            logger.debug(f'Found {title}, Size {size}')
 
-        if BLOCKHANDLER.is_blocked(provider):
-            errmsg = "provider_is_blocked"
-            next_page = False
+    if test:
+        logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} ({removed} removed)")
+        return len(results)
 
-    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
-    return results, errmsg
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {book['searchterm']}")
+    return results, ''
 
 
 def direct_bfi(book=None, prov=None, test=False):
@@ -345,7 +188,7 @@ def direct_bfi(book=None, prov=None, test=False):
 
     sterm = make_unicode(book['searchterm'])
     results = []
-    removed = 0
+
     if test:
         book['bookid'] = '0'
 
@@ -431,7 +274,7 @@ def direct_bfi(book=None, prov=None, test=False):
             TELEMETRY.record_usage_data("bfiParserError")
 
     if test:
-        logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} ({removed} removed)")
+        logger.debug(f"Test found {len(results)} {plural(len(results), 'result')}")
         return len(results)
 
     if BLOCKHANDLER.is_blocked(provider):

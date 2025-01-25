@@ -141,7 +141,7 @@ class LazyTelemetry(object):
         # Record the actual config of these features
         if _config['BOOK_API'] == 'GoodReads':
             cfg_telemetry["params"] += f"PRIMARY_GR "
-        elif _config['BOOK_API'] == 'GoogleBookss':
+        elif _config['BOOK_API'] == 'GoogleBooks':
             cfg_telemetry["params"] += f"PRIMARY_GB "
         elif _config['BOOK_API'] == 'HardCover':
             cfg_telemetry["params"] += f"PRIMARY_HC "

@@ -38,7 +38,7 @@ from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unico
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
-from lazylibrarian.directparser import bok_dlcount, bok_login, session_get
+from lazylibrarian.directparser import bok_login, session_get
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
@@ -135,7 +135,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
                 db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
             db.action("UPDATE wanted SET status='Snatched', Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?",
                       (source, download_id, dl_url, dl_title))
-            record_usage_data('Download/IRC/Success')
+            record_usage_data(f'Download/IRC/{source}/Success')
             return True, ''
 
         else:
@@ -252,11 +252,12 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
                       (source, download_id, nzburl))
         finally:
             db.close()
-        record_usage_data('Download/NZB/Success')
+        record_usage_data(f'Download/NZB/{source}/Success')
         return True, ''
     else:
         res = f'Failed to send nzb to @ <a href="{nzburl}">{source}</a>'
         logger.error(res)
+        record_usage_data(f'Download/NZB/{source}/Fail')
         return False, res
 
 
@@ -264,26 +265,74 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     logger = logging.getLogger(__name__)
     source = "DIRECT"
     logger.debug(f"Starting Direct Download for [{dl_title}]")
+
+    if provider == 'zlibrary':
+        zlib, profile = bok_login()
+        if not zlib:
+            return False, 'Login failed'
+        dl_limit = profile["user"]["downloads_limit"]
+        dl_today = profile["user"]["downloads_today"]
+        logger.debug(f"z-library user has used {dl_today} of {dl_limit} downloads")
+        CONFIG.set_int('BOK_DLLIMIT', dl_limit)
+
+        if dl_today >= dl_limit:
+            res = f"Reached Daily download limit ({dl_limit})"
+            delay = 60*60
+            BLOCKHANDLER.block_provider(provider, res, delay=delay)
+            return False, res
+        try:
+            zlib_bookid, zlib_hash = dl_url.split('^')
+        except IndexError:
+            msg = f"Failed to get id and hash from url {dl_url}"
+            logger.debug(msg)
+            return False, msg
+
+        filename, filecontent = zlib.downloadBook({"id": zlib_bookid, "hash": zlib_hash})
+        if not filename:
+            logger.error(filecontent)
+            return False, filecontent
+        logger.debug(f"File download got {len(filecontent)} bytes for {filename}")
+        basename = dl_title
+        destdir = os.path.join(get_directory('Download'), basename)
+        if not path_isdir(destdir):
+            _ = make_dirs(destdir)
+        _, extn = os.path.splitext(filename)
+        destfile = os.path.join(destdir, basename + extn)
+        if os.name == 'nt':  # Windows has max path length of 256
+            destfile = '\\\\?\\' + destfile
+        logger.debug(f"Saving as {destfile}")
+        try:
+            with open(destfile, "wb") as bookfile:
+                bookfile.write(filecontent)
+        except Exception as e:
+            res = f"{type(e).__name__} writing book to {destfile}, {e}"
+            logger.error(res)
+            return False, res
+
+        logger.debug(f"File {dl_title} has been downloaded from z-library")
+        setperm(destfile)
+        hashid = sha1(bencode(dl_url)).hexdigest()
+        db = database.DBConnection()
+        try:
+            if library == 'eBook':
+                db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
+            elif library == 'AudioBook':
+                db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
+            cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                   "WHERE BookID=? and NZBProv=?")
+            db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
+        finally:
+            db.close()
+        record_usage_data(f'Download/Direct/{provider}/Success')
+        return True, ''
+
+    # libgen...
     headers = {'Accept-encoding': 'gzip', 'User-Agent': get_user_agent()}
     dl_url = make_unicode(dl_url)
     s = requests.Session()
     proxies = proxy_list()
     if proxies:
         s.proxies.update(proxies)
-    if provider == 'zlibrary':
-        # do we need to log in?
-        # if CONFIG['BOK_PASS']:
-        if not bok_login(s, headers):
-            return False, 'Login failed'
-        # zlibrary needs a referer header from a zlibrary host
-        headers['Referer'] = dl_url
-        count, oldest = bok_dlcount()
-        limit = CONFIG.get_int('BOK_DLLIMIT')
-        if limit and count >= limit:
-            res = f"Reached Daily download limit ({limit})"
-            delay = oldest + 24*60*60 - time.time()
-            BLOCKHANDLER.block_provider(provider, res, delay=delay)
-            return False, res
 
     redirects = 0
     while redirects < 5:
@@ -384,7 +433,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
                 finally:
                     db.close()
-                record_usage_data('Download/Direct/Success')
+                record_usage_data(f'Download/Direct/{provider}/Success')
                 return True, ''
             except Exception as e:
                 res = f"{type(e).__name__} writing book to {destfile}, {e}"
@@ -822,11 +871,12 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                       (source, download_id, full_url))
         finally:
             db.close()
-        record_usage_data('Download/TOR/Success')
+        record_usage_data(f'Download/TOR/{source}/Success')
         return True, ''
 
     res = f"Failed to send torrent to {source}"
     logger.error(res)
+    record_usage_data(f'Download/TOR/{source}/Fail')
     return False, res
 
 

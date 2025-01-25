@@ -579,7 +579,7 @@ class OpenLibrary:
                                     lang = item
                                     break
                             if not lang:
-                                rejected = 'lang', f'Invalid language: {str(languages)}'
+                                rejected = 'lang', f'Invalid language [{str(languages)}]'
                                 bad_lang += 1
 
                         if not lang and isbn:
@@ -753,9 +753,9 @@ class OpenLibrary:
                                     locked = False
                                     bookdate = publish_date
                                     bookrate = rating
-                                    if 'Invalid language: ' in reason:
+                                    if 'Invalid language [' in reason:
                                         try:
-                                            lang = reason.split('Invalid language: ')[1].split("'")[1]
+                                            lang = reason.split('Invalid language [')[1].split("'")[1]
                                         except IndexError:
                                             pass
                                     infodict = get_gb_info(isbn=isbn, author=auth_name, title=title, expire=False)
@@ -1244,11 +1244,12 @@ class OpenLibrary:
             # Ignore book if adding as part of a series, else just warn and include it
             #
             valid_langs = get_list(CONFIG['IMP_PREFLANG'])
-            if lang not in valid_langs and 'All' not in valid_langs:
-                msg = f'Book {title} Language [{lang}] does not match preference'
-                self.logger.warning(msg)
-                if reason.startswith("Series:"):
-                    return
+            if 'All' not in valid_langs:
+                if lang not in valid_langs:
+                    msg = f'Book {title} Language [{lang}] does not match preference'
+                    self.logger.warning(msg)
+                    if reason.startswith("Series:"):
+                        return
             originalpubdate = ''
             if publish_date:
                 bookdate = publish_date
