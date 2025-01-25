@@ -101,7 +101,7 @@ def add_torrent(tor_url, hash_id, data=None):
         directory = CONFIG['RTORRENT_DIR']
         if directory:
             if version.startswith('0.9') or version.startswith('1.'):
-                get_directory.set(hash_id, directory)
+                server.d.directory.set(hash_id, directory)
             else:
                 server.d.set_directory(hash_id, directory)
 
