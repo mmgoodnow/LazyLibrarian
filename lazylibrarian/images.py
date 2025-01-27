@@ -114,6 +114,33 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
     return outfile
 
 
+def valid_pdf(sourcefile):
+    # check we can read/parse the pdf file, ie it's not corrupted
+    logger = logging.getLogger(__name__)
+    if PdfWriter is None:
+        logger.warning("pypdf is not loaded")
+        return False
+    _, extn = os.path.splitext(sourcefile)
+    if extn.lower() != '.pdf':
+        logger.warning(f"Cannot swap cover on [{sourcefile}]")
+        return False
+
+    try:
+        writer = PdfWriter()
+        with open(sourcefile, "rb") as f:
+            reader = PdfReader(f, strict=True)
+            cnt = reader.get_num_pages()
+            logger.debug(f"{sourcefile} has {cnt} pages")
+            p = 0
+            while p < cnt:
+                writer.add_page(reader.pages[p])
+                p += 1
+        return True
+    except Exception as e:
+        logger.warning(str(e))
+        return False
+
+
 def coverswap(sourcefile, coverpage=2):
     logger = logging.getLogger(__name__)
     if PdfWriter is None:

@@ -22,7 +22,7 @@ from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, se
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import calibre_prg, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
-from lazylibrarian.images import shrink_mag, coverswap
+from lazylibrarian.images import shrink_mag, coverswap, valid_pdf
 
 
 def preprocess_ebook(bookfolder):
@@ -32,7 +32,7 @@ def preprocess_ebook(bookfolder):
     ebook_convert = calibre_prg('ebook-convert')
     if not ebook_convert:
         logger.error("No ebook-convert found")
-        return
+        return False
 
     sourcefile = None
     created = ''
@@ -50,7 +50,7 @@ def preprocess_ebook(bookfolder):
 
     if not sourcefile:
         logger.error(f"No suitable sourcefile found in {bookfolder}")
-        return
+        return False
 
     basename, source_extn = os.path.splitext(sourcefile)
     logger.debug(f"Wanted formats: {CONFIG['EBOOK_WANTED_FORMATS']}")
@@ -76,7 +76,7 @@ def preprocess_ebook(bookfolder):
             except Exception as e:
                 logger.error(f"{e}")
                 logger.error(repr(params))
-                return
+                return False
         else:
             logger.debug(f"Found {ftype}")
 
@@ -94,6 +94,7 @@ def preprocess_ebook(bookfolder):
         logger.debug(f"Created {created} from {source_extn}")
     else:
         logger.debug("No extra ebook formats created")
+    return True
 
 
 def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
@@ -106,12 +107,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     if zipp is None:
         zipp = CONFIG.get_bool('ZIP_AUDIOPARTS')
     if not merge and not tag and not zipp:
-        return
+        return True  # nothing to do
 
     ffmpeg = CONFIG['FFMPEG']
     if not ffmpeg:
         logger.error("Check config setting for ffmpeg")
-        return
+        return False
     ff_ver = lazylibrarian.FFMPEGVER
     if not ff_ver:
         try:
@@ -165,7 +166,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     parts, failed, token, abridged = audio_parts(bookfolder, bookname, authorname)
 
     if failed or not parts:
-        return
+        return False
 
     namevars = name_vars(bookid, abridged)
 
@@ -243,10 +244,10 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         logger.debug(f"Metadata written to {part[3]}")
                     except subprocess.CalledProcessError as e:
                         logger.error(f"{type(e).__name__}: {str(e)}")
-                        return
+                        return False
                     except Exception as e:
                         logger.error(f"{type(e).__name__}: {str(e)}")
-                        return
+                        return False
 
     bookfile = namevars['AudioSingleFile']
     if not bookfile:
@@ -278,9 +279,10 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug("Metadata written to metadata.ll")
             except subprocess.CalledProcessError as e:
                 logger.error(f"{type(e).__name__}: {str(e)}")
+                return False
             except Exception as e:
                 logger.error(f"{type(e).__name__}: {str(e)}")
-                return
+                return False
 
             part_durations = []
             for part in parts:
@@ -314,10 +316,10 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
                 except subprocess.CalledProcessError as e:
                     logger.error(f"{type(e).__name__}: {str(e)}")
-                    return
+                    return False
                 except Exception as e:
                     logger.error(f"{type(e).__name__}: {str(e)}")
-                    return
+                    return False
 
             if part_durations:
                 part_durations.sort(key=lambda x: x[0])
@@ -365,12 +367,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
             except subprocess.CalledProcessError as e:
                 logger.error(f"{type(e).__name__}: {str(e)}")
-                return
+                return False
             except Exception as e:
                 logger.error(f"{type(e).__name__}: {str(e)}")
                 if res:
                     logger.error(res)
-                return
+                return False
 
             logger.info(f"{len(parts)} files merged into {outfile}")
 
@@ -469,10 +471,10 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug(f"Metadata written to {outfile}")
             except subprocess.CalledProcessError as e:
                 logger.error(f"{type(e).__name__}: {str(e)}")
-                return
+                return False
             except Exception as e:
                 logger.error(f"{type(e).__name__}: {str(e)}")
-                return
+                return False
 
         if not CONFIG.get_bool('KEEP_SEPARATEAUDIO') and len(parts) > 1:
             logger.debug(f"Removing {len(parts)} part files")
@@ -481,6 +483,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
     remove_file(partslist)
     remove_file(metadata)
+    return True
 
 
 def preprocess_magazine(bookfolder, cover=0):
@@ -495,15 +498,20 @@ def preprocess_magazine(bookfolder, cover=0):
                 break
 
         if not sourcefile:
-            logger.error(f"No suitable sourcefile found in {bookfolder}")
-            return
+            msg = f"No suitable sourcefile found in {bookfolder}"
+            logger.error(msg)
+            return False, msg
+
+        if not valid_pdf(os.path.join(bookfolder, sourcefile)):
+            msg = f"Invalid pdf {sourcefile} in {bookfolder}"
+            return False, msg
 
         dpi = CONFIG.get_int('SHRINK_MAG')
         cover = check_int(cover, 0)
 
         if not dpi and not (CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1):
             logger.debug("No preprocessing required")
-            return
+            return True, ''
 
         # reordering or shrinking pages is quite slow if the source is on a networked drive
         # so work on a local copy, then move it over.
@@ -533,3 +541,5 @@ def preprocess_magazine(bookfolder, cover=0):
         _ = setperm(original)
     except Exception as e:
         logger.error(str(e))
+        return False, str(e)
+    return True, ''
