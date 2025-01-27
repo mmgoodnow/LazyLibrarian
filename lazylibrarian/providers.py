@@ -29,7 +29,7 @@ from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi, bok_dlcount
+from lazylibrarian.directparser import direct_gen, direct_bok, bok_dlcount
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num, md5_utf8
@@ -101,11 +101,6 @@ def test_provider(name: str, host=None, api=None):
             CONFIG.set_str('BOK_EMAIL', email)
             CONFIG.set_str('BOK_PASS', pwd)
         return direct_bok(book, prov=name, test=True), "ZLibrary"
-    if name == 'BFI':
-        logger.debug(f"Testing provider {name}")
-        if host:
-            CONFIG.set_str('BFI_HOST', host)
-        return direct_bfi(book, prov=name, test=True), "BookFi"
 
     if name.startswith('rss_'):
         try:
@@ -740,39 +735,12 @@ def iterate_over_direct_sites(book=None, search_type=None):
                     # use a short delay for site unavailable etc
                     delay = CONFIG.get_int('BLOCKLIST_TIMER')
                     count, oldest = bok_dlcount()
-                    if count and count >= CONFIG.get_int('BOK_DLLIMIT'):
+                    dl_limit = CONFIG.get_int('BOK_DLLIMIT')
+                    if count and count >= dl_limit:
                         # rolling 24hr delay if limit reached
                         delay = oldest + 24 * 60 * 60 - time.time()
+                        error = f"Reached Daily download limit ({dl_limit})"
                     BLOCKHANDLER.block_provider('zlibrary', error, delay=delay)
-                else:
-                    resultslist += results
-                    providers += 1
-
-    for prov in ['BFI']:
-        iterateproviderslogger.debug(f"DLTYPES: {prov}: {CONFIG[prov]} {CONFIG[prov + '_DLTYPES']}")
-        if CONFIG[prov]:
-            ignored = False
-            if BLOCKHANDLER.is_blocked(prov):
-                logger.debug(f'{prov} is BLOCKED')
-                ignored = True
-            elif search_type in ['book', 'shortbook', 'titlebook'] and \
-                    'E' not in CONFIG[f"{prov}_DLTYPES"]:
-                logger.debug(f"Ignoring {prov} for eBook")
-                ignored = True
-            elif "audio" in search_type and 'A' not in CONFIG[f"{prov}_DLTYPES"]:
-                logger.debug(f"Ignoring {prov} for AudioBook")
-                ignored = True
-            elif "mag" in search_type and 'M' not in CONFIG[f"{prov}_DLTYPES"]:
-                logger.debug(f"Ignoring {prov} for Magazine")
-                ignored = True
-            elif "comic" in search_type and 'C' not in CONFIG[f"{prov}_DLTYPES"]:
-                logger.debug(f"Ignoring {prov} for Comic")
-                ignored = True
-            if not ignored:
-                logger.debug(f'Querying {prov}')
-                results, error = direct_bfi(book, prov)
-                if error:
-                    BLOCKHANDLER.block_provider(prov, error)
                 else:
                     resultslist += results
                     providers += 1

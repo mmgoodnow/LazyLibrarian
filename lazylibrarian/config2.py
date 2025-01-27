@@ -596,8 +596,6 @@ class LLConfigHandler(ConfigDict):
         count = self.count_in_use('GEN')
         if self.get_bool('BOK') and not BLOCKHANDLER.is_blocked('BOK'):
             count += 1
-        if self.get_bool('BFI') and not BLOCKHANDLER.is_blocked('BFI'):
-            count += 1
         return count
 
     def disp_name(self, provider: str) -> str:

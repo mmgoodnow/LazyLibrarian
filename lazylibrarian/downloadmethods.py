@@ -38,7 +38,7 @@ from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unico
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
-from lazylibrarian.directparser import bok_login, session_get
+from lazylibrarian.directparser import bok_login, session_get, bok_dlcount
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
@@ -267,17 +267,16 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     logger.debug(f"Starting Direct Download for [{dl_title}]")
 
     if provider == 'zlibrary':
-        zlib, profile = bok_login()
+        zlib = bok_login()
         if not zlib:
             return False, 'Login failed'
-        dl_limit = profile["user"]["downloads_limit"]
-        dl_today = profile["user"]["downloads_today"]
-        logger.debug(f"z-library user has used {dl_today} of {dl_limit} downloads")
-        CONFIG.set_int('BOK_DLLIMIT', dl_limit)
 
-        if dl_today >= dl_limit:
+        count, oldest = bok_dlcount()
+        dl_limit = CONFIG.get_int('BOK_DLLIMIT')
+        if count and count >= dl_limit:
+            # rolling 24hr delay if limit reached
+            delay = oldest + 24 * 60 * 60 - time.time()
             res = f"Reached Daily download limit ({dl_limit})"
-            delay = 60*60
             BLOCKHANDLER.block_provider(provider, res, delay=delay)
             return False, res
         try:
@@ -441,65 +440,14 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 return False, res
         else:
             res = f"Got unexpected response type ({r.headers['Content-Type']}) for {dl_title}"
-            if 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
-                if b'Daily limit reached' in r.content:
-                    try:
-                        limit = make_unicode(r.content.split(b'more than')[1].split(b'downloads')[0].strip())
-                        n = check_int(limit, 0)
-                        if n:
-                            CONFIG.set_int('BOK_DLLIMIT', n)
-                    except IndexError:
-                        limit = 'unknown'
-                    msg = f"Daily limit ({limit}) reached"
-                    BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
-                    logger.warning(msg)
-                    return False, msg
-                elif b'Too many requests' in r.content:
-                    msg = "Too many requests"
-                    BLOCKHANDLER.block_provider(provider, msg)
-                    logger.warning(msg)
-                    return False, msg
-
             logger.debug(res)
-            if redirects and 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
-                host = CONFIG['BOK_HOST']
-                headers['Referer'] = dl_url
-                r = session_get(s, dl_url, headers)
-
-                if not str(r.status_code).startswith('2'):
-                    return False, f"Unable to fetch {r.url}: {r.status_code}"
-                try:
-                    res = r.content
-                    newsoup = BeautifulSoup(res, "html5lib")
-                    a = newsoup.find('a', {"class": "dlButton"})
-                    if not a:
-                        link = ''
-                        if b'Daily limit reached' in res:
-                            msg = "Daily limit reached"
-                            BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
-                            logger.warning(msg)
-                            return False, msg
-                        elif b'Too many requests' in res:
-                            msg = "Too many requests"
-                            BLOCKHANDLER.block_provider(provider, msg)
-                            logger.warning(msg)
-                            return False, msg
-                    else:
-                        link = a.get('href')
-                    if link and len(link) > 2:
-                        dl_url = host + link
-                    else:
-                        return False, 'No link available'
-                except Exception as e:
-                    return False, f"An error occurred parsing {r.url}: {e}"
-            else:
-                cache_location = os.path.join(DIRS.CACHEDIR, "HTMLCache")
-                myhash = md5_utf8(dl_url)
-                hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".html")
-                with open(syspath(hashfilename), "wb") as cachefile:
-                    cachefile.write(r.content)
-                logger.debug(f"Saved html page: {hashfilename}")
-                return False, res
+            cache_location = os.path.join(DIRS.CACHEDIR, "HTMLCache")
+            myhash = md5_utf8(dl_url)
+            hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".html")
+            with open(syspath(hashfilename), "wb") as cachefile:
+                cachefile.write(r.content)
+            logger.debug(f"Saved html page: {hashfilename}")
+            return False, res
 
     res = f'Failed to download file @ <a href="{dl_url}">{dl_url}</a>'
     logger.error(res)

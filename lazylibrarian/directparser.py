@@ -101,7 +101,12 @@ def bok_login():
     if not CONFIG['BOK_REMIX_USERID'] or not CONFIG['BOK_REMIX_USERKEY']:
         CONFIG['BOK_REMIX_USERID'] = profile["user"]["id"]
         CONFIG['BOK_REMIX_USERKEY'] = profile["user"]["remix_userkey"]
-    return zlib, profile
+
+    dl_limit = profile["user"]["downloads_limit"]
+    dl_today = profile["user"]["downloads_today"]
+    logger.debug(f"z-library used {dl_today} of {dl_limit} daily downloads")
+    CONFIG.set_int('BOK_DLLIMIT', dl_limit)
+    return zlib
 
 
 def direct_bok(book=None, prov=None, test=False):
@@ -114,17 +119,11 @@ def direct_bok(book=None, prov=None, test=False):
             return False
         return [], "provider is already blocked"
 
-    zlib, profile = bok_login()
+    zlib = bok_login()
     if not zlib:
         if test:
             return False
         return [], "Invalid credentials"
-
-    dl_limit = profile["user"]["downloads_limit"]
-    dl_today = profile["user"]["downloads_today"]
-
-    logger.debug(f"z-library user has used {dl_today} of {dl_limit} downloads")
-    CONFIG.set_int('BOK_DLLIMIT', dl_limit)
 
     limit = 50
     if test:
@@ -171,119 +170,6 @@ def direct_bok(book=None, prov=None, test=False):
 
     logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {book['searchterm']}")
     return results, ''
-
-
-def direct_bfi(book=None, prov=None, test=False):
-    logger = logging.getLogger(__name__)
-    errmsg = ''
-    provider = "BookFi"
-    if not prov:
-        prov = 'BFI'
-    if BLOCKHANDLER.is_blocked(provider):
-        if test:
-            return False
-        return [], "provider_is_blocked"
-
-    host = CONFIG['BFI_HOST'].rstrip('/')
-    if not host.startswith('http'):
-        host = f"http://{host}"
-
-    sterm = make_unicode(book['searchterm'])
-    results = []
-
-    if test:
-        book['bookid'] = '0'
-
-    params = {
-        "q": make_utf8bytes(book['searchterm'])[0]
-    }
-
-    providerurl = url_fix(f"{host}/s/")
-    search_url = f"{providerurl}?{urlencode(params)}"
-
-    result, success = fetch_url(search_url)
-    if not success:
-        # may return 404 if no results, not really an error
-        if '404' in result:
-            logger.debug(f"No results found from {provider} for {sterm}, got 404 for {search_url}")
-            if test:
-                return 0
-        elif '111' in result:
-            # may have ip based access limits
-            logger.error(f'Access forbidden. Please wait a while before trying {provider} again.')
-            errmsg = result
-            BLOCKHANDLER.block_provider(provider, errmsg)
-        else:
-            logger.debug(search_url)
-            logger.debug(f'Error fetching page data from {provider}: {result}')
-            errmsg = result
-            TELEMETRY.record_usage_data("bfiError")
-        if test:
-            return False
-        return results, errmsg
-
-    if len(result):
-        logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
-        try:
-            soup = BeautifulSoup(result, "html5lib")
-            try:
-                rows = soup.find_all('div', {"class": "resItemBox"})
-            except IndexError:
-                logger.debug("No item box found in results")
-                rows = []
-
-            for row in rows:
-                if BLOCKHANDLER.is_blocked(provider):
-                    break
-                rowsoup = BeautifulSoup(str(row), 'html5lib')
-                title = rowsoup.find('h3', itemprop='name').text
-                link = rowsoup.find('a', {"class": "ddownload"})
-                url = link['href']
-
-                if '(' in link.text:
-                    extn = link.text.split('(')[1].split(')')[0].lower()
-                else:
-                    extn = ''
-                author = rowsoup.find('a', itemprop='author').text
-
-                try:
-                    detail = rowsoup.find("span", itemprop='inLanguage').find_parent().text
-                    size = detail.split('\n')[0]
-                    size = size_in_bytes(size.upper())
-                except (IndexError, AttributeError):
-                    size = 0
-
-                if url:
-                    if author:
-                        title = f"{author.strip()} {title.strip()}"
-                    if extn:
-                        title = f"{title}.{extn}"
-
-                    results.append({
-                        'bookid': book['bookid'],
-                        'tor_prov': provider,
-                        'tor_title': title,
-                        'tor_url': url,
-                        'tor_size': str(size),
-                        'tor_type': 'direct',
-                        'priority': CONFIG[f"{prov}_DLPRIORITY"]
-                    })
-                    logger.debug(f'Found {title}, Size {size}')
-
-        except Exception as e:
-            logger.error(f"An error occurred in the {provider} parser: {str(e)}")
-            logger.debug(f'{provider}: {traceback.format_exc()}')
-            TELEMETRY.record_usage_data("bfiParserError")
-
-    if test:
-        logger.debug(f"Test found {len(results)} {plural(len(results), 'result')}")
-        return len(results)
-
-    if BLOCKHANDLER.is_blocked(provider):
-        errmsg = "provider_is_blocked"
-
-    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {sterm}")
-    return results, errmsg
 
 
 def direct_gen(book=None, prov=None, test=False):
@@ -635,6 +521,15 @@ def direct_gen(book=None, prov=None, test=False):
 
 
 def bok_dlcount() -> (int, int):
+    # we might be out of sync with zlibrary download counter, eg we might not be the only downloader
+    # so although we can count how many we downloaded, ask zlibrary and use their counter if known
+    # we try to use our datestamp to find out when the counter will reset
+    dl_today = None
+    zlib = bok_login()
+    if zlib:
+        profile = zlib.getProfile()
+        dl_today = profile["user"]["downloads_today"]
+
     db = database.DBConnection()
     try:
         yesterday = time.time() - 24 * 60 * 60
@@ -643,5 +538,9 @@ def bok_dlcount() -> (int, int):
     finally:
         db.close()
     if grabs:
-        return len(grabs), grabs[0]['completed']
-    return 0, 0
+        if dl_today is None:
+            dl_today = len(grabs)
+        return dl_today, grabs[0]['completed']
+    if dl_today is None:
+        dl_today = 0
+    return dl_today, 0

@@ -49,7 +49,6 @@ TIMERS = {
             'LAST_LT': 0,
             'LAST_CV': 0,
             'LAST_BOK': 0,
-            'LAST_BFI': 0,
             'SLEEP_GR': 0.0,
             'SLEEP_LT': 0.0,
             'SLEEP_CV': 0.0,

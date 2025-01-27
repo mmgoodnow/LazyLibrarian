@@ -537,14 +537,6 @@ class Api(object):
             name = f"BOK_{item}"
             mydict[name] = CONFIG.get_int(name)
         providers.append(mydict)
-        mydict = {'NAME': 'BFI', 'ENABLED': CONFIG.get_bool('BFI')}
-        for item in ['HOST', 'DLTYPES']:
-            name = f"BFI_{item}"
-            mydict[name] = CONFIG.get_str(name)
-        for item in ['DLPRIORITY']:
-            name = f"BFI_{item}"
-            mydict[name] = CONFIG.get_int(name)
-        providers.append(mydict)
         tot = len(providers)
         self.logger.debug(f"Returning {tot} {plural(tot, 'entry')}")
         self.data = providers
@@ -620,7 +612,7 @@ class Api(object):
             providers = CONFIG.providers('IRC')
         elif name.startswith('GEN_'):
             providers = CONFIG.providers('GEN')
-        elif name in ['BOK', 'BFI', 'KAT', 'TPB', 'LIME', 'TDL']:
+        elif name in ['BOK', 'KAT', 'TPB', 'LIME', 'TDL']:
             for arg in kwargs:
                 if arg in ['HOST', 'DLTYPES', 'DLPRIORITY', 'DLLIMIT', 'SEEDERS']:
                     itemname = f"{name}_{arg}"
