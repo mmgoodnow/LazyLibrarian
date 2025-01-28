@@ -93,11 +93,11 @@ def bok_login():
         zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
     else:
         logger.error("Zlibrary check credentials")
-        return None, []
+        return None
     profile = zlib.getProfile()
     if not profile:
         logger.error("Zlibrary invalid credentials")
-        return None, []
+        return None
     if not CONFIG['BOK_REMIX_USERID'] or not CONFIG['BOK_REMIX_USERKEY']:
         CONFIG['BOK_REMIX_USERID'] = profile["user"]["id"]
         CONFIG['BOK_REMIX_USERKEY'] = profile["user"]["remix_userkey"]
