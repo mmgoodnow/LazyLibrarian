@@ -36,7 +36,7 @@ def cron_search_magazines():
         search_magazines()
 
 
-def search_magazines(mags=None, reset=False):
+def search_magazines(mags=None, reset=False, backissues=False):
     # produce a list of magazines to search for, then search all enabled providers
     TELEMETRY.record_usage_data('Search/Magazine')
     logger = logging.getLogger(__name__)
@@ -412,7 +412,10 @@ def search_magazines(mags=None, reset=False):
                                         re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                     # only grab a copy if it's newer than the most recent we have,
                                     # or newer than a month ago if we have none
+                                    # unless backissues is True
                                     comp_date = datecompare(issuedate, control_date)
+                                elif backissues:
+                                    comp_date = 1
                                 else:
                                     # invalid comparison of date and issue number
                                     comp_date = 0
@@ -463,42 +466,45 @@ def search_magazines(mags=None, reset=False):
                                 loggersearching.debug(f'This issue of {nzbtitle_formatted} is old; skipping.')
                                 old_date += 1
 
+                            mag_entry = db.match(f'SELECT * from issues WHERE title=? and issuedate=?',
+                                                 (bookid, issuedate))
+                            if mag_entry:
+                                logger.info(f'This issue of {nzbtitle_formatted} is already downloaded; skipping')
+                                continue
                             # store only the _new_ matching results
                             #  Don't add a new entry if this issue has been found on an earlier search
                             #  and status has been user-set ( we only delete the "Skipped" ones )
                             #  In "wanted" table it might be already snatched/downloading/processing
-
                             mag_entry = db.match(f'SELECT Status from {insert_table} WHERE NZBtitle=? and NZBprov=?',
                                                  (nzbtitle, nzbprov))
                             if mag_entry and insert_table != 'wanted':
                                 logger.info(
                                     f"{nzbtitle} is already in {insert_table} marked {mag_entry['Status']}; skipping")
                                 continue
-                            else:
-                                control_value_dict = {
-                                    "NZBtitle": nzbtitle,
-                                    "NZBprov": nzbprov
-                                }
-                                new_value_dict = {
-                                    "NZBurl": nzburl,
-                                    "BookID": bookid,
-                                    "NZBdate": nzbdate,
-                                    "AuxInfo": issuedate,
-                                    "Status": "Wanted",
-                                    "NZBsize": nzbsize,
-                                    "NZBmode": nzbmode
-                                }
-                                if insert_table == 'pastissues':
-                                    # try to mark ones we've already got
-                                    match = db.match("SELECT * from issues WHERE Title=? AND IssueDate=?",
-                                                     (bookid, issuedate))
-                                    if match:
-                                        new_value_dict["Status"] = "Have"
-                                    else:
-                                        new_value_dict["Status"] = "Skipped"
-                                    new_value_dict["Added"] = int(time.time())
-                                db.upsert(insert_table, new_value_dict, control_value_dict)
-                                logger.info(f"Added {nzbtitle} to {insert_table} marked {new_value_dict['Status']}")
+                            control_value_dict = {
+                                "NZBtitle": nzbtitle,
+                                "NZBprov": nzbprov
+                            }
+                            new_value_dict = {
+                                "NZBurl": nzburl,
+                                "BookID": bookid,
+                                "NZBdate": nzbdate,
+                                "AuxInfo": issuedate,
+                                "Status": "Wanted",
+                                "NZBsize": nzbsize,
+                                "NZBmode": nzbmode
+                            }
+                            if insert_table == 'pastissues':
+                                # try to mark ones we've already got
+                                match = db.match("SELECT * from issues WHERE Title=? AND IssueDate=?",
+                                                 (bookid, issuedate))
+                                if match:
+                                    new_value_dict["Status"] = "Have"
+                                else:
+                                    new_value_dict["Status"] = "Skipped"
+                                new_value_dict["Added"] = int(time.time())
+                            db.upsert(insert_table, new_value_dict, control_value_dict)
+                            logger.info(f"Added {nzbtitle} to {insert_table} marked {new_value_dict['Status']}")
 
                 msg = f"Found {total_nzbs} {plural(total_nzbs, 'result')} for {bookid}. {new_date} new,"
                 msg += f' {old_date} old, {bad_date} fail date, {bad_name} fail name,'

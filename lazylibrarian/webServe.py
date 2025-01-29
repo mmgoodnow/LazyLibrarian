@@ -6117,7 +6117,7 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         if mags:
             if CONFIG.use_any():
-                threading.Thread(target=search_magazines, name='SEARCHMAG', args=[mags, False]).start()
+                threading.Thread(target=search_magazines, name='SEARCHMAG', args=[mags, False, False]).start()
                 logger.debug(f"Searching for magazine with title: {mags[0]['bookid']}")
             else:
                 logger.warning("Not searching for magazine, no download methods set, check config")

@@ -19,7 +19,7 @@ import shutil
 import sys
 import threading
 from queue import Queue
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit, unquote_plus
 
 import cherrypy
 import dateutil.parser as dp
@@ -103,7 +103,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'getIssueName': (0, '&name= get name of issue from path/filename'),
             'createMagCovers': (1, '[&wait] [&refresh] create covers for magazines, optionally refresh existing ones'),
             'createMagCover': (1, '&file= [&refresh] [&page=] create cover for magazine issue, optional page number'),
-            'forceMagSearch': (1, '[&wait] search for all wanted magazines'),
+            'forceMagSearch': (1, '[&title=] [&backissues] [&wait] search for wanted magazines'),
             'forceBookSearch': (1, '[&wait] [&type=eBook/AudioBook] search for all wanted books'),
             'forceRSSSearch': (1, '[&wait] search all entries in rss feeds'),
             'forceComicSearch': (1, '[&wait] search for all wanted comics'),
@@ -1748,11 +1748,22 @@ class Api(object):
 
     def _forcemagsearch(self, **kwargs):
         TELEMETRY.record_usage_data()
+        mags = None
+        if 'title' in kwargs:
+            title = unquote_plus(kwargs['title'])
+            db = database.DBConnection()
+            try:
+                bookdata = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (title,))
+            finally:
+                db.close()
+            if bookdata:
+                mags = [{"bookid": bookdata['Title']}]
+        backissues = 'backissues' in kwargs
         if CONFIG.use_any():
             if 'wait' in kwargs:
-                search_magazines(None, True)
+                search_magazines(mags, True, backissues)
             else:
-                threading.Thread(target=search_magazines, name='API-SEARCHMAGS', args=[None, True]).start()
+                threading.Thread(target=search_magazines, name='API-SEARCHMAGS', args=[mags, True, backissues]).start()
         else:
             self.data = 'No search methods set, check config'
 
