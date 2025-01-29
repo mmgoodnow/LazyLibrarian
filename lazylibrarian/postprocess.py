@@ -2725,7 +2725,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 cover = check_int(res['CoverPage'], 0)
             success, msg = preprocess_magazine(pp_path, cover=cover)
             if not success:
-                return False, msg
+                return False, msg, pp_path
 
         # run custom pre-processing, for example remove unwanted formats
         # or force format conversion before sending to calibre
