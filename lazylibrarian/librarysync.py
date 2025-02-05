@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software : you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -254,20 +254,20 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     logger.debug(f'Searching database for [{book}] by [{author}] {source}')
     db = database.DBConnection()
     db.connection.create_collation('nopunctuation', collate_nopunctuation)
+    new_author = False
     try:
         check_exist_author = db.match('SELECT AuthorID FROM authors where AuthorName=? COLLATE NOCASE', (author,))
         if check_exist_author:
             authorid = check_exist_author['AuthorID']
         else:
-            newauthor, authorid, new = add_author_name_to_db(author, False, reason=reason, title=book)
-            if newauthor and newauthor != author:
-                if new:
-                    logger.debug(f"Authorname changed from [{author}] to [{newauthor}]")
+            newauthorname, authorid, new_author = add_author_name_to_db(author, False, reason=reason, title=book)
+            if newauthorname and newauthorname != author:
+                if new_author:
+                    logger.debug(f"Authorname changed from [{author}] to [{newauthorname}]")
                 else:
-                    logger.debug(f"Authorname changed from [{author}] to existing [{newauthor}]")
-                    check_exist_author = {'AuthorID': authorid}
-                author = make_unicode(newauthor)
-            if not newauthor:
+                    logger.debug(f"Authorname changed from [{author}] to existing [{newauthorname}]")
+                author = make_unicode(newauthorname)
+            if not newauthorname:
                 authorid = 0
 
         if not authorid:
@@ -339,9 +339,9 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         loggerfuzz.debug(cmd)
 
-        best_ratio = 0
-        best_partial = 0
-        best_partname = 0
+        best_ratio = 0.0
+        best_partial = 0.0
+        best_partname = 0.0
         have_prefix = False
         ratio_name = ""
         partial_name = ""
@@ -468,13 +468,13 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                 prefix_id = a_book['BookID']
 
         if best_ratio >= CONFIG.get_int('NAME_RATIO'):
-            logger.debug(f"Fuzz match ratio [{best_ratio}] [{book}] [{ratio_name}] {ratio_id}")
+            logger.debug(f"Fuzz match ratio [{round(best_ratio, 2)}] [{book}] [{ratio_name}] {ratio_id}")
             return ratio_id, best_type
         if best_partial >= CONFIG.get_int('NAME_PARTIAL'):
-            logger.debug(f"Fuzz match partial [{best_partial}] [{book}] [{partial_name}] {partial_id}")
+            logger.debug(f"Fuzz match partial [{round(best_partial, 2)}] [{book}] [{partial_name}] {partial_id}")
             return partial_id, partial_type
         if best_partname >= CONFIG.get_int('NAME_PARTNAME'):
-            logger.debug(f"Fuzz match partname [{best_partname}] [{book}] [{partname_name}] {partname_id}")
+            logger.debug(f"Fuzz match partname [{round(best_partname, 2)}] [{book}] [{partname_name}] {partname_id}")
             return partname_id, partname_type
 
         if have_prefix:
@@ -483,11 +483,11 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         if books:
             logger.debug(
-                f'Best fuzz results [{author} - {book}] ratio [{best_ratio},{ratio_name},{ratio_id}], '
-                f'partial [{best_partial},{partial_name},{partial_id}], '
-                f'partname [{best_partname},{partname_name},{partname_id}]')
+                f'Best fuzz results [{author} - {book}] ratio [{round(best_ratio, 2)},{ratio_name},{ratio_id}], '
+                f'partial [{round(best_partial, 2)},{partial_name},{partial_id}], '
+                f'partname [{round(best_partname, 2)},{partname_name},{partname_id}]')
 
-        if not check_exist_author:
+        if new_author:
             # we auto-added a new author but they don't have the book so we should remove them again
             db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
     finally:
@@ -705,6 +705,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         publisher = ""
                         narrator = ""
                         extn = os.path.splitext(files)[1]
+                        bookid = None
 
                         # if it's an epub or a mobi we can try to read metadata from it
                         if extn.lower() in [".epub", ".mobi"]:
@@ -851,16 +852,16 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 else:
                                     logger.debug(f"Already cached Lang [{language}] ISBN [{isbnhead}]")
 
-                            newauthor, authorid, _ = add_author_name_to_db(author, addbooks=None,
-                                                                           reason=f"Add author of {book}", title=book)
+                            newauthorname, authorid, new_author = add_author_name_to_db(
+                                author, addbooks=None, reason=f"Add author of {book}", title=book)
 
                             if last_authorid and last_authorid != authorid:
                                 update_totals(last_authorid)
                             last_authorid = authorid
 
-                            if newauthor and newauthor != author:
-                                logger.debug(f"Preferred authorname changed from [{author}] to [{newauthor}]")
-                                author = make_unicode(newauthor)
+                            if newauthorname and newauthorname != author:
+                                logger.debug(f"Preferred authorname changed from [{author}] to [{newauthorname}]")
+                                author = make_unicode(newauthorname)
                             if not authorid:
                                 logger.warning(f"Authorname {author} not added to database")
 
@@ -972,21 +973,21 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 if not bookid:
                                     # get author name from (grand)parent directory of this book directory
-                                    newauthor = os.path.basename(os.path.dirname(rootdir))
-                                    newauthor = make_unicode(newauthor)
+                                    newauthorname = os.path.basename(os.path.dirname(rootdir))
+                                    newauthorname = make_unicode(newauthorname)
                                     # calibre replaces trailing periods with _ eg Smith Jr. -> Smith Jr_
-                                    if newauthor.endswith('_'):
-                                        newauthor = f"{newauthor[:-1]}."
-                                    if author.lower() != newauthor.lower():
-                                        logger.debug(f"Trying authorname [{newauthor}]")
-                                        bookid, mtype = find_book_in_db(newauthor, book, ignored=False,
+                                    if newauthorname.endswith('_'):
+                                        newauthorname = f"{newauthorname[:-1]}."
+                                    if author.lower() != newauthorname.lower():
+                                        logger.debug(f"Trying authorname [{newauthorname}]")
+                                        bookid, mtype = find_book_in_db(newauthorname, book, ignored=False,
                                                                         reason=f'New author for {book}')
                                         if bookid and mtype == "Ignored":
                                             msg = "Book %s by %s is marked Ignored in database, importing anyway"
-                                            logger.warning(msg % (book, newauthor))
+                                            logger.warning(msg % (book, newauthorname))
                                         if bookid:
                                             logger.warning(
-                                                f"{book} not found under [{author}], found under [{newauthor}]")
+                                                f"{book} not found under [{author}], found under [{newauthorname}]")
 
                                 # at this point if we still have no bookid, it looks like we
                                 # have author and book title but no database entry for it
@@ -1009,7 +1010,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     for source in sources:
                                         res += search_for(f"{book} <ll> {author}", source)
 
-                                    sortedlist = sorted(res, key=itemgetter('book_fuzz', 'bookrate_count'),
+                                    sortedlist = sorted(res, key=itemgetter('highest_fuzz', 'bookrate_count'),
                                                         reverse=True)
                                     rescan_count += 1
                                     bookid = ''
@@ -1017,9 +1018,19 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     booktitle = ''
                                     language = ''
                                     source = ''
+                                    closest = 0
+                                    bestmatch = 0
                                     if sortedlist:
                                         item = sortedlist[0]
-                                        if item['book_fuzz'] >= CONFIG.get_int('NAME_PARTNAME'):
+                                        closest = item['highest_fuzz']
+                                        while item['source'] != CONFIG['BOOK_API']:
+                                            bestmatch += 1
+                                            if sortedlist[bestmatch]['highest_fuzz'] < closest:
+                                                break
+                                            if sortedlist[bestmatch]['source'] == CONFIG['BOOK_API']:
+                                                item = sortedlist[bestmatch]
+
+                                        if closest >= CONFIG.get_int('NAME_PARTIAL'):
                                             rescan_hits += 1
                                             logger.debug(
                                                 f"Rescan {item['source']} found [{item['authorname']}] "
@@ -1030,7 +1041,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             language = item['booklang']
                                             source = item['source']
                                             rehit.append(booktitle)
-
                                     if bookid:
                                         cmd = "SELECT * from books WHERE BookID=?"
                                         check_status = db.match(cmd, (bookid,))
@@ -1047,7 +1057,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             else:
                                                 src_id = GoogleBooks(bookid)
                                             src_id.find_book(bookid, reason=f"Librarysync {source} rescan {bookauthor}")
-
                                             if language and language != "Unknown":
                                                 # set language from book metadata
                                                 msg = "Setting language from metadata %s : %s"
@@ -1055,8 +1064,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 cmd = "UPDATE books SET BookLang=? WHERE BookID=?"
                                                 db.action(cmd, (language, bookid))
                                     else:
-                                        logger.warning(f"Rescan no match for {book}")
-                                        remiss.append(book)
+                                        logger.warning(f"Rescan no match for {book}, closest {closest}%")
+                                        remiss.append(f"{book} {closest}%")
 
                                 # see if it's there now...
                                 if bookid:
@@ -1199,11 +1208,15 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     else:
                                         logger.warning(
                                             f"Failed to match audiobook [{book}] by [{author}] in database")
-                            else:
+
+                            if not authorid:
                                 if not warned_no_new_authors and not CONFIG.get_bool('ADD_AUTHOR'):
                                     logger.warning("Add authors to database is disabled")
                                     warned_no_new_authors = True
 
+                            if new_author and not bookid:
+                                # we auto-added a new author but they don't have the book so we should remove them again
+                                db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
         if last_authorid:
             update_totals(last_authorid)
 
