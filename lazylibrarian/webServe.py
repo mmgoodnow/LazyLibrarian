@@ -4043,7 +4043,7 @@ class WebInterface:
                             abandoned.add(bookid)
                         logger.debug(f'Status set to {action} for {bookid}')
 
-                    elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth", "Wanted", "WantBoth"]:
+                    elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth", "WantEbook", "WantAudio", "WantBoth"]:
                         bookdata = db.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
                                             (bookid,))
                         if bookdata:
@@ -4051,14 +4051,14 @@ class WebInterface:
                             bookname = bookdata['BookName']
                             if authorid not in check_totals:
                                 check_totals.append(authorid)
-                            if (action == "Wanted" and library == 'eBook') or action == "WantBoth":
-                                if bookdata['Status'] == "Open":
+                            if (action == "WantEbook" and library == 'eBook') or action == "WantBoth":
+                                if bookdata['Status'] in ["Open", "Have"]:
                                     logger.debug(f'eBook "{bookname}" is already marked Open')
                                 else:
                                     db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
                                     logger.debug(f'Status set to "Wanted" for "{bookname}"')
-                            if (action == "Wanted" and library == 'AudioBook') or action == "WantBoth":
-                                if bookdata['AudioStatus'] == "Open":
+                            if (action == "WantAudio" and library == 'AudioBook') or action == "WantBoth":
+                                if bookdata['AudioStatus'] in ["Open", "Have"]:
                                     logger.debug(f'AudioBook "{bookname}" is already marked Open')
                                 else:
                                     db.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
@@ -5520,7 +5520,7 @@ class WebInterface:
                                           "IssueStatus": CONFIG['FOUND_STATUS'],
                                           "IssueDate": "", "LatestCover": ""}
                         db.upsert("magazines", new_value_dict, control_value_dict)
-
+                    db.action("UPDATE issues SET Title=? WHERE IssueID=?", (magtitle, issue['IssueID']))
                 db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
 
                 dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
