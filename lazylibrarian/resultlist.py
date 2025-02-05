@@ -62,6 +62,7 @@ def find_best_result(resultlist, book, searchtype, source):
     logger = logging.getLogger(__name__)
     loggerfuzz = logging.getLogger('special.fuzz')
     db = database.DBConnection()
+    highest = None
     try:
         # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
         dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
@@ -191,6 +192,10 @@ def find_best_result(resultlist, book, searchtype, source):
                     if not url.startswith('!'):
                         rejected = True
                         logger.debug(f"Rejecting {res[prefix + 'title']}, invalid nick [{url}]")
+                elif res[prefix + 'prov'] == 'zlibrary':
+                    if '^' not in url:
+                        rejected = True
+                        logger.debug(f"Rejecting {res[prefix + 'title']}, invalid URL [{url}]")
                 else:
                     if not url.startswith('http') and not url.startswith('magnet'):
                         rejected = True
@@ -296,14 +301,13 @@ def find_best_result(resultlist, book, searchtype, source):
                 logger.info(
                     f"Best match ({score}%): {new_value_dict['NZBtitle']} using {searchtype} search, "
                     f"{new_value_dict['NZBprov']} priority {dlpriority}")
-            return highest
         else:
             logger.debug(f"No {source} found for [{book['searchterm']}] using searchtype {searchtype}")
-        return None
     except Exception:
         logger.error(f'Unhandled exception in find_best_result: {traceback.format_exc()}')
     finally:
         db.close()
+        return highest
 
 
 def download_result(match, book):
