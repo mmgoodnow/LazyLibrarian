@@ -156,9 +156,9 @@ class GoodReads:
                             book_title = ""
 
                         if searchauthorname:
-                            author_fuzz = fuzz.ratio(author_name_result, searchauthorname)
+                            author_fuzz = fuzz.token_sort_ratio(author_name_result, searchauthorname)
                         else:
-                            author_fuzz = fuzz.ratio(author_name_result, searchterm)
+                            author_fuzz = fuzz.token_sort_ratio(author_name_result, searchterm)
                         if searchtitle:
                             if book_title.endswith(')'):
                                 book_title = book_title.rsplit(' (', 1)[0]
@@ -206,10 +206,10 @@ class GoodReads:
                             'bookgenre': bookgenre,
                             'bookdesc': bookdesc,
                             'workid': workid,
-                            'author_fuzz': author_fuzz,
-                            'book_fuzz': book_fuzz,
-                            'isbn_fuzz': isbn_fuzz,
-                            'highest_fuzz': highest_fuzz,
+                            'author_fuzz': round(author_fuzz, 2),
+                            'book_fuzz': round(book_fuzz, 2),
+                            'isbn_fuzz': round(isbn_fuzz, 2),
+                            'highest_fuzz': round(highest_fuzz, 2),
                             'source': 'GoodReads'
                         })
 
@@ -311,7 +311,7 @@ class GoodReads:
             match = fuzz.partial_ratio(author, authorname)
             if match >= CONFIG.get_int('NAME_PARTNAME'):
                 return self.get_author_info(authorid)
-            self.logger.debug(f"Fuzz failed: {match} [{author}][{authorname}]")
+            self.logger.debug(f"Fuzz failed: {round(match, 2)} [{author}][{authorname}]")
         return {}
 
     def get_author_info(self, authorid=None):
@@ -1444,10 +1444,9 @@ class GoodReads:
                     # try to get a cover from another source
                     link, _ = get_book_cover(bookid, ignore='goodreads')
                     if link:
-                        new_value_dict = {"BookImg": link}
+                        new_value_dict["BookImg"] = link
                 elif bookimg and bookimg.startswith('http'):
-                    link = cache_bookimg(bookimg, bookid, 'gr')
-                    new_value_dict = {"BookImg": link}
+                    new_value_dict["BookImg"] = cache_bookimg(bookimg, bookid, 'gr')
 
                 db.upsert("books", new_value_dict, control_value_dict)
                 self.logger.info(f"{bookname} by {authorname} added to the books database, {bookstatus}/{audiostatus}")

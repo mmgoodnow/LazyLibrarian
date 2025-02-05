@@ -120,9 +120,9 @@ class OpenLibrary:
                         workid = workid[0]
 
                     if searchauthorname:
-                        author_fuzz = fuzz.token_set_ratio(author_name, searchauthorname)
+                        author_fuzz = fuzz.token_sort_ratio(author_name, searchauthorname)
                     else:
-                        author_fuzz = fuzz.token_set_ratio(author_name, searchterm)
+                        author_fuzz = fuzz.token_sort_ratio(author_name, searchterm)
                     if searchtitle:
                         if book_title.endswith(')'):
                             book_title = book_title.rsplit(' (', 1)[0]
@@ -162,10 +162,10 @@ class OpenLibrary:
                             'bookgenre': bookgenre,
                             'bookdesc': bookdesc,
                             'workid': workid,
-                            'author_fuzz': author_fuzz,
-                            'book_fuzz': book_fuzz,
-                            'isbn_fuzz': isbn_fuzz,
-                            'highest_fuzz': highest_fuzz,
+                            'author_fuzz': round(author_fuzz, 2),
+                            'book_fuzz': round(book_fuzz, 2),
+                            'isbn_fuzz': round(isbn_fuzz, 2),
+                            'highest_fuzz': round(highest_fuzz, 2),
                             'source': "OpenLibrary"
                         })
                         resultcount += 1
@@ -586,6 +586,9 @@ class OpenLibrary:
                             lang, cache_hit, thing_hit = isbnlang(isbn)
                             if thing_hit:
                                 lt_lang_hits += 1
+                                if lang not in wantedlanguages:
+                                    rejected = 'lang', f'Invalid language [{lang}]'
+                                    bad_lang += 1
 
                     if not rejected and not title:
                         rejected = 'name', 'No title'
@@ -1315,6 +1318,11 @@ class OpenLibrary:
                 match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
                 if match:
                     authorname = match['AuthorName']
+                elif reason.startswith('Librarysync ') and ' rescan ' in reason:
+                    authorname = reason.split(' rescan ')[1]
+                    match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
+                    if match:
+                        authorid = match['AuthorID']
                 else:
                     # ol does not give us authorname in work page
                     auth_id = lazylibrarian.importer.add_author_to_db(authorid=authorid, refresh=False,

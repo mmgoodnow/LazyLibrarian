@@ -163,9 +163,9 @@ class GoogleBooks:
                                     continue
 
                             if authorname:
-                                author_fuzz = fuzz.ratio(book['author'], authorname)
+                                author_fuzz = fuzz.token_sort_ratio(book['author'], authorname)
                             else:
-                                author_fuzz = fuzz.ratio(book['author'], fullterm)
+                                author_fuzz = fuzz.token_sort_ratio(book['author'], fullterm)
 
                             if title:
                                 if title.endswith(')'):
@@ -498,10 +498,10 @@ class GoogleBooks:
                                     # try to get a cover from another source
                                     link, _ = get_book_cover(bookid, ignore='googleapis')
                                     if link:
-                                        new_value_dict = {"BookImg": link}
+                                        new_value_dict["BookImg"] = link
                                     elif book['img'] and book['img'].startswith('http'):
                                         link = cache_bookimg(book['img'], bookid, 'gb')
-                                        new_value_dict = {"BookImg": link}
+                                        new_value_dict["BookImg"] = link
 
                                 db.upsert("books", new_value_dict, control_value_dict)
                                 self.logger.debug(f"Book found: {bookname} {book['date']}")
@@ -763,10 +763,10 @@ class GoogleBooks:
                 # try to get a cover from another source
                 link, _ = get_book_cover(bookid, ignore='googleapis')
                 if link:
-                    new_value_dict = {"BookImg": link}
+                    new_value_dict["BookImg"] = link
                 elif book['img'] and book['img'].startswith('http'):
                     link = cache_bookimg(book['img'], bookid, 'gb')
-                    new_value_dict = {"BookImg": link}
+                    new_value_dict["BookImg"] = link
 
             db.upsert("books", new_value_dict, control_value_dict)
             self.logger.info(f"{bookname} by {authorname} added to the books database, {bookstatus}/{audiostatus}")

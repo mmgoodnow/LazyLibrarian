@@ -326,8 +326,24 @@ query FindBookByName {
                                                           '{contributions: {author: {id: {_eq: "[authorid]"}}}}'
                                                           ).replace('[order]', '')
 
+        self.HC_EDITION_BY_PK = '''
+query EditionByPk {
+  editions_by_pk(id: [editionid]) {
+    language {
+      language
+    }
+    title
+    book_id
+    contributions {
+      author {
+        id
+        name
+      }
+    }
+  }
+}
+'''
         self.HC_BOOK_SERIES = '''
-
 query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
     {
       position
@@ -356,6 +372,9 @@ query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
 }
 '''
 
+        # 5 deep because of default_physical_edition/language/language and contributions/author/id
+        # when hardcover implement the 3 level deep limit we will have to get the additional data
+        # for each series member using default_physical_edition_id to get edition_by_pk but it's much slower...
         self.HC_BOOK_SERIES_BY_PK = '''
 query SeriesByPK {
   series_by_pk(id: "[seriesid]") {
@@ -494,7 +513,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         else:
             lazylibrarian.CACHE_MISS += 1
             if BLOCKHANDLER.is_blocked(self.provider):
-                return {}, 'Blocked'
+                return {}, False
             hc_api_sleep()
             try:
                 http.client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
@@ -582,20 +601,40 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     self.logger.debug(f"Series name mismatch for {series_id}, {match}% {series_name}/{series_title}")
 
             for entry in results['data']['series_by_pk']['book_series']:
+                # use HC_EDITION_BY_PK to get language, authorid, authorname
+                # editionid = entry['book']['default_physical_edition_id']
+                # searchcmd = self.HC_EDITION_BY_PK.replace('[editionid]', str(editionid))
+                # editions, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
+                # api_hits += not in_cache
+                # cache_hits += in_cache
+                # language = ''
+                # authorname = ''
+                # authorlink = ''
+                # if 'errors' in editions:
+                #    self.logger.error(str(editions['errors']))
+                # elif 'data' in editions and 'editions_by_pk' in editions['data']:
+                #    edition = editions['data']['editions_by_pk']
+                #    if edition['language']:
+                #        language = edition['language']['language']
+                #    if edition['contributions']:
+                #        authorname = edition['contributions'][0]['author']['name']
+                #        authorlink = edition['contributions'][0]['author']['id']
+
+                authorname = entry['book']['contributions'][0]['author']['name']
+                authorlink = entry['book']['contributions'][0]['author']['id']
+                edition = entry['book']['default_physical_edition']
+                language = ''
+                if edition and 'language' in edition and edition.get('language'):
+                    language = edition['language']['language']
+
                 book_id = entry['book_id']
                 position = entry['position']
                 if not position or str(position) == 'None':
                     position = 0
                 book_title = entry['book']['title']
-                authorname = entry['book']['contributions'][0]['author']['name']
-                authorlink = entry['book']['contributions'][0]['author']['id']
                 pubyear = entry['book']['release_year']
                 pubdate = entry['book']['release_date']
-                edition = entry['book']['default_physical_edition']
                 compilation = entry['book']['compilation']
-                language = ''
-                if edition and 'language' in edition and edition.get('language'):
-                    language = edition['language']['language']
 
                 if not author_name:
                     author_name = authorname
@@ -636,6 +675,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     searchcmd = self.HC_ISBN13_BOOKS.replace('[isbn]', searchterm)
                 else:
                     searchcmd = self.HC_ISBN10_BOOKS.replace('[isbn]', searchterm)
+                self.searchinglogger.debug(f"ISBN_BOOKS {searchterm}")
                 results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
                 api_hits += not in_cache
                 cache_hits += in_cache
@@ -657,6 +697,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
                 if searchtitle:
                     searchcmd = self.HC_FINDBOOKBYNAME.replace('[title]', searchtitle)
+                    self.searchinglogger.debug(f"FINDBOOKBYNAME {searchtitle}")
                     bookresults, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
                     api_hits += not in_cache
                     cache_hits += in_cache
@@ -668,6 +709,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
                 if searchauthorname:
                     searchcmd = self.HC_FINDAUTHORBYNAME.replace('[authorname]', searchauthorname)
+                    self.searchinglogger.debug(f"FINDAUTHORBYNAME {searchauthorname}")
                     authresults, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
                     api_hits += not in_cache
                     cache_hits += in_cache
@@ -680,6 +722,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 if authids:
                     for authid in authids:
                         searchcmd = self.HC_AUTHORID_BOOKS.replace('[authorid]', authid)
+                        self.searchinglogger.debug(f"AUTHORID_BOOKS {authid}")
                         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
                         api_hits += not in_cache
                         cache_hits += in_cache
@@ -705,55 +748,56 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     bookdict = self.build_bookdict(book_data)
 
                 if searchauthorname:
-                    author_fuzz = fuzz.token_set_ratio(bookdict['auth_name'], searchauthorname)
+                    author_fuzz = fuzz.token_sort_ratio(bookdict['auth_name'], searchauthorname)
                 else:
-                    author_fuzz = fuzz.token_set_ratio(bookdict['auth_name'], searchterm)
+                    author_fuzz = fuzz.token_sort_ratio(bookdict['auth_name'], searchterm)
                 book_title = bookdict['title']
-                if searchtitle:
-                    if book_title.endswith(')'):
-                        book_title = book_title.rsplit(' (', 1)[0]
-                    book_fuzz = fuzz.token_set_ratio(book_title, searchtitle)
-                    # lose a point for each extra word in the fuzzy matches, so we get the closest match
-                    words = len(get_list(book_title))
-                    words -= len(get_list(searchtitle))
-                    book_fuzz -= abs(words)
-                else:
-                    book_fuzz = fuzz.token_set_ratio(book_title, searchterm)
-                    words = len(get_list(book_title))
-                    words -= len(get_list(searchterm))
-                    book_fuzz -= abs(words)
-                isbn_fuzz = 0
-                if is_valid_isbn(searchterm):
-                    isbn_fuzz = 100
-                    bookdict['isbn'] = searchterm
+                if book_title:
+                    if searchtitle:
+                        if book_title.endswith(')'):
+                            book_title = book_title.rsplit(' (', 1)[0]
+                        book_fuzz = fuzz.token_set_ratio(book_title, searchtitle)
+                        # lose a point for each extra word in the fuzzy matches, so we get the closest match
+                        words = len(get_list(book_title))
+                        words -= len(get_list(searchtitle))
+                        book_fuzz -= abs(words)
+                    else:
+                        book_fuzz = fuzz.token_set_ratio(book_title, searchterm)
+                        words = len(get_list(book_title))
+                        words -= len(get_list(searchterm))
+                        book_fuzz -= abs(words)
+                    isbn_fuzz = 0
+                    if is_valid_isbn(searchterm):
+                        isbn_fuzz = 100
+                        bookdict['isbn'] = searchterm
 
-                highest_fuzz = max(author_fuzz + book_fuzz, isbn_fuzz)
+                    highest_fuzz = max((author_fuzz + book_fuzz) / 2, isbn_fuzz)
 
-                resultlist.append({
-                    'authorname': bookdict['auth_name'],
-                    'bookid': bookdict['bookid'],
-                    'authorid': bookdict['auth_id'],
-                    'bookname': bookdict['title'],
-                    'booksub': bookdict['subtitle'],
-                    'bookisbn': bookdict['isbn'],
-                    'bookpub': bookdict['publishers'],
-                    'bookdate': bookdict['publish_date'],
-                    'booklang': bookdict['languages'],
-                    'booklink': bookdict['link'],
-                    'bookrate': bookdict['bookrate'],
-                    'bookrate_count': bookdict['bookrate_count'],
-                    'bookimg': bookdict['cover'],
-                    'bookpages': bookdict['bookpages'],
-                    'bookgenre': bookdict['genres'],
-                    'bookdesc': bookdict['bookdesc'],
-                    'workid': bookdict['bookid'],  # TODO should this be canonical id?
-                    'author_fuzz': round(author_fuzz, 2),
-                    'book_fuzz': round(book_fuzz, 2),
-                    'isbn_fuzz': round(isbn_fuzz, 2),
-                    'highest_fuzz': round(highest_fuzz, 2),
-                    'source': "HardCover"
-                })
-                resultcount += 1
+                    resultlist.append({
+                        'authorname': bookdict['auth_name'],
+                        'bookid': bookdict['bookid'],
+                        'authorid': bookdict['auth_id'],
+                        'bookname': bookdict['title'],
+                        'booksub': bookdict['subtitle'],
+                        'bookisbn': bookdict['isbn'],
+                        'bookpub': bookdict['publishers'],
+                        'bookdate': bookdict['publish_date'],
+                        'booklang': bookdict['languages'],
+                        'booklink': bookdict['link'],
+                        'bookrate': bookdict['bookrate'],
+                        'bookrate_count': bookdict['bookrate_count'],
+                        'bookimg': bookdict['cover'],
+                        'bookpages': bookdict['bookpages'],
+                        'bookgenre': bookdict['genres'],
+                        'bookdesc': bookdict['bookdesc'],
+                        'workid': bookdict['bookid'],  # TODO should this be canonical id?
+                        'author_fuzz': round(author_fuzz, 2),
+                        'book_fuzz': round(book_fuzz, 2),
+                        'isbn_fuzz': round(isbn_fuzz, 2),
+                        'highest_fuzz': round(highest_fuzz, 2),
+                        'source': "HardCover"
+                    })
+                    resultcount += 1
 
             self.logger.debug(f"Used {api_hits} api hit, {cache_hits} in cache")
             queue.put(resultlist)
