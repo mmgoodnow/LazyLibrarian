@@ -1239,24 +1239,18 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         book = highest[2]  # type: dict
                     if match and match >= CONFIG.get_int('DLOAD_RATIO'):
                         logger.debug(f"Found match ({match}%): {repr(pp_path)} for {booktype} {repr(book['NZBtitle'])}")
-                        cmd = ("SELECT AuthorName,BookName from books,authors WHERE BookID=?"
-                               " and books.AuthorID = authors.AuthorID")
+                        cmd = ("SELECT AuthorName,BookName,books.gr_id,books.ol_id,books.gb_id,books.hc_id "
+                               "from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID")
                         data = db.match(cmd, (book['BookID'],))
                         if data:  # it's ebook/audiobook
                             logger.debug(f"Processing {booktype} {book['BookID']}")
                             bookname = data['BookName']
                             authorname = data['AuthorName']
-                            # CFG2DO: Verify that this path handling code is no longer necessary
-                            # if os.name == 'nt':
-                            #     if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
-                            #         logger.warning('Please check your EBOOK_DEST_FOLDER setting')
-                            #         lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
-                            #             'EBOOK_DEST_FOLDER'].replace('/', '\\')
-                            #     if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
-                            #         logger.warning('Please check your AUDIOBOOK_DEST_FOLDER setting')
-                            #         lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
-                            #             'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
-                            # Default destination path, should be allowed change per config file.
+                            gr_id = data['gr_id']
+                            gb_id = data['gb_id']
+                            ol_id = data['ol_id']
+                            hc_id = data['hc_id']
+
                             namevars = name_vars(book['BookID'])
                             if booktype == 'AudioBook' and get_directory('Audio'):
                                 dest_path = namevars['AudioFolderName']
@@ -1269,7 +1263,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             dest_path = make_utf8bytes(dest_path)[0]
                             global_name = namevars['BookFile']
                             global_name = sanitize(global_name)
-                            data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': book['BookID']}
+                            data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': book['BookID'],
+                                    'gr_id': gr_id, 'gb_id': gb_id, 'ol_id': ol_id, 'hc_id': hc_id}
                         else:
                             data = db.match('SELECT * from magazines WHERE Title=?', (book['BookID'],))
                             if data:  # it's a magazine
@@ -2359,14 +2354,14 @@ def get_download_progress(source, downloadid):
             if res and not res['Completed']:
                 db.action('UPDATE wanted SET Completed=? WHERE DownloadID=? and Source=?',
                           (int(time.time()), downloadid, source))
-        return progress, finished
-
     except Exception:
         logger.warning(f"Failed to get download progress from {source} for {downloadid}")
         logger.error(f'Unhandled exception in get_download_progress: {traceback.format_exc()}')
-        return 0, False
+        progress = 0
+        finished = False
     finally:
         db.close()
+        return progress, finished
 
 
 def delete_task(source, download_id, remove_data):
@@ -2655,6 +2650,336 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
         process_auto_add(dest_path)
 
 
+def send_to_calibre(booktype, global_name, folder, data):
+    """
+    booktype = ebook audiobook magazine comic
+    global_name = standardised filename used for item/opf/jpg
+    folder = folder containing the file(s)
+    data = various data for the item, varies according to booktype
+
+    return True,filename,folder (Filename empty if already exists)
+    on fail return False,message,folder
+    """
+    issueid = data.get('IssueDate', '')  # comic issueid
+    authorname = data.get('AuthorName', '')
+    bookname = data.get('BookName', '')
+    bookid = data.get('BookID', '')  # ebook/audiobook/comic
+    title = data.get('Title', '')
+    issuedate = data.get('IssueDate', '')  # magazine issueid
+    coverpage = data.get('cover', '')
+    bestformat = data.get('bestformat', '')
+
+    logger = logging.getLogger(__name__)
+    try:
+        logger.debug(f'Importing {booktype} {global_name} into calibre library')
+        # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
+        # and ignores opf data if there is data embedded in the book file,
+        # so we send separate "set_metadata" commands after the import
+        for fname in listdir(folder):
+            extn = os.path.splitext(fname)[1]
+            srcfile = os.path.join(folder, fname)
+            if CONFIG.is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
+                if bestformat and not fname.endswith(bestformat) and extn not in ['.opf', '.jpg']:
+                    logger.debug(f"Removing {fname} as not {bestformat}")
+                    remove_file(srcfile)
+                else:
+                    dstfile = os.path.join(folder, global_name.replace('"', '_') + extn)
+                    # calibre does not like quotes in author names
+                    _ = safe_move(srcfile, dstfile)
+            else:
+                logger.debug(f'Removing {fname} as not wanted')
+                if path_isfile(srcfile):
+                    remove_file(srcfile)
+                elif path_isdir(srcfile):
+                    shutil.rmtree(srcfile)
+
+        identifier = ''
+        if booktype in ['ebook', 'audiobook']:
+            if bookid.startswith('OL'):
+                identifier = f"OpenLibrary:{bookid}"
+            elif data.get('hc_id') == bookid:
+                identifier = f"hardcover:{bookid}"
+            elif data.get('gr_id') == bookid:
+                identifier = f"goodreads:{bookid}"
+            elif data.get('gb_id') == bookid:
+                identifier = f"google:{bookid}"
+        elif booktype == 'comic':
+            if bookid.startswith('CV'):
+                identifier = f"ComicVine:{bookid[2:]}"
+            else:  # bookid.startswith('CX'):
+                identifier = f"Comixology:{bookid[2:]}"
+
+        if booktype == 'magazine':
+            issueid = create_id(f"{title} {issuedate}")
+            identifier = f"lazylibrarian:{issueid}"
+            magfile = book_file(folder, "magazine", config=CONFIG)
+            jpgfile = f"{os.path.splitext(magfile)[0]}.jpg"
+            if path_isfile(jpgfile):
+                # calibre likes "cover.jpg"
+                coverfile = os.path.basename(jpgfile)
+                jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+            elif magfile:
+                if coverpage == 0:
+                    coverpage = 1  # if not set, default to page 1
+                jpgfile = create_mag_cover(magfile, pagenum=coverpage, refresh=True)
+                if jpgfile:
+                    coverfile = os.path.basename(jpgfile)
+                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+
+            if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
+                authors = title
+                global_name = issuedate
+            else:
+                authors = 'magazines'
+                if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
+                    global_name = CONFIG['MAG_DEST_FILE'].replace(
+                        '$IssueDate', issuedate).replace('$Title', title)
+                else:
+                    global_name = f"{title} - {issuedate}"
+
+            params = [magfile, '--duplicates', '--authors', authors, '--series', title,
+                      '--title', global_name, '--tags', 'Magazine']
+            if jpgfile:
+                image = ['--cover', jpgfile]
+                params.extend(image)
+            res, err, rc = calibredb('add', params)
+        else:
+            if CONFIG.get_bool('IMP_CALIBREOVERWRITE'):
+                res, err, rc = calibredb('add', ['-1', '--automerge', 'overwrite'], [folder])
+            else:
+                res, err, rc = calibredb('add', ['-1'], [folder])
+
+        if rc:
+            return False, f"calibredb rc {rc} from {CONFIG['IMP_CALIBREDB']}", folder
+        elif booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
+            logger.warning(
+                f'Calibre failed to import {authorname} {bookname}, already exists, marking book as "Have"')
+            db = database.DBConnection()
+            try:
+                control_value_dict = {"BookID": bookid}
+                new_value_dict = {"Status": "Have"}
+                db.upsert("books", new_value_dict, control_value_dict)
+            finally:
+                db.close()
+            return True, '', folder
+        # Answer should look like "Added book ids : bookID" (string may be translated!)
+        try:
+            calibre_id = res.rsplit(": ", 1)[1].split("\n", 1)[0].strip()
+        except IndexError:
+            return False, f'Calibre failed to import {authorname} {bookname}, no added bookids', folder
+
+        if calibre_id.isdigit():
+            logger.debug(f'Calibre ID: [{calibre_id}]')
+        else:
+            logger.warning(f'Calibre ID looks invalid: [{calibre_id}]')
+
+        our_opf = False
+        rc = 0
+        if ((booktype == "magazine" and not CONFIG.get_bool('IMP_AUTOADD_MAGONLY')) or
+                (booktype != "magazine" and not CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'))):
+            # we can pass an opf with all the info, and a cover image
+            db = database.DBConnection()
+            try:
+                if booktype in ['ebook', 'audiobook']:
+                    cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,"
+                           "BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors "
+                           "WHERE BookID=? and books.AuthorID = authors.AuthorID")
+                    data = db.match(cmd, (bookid,))
+                elif booktype == 'comic':
+                    cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
+                           "Publisher,Contributors from comics,comicissues WHERE "
+                           "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
+                    data = db.match(cmd, (issueid, bookid))
+                    bookid = f"{bookid}_{issueid}"
+            finally:
+                db.close()
+
+            if not data:
+                logger.error(f'No data found for bookid {bookid}')
+            else:
+                opfpath = ''
+                if booktype in ['ebook', 'audiobook']:
+                    process_img(folder, bookid, data['BookImg'], global_name, ImageType.BOOK)
+                    opfpath, our_opf = create_opf(folder, data, global_name, True)
+                    # if we send an opf, does calibre update the book-meta as well?
+                elif booktype == 'comic':
+                    if data.get('Cover'):
+                        process_img(folder, bookid, data['Cover'], global_name, ImageType.COMIC)
+                    if not CONFIG.get_bool('IMP_COMICOPF'):
+                        logger.debug('create_comic_opf is disabled')
+                    else:
+                        opfpath, our_opf = create_comic_opf(folder, data, global_name, True)
+                else:
+                    if not CONFIG.get_bool('IMP_MAGOPF'):
+                        logger.debug('create_mag_opf is disabled')
+                    else:
+                        if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
+                            authors = title
+                        else:
+                            authors = 'magazines'
+                        opfpath, our_opf = create_mag_opf(folder, authors, title, issuedate, issueid,
+                                                          overwrite=True)
+                        # calibre likes "metadata.opf"
+                        opffile = os.path.basename(opfpath)
+                        if opffile != 'metadata.opf':
+                            opfpath = safe_copy(opfpath, opfpath.replace(opffile, 'metadata.opf'))
+
+                if opfpath:
+                    _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
+                    if rc:
+                        logger.warning("calibredb unable to set opf")
+
+                tags = ''
+                if CONFIG.get_bool('OPF_TAGS'):
+                    if booktype == 'magazine':
+                        tags = 'Magazine'
+                    if booktype == 'ebook':
+                        if CONFIG.get_bool('GENRE_TAGS') and data['BookGenre']:
+                            tags = data['BookGenre']
+                        if CONFIG.get_bool('WISHLIST_TAGS'):
+                            if data['Requester'] is not None:
+                                tag = data['Requester'].replace(" ", ",")
+                                if tag not in tags:
+                                    if tags:
+                                        tags += ', '
+                                    tags += tag
+                            elif data['AudioRequester'] is not None:
+                                tag = data['AudioRequester'].replace(" ", ",")
+                                if tag not in tags:
+                                    if tags:
+                                        tags += ', '
+                                    tags += tag
+                if tags:
+                    _, _, rc = calibredb('set_metadata', ['--field', f'tags:{tags}'], [calibre_id])
+                    if rc:
+                        logger.warning("calibredb unable to set tags")
+
+        if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
+            if booktype == 'magazine':
+                if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
+                    authorname = title
+                    global_name = issuedate
+                else:
+                    authorname = 'magazines'
+                    if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
+                        global_name = CONFIG['MAG_DEST_FILE'].replace(
+                            '$IssueDate', issuedate).replace('$Title', title)
+                    else:
+                        global_name = f"{title} - {issuedate}"
+
+                _, _, rc = calibredb('set_metadata', ['--field', f'pubdate:{issuedate}'], [calibre_id])
+                if rc:
+                    logger.warning("calibredb unable to set pubdate")
+            _, _, rc = calibredb('set_metadata', ['--field', f'authors:{unaccented(authorname, only_ascii=False)}'],
+                                 [calibre_id])
+            if rc:
+                logger.warning("calibredb unable to set author")
+            _, _, rc = calibredb('set_metadata', ['--field',
+                                                  f'title:{unaccented(global_name, only_ascii=False)}'],
+                                 [calibre_id])
+            if rc:
+                logger.warning("calibredb unable to set title")
+
+            _, _, rc = calibredb('set_metadata', ['--field', f'identifiers:{identifier}'], [calibre_id])
+            if rc:
+                logger.warning("calibredb unable to set identifier")
+
+        if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
+            return True, data['IssueFile'], folder
+
+        # Ask calibre for the author/title, so we can construct the likely location
+        target_dir = ''
+        calibre_authorname = ''
+        dest_dir = get_directory('eBook')
+        res, err, rc = calibredb('list', ['--fields', 'title,authors', '--search', f'id:{calibre_id}'],
+                                 ['--for-machine'])
+        if not rc:
+            try:
+                res = f"{{ {res.split('{')[1].split('}')[0]} }}"
+                res = json.loads(res)
+                if booktype == 'magazine':
+                    dest_dir = CONFIG['MAG_DEST_FOLDER']
+                    if CONFIG.get_bool('MAG_RELATIVE'):
+                        dest_dir = os.path.join(get_directory('eBook'), dest_dir)
+                elif booktype == 'comic':
+                    dest_dir = CONFIG['COMIC_DEST_FOLDER']
+                    if CONFIG.get_bool('COMIC_RELATIVE'):
+                        dest_dir = os.path.join(get_directory('eBook'), dest_dir)
+
+                while '$' in dest_dir:
+                    dest_dir = os.path.dirname(dest_dir)
+
+                logger.debug(f"[{dest_dir}][{res['authors']}][{res['title']}][{res['id']}]")
+                target_dir = os.path.join(dest_dir, res['authors'], f"{res['title']} ({res['id']})")
+                logger.debug(f"Calibre target: {target_dir}")
+                calibre_authorname = res['authors']
+                calibre_id = res['id']
+            except Exception as e:
+                logger.debug(f"Unable to read json response; {str(e)}")
+                target_dir = ''
+
+            if not target_dir or not path_isdir(target_dir) and calibre_authorname:
+                author_dir = os.path.join(dest_dir, calibre_authorname)
+                if path_isdir(author_dir):  # assumed author directory
+                    our_id = f'({calibre_id})'
+                    entries = listdir(author_dir)
+                    for entry in entries:
+                        if entry.endswith(our_id):
+                            target_dir = os.path.join(author_dir, entry)
+                            break
+
+                    if not target_dir or not path_isdir(target_dir):
+                        logger.debug(f'Failed to locate calibre folder with id {our_id} in {author_dir}')
+                else:
+                    logger.debug(f'Failed to locate calibre author folder {author_dir}')
+
+        if not target_dir or not path_isdir(target_dir):
+            # calibre does not like accents or quotes in names
+            if authorname.endswith('.'):  # calibre replaces trailing dot with underscore e.g. Jr. becomes Jr_
+                authorname = f"{authorname[:-1]}_"
+            author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_'), only_ascii=False), '')
+            if path_isdir(author_dir):  # assumed author directory
+                our_id = f'({calibre_id})'
+                entries = listdir(author_dir)
+                for entry in entries:
+                    if entry.endswith(our_id):
+                        target_dir = os.path.join(author_dir, entry)
+                        break
+
+                if not target_dir or not path_isdir(target_dir):
+                    return False, f'Failed to locate folder with calibre_id {our_id} in {author_dir}', folder
+            else:
+                return False, f'Failed to locate author folder {author_dir}', folder
+
+        if booktype == 'ebook':
+            remv = CONFIG.get_bool('FULL_SCAN')
+            logger.debug(f'Scanning directory [{target_dir}]')
+            _ = library_scan(target_dir, remove=remv)
+
+        newbookfile = book_file(target_dir, booktype=booktype, config=CONFIG)
+        # should we be setting permissions on calibres directories and files?
+        if newbookfile:
+            setperm(target_dir)
+            if booktype in ['magazine', 'comic']:
+                try:
+                    ignorefile = os.path.join(target_dir, '.ll_ignore')
+                    with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
+                        f.write(make_unicode(booktype))
+                except IOError as e:
+                    logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
+
+            for fname in listdir(target_dir):
+                setperm(os.path.join(target_dir, fname))
+
+            # clear up any residual non-calibre folder
+            shutil.rmtree(target_dir.rsplit('(', 1)[0].strip(), ignore_errors=True)
+            return True, newbookfile, folder
+        return False, f"Failed to find a valid {booktype} in [{target_dir}]", folder
+    except Exception as e:
+        logger.error(f'Unhandled exception importing to calibre: {traceback.format_exc()}')
+        return False, f'calibredb import failed, {type(e).__name__} {str(e)}', folder
+
+
 # noinspection PyBroadException
 def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype='', preprocess=True):
     """ Copy/move book/mag and associated files into target directory
@@ -2666,9 +2991,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     logger.debug(f"{booktype} [{global_name}] {str(data)}")
     booktype = booktype.lower()
     pp_path = make_unicode(pp_path)
-    bestmatch = ''
+    bestformat = ''
     cover = ''
-    comicid = data.get('BookID', '')
     issueid = data.get('IssueDate', '')
     authorname = data.get('AuthorName', '')
     bookname = data.get('BookName', '')
@@ -2680,15 +3004,15 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     if booktype == 'ebook' and CONFIG.get_bool('ONE_FORMAT'):
         booktype_list = get_list(CONFIG['EBOOK_TYPE'])
         for btype in booktype_list:
-            if not bestmatch:
+            if not bestformat:
                 for fname in listdir(pp_path):
                     extn = os.path.splitext(fname)[1].lstrip('.')
                     if extn and extn.lower() == btype:
-                        bestmatch = btype
+                        bestformat = btype
                         break
-    if bestmatch:
-        match = bestmatch
-        logger.debug(f'One format import, best match = {bestmatch}')
+    if bestformat:
+        match = bestformat
+        logger.debug(f'One format import, best match = {bestformat}')
     else:  # mag, comic or audiobook or multi-format book
         match = False
         for fname in listdir(pp_path):
@@ -2743,461 +3067,155 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             (booktype == 'ebook' and CONFIG.get_bool('IMP_CALIBRE_EBOOK')) or
             (booktype == 'magazine' and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE')) or
             (booktype == 'comic' and CONFIG.get_bool('IMP_CALIBRE_COMIC'))):
+        data['bestformat'] = bestformat
+        data['cover'] = cover
+        return send_to_calibre(booktype, global_name, pp_path, data)
+
+    # we are copying the files ourselves
+    loggerpostprocess.debug(f"BookType: {booktype}, calibredb: [{CONFIG['IMP_CALIBREDB']}]")
+    loggerpostprocess.debug(f"Source Path: {repr(pp_path)}")
+    loggerpostprocess.debug(f"Dest Path: {repr(dest_path)}")
+    dest_path, encoding = make_utf8bytes(dest_path)
+    if encoding:
+        loggerpostprocess.debug(f"dest_path was {encoding}")
+    if not path_exists(dest_path):
+        logger.debug(f'{dest_path} does not exist, so it\'s safe to create it')
+    elif not path_isdir(dest_path):
+        logger.debug(f'{dest_path} exists but is not a directory, deleting it')
         try:
-            logger.debug(f'Importing {booktype} {global_name} into calibre library')
-            # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
-            # and ignores opf data if there is data embedded in the book file,
-            # so we send separate "set_metadata" commands after the import
-            for fname in listdir(pp_path):
-                extn = os.path.splitext(fname)[1]
+            remove_file(dest_path)
+        except OSError as why:
+            return False, f'Unable to delete {dest_path}: {why.strerror}', pp_path
+    if path_isdir(dest_path):
+        setperm(dest_path)
+    elif not make_dirs(dest_path):
+        return False, f'Unable to create directory {dest_path}', pp_path
+
+    udest_path = make_unicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
+    global_name, encoding = make_utf8bytes(global_name)
+    if encoding:
+        loggerpostprocess.debug(f"global_name was {encoding}")
+
+    # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
+    firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multipart audiobooks
+    for fname in listdir(pp_path):
+        if bestformat and CONFIG.is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestformat):
+            logger.debug(f"Ignoring {fname} as not {bestformat}")
+        else:
+            if CONFIG.is_valid_booktype(fname, booktype=booktype) or \
+                    (fname.lower().endswith(".jpg") or fname.lower().endswith(".opf")):
                 srcfile = os.path.join(pp_path, fname)
-                if CONFIG.is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
-                    if bestmatch and not fname.endswith(bestmatch) and extn not in ['.opf', '.jpg']:
-                        logger.debug(f"Removing {fname} as not {bestmatch}")
-                        remove_file(srcfile)
-                    else:
-                        dstfile = os.path.join(pp_path, global_name.replace('"', '_') + extn)
-                        # calibre does not like quotes in author names
-                        _ = safe_move(srcfile, dstfile)
-                else:
-                    logger.debug(f'Removing {fname} as not wanted')
-                    if path_isfile(srcfile):
-                        remove_file(srcfile)
-                    elif path_isdir(srcfile):
-                        shutil.rmtree(srcfile)
-
-            identifier = ''
-            if booktype in ['ebook', 'audiobook']:
-                if bookid.isdigit():
-                    # TODO if purely numeric could be goodreads or hardcover, we can't be sure
-                    identifier = f"goodreads:{bookid}"
-                    if CONFIG['BOOK_API'] == "HardCover":
-                        identifier = f"hardcover:{bookid}"
-                elif bookid.startswith('OL'):
-                    identifier = f"OpenLibrary:{bookid}"
-                else:
-                    identifier = f"google:{bookid}"
-            elif booktype == 'comic':
-                if comicid.startswith('CV'):
-                    identifier = f"ComicVine:{comicid[2:]}"
-                elif comicid.startswith('CX'):
-                    identifier = f"Comixology:{comicid[2:]}"
-
-            if booktype == 'magazine':
-                issueid = create_id(f"{title} {issuedate}")
-                identifier = f"lazylibrarian:{issueid}"
-                magfile = book_file(pp_path, "magazine", config=CONFIG)
-                jpgfile = f"{os.path.splitext(magfile)[0]}.jpg"
-                if path_isfile(jpgfile):
-                    # calibre likes "cover.jpg"
-                    coverfile = os.path.basename(jpgfile)
-                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
-                elif magfile:
-                    if cover == 0:
-                        cover = 1  # if not set, default to page 1
-                    jpgfile = create_mag_cover(magfile, pagenum=cover, refresh=True)
-                    if jpgfile:
-                        coverfile = os.path.basename(jpgfile)
-                        jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
-
-                if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                    authors = title
-                    global_name = issuedate
-                else:
-                    authors = 'magazines'
-                    if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-                        global_name = CONFIG['MAG_DEST_FILE'].replace(
-                            '$IssueDate', issuedate).replace('$Title', title)
-                    else:
-                        global_name = f"{title} - {issuedate}"
-
-                params = [magfile, '--duplicates', '--authors', authors, '--series', title,
-                          '--title', global_name, '--tags', 'Magazine']
-                if jpgfile:
-                    image = ['--cover', jpgfile]
-                    params.extend(image)
-                res, err, rc = calibredb('add', params)
-            else:
-                if CONFIG.get_bool('IMP_CALIBREOVERWRITE'):
-                    res, err, rc = calibredb('add', ['-1', '--automerge', 'overwrite'], [pp_path])
-                else:
-                    res, err, rc = calibredb('add', ['-1'], [pp_path])
-
-            if rc:
-                return False, f"calibredb rc {rc} from {CONFIG['IMP_CALIBREDB']}", pp_path
-            elif booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
-                logger.warning(
-                    f'Calibre failed to import {authorname} {bookname}, already exists, marking book as "Have"')
-                db = database.DBConnection()
-                try:
-                    control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"Status": "Have"}
-                    db.upsert("books", new_value_dict, control_value_dict)
-                finally:
-                    db.close()
-                return True, '', pp_path
-            # Answer should look like "Added book ids : bookID" (string may be translated!)
-            try:
-                calibre_id = res.rsplit(": ", 1)[1].split("\n", 1)[0].strip()
-            except IndexError:
-                return False, f'Calibre failed to import {authorname} {bookname}, no added bookids', pp_path
-
-            if calibre_id.isdigit():
-                logger.debug(f'Calibre ID: [{calibre_id}]')
-            else:
-                logger.warning(f'Calibre ID looks invalid: [{calibre_id}]')
-
-            our_opf = False
-            rc = 0
-            if ((booktype == "magazine" and not CONFIG.get_bool('IMP_AUTOADD_MAGONLY')) or
-                    (booktype != "magazine" and not CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'))):
-                # we can pass an opf with all the info, and a cover image
-                db = database.DBConnection()
-                try:
-                    if booktype in ['ebook', 'audiobook']:
-                        cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,"
-                               "BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors "
-                               "WHERE BookID=? and books.AuthorID = authors.AuthorID")
-                        data = db.match(cmd, (bookid,))
-                    elif booktype == 'comic':
-                        cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
-                               "Publisher,Contributors from comics,comicissues WHERE "
-                               "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
-                        data = db.match(cmd, (issueid, comicid))
-                        bookid = f"{comicid}_{issueid}"
-                finally:
-                    db.close()
-
-                if not data:
-                    logger.error(f'No data found for bookid {bookid}')
-                else:
-                    opfpath = ''
-                    if booktype in ['ebook', 'audiobook']:
-                        process_img(pp_path, bookid, data['BookImg'], global_name, ImageType.BOOK)
-                        opfpath, our_opf = create_opf(pp_path, data, global_name, True)
-                        # if we send an opf, does calibre update the book-meta as well?
-                    elif booktype == 'comic':
-                        if data.get('Cover'):
-                            process_img(pp_path, bookid, data['Cover'], global_name, ImageType.COMIC)
-                        if not CONFIG.get_bool('IMP_COMICOPF'):
-                            logger.debug('create_comic_opf is disabled')
-                        else:
-                            opfpath, our_opf = create_comic_opf(pp_path, data, global_name, True)
-                    else:
-                        if not CONFIG.get_bool('IMP_MAGOPF'):
-                            logger.debug('create_mag_opf is disabled')
-                        else:
-                            if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                                authors = title
-                            else:
-                                authors = 'magazines'
-                            opfpath, our_opf = create_mag_opf(pp_path, authors, title, issuedate, issueid,
-                                                              overwrite=True)
-                            # calibre likes "metadata.opf"
-                            opffile = os.path.basename(opfpath)
-                            if opffile != 'metadata.opf':
-                                opfpath = safe_copy(opfpath, opfpath.replace(opffile, 'metadata.opf'))
-
-                    if opfpath:
-                        _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
-                        if rc:
-                            logger.warning("calibredb unable to set opf")
-
-                    tags = ''
-                    if CONFIG.get_bool('OPF_TAGS'):
-                        if booktype == 'magazine':
-                            tags = 'Magazine'
-                        if booktype == 'ebook':
-                            if CONFIG.get_bool('GENRE_TAGS') and data['BookGenre']:
-                                tags = data['BookGenre']
-                            if CONFIG.get_bool('WISHLIST_TAGS'):
-                                if data['Requester'] is not None:
-                                    tag = data['Requester'].replace(" ", ",")
-                                    if tag not in tags:
-                                        if tags:
-                                            tags += ', '
-                                        tags += tag
-                                elif data['AudioRequester'] is not None:
-                                    tag = data['AudioRequester'].replace(" ", ",")
-                                    if tag not in tags:
-                                        if tags:
-                                            tags += ', '
-                                        tags += tag
-                    if tags:
-                        _, _, rc = calibredb('set_metadata', ['--field', f'tags:{tags}'], [calibre_id])
-                        if rc:
-                            logger.warning("calibredb unable to set tags")
-
-            if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
-                if booktype == 'magazine':
-                    if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                        authorname = title
-                        global_name = issuedate
-                    else:
-                        authorname = 'magazines'
-                        if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-                            global_name = CONFIG['MAG_DEST_FILE'].replace(
-                                '$IssueDate', issuedate).replace('$Title', title)
-                        else:
-                            global_name = f"{title} - {issuedate}"
-
-                    _, _, rc = calibredb('set_metadata', ['--field', f'pubdate:{issuedate}'], [calibre_id])
-                    if rc:
-                        logger.warning("calibredb unable to set pubdate")
-                _, _, rc = calibredb('set_metadata', ['--field', f'authors:{unaccented(authorname, only_ascii=False)}'],
-                                     [calibre_id])
-                if rc:
-                    logger.warning("calibredb unable to set author")
-                _, _, rc = calibredb('set_metadata', ['--field',
-                                                      f'title:{unaccented(global_name, only_ascii=False)}'],
-                                     [calibre_id])
-                if rc:
-                    logger.warning("calibredb unable to set title")
-
-                _, _, rc = calibredb('set_metadata', ['--field', f'identifiers:{identifier}'], [calibre_id])
-                if rc:
-                    logger.warning("calibredb unable to set identifier")
-
-            if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
-                return True, data['IssueFile'], pp_path
-
-            # Ask calibre for the author/title, so we can construct the likely location
-            target_dir = ''
-            calibre_authorname = ''
-            dest_dir = get_directory('eBook')
-            res, err, rc = calibredb('list', ['--fields', 'title,authors', '--search', f'id:{calibre_id}'],
-                                     ['--for-machine'])
-            if not rc:
-                try:
-                    res = f"{{ {res.split('{')[1].split('}')[0]} }}"
-                    res = json.loads(res)
-                    if booktype == 'magazine':
-                        dest_dir = CONFIG['MAG_DEST_FOLDER']
-                        if CONFIG.get_bool('MAG_RELATIVE'):
-                            dest_dir = os.path.join(get_directory('eBook'), dest_dir)
-                    elif booktype == 'comic':
-                        dest_dir = CONFIG['COMIC_DEST_FOLDER']
-                        if CONFIG.get_bool('COMIC_RELATIVE'):
-                            dest_dir = os.path.join(get_directory('eBook'), dest_dir)
-
-                    while '$' in dest_dir:
-                        dest_dir = os.path.dirname(dest_dir)
-
-                    logger.debug(f"[{dest_dir}][{res['authors']}][{res['title']}][{res['id']}]")
-                    target_dir = os.path.join(dest_dir, res['authors'], f"{res['title']} ({res['id']})")
-                    logger.debug(f"Calibre target: {target_dir}")
-                    calibre_authorname = res['authors']
-                    calibre_id = res['id']
-                except Exception as e:
-                    logger.debug(f"Unable to read json response; {str(e)}")
-                    target_dir = ''
-
-                if not target_dir or not path_isdir(target_dir) and calibre_authorname:
-                    author_dir = os.path.join(dest_dir, calibre_authorname)
-                    if path_isdir(author_dir):  # assumed author directory
-                        our_id = f'({calibre_id})'
-                        entries = listdir(author_dir)
-                        for entry in entries:
-                            if entry.endswith(our_id):
-                                target_dir = os.path.join(author_dir, entry)
-                                break
-
-                        if not target_dir or not path_isdir(target_dir):
-                            logger.debug(f'Failed to locate calibre folder with id {our_id} in {author_dir}')
-                    else:
-                        logger.debug(f'Failed to locate calibre author folder {author_dir}')
-
-            if not target_dir or not path_isdir(target_dir):
-                # calibre does not like accents or quotes in names
-                if authorname.endswith('.'):  # calibre replaces trailing dot with underscore e.g. Jr. becomes Jr_
-                    authorname = f"{authorname[:-1]}_"
-                author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_'), only_ascii=False), '')
-                if path_isdir(author_dir):  # assumed author directory
-                    our_id = f'({calibre_id})'
-                    entries = listdir(author_dir)
-                    for entry in entries:
-                        if entry.endswith(our_id):
-                            target_dir = os.path.join(author_dir, entry)
-                            break
-
-                    if not target_dir or not path_isdir(target_dir):
-                        return False, f'Failed to locate folder with calibre_id {our_id} in {author_dir}', pp_path
-                else:
-                    return False, f'Failed to locate author folder {author_dir}', pp_path
-
-            if booktype == 'ebook':
-                remv = bool(CONFIG.get_bool('FULL_SCAN'))
-                logger.debug(f'Scanning directory [{target_dir}]')
-                _ = library_scan(target_dir, remove=remv)
-
-            newbookfile = book_file(target_dir, booktype=booktype, config=CONFIG)
-            # should we be setting permissions on calibres directories and files?
-            if newbookfile:
-                setperm(target_dir)
-                if booktype in ['magazine', 'comic']:
-                    try:
-                        ignorefile = os.path.join(target_dir, '.ll_ignore')
-                        with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
-                            f.write(make_unicode(booktype))
-                    except IOError as e:
-                        logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
-
-                for fname in listdir(target_dir):
-                    setperm(os.path.join(target_dir, fname))
-
-                # clear up any residual non-calibre folder
-                shutil.rmtree(target_dir.rsplit('(', 1)[0].strip(), ignore_errors=True)
-                return True, newbookfile, pp_path
-            return False, f"Failed to find a valid {booktype} in [{target_dir}]", pp_path
-        except Exception as e:
-            logger.error(f'Unhandled exception importing to calibre: {traceback.format_exc()}')
-            return False, f'calibredb import failed, {type(e).__name__} {str(e)}', pp_path
-    else:
-        # we are copying the files ourselves
-        loggerpostprocess.debug(f"BookType: {booktype}, calibredb: [{CONFIG['IMP_CALIBREDB']}]")
-        loggerpostprocess.debug(f"Source Path: {repr(pp_path)}")
-        loggerpostprocess.debug(f"Dest Path: {repr(dest_path)}")
-        dest_path, encoding = make_utf8bytes(dest_path)
-        if encoding:
-            loggerpostprocess.debug(f"dest_path was {encoding}")
-        if not path_exists(dest_path):
-            logger.debug(f'{dest_path} does not exist, so it\'s safe to create it')
-        elif not path_isdir(dest_path):
-            logger.debug(f'{dest_path} exists but is not a directory, deleting it')
-            try:
-                remove_file(dest_path)
-            except OSError as why:
-                return False, f'Unable to delete {dest_path}: {why.strerror}', pp_path
-        if path_isdir(dest_path):
-            setperm(dest_path)
-        elif not make_dirs(dest_path):
-            return False, f'Unable to create directory {dest_path}', pp_path
-
-        udest_path = make_unicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
-        global_name, encoding = make_utf8bytes(global_name)
-        if encoding:
-            loggerpostprocess.debug(f"global_name was {encoding}")
-
-        # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
-        firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multipart audiobooks
-        for fname in listdir(pp_path):
-            if bestmatch and CONFIG.is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestmatch):
-                logger.debug(f"Ignoring {fname} as not {bestmatch}")
-            else:
-                if CONFIG.is_valid_booktype(fname, booktype=booktype) or \
-                        (fname.lower().endswith(".jpg") or fname.lower().endswith(".opf")):
-                    srcfile = os.path.join(pp_path, fname)
-                    if booktype in ['audiobook', 'comic']:
-                        if fname.lower().endswith(".jpg") or fname.lower().endswith(".opf"):
-                            destfile = os.path.join(udest_path, make_unicode(global_name) + os.path.splitext(fname)[1])
-                        else:
-                            destfile = os.path.join(udest_path, fname)  # don't rename audio or comic files, just copy
-                    else:
+                if booktype in ['audiobook', 'comic']:
+                    if fname.lower().endswith(".jpg") or fname.lower().endswith(".opf"):
                         destfile = os.path.join(udest_path, make_unicode(global_name) + os.path.splitext(fname)[1])
-                    try:
-                        logger.debug(f'Copying {fname} to directory {udest_path}')
-                        destfile = safe_copy(srcfile, destfile)
-                        setperm(destfile)
-                        if CONFIG.is_valid_booktype(make_unicode(destfile), booktype=booktype):
-                            newbookfile = destfile
-                    except Exception as why:
-                        # extra debugging to see if we can figure out a windows encoding issue
-                        parent = os.path.dirname(destfile)
-                        try:
-                            with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
-                                f.write(u'test')
-                            remove_file(os.path.join(parent, 'll_temp'))
-                        except Exception as w:
-                            logger.error(f"Destination Directory [{parent}] is not writeable: {w}")
-                        return (False, f"Unable to copy file {srcfile} to {destfile}: {type(why).__name__} {str(why)}",
-                                pp_path)
+                    else:
+                        destfile = os.path.join(udest_path, fname)  # don't rename audio or comic files, just copy
                 else:
-                    logger.debug(f'Ignoring unwanted file: {fname}')
+                    destfile = os.path.join(udest_path, make_unicode(global_name) + os.path.splitext(fname)[1])
+                try:
+                    logger.debug(f'Copying {fname} to directory {udest_path}')
+                    destfile = safe_copy(srcfile, destfile)
+                    setperm(destfile)
+                    if CONFIG.is_valid_booktype(make_unicode(destfile), booktype=booktype):
+                        newbookfile = destfile
+                except Exception as why:
+                    # extra debugging to see if we can figure out a windows encoding issue
+                    parent = os.path.dirname(destfile)
+                    try:
+                        with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
+                            f.write(u'test')
+                        remove_file(os.path.join(parent, 'll_temp'))
+                    except Exception as w:
+                        logger.error(f"Destination Directory [{parent}] is not writeable: {w}")
+                    return (False, f"Unable to copy file {srcfile} to {destfile}: {type(why).__name__} {str(why)}",
+                            pp_path)
+            else:
+                logger.debug(f'Ignoring unwanted file: {fname}')
 
-        if booktype in ['ebook', 'audiobook']:
-            cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,"
-                   "Requester,AudioRequester,BookGenre,Narrator from books,authors WHERE BookID=? "
-                   "and books.AuthorID = authors.AuthorID")
+    if booktype in ['ebook', 'audiobook']:
+        cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,"
+               "Requester,AudioRequester,BookGenre,Narrator from books,authors WHERE BookID=? "
+               "and books.AuthorID = authors.AuthorID")
+        db = database.DBConnection()
+        try:
+            data = db.match(cmd, (bookid,))
+        finally:
+            db.close()
+        process_img(pp_path, bookid, data['BookImg'], make_unicode(global_name), ImageType.BOOK)
+        _ = create_opf(pp_path, data, make_unicode(global_name), True)
+
+    # for ebooks, prefer the first booktype found in ebook_type list
+    if booktype == 'ebook':
+        book_basename = os.path.join(dest_path, global_name)
+        booktype_list = get_list(CONFIG['EBOOK_TYPE'])
+        for booktype in booktype_list:
+            preferred_type = f"{make_unicode(book_basename)}.{booktype}"
+            if path_exists(preferred_type):
+                logger.debug(f"Link to preferred type {booktype}, {preferred_type}")
+                firstfile = preferred_type
+                break
+
+    # link to the first part of multipart audiobooks unless there is a whole-book file
+    elif booktype == 'audiobook':
+        tokmatch = ''
+        for f in listdir(dest_path):
+            # if no number_period or number_space in filename assume its whole-book
+            if not re.findall(r'\d+\b', f) and CONFIG.is_valid_booktype(f, booktype='audiobook'):
+                firstfile = os.path.join(udest_path, f)
+                tokmatch = 'whole'
+                break
+        for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
+            if tokmatch:
+                break
+            for f in listdir(dest_path):
+                if CONFIG.is_valid_booktype(f, booktype='audiobook'):
+                    if not firstfile:
+                        firstfile = os.path.join(udest_path, f)
+                        logger.debug(f"Primary link to {f}")
+                    if token in f:
+                        firstfile = os.path.join(udest_path, f)
+                        logger.debug(f"Link to first part [{token}], {f}")
+                        tokmatch = token
+                        break
+
+    elif booktype in ['magazine', 'comic']:
+        try:
+            ignorefile = os.path.join(udest_path, '.ll_ignore')
+            with open(syspath(ignorefile), 'w') as f:
+                f.write(make_unicode(booktype))
+        except (IOError, TypeError) as e:
+            logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
+
+        if booktype == 'comic':
+            cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
+                   "Publisher,Contributors from comics,comicissues WHERE "
+                   "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
             db = database.DBConnection()
             try:
-                data = db.match(cmd, (bookid,))
+                data = db.match(cmd, (issueid, bookid))
             finally:
                 db.close()
-            process_img(pp_path, bookid, data['BookImg'], make_unicode(global_name), ImageType.BOOK)
-            _ = create_opf(pp_path, data, make_unicode(global_name), True)
-
-        # for ebooks, prefer the first booktype found in ebook_type list
-        if booktype == 'ebook':
-            book_basename = os.path.join(dest_path, global_name)
-            booktype_list = get_list(CONFIG['EBOOK_TYPE'])
-            for booktype in booktype_list:
-                preferred_type = f"{make_unicode(book_basename)}.{booktype}"
-                if path_exists(preferred_type):
-                    logger.debug(f"Link to preferred type {booktype}, {preferred_type}")
-                    firstfile = preferred_type
-                    break
-
-        # link to the first part of multipart audiobooks unless there is a whole-book file
-        elif booktype == 'audiobook':
-            tokmatch = ''
-            for f in listdir(dest_path):
-                # if no number_period or number_space in filename assume its whole-book
-                if not re.findall(r'\d+\b', f) and CONFIG.is_valid_booktype(f, booktype='audiobook'):
-                    firstfile = os.path.join(udest_path, f)
-                    tokmatch = 'whole'
-                    break
-            for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
-                if tokmatch:
-                    break
-                for f in listdir(dest_path):
-                    if CONFIG.is_valid_booktype(f, booktype='audiobook'):
-                        if not firstfile:
-                            firstfile = os.path.join(udest_path, f)
-                            logger.debug(f"Primary link to {f}")
-                        if token in f:
-                            firstfile = os.path.join(udest_path, f)
-                            logger.debug(f"Link to first part [{token}], {f}")
-                            tokmatch = token
-                            break
-
-        elif booktype in ['magazine', 'comic']:
-            try:
-                ignorefile = os.path.join(udest_path, '.ll_ignore')
-                with open(syspath(ignorefile), 'w') as f:
-                    f.write(make_unicode(booktype))
-            except (IOError, TypeError) as e:
-                logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
-
-            if booktype == 'comic':
-                cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
-                       "Publisher,Contributors from comics,comicissues WHERE "
-                       "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
-                db = database.DBConnection()
-                try:
-                    data = db.match(cmd, (issueid, comicid))
-                finally:
-                    db.close()
-                bookid = f"{comicid}_{issueid}"
-                if data:
-                    process_img(pp_path, bookid, data['Cover'], global_name, ImageType.COMIC)
-                    if not CONFIG.get_bool('IMP_COMICOPF'):
-                        logger.debug('create_comic_opf is disabled')
-                    else:
-                        _, _ = create_comic_opf(pp_path, data, global_name, True)
+            bookid = f"{bookid}_{issueid}"
+            if data:
+                process_img(pp_path, bookid, data['Cover'], global_name, ImageType.COMIC)
+                if not CONFIG.get_bool('IMP_COMICOPF'):
+                    logger.debug('create_comic_opf is disabled')
                 else:
-                    logger.debug(f'No data found for {comicid}_{issueid}')
+                    _, _ = create_comic_opf(pp_path, data, global_name, True)
             else:
-                if not CONFIG.get_bool('IMP_MAGOPF'):
-                    logger.debug('create_mag_opf is disabled')
+                logger.debug(f'No data found for {bookid}_{issueid}')
+        else:
+            if not CONFIG.get_bool('IMP_MAGOPF'):
+                logger.debug('create_mag_opf is disabled')
+            else:
+                if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
+                    authors = title
                 else:
-                    if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                        authors = title
-                    else:
-                        authors = 'magazines'
-                    _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid, overwrite=True)
+                    authors = 'magazines'
+                _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid, overwrite=True)
 
-        if firstfile:
-            newbookfile = firstfile
+    if firstfile:
+        newbookfile = firstfile
     return True, newbookfile, pp_path
 
 
