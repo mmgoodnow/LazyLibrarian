@@ -4043,7 +4043,8 @@ class WebInterface:
                             abandoned.add(bookid)
                         logger.debug(f'Status set to {action} for {bookid}')
 
-                    elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth", "WantEbook", "WantAudio", "WantBoth"]:
+                    elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth",
+                                    "Wanted", "WantEbook", "WantAudio", "WantBoth"]:
                         bookdata = db.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
                                             (bookid,))
                         if bookdata:
@@ -4051,13 +4052,13 @@ class WebInterface:
                             bookname = bookdata['BookName']
                             if authorid not in check_totals:
                                 check_totals.append(authorid)
-                            if (action == "WantEbook" and library == 'eBook') or action == "WantBoth":
+                            if (action == "Wanted" and library == "eBook") or action in ["WantEbook", "WantBoth"]:
                                 if bookdata['Status'] in ["Open", "Have"]:
                                     logger.debug(f'eBook "{bookname}" is already marked Open')
                                 else:
                                     db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
                                     logger.debug(f'Status set to "Wanted" for "{bookname}"')
-                            if (action == "WantAudio" and library == 'AudioBook') or action == "WantBoth":
+                            if (action == "Wanted" and library == "AudioBook") or action in ["WantAudio", "WantBoth"]:
                                 if bookdata['AudioStatus'] in ["Open", "Have"]:
                                     logger.debug(f'AudioBook "{bookname}" is already marked Open')
                                 else:
@@ -6973,6 +6974,9 @@ class WebInterface:
                 msg = f"{name} test PASSED"
                 CONFIG.save_config_and_backup_old(section=kwargs['name'])
             else:
+                wishtype = wishlist_type(host)
+                if wishtype:
+                    name = f'Wishlist {wishtype} {name}'
                 msg = f"{name} test PASSED, found {result}"
                 CONFIG.save_config_and_backup_old(section=kwargs['name'])
         else:
