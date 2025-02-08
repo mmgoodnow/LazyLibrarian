@@ -333,9 +333,10 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 return None, src
 
         if not src or src == 'cover' and 'cover' not in ignore:
-            item = db.match('select BookFile from books where bookID=?', (bookid,))
+            item = db.match('select BookFile, AudioFile from books where bookID=?', (bookid,))
             if item:
-                bookfile = item['BookFile']
+                # get either ebook or audiobook if they exist
+                bookfile = item['BookFile'] or item['AudioFile']
                 if bookfile and path_isfile(bookfile):  # we may have a cover.jpg in the same folder
                     bookdir = os.path.dirname(bookfile)
                     coverimg = jpg_file(bookdir)
@@ -360,7 +361,6 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             if src:
                 return None, src
 
-        imgid = img_id()
         # see if librarything has a cover
         if not src or src == 'librarything' and 'librarything' not in ignore:
             if CONFIG['LT_DEVKEY']:
@@ -368,7 +368,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 item = db.match(cmd, (bookid,))
                 if item and item['BookISBN']:
                     img = '/'.join([CONFIG['LT_URL'], f"devkey/{CONFIG['LT_DEVKEY']}/large/isbn/{item['BookISBN']}"])
-                    coverlink = cache_bookimg(img, bookid, src, suffix='_lt', imgid=imgid)
+                    coverlink = cache_bookimg(img, bookid, src, suffix='_lt')
                     if coverlink:
                         return coverlink, 'librarything'
                 else:
@@ -385,7 +385,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 bookdict, _ = h_c.get_bookdict(item['hc_id'])
                 img = bookdict.get('cover')
                 if img:
-                    coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)
+                    coverlink = cache_bookimg(img, bookid, src, suffix='_hc')
                     if coverlink:
                         return coverlink, 'hardcover'
             if src:
@@ -398,7 +398,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 try:
                     img = work.split('workCoverImage')[1].split('="')[1].split('"')[0]
                     if img:
-                        coverlink = cache_bookimg(img, bookid, src, suffix='_ww', imgid=imgid)
+                        coverlink = cache_bookimg(img, bookid, src, suffix='_ww')
                         if coverlink:
                             return coverlink, 'whatwork'
                     else:
@@ -409,7 +409,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 try:
                     img = work.split('og:image')[1].split('="')[1].split('"')[0]
                     if img:
-                        coverlink = cache_bookimg(img, bookid, src, suffix='_ww', imgid=imgid)
+                        coverlink = cache_bookimg(img, bookid, src, suffix='_ww')
                         if coverlink:
                             return coverlink, 'whatwork'
                     else:
@@ -450,7 +450,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                         except IndexError:
                             img = None
                     if img and img.startswith('http') and 'nocover' not in img and 'nophoto' not in img:
-                        coverlink = cache_bookimg(img, bookid, src, suffix='_gr', imgid=imgid)
+                        coverlink = cache_bookimg(img, bookid, src, suffix='_gr')
                         if coverlink:
                             return coverlink, 'goodreads'
                     else:
@@ -486,7 +486,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                                 logger.debug(f"No openlibrary image for {item['BookISBN']}")
 
                     if img and img.startswith('http') and 'nocover' not in img and 'nophoto' not in img:
-                        coverlink = cache_bookimg(img, bookid, src, suffix='_ol', imgid=imgid)
+                        coverlink = cache_bookimg(img, bookid, src, suffix='_ol')
                         if coverlink:
                             return coverlink, 'openlibrary'
                 else:
@@ -511,7 +511,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                         logger.debug(f"GoogleISBN {type(e).__name__}: {e}")
 
                     if img:
-                        coverlink = cache_bookimg(img, bookid, src, suffix='_gi', imgid=imgid)
+                        coverlink = cache_bookimg(img, bookid, src, suffix='_gi')
                         if coverlink:
                             return coverlink, 'googleisbn'
                     else:
