@@ -5449,7 +5449,7 @@ class WebInterface:
         magazine = db.match("SELECT * from magazines WHERE Title=?", (magtitle,))
         issue = db.match("SELECT Title,IssueDate,ISsueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
         db.close()
-
+        redirect = issue['Title']
         datetype = magazine['DateType']
         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
         issuenum_exploded = replace_all(issuenum, dic).split()
@@ -5484,7 +5484,7 @@ class WebInterface:
             if not datetype_ok:
                 response = f'Date {issuenum} not in a recognised date format [{datetype}]'
                 logger.debug(response)
-                raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(issue['Title'])}&response={response}")
+                raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
 
             if issuedate.isdigit() and 'I' in datetype:
                 issuedate = issuedate.zfill(4)
@@ -5497,7 +5497,7 @@ class WebInterface:
             response = (f"Issue {issue['IssueDate']} of {issue['Title']} is unchanged. "
                         f"Insufficient information, need Title and valid IssueNum/Date")
             logger.debug(response)
-            raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(issue['Title'])}&response={response}")
+            raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
 
         db = database.DBConnection()
         try:
@@ -5580,12 +5580,18 @@ class WebInterface:
                                           "IssueDate": issuenum,
                                           "LatestCover": issue['Cover']}
                     db.upsert("magazines", new_value_dict, control_value_dict)
+                    if self.mag_set_latest(issue['Title']):
+                        # update latest issue of old mag title, if any issues left, redirect to there
+                        redirect = issue['Title']
+                    else:
+                        # no issues under old title, redirect to new title
+                        redirect = magtitle
             else:
                 response = f'Issue {issue["IssueDate"]} of {issue["Title"]} is unchanged'
                 logger.debug(response)
         finally:
             db.close()
-        raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(magtitle)}&response={response}")
+        raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
 
     @cherrypy.expose
     def issue_page(self, title, response=''):
@@ -5936,48 +5942,56 @@ class WebInterface:
                         if action == "Remove" or action == "Delete":
                             db.action('DELETE from issues WHERE IssueID=?', (item,))
                             logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} removed from database')
-                            # Set magazine_issuedate to issuedate of most recent issue we have
-                            # Set latestcover to most recent issue cover
-                            # Set magazine_lastacquired to acquired date of most recent issue we have
-                            # Set magazine_added to acquired date of the earliest issue we have
-                            cmd = ("select IssueDate,IssueAcquired,IssueFile,Cover from issues where title=? "
-                                   "order by IssueDate ")
-                            newest = db.match(cmd + 'DESC', (title,))
-                            oldest = db.match(cmd + 'ASC', (title,))
-                            control_value_dict = {'Title': title}
-                            if newest and oldest:
-                                old_acquired = ''
-                                new_acquired = ''
-                                cover = newest['Cover']
-                                issuefile = newest['IssueFile']
-                                if path_exists(issuefile):
-                                    mtime = os.path.getmtime(syspath(issuefile))
-                                    new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
-                                issuefile = oldest['IssueFile']
-                                if path_exists(issuefile):
-                                    mtime = os.path.getmtime(syspath(issuefile))
-                                    old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
-
-                                new_value_dict = {
-                                    'IssueDate': newest['IssueDate'],
-                                    'LatestCover': cover,
-                                    'LastAcquired': new_acquired,
-                                    'MagazineAdded': old_acquired
-                                }
-                            else:
-                                new_value_dict = {
-                                    'IssueDate': '',
-                                    'LastAcquired': '',
-                                    'LatestCover': '',
-                                    'MagazineAdded': ''
-                                }
-                            db.upsert("magazines", new_value_dict, control_value_dict)
+                            _ = self.mag_set_latest(title)
         finally:
             db.close()
         if title:
             raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(make_utf8bytes(title)[0])}")
         else:
             raise cherrypy.HTTPRedirect("magazines")
+
+    @staticmethod
+    def mag_set_latest(title):
+        # Set magazine_issuedate to issuedate of most recent issue we have
+        # Set latestcover to most recent issue cover
+        # Set magazine_lastacquired to acquired date of most recent issue we have
+        # Set magazine_added to acquired date of the earliest issue we have
+        # Return the latest issue date, or empty if no issues
+        db = database.DBConnection()
+        cmd = ("select IssueDate,IssueAcquired,IssueFile,Cover from issues where title=? "
+               "order by IssueDate ")
+        newest = db.match(cmd + 'DESC', (title,))
+        oldest = db.match(cmd + 'ASC', (title,))
+        control_value_dict = {'Title': title}
+        if newest and oldest:
+            old_acquired = ''
+            new_acquired = ''
+            cover = newest['Cover']
+            issuefile = newest['IssueFile']
+            if path_exists(issuefile):
+                mtime = os.path.getmtime(syspath(issuefile))
+                new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+            issuefile = oldest['IssueFile']
+            if path_exists(issuefile):
+                mtime = os.path.getmtime(syspath(issuefile))
+                old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+
+            new_value_dict = {
+                'IssueDate': newest['IssueDate'],
+                'LatestCover': cover,
+                'LastAcquired': new_acquired,
+                'MagazineAdded': old_acquired
+            }
+        else:  # there are no issues
+            new_value_dict = {
+                'IssueDate': '',
+                'LastAcquired': '',
+                'LatestCover': '',
+                'MagazineAdded': ''
+            }
+        db.upsert("magazines", new_value_dict, control_value_dict)
+        db.close()
+        return new_value_dict['IssueDate']
 
     @staticmethod
     def delete_from_calibre(data):
