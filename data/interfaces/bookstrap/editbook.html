@@ -149,7 +149,7 @@
             <input type="text" id="series[new][name]" name="series[new][name]" value="" class="form-control" placeholder="Series Name">
             </div>
             <script type="text/javascript">
-                $('body').on('change', 'select', function() {
+                $('#series').on('change', 'select', function() {
                 $('input.form-control[id="series[new][name]"]').val($(this).find(":selected").text()).select();
                 })
             </script>

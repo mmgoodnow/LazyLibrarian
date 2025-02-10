@@ -337,9 +337,10 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 return None, src
 
         if not src or src == 'cover' and 'cover' not in ignore:
-            item = db.match('select BookFile from books where bookID=?', (bookid,))
+            item = db.match('select BookFile, AudioFile from books where bookID=?', (bookid,))
             if item:
-                bookfile = item['BookFile']
+                # get either ebook or audiobook if they exist
+                bookfile = item['BookFile'] or item['AudioFile']
                 if bookfile and path_isfile(bookfile):  # we may have a cover.jpg in the same folder
                     bookdir = os.path.dirname(bookfile)
                     coverimg = jpg_file(bookdir)
