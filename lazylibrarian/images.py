@@ -337,7 +337,11 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 return None, src
 
         if not src or src == 'cover' and 'cover' not in ignore:
+<<<<<<< HEAD
+            item = db.match('select BookFile,Audiofile from books where bookID=?', (bookid,))
+=======
             item = db.match('select BookFile, AudioFile from books where bookID=?', (bookid,))
+>>>>>>> 7a74816736c21ae03811bd184f51b2d3fcebe46e
             if item:
                 # get either ebook or audiobook if they exist
                 bookfile = item['BookFile'] or item['AudioFile']
@@ -380,21 +384,6 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             if src:
                 return None, src
 
-        # see if hardcover has a cover
-        if not src or src == 'hardcover' and 'hardcover' not in ignore:
-            cmd = "select hc_id from books where bookID=?"
-            item = db.match(cmd, (bookid,))
-            if item and item['hc_id']:
-                h_c = lazylibrarian.hc.HardCover(item['hc_id'])
-                bookdict, _ = h_c.get_bookdict(item['hc_id'])
-                img = bookdict.get('cover')
-                if img:
-                    coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)
-                    if coverlink:
-                        return coverlink, 'hardcover'
-            if src:
-                return None, src
-
         # see if librarything workpage has a cover
         if NEW_WHATWORK and (not src or src == 'whatwork' and 'whatwork' not in ignore):
             work = get_bookwork(bookid, "Cover")
@@ -425,7 +414,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             if src:
                 return None, src
 
-        cmd = ("select BookName,AuthorName,BookLink,BookISBN from books,authors where bookID=?"
+        cmd = ("select BookName,AuthorName,BookLink,BookISBN,gr_id,hc_id from books,authors where bookID=?"
                " and books.AuthorID = authors.AuthorID")
         item = db.match(cmd, (bookid,))
         if not item:
@@ -433,17 +422,30 @@ def get_book_cover(bookid=None, src=None, ignore=''):
 
         title = safe_unicode(item['BookName'])
         author = safe_unicode(item['AuthorName'])
-        booklink = item['BookLink']
         safeparams = quote_plus(make_utf8bytes(f"{author} {title}")[0])
+
+        # see if hardcover has a cover
+        if not src or src == 'hardcover' and 'hardcover' not in ignore:
+            if item['hc_id']:
+                h_c = lazylibrarian.hc.HardCover(item['hc_id'])
+                bookdict, _ = h_c.get_bookdict(item['hc_id'])
+                img = bookdict.get('cover')
+                if img:
+                    coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)
+                    if coverlink:
+                        return coverlink, 'hardcover'
+            if src:
+                return None, src
 
         # try to get a cover from goodreads
         if not src or src == 'goodreads' and 'goodreads' not in ignore:
-            if booklink and 'goodreads' in booklink:
-                # if the bookID is a goodreads one, we can call https://www.goodreads.com/book/show/{bookID}
+            if item['gr_id']:
+                # if we have a goodreads bookid, we can call https://www.goodreads.com/book/show/{bookID}
                 # and scrape the page for og:image
                 # <meta property="og:image" content="https://i.gr-assets.com/images/S/photo.goodreads.com/books/
                 # 1388267702i/16304._UY475_SS475_.jpg"/>
                 # to get the cover
+                booklink = '/'.join([CONFIG['GR_URL'], 'book', 'show', item['gr_id']])
                 result, success = fetch_url(booklink)
                 if success:
                     try:
