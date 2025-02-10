@@ -337,11 +337,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 return None, src
 
         if not src or src == 'cover' and 'cover' not in ignore:
-<<<<<<< HEAD
             item = db.match('select BookFile,Audiofile from books where bookID=?', (bookid,))
-=======
-            item = db.match('select BookFile, AudioFile from books where bookID=?', (bookid,))
->>>>>>> 7a74816736c21ae03811bd184f51b2d3fcebe46e
             if item:
                 # get either ebook or audiobook if they exist
                 bookfile = item['BookFile'] or item['AudioFile']
