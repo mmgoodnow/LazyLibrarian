@@ -1235,7 +1235,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         cover_link = bookdict['cover']
                         if 'nocover' in cover_link or 'nophoto' in cover_link:
                             start = time.time()
-                            cover_link, _ = get_book_cover(bookdict['bookid'])
+                            cover_link, _ = get_book_cover(bookdict['bookid'], ignore='hardcover')
                             cover_time += (time.time() - start)
                             cover_count += 1
                         elif cover_link and cover_link.startswith('http'):
@@ -1377,7 +1377,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                                             cover_link = newbookdict['cover']
                                                             if 'nocover' in cover_link or 'nophoto' in cover_link:
                                                                 start = time.time()
-                                                                cover_link, _ = get_book_cover(newbookdict['bookid'])
+                                                                cover_link, _ = get_book_cover(newbookdict['bookid'],
+                                                                                               ignore='hardcover')
                                                                 cover_time += (time.time() - start)
                                                                 cover_count += 1
                                                             elif cover_link and cover_link.startswith('http'):
@@ -1552,7 +1553,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 auth_id = exists['AuthorID']
                 cover_link = bookdict['cover']
                 if 'nocover' in cover_link or 'nophoto' in cover_link:
-                    cover_link, _ = get_book_cover(bookdict['bookid'])
+                    cover_link, _ = get_book_cover(bookdict['bookid'], ignore='hardcover')
                 elif cover_link and cover_link.startswith('http'):
                     cover_link = cache_bookimg(cover_link, bookdict['bookid'], 'hc')
                 if not cover_link:  # no results on search or failed to cache it

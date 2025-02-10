@@ -308,6 +308,10 @@ def get_book_cover(bookid=None, src=None, ignore=''):
 
     if not src:
         src = ''
+        imgid = img_id()
+    else:
+        imgid = None
+
     logger.debug(f"Getting {src} cover for {bookid}, ignore [{ignore}]")
     db = database.DBConnection()
     # noinspection PyBroadException
@@ -360,7 +364,6 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             if src:
                 return None, src
 
-        imgid = img_id()
         # see if librarything has a cover
         if not src or src == 'librarything' and 'librarything' not in ignore:
             if CONFIG['LT_DEVKEY']:
@@ -525,13 +528,21 @@ def get_book_cover(bookid=None, src=None, ignore=''):
 
         if PIL and safeparams:
             if not src or src == 'baidu' and 'baidu' not in ignore:
-                return crawl_image('baidu', src, cachedir, bookid, safeparams)
+                res, src = crawl_image('baidu', src, cachedir, bookid, safeparams, imgid=imgid)
+                if res:
+                    return res, src
             if not src or src == 'bing' and 'bing' not in ignore:
-                return crawl_image('bing', src, cachedir, bookid, safeparams)
+                res, src = crawl_image('bing', src, cachedir, bookid, safeparams, imgid=imgid)
+                if res:
+                    return res, src
             if not src or src == 'flikr' and 'flikr' not in ignore:
-                return crawl_image('flickr', src, cachedir, bookid, safeparams)
+                res, src = crawl_image('flickr', src, cachedir, bookid, safeparams, imgid=imgid)
+                if res:
+                    return res, src
             if not src or src == 'googleimage' and 'googleapis' not in ignore:
-                return crawl_image('google', src, cachedir, bookid, safeparams)
+                res, src = crawl_image('google', src, cachedir, bookid, safeparams, imgid=imgid)
+                if res:
+                    return res, src
 
         logger.debug("No image found from any configured source")
         return None, src
@@ -542,7 +553,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
     return None, src
 
 
-def crawl_image(crawler_name, src, cachedir, bookid, safeparams):
+def crawl_image(crawler_name, src, cachedir, bookid, safeparams, imgid=None):
     """ Searches for images, finds at most one image.
       crawler_name: baidu, bing, flickr or google
       src: Used to name the file. Same as crawler, or googleimage
@@ -581,7 +592,7 @@ def crawl_image(crawler_name, src, cachedir, bookid, safeparams):
     if res:
         img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
 
-        coverlink = cache_bookimg(img, bookid, src, suffix=f"_{crawler_name[:2]}")
+        coverlink = cache_bookimg(img, bookid, src, suffix=f"_{crawler_name[:2]}", imgid=imgid)
         rmtree(icrawlerdir, ignore_errors=True)
         if coverlink:
             return coverlink, crawler_name
