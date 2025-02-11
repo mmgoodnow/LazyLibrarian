@@ -410,7 +410,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             if src:
                 return None, src
 
-        cmd = ("select BookName,AuthorName,BookLink,BookISBN,gr_id,hc_id from books,authors where bookID=?"
+        cmd = ("select BookName,AuthorName,BookLink,BookISBN,books.gr_id,books.hc_id from books,authors where bookID=?"
                " and books.AuthorID = authors.AuthorID")
         item = db.match(cmd, (bookid,))
         if not item:
