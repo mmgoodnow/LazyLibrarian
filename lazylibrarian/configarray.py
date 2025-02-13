@@ -16,7 +16,7 @@ class ArrayConfig:
     _name: str  # e.g. 'APPRISE'
     _secstr: str  # e.g. 'APPRISE_%i'
     _primary: str  # e.g. 'URL'
-    _configs: Dict[int, ConfigDict]
+    configs: Dict[int, ConfigDict]
     _defaults: List[ConfigItem]
 
     def __init__(self, arrayname: str, defaults: DefaultArrayDef):
@@ -24,40 +24,40 @@ class ArrayConfig:
         self._primary = defaults[0]  # Name of the primary key for this item
         self._secstr = defaults[1]  # Name of the section string template
         self._defaults = defaults[2]  # All the entries
-        self._configs = OrderedDict()
+        self.configs = OrderedDict()
 
     def setupitem_at(self, index: int):
         for config_item in self._defaults:
             key = config_item.key.upper()
-            if index not in self._configs:
-                self._configs[index] = ConfigDict(self.get_section_str(index))
-            item = self._configs[index].set_item(key, configitem_from_default(config_item))
+            if index not in self.configs:
+                self.configs[index] = ConfigDict(self.get_section_str(index))
+            item = self.configs[index].set_item(key, configitem_from_default(config_item))
             item.section = self.get_section_str(index)
             if key == 'NAME':  # Override name with section name
                 item.value = item.section
 
     def has_index(self, index: int) -> bool:
-        return index in self._configs.keys()
+        return index in self.configs.keys()
 
     # Allow ArrayConfig to be accessed as an indexed list
     def __len__(self) -> int:
-        return len(self._configs)
+        return len(self.configs)
 
     def __getitem__(self, index: int) -> ConfigDict:
-        return self._configs[index]
+        return self.configs[index]
 
     def primary_host(self, index: int) -> str:
         if index > len(self):
             return ''
         config = self[index]
         if self._primary in config:
-            return self._configs[index][self._primary]
+            return self.configs[index][self._primary]
         else:
             return ''
 
     # Allow ArrayConfig to be iterated over, ignoring the index
     def __iter__(self):
-        return self._configs.values().__iter__()
+        return self.configs.values().__iter__()
 
     def is_in_use(self, index: int) -> bool:
         """ Check if the index'th item is in use, or spare """
@@ -70,7 +70,7 @@ class ArrayConfig:
 
     def ensure_empty_end_item(self):
         """ Ensure there is an empty/unused item at the end of the list """
-        if len(self._configs) == 0 or self.is_in_use(len(self._configs) - 1):
+        if len(self.configs) == 0 or self.is_in_use(len(self.configs) - 1):
             self.setupitem_at(len(self))
 
     def cleanup_for_save(self):
@@ -78,20 +78,20 @@ class ArrayConfig:
         keepcount = 0
         for index in range(0, len(self)):
             if not self.is_in_use(index):
-                del self._configs[index]
+                del self.configs[index]
             else:
                 keepcount += 1
 
         renum = 0
         # Because we use an OrderedDict, items will be in numeric order
-        for number in self._configs:
+        for number in self.configs:
             if number > renum:
-                config = self._configs.pop(number)
+                config = self.configs.pop(number)
                 # Update the section key in each item
                 for name, item in config.items():
                     item.section = self.get_section_str(renum)
                 # Update the key of the dict entry
-                self._configs[renum] = config
+                self.configs[renum] = config
             renum += 1
 
         # Validate that this worked, it's a bit iffy
@@ -99,7 +99,7 @@ class ArrayConfig:
         if keepcount != len(self):
             logger.error(f'Internal error cleaning up {self._name}')
         for index in range(0, len(self)):
-            config = self._configs[index]
+            config = self.configs[index]
             for name, item in config.items():
                 if item.section != self.get_section_str(index):
                     logger.error(f'Internal error in {self._name}:{name}')
