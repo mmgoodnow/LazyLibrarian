@@ -714,4 +714,11 @@ def wishlist_type(host: str) -> str:
     if 'barnesandnoble' in host:
         return 'barnesandnoble'
 
+    array = CONFIG.get_array('RSS')
+    if array:
+        for inx in range(0, len(array)):
+            config = dict(array.configs[inx])
+            if config['HOST'] == host and 'mam wish' in config['LABEL'].lower():
+                return 'myanonamouse'
+
     return ''

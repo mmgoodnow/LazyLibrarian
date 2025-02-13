@@ -109,7 +109,7 @@ def test_provider(name: str, host=None, api=None):
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug(f"Testing provider {name}")
-
+                    label = provider['LABEL']
                     if not host:
                         host = provider['HOST']
                     if 'goodreads' in host:
@@ -144,6 +144,9 @@ def test_provider(name: str, host=None, api=None):
                     elif 'indigo' in host:
                         return indigo(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                       provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'mam wish' in label.lower():
+                        return mam(host, provider['NAME'], provider.get_int('DLPRIORITY'),
+                                   provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
                         return rss(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
@@ -873,6 +876,18 @@ def iterate_over_wishlists():
                     resultslist += indigo(provider['HOST'], provider['NAME'],
                                           provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                           provider['DLTYPES'], False, provider['LABEL'])
+            elif wishtype == 'myanonamouse':
+                if BLOCKHANDLER.is_blocked(provider['HOST']):
+                    logger.debug(f"{provider['HOST']} is BLOCKED")
+                else:
+                    providers += 1
+                    logger.debug(f"[iterate_over_wishlists] - {provider['HOST']}")
+                    resultslist += mam(provider['HOST'], provider['NAME'],
+                                       provider.get_int('DLPRIORITY'), provider['DISPNAME'],
+                                       provider['DLTYPES'], False, provider['LABEL'])
+            else:
+                logger.debug(f"Unrecognised wishlist {wishtype} for {provider['HOST']}")
+
     return resultslist, providers
 
 
@@ -1079,7 +1094,6 @@ def publishersweekly(host=None, feednr=None, priority=0, dispname=None, types='E
         logger.error(f'Error fetching data from {url}: {result}')
         if not test:
             BLOCKHANDLER.block_provider(basehost, result)
-
     elif result:
         logger.debug(f'Parsing results from {url}')
         data = result.split('class="nielsen-bookinfo"')
@@ -1145,9 +1159,7 @@ def appsnprorg(host=None, feednr=None, priority=0, dispname=None, types='E', tes
         logger.error(f'Error fetching data from {url}: {result}')
         if not test:
             BLOCKHANDLER.block_provider(basehost, result)
-    #
     elif result:
-
         data = json.loads(result)
         res = []
         isbn = []
@@ -1284,7 +1296,7 @@ def barnesandnoble(host=None, feednr=None, priority=0, dispname=None, types='E',
         titles = soup.find_all("div", {"class": "product-shelf-title product-info-title pt-xs"})
         authors = soup.find_all("div", {"class": "product-shelf-author pt-0 mt-1"})
 
-        if len(authors) == len(titles):
+        if len(authors) and len(authors) == len(titles):
             res = []
             authnames = []
             for item in authors:
@@ -1355,15 +1367,13 @@ def bookdepository(host=None, feednr=None, priority=0, dispname=None, types='E',
             logger.debug(f'Parsing results from {url}')
             soup = BeautifulSoup(result, 'html5lib')
             titles = soup.find_all("h3", {"class": "title"})
-
             authors = soup.find_all("p", {"class": "author"})
-            # take the number of result to see when max page
-            resultnumber = soup.find_all("div", {"class": "search-info"})
-            actual_result = str(resultnumber[0].text).split()[3].strip()
-            max_result = str(resultnumber[0].text).split()[5].strip()
-            next_page = actual_result != max_result
-
-            if len(authors) == len(titles):
+            if len(authors) and len(authors) == len(titles):
+                # take the number of result to see when max page
+                resultnumber = soup.find_all("div", {"class": "search-info"})
+                actual_result = str(resultnumber[0].text).split()[3].strip()
+                max_result = str(resultnumber[0].text).split()[5].strip()
+                next_page = actual_result != max_result
                 res = []
                 authnames = []
                 for item in authors:
@@ -1421,7 +1431,6 @@ def indigo(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
         logger.error(f'Error fetching data from {url}: {result}')
         if not test:
             BLOCKHANDLER.block_provider(basehost, result)
-
     elif result:
         logger.debug(f'Parsing results from {url}')
         api = 'https://www.chapters.indigo.ca/en-ca/api/v1/merchandising/GetCmsProductList/?sortDirection=0'
@@ -1482,6 +1491,9 @@ def indigo(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
                         'label': label,
                     })
             page += 1
+            if test:
+                logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from {host}")
+                return len(results)
     logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {host}")
     return results
 
@@ -1523,7 +1535,6 @@ def listopia(host=None, feednr=None, priority=0, dispname=None, types='E', test=
             logger.error(f'Error fetching data from {url}: {result}')
             if not test:
                 BLOCKHANDLER.block_provider(basehost, result)
-
         elif result:
             logger.debug(f'Parsing results from {url}')
             data = result.split('<td valign="top" class="number">')
@@ -1567,6 +1578,77 @@ def listopia(host=None, feednr=None, priority=0, dispname=None, types='E', test=
     return results
 
 
+def mam(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
+    logger = logging.getLogger(__name__)
+    results = []
+    basehost = host
+    if not str(host)[:4] == "http":
+        host = f"http://{host}"
+
+    url = host
+
+    result, success = fetch_url(url, timeout=False)
+
+    if success:
+        data = feedparser.parse(result)
+    else:
+        logger.error(f'Error fetching data from {host}: {result}')
+        if not test:
+            BLOCKHANDLER.block_provider(basehost, result)
+        data = None
+
+    with open(DIRS.get_logfile('mam.data'), 'w') as mamlog:
+        mamlog.write(result)
+
+    if data:
+        logger.debug(f'Parsing results from {url}')
+        provider = data['feed']['link']
+        desc = data['feed']['description']
+        if desc.startswith('Error'):
+            logger.error(f'Error fetching data from {host}: {desc}')
+            if test:
+                return 0
+            return []
+        if not dispname:
+            dispname = provider
+        logger.debug(f"rss {provider} returned {len(data.entries)} {plural(len(data.entries), 'result')}")
+        for post in data.entries:
+            title = ''
+            book_id = ''
+            author_name = ''
+            isbn = ''
+            if 'title' in post:
+                title = post.title
+            if 'link' in post:
+                book_id = post.link
+            if 'summary' in post:
+                try:
+                    author_name = post.summary.split('Author(s):')[1].split('<')[0].strip()
+                except IndexError:
+                    pass
+            if 'isbn' in post:
+                isbn = post.isbn
+            if title and author_name:
+                results.append({
+                    'rss_prov': provider,
+                    'rss_feed': feednr,
+                    'rss_title': title,
+                    'rss_author': author_name,
+                    'rss_bookid': book_id,
+                    'rss_isbn': isbn,
+                    'priority': priority,
+                    'dispname': dispname,
+                    'types': types,
+                    'label': label,
+                })
+        logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {host}")
+    else:
+        logger.debug(f'No data returned from {host}')
+    if test:
+        return len(results)
+    return results
+
+
 def goodreads(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
     """
     Goodreads rss query function, return all the results in a list, can handle multiple wishlists
@@ -1588,7 +1670,7 @@ def goodreads(host=None, feednr=None, priority=0, dispname=None, types='E', test
         logger.error(f'Error fetching data from {host}: {result}')
         if not test:
             BLOCKHANDLER.block_provider(basehost, result)
-        return []
+        data = None
 
     if data:
         logger.debug(f'Parsing results from {url}')
@@ -1660,7 +1742,8 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
         data = feedparser.parse(result)
     else:
         logger.error(f'Error fetching data from {host}: {result}')
-        BLOCKHANDLER.block_provider(host, result)
+        if not test:
+            BLOCKHANDLER.block_provider(host, result)
         data = None
 
     if data:
