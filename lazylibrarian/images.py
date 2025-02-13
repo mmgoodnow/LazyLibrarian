@@ -19,6 +19,7 @@ import json
 import io
 import zipfile
 import logging
+import tempfile
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
@@ -410,8 +411,8 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             if src:
                 return None, src
 
-        cmd = ("select BookName,AuthorName,BookLink,BookISBN,books.gr_id,books.hc_id from books,authors where bookID=?"
-               " and books.AuthorID = authors.AuthorID")
+        cmd = ("select BookName,AuthorName,BookLink,BookISBN,books.gr_id,books.hc_id,books.ol_id"
+               " from books,authors where bookID=? and books.AuthorID = authors.AuthorID")
         item = db.match(cmd, (bookid,))
         if not item:
             return None, src
@@ -464,7 +465,18 @@ def get_book_cover(bookid=None, src=None, ignore=''):
 
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary' and 'openlibrary' not in ignore:
-            if item and item['BookISBN']:
+            if item and item.get('ol_id'):
+                baseurl = f"https://covers.openlibrary.org/b/olid/{item['ol_id']}-M.jpg"
+                result, success = fetch_url(baseurl, raw=True)
+                if success:
+                    with tempfile.NamedTemporaryFile(delete_on_close=False) as f:
+                        f.write(result)
+                        f.close()
+                        coverlink = cache_bookimg(f.name, bookid, src, suffix='_ol', imgid=imgid)
+                        if coverlink:
+                            return coverlink, 'openlibrary'
+
+            if item and item.get('BookISBN'):
                 baseurl = '/'.join([CONFIG['OL_URL'],
                                    'api/books?format=json&jscmd=data&bibkeys=ISBN:'])
                 result, success = fetch_url(baseurl + item['BookISBN'])
