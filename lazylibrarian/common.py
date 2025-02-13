@@ -15,38 +15,39 @@
 # Purpose:
 #   Common, basic functions for LazyLibrary
 
+import importlib
 import logging
-import mako
 import os
 import platform
 import random
-import string
-import sys
-import time
-import subprocess
-
-import zipfile
 import re
-import ssl
 import sqlite3
-import cherrypy
-import httplib2
-import apscheduler
-import urllib3
-import requests
+import ssl
+import string
+import subprocess
+import sys
 import tarfile
-import webencodings
-import bs4
-import html5lib
-import pypdf
+import time
+import zipfile
 from pathlib import Path
+
+import apscheduler
+import bs4
+import cherrypy
+import html5lib
+import httplib2
+import mako
+import pypdf
+import requests
+import urllib3
+import webencodings
 
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configdefs import CONFIG_GIT
-from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm, remove_file, path_isfile
+from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.logconfig import LOGCONFIG
 
 
@@ -210,18 +211,7 @@ def mime_type(filename):
 
 
 def module_available(module_name):
-    if sys.version_info < (3, 0):
-        import importlib
-        # noinspection PyDeprecation
-        loader = importlib.find_loader(module_name)
-    elif sys.version_info <= (3, 3):
-        import pkgutil
-        loader = pkgutil.find_loader(module_name)
-    elif sys.version_info >= (3, 4):
-        import importlib
-        loader = importlib.util.find_spec(module_name)
-    else:
-        loader = None
+    loader = importlib.util.find_spec(module_name)
     return loader is not None
 
 
@@ -392,7 +382,7 @@ def log_header(online=True) -> str:
         # attribute is only present on those versions.
         # noinspection PyUnresolvedReferences
         import OpenSSL
-    except ImportError:
+    except (ImportError, AttributeError):
         header += "pyOpenSSL: not found\n"
         OpenSSL = None
 
