@@ -81,7 +81,8 @@ def init_hex_caches() -> bool:
     return ok
 
 
-def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = False) -> (Union[str, bytes], bool):
+def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True,
+              raw: bool = False) -> (Union[str, bytes], bool):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False
         Return data as raw/bytes, if raw == True
@@ -108,12 +109,17 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, raw: bool = 
 
     # jackett query all indexers needs a longer timeout
     # /torznab/all/api?q=  or v2.0/indexers/all/results/torznab/api?q=
-    if '/torznab/' in url and ('/all/' in url or '/aggregate/' in url):
-        timeout = CONFIG.get_int('HTTP_EXT_TIMEOUT')
-    else:
-        timeout = CONFIG.get_int('HTTP_TIMEOUT')
+    if timeout:
+        if '/torznab/' in url and ('/all/' in url or '/aggregate/' in url):
+            timeout = CONFIG.get_int('HTTP_EXT_TIMEOUT')
+        else:
+            timeout = CONFIG.get_int('HTTP_TIMEOUT')
 
-    payload = {"timeout": timeout, "proxies": proxies}
+    payload = {}
+    if timeout:
+        payload["timeout"] = timeout
+    if proxies:
+        payload["proxies"] = proxies
     verify = False
     if url.startswith('https'):
         if CONFIG.get_bool('SSL_VERIFY'):
