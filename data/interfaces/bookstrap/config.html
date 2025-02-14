@@ -31,6 +31,9 @@
   <form accept-charset="UTF-8" action="config_update" method="post">
 <h1>${title}
     <div class="pull-right table_wrapper_button">
+      <input type="button" value="Export Filters" id="savefilters" class="btn btn-default" />
+      <input type="button" value="Import Filters" id="loadfilters" class="btn btn-default" />
+      <button class="button btn btn-sm btn-warning" type="button" value="showblocked" id="showblocked"> Blocked Providers</button>
       <input type="submit" value="Save changes" id="add" class="btn btn-primary">
     </div>
 </h1>
@@ -1845,7 +1848,6 @@
                   </fieldset>
               </div>
             </div>
-            <button class="button btn btn-sm btn-warning" type="button" value="showblocked" id="showblocked"> Blocked Providers</button>
             <br>
             <br>
           </div>
@@ -3551,11 +3553,6 @@
                 </div>
                 %endfor
                 %endif
-                <div class="col-md-6">
-                <label for="savefilters">Settings:</label><br>
-                <input type="button" value="Export Filters" id="savefilters" class="btn btn-default" />
-                <input type="button" value="Import Filters" id="loadfilters" class="btn btn-default" />
-                </div>
             </div>
             <br>
           </div>

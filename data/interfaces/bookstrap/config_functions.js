@@ -105,12 +105,27 @@
         $("li[role='presentation']").attr("aria-selected", "false");
         $("li[role='presentation']").removeClass('active');
         //$("div[role='tabpanel']").attr("aria-hidden", "true");
-        $("div[role='tabpanel']").removeClass('active');
+        $("div[role='tab-table']").removeClass('active');
         // which one do we want to show
         const tabnum = $("#config_tab_num").val();
         const tabid = $("#" + tabnum);
         const tabpanel = tabid.attr('aria-controls');
         const tabpanelid = $("#" + tabpanel);
+
+             if ( tabnum === '8' )  {
+                $("#savefilters").removeClass('hidden');
+                $("#loadfilters").removeClass('hidden');
+            }
+            else {
+                    $("#savefilters").addClass('hidden');
+                    $("#loadfilters").addClass('hidden');
+            }
+             if ( tabnum === '4' )  {
+                $("#showblocked").removeClass('hidden');
+            }
+            else {
+                    $("#showblocked").addClass('hidden');
+            }
 
         // show the tab header and panel we want
         tabpanelid.addClass('active');
@@ -123,7 +138,21 @@
             const tabnum = $(this).attr('id');
             $("#config_tab_num").val(tabnum);
             $.get('set_current_tabs', {'config_tab': tabnum });
-        });
+             if ( tabnum === '8' )  {
+                $("#savefilters").removeClass('hidden');
+                $("#loadfilters").removeClass('hidden');
+            }
+            else {
+                    $("#savefilters").addClass('hidden');
+                    $("#loadfilters").addClass('hidden');
+            }
+             if ( tabnum === '4' )  {
+                $("#showblocked").removeClass('hidden');
+            }
+            else {
+                    $("#showblocked").addClass('hidden');
+            }
+         });
 
         $('#showblocked').on('click', function() {
             $.get('showblocked', function(data) {
