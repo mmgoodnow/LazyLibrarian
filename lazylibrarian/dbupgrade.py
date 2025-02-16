@@ -373,14 +373,15 @@ def check_db(upgradelog=None):
             else:
                 source = ''
             if source:
-                tot = db.select('SELECT * from authors')
-                res = db.select(
-                    f"SELECT * from authors WHERE {source} is not null and {source} != '' "
+                tot = db.match('SELECT count(*) from authors')
+                miss = db.match(
+                    f"SELECT count(*) from authors WHERE ({source} is null or {source} = '') "
                     f"and Status in ('Wanted', 'Active')")
-                if len(tot) - len(res):
+
+                if miss[0]:
                     logger.warning(
-                        f"Information source is {info} but {len(tot) - len(res)} active authors "
-                        f"(from {len(tot)}) do not have {info} ID")
+                        f"Information source is {info} but {miss[0]} active authors "
+                        f"(from {tot[0]}) do not have {info} ID")
 
             # correct any invalid/unpadded dates
             lazylibrarian.UPDATE_MSG = 'Checking dates'
