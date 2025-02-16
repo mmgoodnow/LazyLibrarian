@@ -92,7 +92,7 @@ def bok_login():
     elif CONFIG['BOK_EMAIL'] and CONFIG['BOK_PASS']:
         zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
     else:
-        logger.error("Zlibrary check credentials")
+        # logger.error("Zlibrary check credentials")
         return None
     profile = zlib.getProfile()
     if not profile:
