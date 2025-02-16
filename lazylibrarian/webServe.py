@@ -2203,8 +2203,11 @@ class WebInterface:
         try:
             authorsearch = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
             if authorsearch:  # to stop error if try to refresh an author while they are still loading
+                authorname = authorsearch['AuthorName']
+                if not authorname or 'unknown' in authorname.lower() or 'anonymous' in authorname.lower():
+                    authorname = None
                 threading.Thread(target=add_author_to_db, name=f"REFRESHAUTHOR_{authorid}",
-                                 args=[None, True, authorid, True, f"WebServer refresh_author {authorid}"]).start()
+                                 args=[authorname, True, authorid, True, f"WebServer refresh_author {authorid}"]).start()
 
                 raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
             else:
@@ -5233,7 +5236,7 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
-            magdata = db.match("SELECT Title from magazines WHERE Title=?", (mag,))
+            magdata = db.match("SELECT Title from magazines WHERE Title=? COLLATE NOCASE", (mag,))
         finally:
             db.close()
 
@@ -5262,8 +5265,8 @@ class WebInterface:
         db = database.DBConnection()
         try:
             db.action('PRAGMA foreign_keys = OFF')
-            db.action("UPDATE magazines SET Title=? WHERE Title=?", (new_title, old_title))
-            db.action("UPDATE issues SET Title=? WHERE Title=?", (new_title, old_title))
+            db.action("UPDATE magazines SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
+            db.action("UPDATE issues SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
             db.action('PRAGMA foreign_keys = ON')
 
             # rename files/folders to match, and issuefile to match new location
@@ -5446,7 +5449,7 @@ class WebInterface:
         magtitle = kwargs.get('magtitle')
         issuenum = kwargs.get('issuenum')
         db = database.DBConnection()
-        magazine = db.match("SELECT * from magazines WHERE Title=?", (magtitle,))
+        magazine = db.match("SELECT * from magazines WHERE Title=? COLLATE NOCASE", (magtitle,))
         issue = db.match("SELECT Title,IssueDate,ISsueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
         db.close()
         redirect = issue['Title']
@@ -5600,7 +5603,8 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         try:
-            res = db.match('SELECT title from magazines where Title=?', (title,))
+            res = db.match('SELECT Title from magazines where Title=? COLLATE NOCASE', (title,))
+            title = res['Title']
         finally:
             db.close()
         if not res:
@@ -5753,12 +5757,12 @@ class WebInterface:
                                                            f"{os.path.splitext(issue_file)[1]}", email=email)
 
             # or we may just have a title to find magazine in issues table
-            mag_data = db.select('SELECT * from magazines WHERE Title=?', (bookid,))
+            mag_data = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
             if not mag_data:
                 logger.warning(f"Unknown magazine title: {bookid}")
                 raise cherrypy.HTTPError(404, f"Magazine {bookid} not found")
-
-            mag_data = db.select('SELECT * from issues WHERE Title=?', (bookid,))
+            bookid = mag_data['Title']
+            mag_data = db.select('SELECT * from issues WHERE Title=? COLLATE NOCASE', (bookid,))
         finally:
             db.close()
         # if len(mag_data) == 0:
@@ -5887,10 +5891,13 @@ class WebInterface:
                                 newcover = f'cache/magazine/{myhash}.jpg'
                                 new_value_dict = {"Cover": newcover}
                                 db.upsert("Issues", new_value_dict, control_value_dict)
-                                latest = db.match("select LatestCover,IssueDate from magazines where title=?", (title,))
+                                latest = db.match("select Title,LatestCover,IssueDate from magazines "
+                                                  "where title=? COLLATE NOCASE", (title,))
                                 if latest:
+                                    title = latest['Title']
                                     if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
-                                        db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
+                                        db.action("UPDATE magazines SET LatestCover=? "
+                                                  "WHERE Title=? COLLATE NOCASE", (newcover, title))
                                 issue['Cover'] = newcover
                                 issue['CoverFile'] = coverfile  # for updating calibre cover
                                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
@@ -5922,10 +5929,13 @@ class WebInterface:
                                 newcover = f'cache/magazine/{myhash}.jpg'
                                 new_value_dict = {"Cover": newcover}
                                 db.upsert("Issues", new_value_dict, control_value_dict)
-                                latest = db.match("select LatestCover,IssueDate from magazines where title=?", (title,))
+                                latest = db.match("select Title,LatestCover,IssueDate from magazines "
+                                                  "where title=? COLLATE NOCASE", (title,))
                                 if latest:
+                                    title = latest['Title']
                                     if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
-                                        db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
+                                        db.action("UPDATE magazines SET LatestCover=? "
+                                                  "WHERE Title=? COLLATE NOCASE", (newcover, title))
                                 issue['Cover'] = newcover
                                 issue['CoverFile'] = coverfile  # for updating calibre cover
                                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
@@ -6069,9 +6079,9 @@ class WebInterface:
                         logger.info(f'Magazine {title} deleted from disc')
 
                 if action == "Remove" or action == "Delete":
-                    db.action('DELETE from magazines WHERE Title=?', (title,))
-                    db.action('DELETE from pastissues WHERE BookID=?', (title,))
-                    db.action('DELETE from wanted where BookID=?', (title,))
+                    db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))
+                    db.action('DELETE from pastissues WHERE BookID=? COLLATE NOCASE', (title,))
+                    db.action('DELETE from wanted where BookID=? COLLATE NOCASE', (title,))
                     logger.info(f'Magazine {title} removed from database')
                 elif action == "Reset":
                     control_value_dict = {"Title": title}
@@ -6170,7 +6180,6 @@ class WebInterface:
             if exists:
                 logger.debug(f"Magazine {title} already exists ({exists['Title']})")
             else:
-                # title = title.title()
                 control_value_dict = {"Title": title}
                 new_value_dict = {
                     "Regex": None,
