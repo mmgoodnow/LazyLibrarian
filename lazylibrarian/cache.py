@@ -515,7 +515,7 @@ def clean_cache():
 
             # At this point there should be no more .jpg files in the root of the cachedir
             # Any that are still there are for books/authors deleted from database
-            ExtensionCleaner("", ".jpg").clean(),
+            ExtensionCleaner("root", ".jpg").clean(),
 
             # Verify the cover images referenced in the database are present, replace if not
             DBCleaner("book", "Cover", db, "books", "BookImg", "BookName", "BookID", 'images/nocover.png').clean(),
