@@ -4,6 +4,7 @@ import logging
 import os
 import platform
 import re
+import threading
 import time
 import traceback
 
@@ -569,8 +570,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 except Exception:
                     res = {}
                     msg = "Unknown reason"
-                if 'errors' in res:
-                    msg = str(res['errors'])
+                if 'error' in res:
+                    msg = str(res['error'])
                     self.logger.error(msg)
                 if delay:
                     BLOCKHANDLER.block_provider(self.provider, msg, delay=delay)
@@ -586,8 +587,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
         api_hits += not in_cache
         cache_hits += in_cache
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
+        if 'error' in results:
+            self.logger.error(str(results['error']))
         if 'data' in results and 'series_by_pk' in results['data'] and results['data']['series_by_pk']:
             wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
             series_id = f"HC{str(results['data']['series_by_pk']['id'])}"
@@ -726,8 +727,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
                         api_hits += not in_cache
                         cache_hits += in_cache
-                        if 'errors' in results:
-                            self.logger.error(str(results['errors']))
+                        if 'error' in results:
+                            self.logger.error(str(results['error']))
                         if "data" in results:
                             books = results['data']['books']
                             for book in books:
@@ -920,8 +921,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
         results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
         api_hits += not in_cache
         cache_hits += in_cache
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
+        if 'error' in results:
+            self.logger.error(str(results['error']))
         if results and 'data' in results:
             author = results['data'].get('authors_by_pk', {})
             if author and str(author['id']) == str(authorid):
@@ -1155,8 +1156,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
             results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
             api_hits += not in_cache
             cache_hits += in_cache
-            if 'errors' in results:
-                self.logger.error(str(results['errors']))
+            if 'error' in results:
+                self.logger.error(str(results['error']))
             if not results or 'data' not in results:
                 db.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entrystatus, authorid))
                 return
@@ -1475,8 +1476,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
         bookdict = {}
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
+        if 'error' in results:
+            self.logger.error(str(results['error']))
         if 'data' in results and results['data'].get('books_by_pk'):
             bookdict = self.build_bookdict(results['data']['books_by_pk'])
         return bookdict, in_cache
@@ -1581,9 +1582,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
         searchcmd = self.HC_WHOAMI
         results, _ = self.result_from_cache(searchcmd, refresh=True)
-        if 'errors' in results:
-            self.logger.error(str(results['errors']))
-            return str(results['errors'])
+        if 'error' in results:
+            self.logger.error(str(results['error']))
+            return str(results['error'])
         if 'data' in results and 'me' in results['data']:
             # this is the hc_id tied to the api bearer token
             res = results['data']['me']
@@ -1616,6 +1617,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
         thread_name('HCSync')
         db = database.DBConnection()
+        miss = []
         try:
             # we currently don't use local hc_id as the apikey is linked to the hc_id
             # which is requested using a "whoami" command
@@ -1650,8 +1652,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
             searchcmd = self.HC_WHOAMI
             results, _ = self.result_from_cache(searchcmd, refresh=True)
             whoami = 0
-            if 'errors' in results:
-                self.logger.error(str(results['errors']))
+            if 'error' in results:
+                self.logger.error(str(results['error']))
             elif 'data' in results and 'me' in results['data']:
                 # this is the hc_id tied to the api bearer token
                 res = results['data']['me']
@@ -1661,6 +1663,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     self.logger.error(f"No hc_id for user {userid}")
                     return msg
 
+            self.syncinglogger.debug(f"whoami = {whoami}")
             hc_toread = []
             hc_reading = []
             hc_read = []
@@ -1674,8 +1677,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 searchcmd = self.HC_USERBOOKS.replace('[whoami]', str(whoami)).replace('[status]',
                                                                                        str(mapp[1]))
                 results, _ = self.result_from_cache(searchcmd, refresh=True)
-                if 'errors' in results:
-                    self.logger.error(str(results['errors']))
+                if 'error' in results:
+                    self.logger.error(str(results['error']))
                 elif 'data' in results and 'user_books' in results['data']:
                     self.syncinglogger.debug(f"HardCover {mapp[2]} contains {len(results['data']['user_books'])}")
                     for item in results['data']['user_books']:
@@ -1686,8 +1689,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                 self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} for {res['bookid']}")
                                 delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
                                 results, _ = self.result_from_cache(delcmd, refresh=True)
-                                if 'errors' in results:
-                                    self.logger.error(str(results['errors']))
+                                if 'error' in results:
+                                    self.logger.error(str(results['error']))
                             else:
                                 remapped.append(res['bookid'])
                                 mapp[0].append(res['bookid'])
@@ -1714,8 +1717,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                                                  f"for {exists['BookID']}")
                                         delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
                                         results, _ = self.result_from_cache(delcmd, refresh=True)
-                                        if 'errors' in results:
-                                            self.logger.error(str(results['errors']))
+                                        if 'error' in results:
+                                            self.logger.error(str(results['error']))
                                     else:
                                         remapped.append(exists['BookID'])
                                         mapp[0].append(exists['BookID'])
@@ -1753,6 +1756,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                        [hc_reading, last_reading, ll_reading, 'reading'], [hc_dnf, last_dnf, ll_dnf, 'dnf']]
 
             for mapp in mapping:
+
                 added_to_shelf = list(set(mapp[0]) - set(mapp[1]))
                 removed_from_shelf = list(set(mapp[1]) - set(mapp[0]))
                 added_to_ll = list(set(mapp[2]) - set(mapp[0]))
@@ -1776,6 +1780,42 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         cnt += 1
                 msg += f"Removed {cnt} from {mapp[3]}\n"
 
+            added_to_wanted = list(set(hc_toread) - set(last_toread))
+            if added_to_wanted:
+                ebook_wanted = []
+                audio_wanted = []
+                cmd = "select Status,AudioStatus,BookName from books where hc_id=?"
+                for item in added_to_wanted:
+                    res = db.match(cmd, (item,))
+                    if not res:
+                        self.syncinglogger.warning(f'Book {item} not found in database')
+                    if res and CONFIG.get_bool('EBOOK_TAB') and CONFIG['NEWBOOK_STATUS'] not in ['Ignored']:
+                        if res['Status'] not in ['Wanted', 'Have', 'Open']:
+                            db.action("update books set status='Wanted' where bookid=?", (item,))
+                            self.syncinglogger.debug(f"Marked ebook {item} wanted")
+                            ebook_wanted.append({"bookid": item})
+                        else:
+                            self.syncinglogger.debug(f"ebook {item} already marked {res['Status']}")
+                    if res and CONFIG.get_bool('AUDIO_TAB') and CONFIG['NEWAUDIO_STATUS'] not in ['Ignored']:
+                        if res['AudioStatus'] not in ['Wanted', 'Have', 'Open']:
+                            db.action("update books set audiostatus='Wanted' where bookid=?", (item,))
+                            self.syncinglogger.debug(f"Marked audiobook {item} wanted")
+                            audio_wanted.append({"bookid": item})
+                        else:
+                            self.syncinglogger.debug(f"audiobook {item} already marked {res['AudioStatus']}")
+                if ebook_wanted:
+                    self.syncinglogger.debug(f"Searching for {len(ebook_wanted)} {plural(len(ebook_wanted), 'ebook')}")
+                    threading.Thread(target=lazylibrarian.searchrss.search_rss_book, name='HCSYNCRSSBOOKS',
+                                     args=[ebook_wanted, 'eBook']).start()
+                    threading.Thread(target=lazylibrarian.searchbook.search_book, name='HCSYNCBOOKS',
+                                     args=[ebook_wanted, 'eBook']).start()
+                if audio_wanted:
+                    self.syncinglogger.debug(f"Searching for {len(audio_wanted)} "
+                                             f"{plural(len(audio_wanted), 'audiobook')}")
+                    threading.Thread(target=lazylibrarian.searchrss.search_rss_book, name='HCSYNCRSSAUDIO',
+                                     args=[audio_wanted, 'AudioBook']).start()
+                    threading.Thread(target=lazylibrarian.searchbook.search_book, name='HCSYNCAUDIO',
+                                     args=[audio_wanted, 'AudioBook']).start()
             #
             # sync changes to HC
             #
@@ -1800,12 +1840,12 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 if book and book[0] and item in sync_dict:
                     delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(sync_dict[item]))
                     results, _ = self.result_from_cache(delcmd, refresh=True)
-                    if 'errors' in results:
-                        self.logger.error(str(results['errors']))
+                    if 'error' in results:
+                        self.logger.error(str(results['error']))
 
             cmd = (f"SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
                    f"books.bookid=readinglists.bookid and userid=? and books.bookid=?")
-            cnt = 0
+
             status_ids = {1: 'want-to-read', 2: 'currently-reading', 3: 'read', 4: 'owned', 5: 'dnf'}
             for item in new_set:
                 res = db.match(cmd, (userid, item))
@@ -1831,16 +1871,15 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         addcmd = self.HC_ADDUSERBOOK.replace('[bookid]',
                                                              str(sync_id)).replace('[status]', str(res[1]))
                         results, _ = self.result_from_cache(addcmd, refresh=True)
-                        if 'errors' in results:
-                            self.logger.error(str(results['errors']))
+                        if 'error' in results:
+                            self.logger.error(str(results['error']))
                 else:
-                    self.syncinglogger.error(f"Unable to update bookid {item} ({res[2]}) at HardCover, no hc_id")
-                    cnt += 1
+                    miss.append((item, res[2]))
                     for mapp in mapping:
                         if item in mapp[2]:
                             mapp[2].remove(item)
-
-            msg += f"Unable to update {cnt} items at HardCover as no hc_id\n"
+            if len(miss):
+                msg += f"Unable to update {len(miss)} items at HardCover as no hc_id\n"
 
             for mapp in mapping:
                 # mapp[2] is now the definitive list to store as last sync for status mapp[3]
@@ -1858,5 +1897,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "HCSYNC"})
             db.close()
             self.logger.debug(f"HCsync completed for {userid}")
+            for missed in miss:
+                self.syncinglogger.warning(f"Unable to add bookid {missed[0]} ({missed[1]}) at HardCover, no hc_id")
             thread_name('WEBSERVER')
             return msg
