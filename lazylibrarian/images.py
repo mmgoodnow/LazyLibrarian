@@ -465,7 +465,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
 
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary' and 'openlibrary' not in ignore:
-            if item and item.get('ol_id'):
+            if item and item['ol_id']:
                 baseurl = f"https://covers.openlibrary.org/b/olid/{item['ol_id']}-M.jpg"
                 result, success = fetch_url(baseurl, raw=True)
                 if success:
@@ -476,7 +476,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                         if coverlink:
                             return coverlink, 'openlibrary'
 
-            if item and item.get('BookISBN'):
+            if item and item['BookISBN']:
                 baseurl = '/'.join([CONFIG['OL_URL'],
                                    'api/books?format=json&jscmd=data&bibkeys=ISBN:'])
                 result, success = fetch_url(baseurl + item['BookISBN'])
