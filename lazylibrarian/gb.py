@@ -40,8 +40,6 @@ class GoogleBooks:
     def __init__(self, name=None):
         self.name = make_unicode(name)
         self.logger = logging.getLogger(__name__)
-        if not CONFIG['GB_API']:
-            self.logger.warning('No GoogleBooks API key, check config')
         self.url = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes?q='])
         self.params = {
             'maxResults': 40,
