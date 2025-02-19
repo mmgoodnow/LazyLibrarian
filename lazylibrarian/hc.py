@@ -1295,125 +1295,157 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
                     if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):
                         for item in bookdict['series']:
-                            ser_name = item[0]
+                            ser_name = item[0].strip()
                             ser_id = f"HC{str(item[1])}"
-                            if ser_id in series_updates:
+                            exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
+                            if not exists:
+                                exists = db.match("SELECT * from series WHERE seriesname=? "
+                                                  "and instr(seriesid, 'HC') = 1", (ser_name,))
+                            if not exists:
+                                self.logger.debug(f"New series: {ser_id}:{ser_name}: {CONFIG['NEWSERIES_STATUS']}")
+                                db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
+                                          'Updated, Reason) VALUES (?,?,?,?,?)',
+                                          (ser_id, ser_name, CONFIG['NEWSERIES_STATUS'], time.time(), ser_name))
+                                db.commit()
+                                exists = {'Status': CONFIG['NEWSERIES_STATUS']}
+
+                            # books in series might be by different authors
+                            match = db.match(f"SELECT AuthorID from authors WHERE authorid=? or hc_id=?",
+                                             (bookdict['auth_id'], bookdict['auth_id']))
+                            if match:
+                                auth_id = match['AuthorID']
+                            else:
+                                auth_id = authorid
+
+                            authmatch = db.match(f"SELECT * from seriesauthors WHERE "
+                                                 f"SeriesID=? and AuthorID=?", (ser_id, auth_id))
+                            if not authmatch:
+                                self.logger.debug(f"Adding {bookdict['auth_name']} as series author for {ser_name}")
+                                db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
+                                          (ser_id, auth_id), suppress='UNIQUE')
+
+                            match = db.match(f"SELECT * from member WHERE SeriesID=? AND BookID=?",
+                                             (ser_id, bookdict['bookid']))
+                            if not match:
+                                self.logger.debug(f"Inserting new member [{item[2]}] for {ser_id}")
+                                db.action(
+                                    f"INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
+                                    (ser_id, bookdict['bookid'], '', item[2]), suppress='UNIQUE')
+                            ser = db.match(
+                                f"select count(*) as counter from member where seriesid=?",
+                                (ser_id,))
+                            if ser:
+                                counter = check_int(ser['counter'], 0)
+                                db.action("UPDATE series SET Total=? WHERE SeriesID=?",
+                                          (counter, ser_id))
+
+                            if exists['Status'] in ['Paused', 'Ignored']:
+                                self.logger.debug(
+                                    f"Not getting additional series members for {ser_name}, status is "
+                                    f"{exists['Status']}")
+                            elif ser_id in series_updates:
                                 self.logger.debug(f"Series {ser_id}:{ser_name} already updated")
                             else:
-                                exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
-                                if not exists:
-                                    exists = db.match("SELECT * from series WHERE seriesname=? "
-                                                      "and instr(seriesid, 'HC') = 1", (ser_name,))
-                                if not exists:
-                                    self.logger.debug(f"New series: {ser_id}:{ser_name}")
-                                    db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
-                                              'Updated, Reason) VALUES (?,?,?,?,?)',
-                                              (ser_id, ser_name, 'Paused', time.time(), ser_name))
-                                    db.commit()
-                                    exists = {'Status': 'Paused'}
-
+                                seriesmembers = self.get_series_members(ser_id, ser_name)
                                 series_updates.append(ser_id)
-                                if exists['Status'] in ['Paused', 'Ignored']:
-                                    self.logger.debug(
-                                        f"Not getting additional series members for {ser_name}, status is "
-                                        f"{exists['Status']}")
+                                if len(seriesmembers) == 1:
+                                    self.logger.debug(f"Found member {seriesmembers[0][1]} for series {ser_name}")
                                 else:
-                                    seriesmembers = self.get_series_members(ser_id, ser_name)
-                                    if len(seriesmembers) == 1:
-                                        self.logger.debug(f"Found member {seriesmembers[0][1]} for series {ser_name}")
-                                    else:
-                                        self.logger.debug(f"Found {len(seriesmembers)} members for series {ser_name}")
-                                    # position, book_title, author_name, author_id, book_id
-                                    for member in seriesmembers:
-                                        db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
-                                                  (ser_id, member[0]))
+                                    self.logger.debug(f"Found {len(seriesmembers)} members for series {ser_name}")
+                                # position, book_title, author_name, hc_author_id, book_id
+                                for member in seriesmembers:
+                                    db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
+                                              (ser_id, member[0]))
+                                    auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
+                                    if not exists:
+                                        reason = f"Series contributing author {ser_name}:{member[1]}"
+                                        lazylibrarian.importer.add_author_name_to_db(author=member[2],
+                                                                                     refresh=False,
+                                                                                     addbooks=False,
+                                                                                     reason=reason
+                                                                                     )
                                         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
                                         if not exists:
-                                            reason = f"Series contributing author {ser_name}:{member[1]}"
-                                            lazylibrarian.importer.add_author_name_to_db(author=member[2],
-                                                                                         refresh=False,
-                                                                                         addbooks=False,
-                                                                                         reason=reason
-                                                                                         )
-                                            auth_name, ex = lazylibrarian.importer.get_preferred_author_name(member[2])
-                                            if not ex:
-                                                self.logger.debug(
-                                                    f"Unable to add {member[2]} for {member[1]}, "
-                                                    f"author not in database")
-                                                continue
-                                        else:
-                                            cmd = "SELECT * from authors WHERE authorname=?"
-                                            exists = db.match(cmd, (auth_name,))
-                                            if exists:
-                                                auth_id = exists['AuthorID']
-                                                if fuzz.ratio(auth_name.lower().replace('.', ''),
-                                                              member[2].lower().replace('.', '')) < 95:
-                                                    akas = get_list(exists['AKA'], ',')
-                                                    if member[2] not in akas:
-                                                        akas.append(member[2])
-                                                        db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
-                                                                  (', '.join(akas), auth_id))
-                                                match = db.match(
-                                                    f"SELECT * from seriesauthors WHERE SeriesID=? "
-                                                    f"and AuthorID=?", (ser_id, auth_id))
-                                                if not match:
-                                                    self.logger.debug(
-                                                        f"Adding {auth_name} as series author for {ser_name}")
-                                                    new_authors += 1
-                                                    db.action('INSERT INTO seriesauthors (SeriesID, '
-                                                              'AuthorID) VALUES (?, ?)',
-                                                              (ser_id, auth_id), suppress='UNIQUE')
+                                            self.logger.debug(f"Unable to add {member[2]} for {member[1]}, "
+                                                              f"author not in database")
+                                            continue
 
-                                                    self.logger.debug(
-                                                        f"Inserting new member [{member[0]}] for {ser_name}")
+                                    cmd = "SELECT * from authors WHERE authorname=? or hc_id=?"
+                                    exists = db.match(cmd, (auth_name, member[3]))
+                                    if exists:
+                                        auth_id = exists['AuthorID']
+                                        if fuzz.ratio(auth_name.lower().replace('.', ''),
+                                                      member[2].lower().replace('.', '')) < 95:
+                                            akas = get_list(exists['AKA'], ',')
+                                            if member[2] not in akas:
+                                                akas.append(member[2])
+                                                db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
+                                                          (', '.join(akas), auth_id))
+                                        match = db.match(
+                                            f"SELECT * from seriesauthors WHERE SeriesID=? and AuthorID=?", (ser_id, auth_id))
+                                        if not match:
+                                            self.logger.debug(f"Adding {auth_name} as series author for {ser_name}")
+                                            new_authors += 1
+                                            db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
+                                                      (ser_id, auth_id), suppress='UNIQUE')
 
-                                                    cmd = "SELECT BookID FROM books WHERE BookID=?"
-                                                    # make sure bookid is in database, if not, add it
-                                                    match = db.match(cmd, (str(member[4]),))
-                                                    if not match:
-                                                        newbookdict, in_cache = self.get_bookdict(str(member[4]))
-                                                        api_hits += not in_cache
-                                                        cache_hits += in_cache
-                                                        if newbookdict:
-                                                            cover_link = newbookdict['cover']
-                                                            if 'nocover' in cover_link or 'nophoto' in cover_link:
-                                                                start = time.time()
-                                                                cover_link, _ = get_book_cover(newbookdict['bookid'],
-                                                                                               ignore='hardcover')
-                                                                cover_time += (time.time() - start)
-                                                                cover_count += 1
-                                                            elif cover_link and cover_link.startswith('http'):
-                                                                cover_link = cache_bookimg(cover_link,
-                                                                                           newbookdict['bookid'], 'hc')
-                                                            if not cover_link:  # no results or failed to cache it
-                                                                cover_link = 'images/nocover.png'
+                                    cmd = "SELECT BookID FROM books WHERE BookID=?"
+                                    # make sure bookid is in database, if not, add it
+                                    match = db.match(cmd, (str(member[4]),))
+                                    if not match:
+                                        newbookdict, in_cache = self.get_bookdict(str(member[4]))
+                                        api_hits += not in_cache
+                                        cache_hits += in_cache
+                                        if not newbookdict:
+                                            self.logger.debug(f"Unable to add bookid {member[4]} to database")
+                                            continue
 
-                                                            cmd = ('INSERT INTO books (AuthorID, BookName, BookImg, '
-                                                                   'BookLink, BookID, BookDate, BookLang, BookAdded, '
-                                                                   'Status, WorkPage, AudioStatus, ScanResult, '
-                                                                   'OriginalPubDate, hc_id) '
-                                                                   'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-                                                            db.action(cmd, (authorid, newbookdict['title'],
-                                                                            cover_link, newbookdict['link'],
-                                                                            newbookdict['bookid'],
-                                                                            newbookdict['publish_date'],
-                                                                            newbookdict['languages'], now(),
-                                                                            newbookdict['book_status'], '',
-                                                                            newbookdict['audio_status'], reason,
-                                                                            newbookdict['first_publish_year'],
-                                                                            newbookdict['bookid']))
+                                        cover_link = newbookdict['cover']
+                                        if 'nocover' in cover_link or 'nophoto' in cover_link:
+                                            start = time.time()
+                                            cover_link, _ = get_book_cover(newbookdict['bookid'],
+                                                                           ignore='hardcover')
+                                            cover_time += (time.time() - start)
+                                            cover_count += 1
+                                        elif cover_link and cover_link.startswith('http'):
+                                            cover_link = cache_bookimg(cover_link,
+                                                                       newbookdict['bookid'], 'hc')
+                                        if not cover_link:  # no results or failed to cache it
+                                            cover_link = 'images/nocover.png'
 
-                                                            db.action('INSERT INTO member (SeriesID, BookID, '
-                                                                      'SeriesNum) VALUES (?,?,?)',
-                                                                      (ser_id, member[4], member[0]),
-                                                                      suppress="UNIQUE")
-                                                    ser = db.match(
-                                                        f"select count(*) as counter from member where seriesid=?",
-                                                        (ser_id,))
-                                                    if ser:
-                                                        counter = check_int(ser['counter'], 0)
-                                                        db.action("UPDATE series SET Total=? WHERE SeriesID=?",
-                                                                  (counter, ser_id))
+                                        cmd = ('INSERT INTO books (AuthorID, BookName, BookImg, '
+                                               'BookLink, BookID, BookDate, BookLang, BookAdded, '
+                                               'Status, WorkPage, AudioStatus, ScanResult, '
+                                               'OriginalPubDate, hc_id) '
+                                               'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+
+                                        if (not newbookdict.get('book_status') or not
+                                                newbookdict.get('audio_status')):
+                                            newbookdict['book_status'], newbookdict['audio_status']\
+                                                = get_status(bookdict['bookid'], serieslist,
+                                                             bookstatus, audiostatus, entrystatus)
+                                        db.action(cmd, (auth_id, newbookdict['title'],
+                                                        cover_link, newbookdict['link'],
+                                                        newbookdict['bookid'],
+                                                        newbookdict['publish_date'],
+                                                        newbookdict['languages'], now(),
+                                                        newbookdict['book_status'], '',
+                                                        newbookdict['audio_status'], reason,
+                                                        newbookdict['first_publish_year'],
+                                                        newbookdict['bookid']))
+
+                                    self.logger.debug(
+                                        f"Inserting new member [{member[0]}] for {ser_name}")
+                                    db.action('INSERT INTO member (SeriesID, BookID, SeriesNum) VALUES (?,?,?)',
+                                              (ser_id, member[4], member[0]), suppress="UNIQUE")
+
+                                    ser = db.match(f"select count(*) as counter from member where seriesid=?",
+                                                   (ser_id,))
+                                    if ser:
+                                        counter = check_int(ser['counter'], 0)
+                                        db.action("UPDATE series SET Total=? WHERE SeriesID=?", (counter, ser_id))
+
+                                    lazylibrarian.importer.update_totals(auth_id)
 
             # no more books to process, update summaries
             cmd = ("SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=? and "
