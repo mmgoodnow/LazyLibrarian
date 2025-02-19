@@ -2671,6 +2671,8 @@ def send_to_calibre(booktype, global_name, folder, data):
 
     logger = logging.getLogger(__name__)
     try:
+        if not os.path.isdir(folder):
+            return False, f'calibredb import failed, Invalid folder name [{folder}]', folder
         logger.debug(f'Importing {booktype} {global_name} into calibre library')
         # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
         # and ignores opf data if there is data embedded in the book file,
@@ -2764,7 +2766,7 @@ def send_to_calibre(booktype, global_name, folder, data):
             return True, '', folder
         # Answer should look like "Added book ids : bookID" (string may be translated!)
         try:
-            calibre_id = res.rsplit(": ", 1)[1].split("\n", 1)[0].strip()
+            calibre_id = res.rsplit(": ", 1)[1].split("\n", 1)[0].split(',')[0].strip()
         except IndexError:
             return False, f'Calibre failed to import {authorname} {bookname}, no added bookids', folder
 
