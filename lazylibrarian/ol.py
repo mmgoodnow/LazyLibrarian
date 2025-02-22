@@ -500,7 +500,7 @@ class OpenLibrary:
         cache_hits = 0
 
         # these are reject reasons we might want to override, so optionally add to database as "ignored"
-        ignorable = ['future', 'date', 'isbn', 'word', 'set']
+        ignorable = ['future', 'date', 'isbn', 'set']
         if CONFIG.get_bool('NO_LANG'):
             ignorable.append('lang')
 
@@ -570,7 +570,7 @@ class OpenLibrary:
                     if publish_date:
                         publish_date = date_format(publish_date[0], context=f"{auth_name}/{title}")
 
-                    rejected = False
+                    rejected = []
                     wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
                     if wantedlanguages and 'All' not in wantedlanguages:
                         if languages:
@@ -579,19 +579,17 @@ class OpenLibrary:
                                     lang = item
                                     break
                             if not lang:
-                                rejected = 'lang', f'Invalid language [{str(languages)}]'
-                                bad_lang += 1
+                                rejected.append(['lang', f'Invalid language [{str(languages)}]'])
 
                         if not lang and isbn:
                             lang, cache_hit, thing_hit = isbnlang(isbn)
                             if thing_hit:
                                 lt_lang_hits += 1
                                 if lang not in wantedlanguages:
-                                    rejected = 'lang', f'Invalid language [{lang}]'
-                                    bad_lang += 1
+                                    rejected.append(['lang', f'Invalid language [{lang}]'])
 
-                    if not rejected and not title:
-                        rejected = 'name', 'No title'
+                    if not title:
+                        rejected.append(['name', 'No title'])
 
                     cmd = ("SELECT BookID,LT_WorkID,books.ol_id FROM books,authors "
                            "WHERE books.AuthorID = authors.AuthorID "
@@ -600,7 +598,7 @@ class OpenLibrary:
                     exists = db.match(cmd, (title, auth_name))
                     if not exists:
                         if auth_id != ol_id:
-                            rejected = 'name', f'Different author ({ol_id}/{auth_id}/{auth_name})'
+                            rejected.append(['name', f'Different author ({ol_id}/{auth_id}/{auth_name})'])
                         else:
                             in_db = lazylibrarian.librarysync.find_book_in_db(auth_name, title, source='ol_id',
                                                                               ignored=False, library='eBook',
@@ -613,7 +611,7 @@ class OpenLibrary:
                     if exists and id_librarything and not exists['LT_WorkID']:
                         db.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",
                                   (id_librarything, exists['BookID']))
-                    if exists and not rejected:
+                    if exists:
                         # existing bookid might not still be listed at openlibrary so won't refresh.
                         # should we keep new bookid or existing one?
                         # existing one might have been user edited, might be locked,
@@ -626,20 +624,20 @@ class OpenLibrary:
                                 f"Rejecting bookid {key} for [{auth_name}][{title}] already got {exists['BookID']}")
                             if not exists['ol_id']:
                                 db.action("UPDATE books SET ol_id=? WHERE BookID=?", (key, exists['BookID']))
-                            duplicates += 1
-                            rejected = 'name', f"Duplicate id ({key}/{exists['BookID']})"
-                    if not rejected:
+                            rejected.append(['name', f"Duplicate id ({key}/{exists['BookID']})"])
+
                         exists = db.match("SELECT * from books WHERE LT_WorkID=? and BookName !=? COLLATE NOCASE",
                                           (id_librarything, title))
                         if exists:
-                            rejected = 'name', f"Duplicate LT_ID ({title}/{exists['BookName']})"
-                    if not rejected and publishers:
+                            rejected.append(['name', f"Duplicate LT_ID ({title}/{exists['BookName']})"])
+
+                    if publishers:
                         for bookpub in publishers:
                             if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
-                                rejected = 'publisher', bookpub
+                                rejected.append(['publisher', bookpub])
                                 break
 
-                    if not rejected and not isbn and CONFIG.get_bool('ISBN_LOOKUP'):
+                    if not isbn and CONFIG.get_bool('ISBN_LOOKUP'):
                         # try lookup by name
                         if title:
                             try:
@@ -655,77 +653,76 @@ class OpenLibrary:
                                 self.logger.debug(f"isbn found {res} for {key}")
                                 isbn = res
 
-                    if not rejected and not isbn and CONFIG.get_bool('NO_ISBN'):
-                        rejected = 'isbn', 'No ISBN'
+                    if not isbn and CONFIG.get_bool('NO_ISBN'):
+                        rejected.append(['isbn', 'No ISBN'])
 
-                    if not rejected:
-                        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
-                               '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
-                        name = replace_all(title, dic).strip()
-                        name = name.lower()
-                        # remove extra spaces if they're in a row
-                        name = " ".join(name.split())
-                        namewords = name.split(' ')
-                        badwords = get_list(CONFIG['REJECT_WORDS'], ',')
-                        for word in badwords:
-                            if (' ' in word and word in name) or word in namewords:
-                                rejected = 'word', f'Name contains [{word}]'
+                    dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
+                           '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
+                    name = replace_all(title, dic).strip()
+                    name = name.lower()
+                    # remove extra spaces if they're in a row
+                    name = " ".join(name.split())
+                    namewords = name.split(' ')
+                    badwords = get_list(CONFIG['REJECT_WORDS'], ',')
+                    for word in badwords:
+                        if (' ' in word and word in name) or word in namewords:
+                            rejected.append(['word', f'Name contains [{word}]'])
+                            break
+
+                    bookname = unaccented(title, only_ascii=False)
+                    if CONFIG.get_bool('NO_SETS'):
+                        # allow date ranges eg 1981-95
+                        m = re.search(r'(\d+)-(\d+)', bookname)
+                        if m:
+                            if check_year(m.group(1), past=1800, future=0):
+                                self.logger.debug(f"Allow {bookname}, looks like a date range")
+                            else:
+                                rejected.append(['set', f'Set or Part {m.group(0)}'])
+                        if re.search(r'\d+ of \d+', bookname) or \
+                                re.search(r'\d+/\d+', bookname) and not re.search(r'\d+/\d+/\d+', bookname):
+                            rejected.append(['set', 'Set or Part'])
+                        elif re.search(r'\w+\s*/\s*\w+', bookname):
+                            rejected.append(['set', 'Set or Part'])
+
+                    if CONFIG.get_bool('NO_FUTURE'):
+                        if publish_date > today()[:len(publish_date)]:
+                            rejected.append(['future', f'Future publication date [{publish_date}]'])
+
+                    if CONFIG.get_bool('NO_PUBDATE'):
+                        if not publish_date or publish_date == '0000':
+                            rejected.append(['date', 'No publication date'])
+
+                    fatal = False
+                    reason = ''
+                    if rejected:
+                        for reject in rejected:
+                            if reject[0] not in ignorable:
+                                if reject[0] == 'lang':
+                                    bad_lang += 1
+                                if reject[0] == 'dupe':
+                                    duplicates += 1
+                                if reject[0] in ['name', 'publisher', 'word']:
+                                    removed_results += 1
+                                fatal = True
+                                reason = reject[1]
                                 break
 
-                    if not rejected:
-                        bookname = unaccented(title, only_ascii=False)
-                        if CONFIG.get_bool('NO_SETS'):
-                            # allow date ranges eg 1981-95
-                            m = re.search(r'(\d+)-(\d+)', bookname)
-                            if m:
-                                if check_year(m.group(1), past=1800, future=0):
-                                    self.logger.debug(f"Allow {bookname}, looks like a date range")
-                                else:
-                                    rejected = 'set', f'Set or Part {m.group(0)}'
-                            if re.search(r'\d+ of \d+', bookname) or \
-                                    re.search(r'\d+/\d+', bookname) and not re.search(r'\d+/\d+/\d+', bookname):
-                                rejected = 'set', 'Set or Part'
-                            elif re.search(r'\w+\s*/\s*\w+', bookname):
-                                rejected = 'set', 'Set or Part'
-                            if rejected:
-                                self.logger.debug(f'Rejected {bookname}, {rejected[1]}')
+                        if not fatal:
+                            for reject in rejected:
+                                if reject[0] in ignorable:
+                                    book_status = 'Ignored'
+                                    audio_status = 'Ignored'
+                                    book_ignore_count += 1
+                                    reason = f"Ignored: {reject[1]}"
+                                    break
+                        if fatal:
+                            self.logger.debug(f"Rejected {key} {reason}")
+                            continue  # next book in docs
 
-                    if rejected and rejected[0] not in ignorable:
-                        self.logger.debug(f'Rejecting {title}, {rejected[1]}')
-                    elif rejected and not (rejected[0] in ignorable and CONFIG.get_bool('IMP_IGNORE')):
-                        self.logger.debug(f'Rejecting {title}, {rejected[1]}')
-                    else:
-                        self.logger.debug(f"Found title: {title} LT:{id_librarything}")
-                        if not rejected and CONFIG.get_bool('NO_FUTURE'):
-                            if publish_date > today()[:len(publish_date)]:
-                                rejected = 'future', f'Future publication date [{publish_date}]'
-                                if ignorable is None:
-                                    self.logger.debug(f'Rejecting {title}, {rejected[1]}')
-                                else:
-                                    self.logger.debug(
-                                        f"Not rejecting {title} (future pub date {publish_date}) as {ignorable}")
-
-                        if not rejected and CONFIG.get_bool('NO_PUBDATE'):
-                            if not publish_date or publish_date == '0000':
-                                rejected = 'date', 'No publication date'
-                                if ignorable is None:
-                                    self.logger.debug(f'Rejecting {title}, {rejected[1]}')
-                                else:
-                                    self.logger.debug(f"Not rejecting {title} (no pub date) as {ignorable}")
-
-                        if rejected:
-                            if rejected[0] in ignorable:
-                                book_status = 'Ignored'
-                                audio_status = 'Ignored'
-                                book_ignore_count += 1
-                                reason = f"Ignored: {rejected[1]}"
-                            else:
-                                continue  # next book in docs
+                        if 'author_update' in entryreason:
+                            reason = f'Author: {auth_name}'
                         else:
-                            if 'author_update' in entryreason:
-                                reason = f'Author: {auth_name}'
-                            else:
-                                reason = entryreason
+                            reason = entryreason
 
                         if not cover:
                             cover = 'images/nocover.png'

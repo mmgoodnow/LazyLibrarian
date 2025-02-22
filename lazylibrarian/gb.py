@@ -346,56 +346,59 @@ class GoogleBooks:
                         ignorable = ['future', 'date', 'isbn']
                         if CONFIG.get_bool('NO_LANG'):
                             ignorable.append('lang')
-                        rejected = None
-                        check_status = False
+                        rejected = []
                         existing_book = None
                         bookname = book['name']
                         bookid = item['id']
                         if not bookname:
                             self.logger.debug(f'Rejecting bookid {bookid} for {authorname}, no bookname')
-                            rejected = 'name', 'No bookname'
+                            rejected.append(['name', 'No bookname'])
                         else:
                             bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
-                            # if re.match(r'[^\w-]', bookname):  # remove books with bad characters in title
-                            # self.logger.debug("[%s] removed book for bad characters" % bookname)
-                            # rejected = 'chars', 'Bad characters in bookname'
 
-                        if not rejected and CONFIG.get_bool('NO_FUTURE'):
+                        if CONFIG.get_bool('NO_FUTURE'):
                             # googlebooks sometimes gives yyyy, sometimes yyyy-mm, sometimes yyyy-mm-dd
                             if book['date'] > today()[:len(book['date'])]:
-                                self.logger.debug(f"Rejecting {bookname}, future publication date {book['date']}")
-                                rejected = 'future', f"Future publication date [{book['date']}]"
+                                rejected.append(['future', f"Future publication date [{book['date']}]"])
 
-                        if not rejected and CONFIG.get_bool('NO_PUBDATE'):
-                            if not book['date']:
-                                self.logger.debug(f'Rejecting {bookname}, no publication date')
-                                rejected = 'date', 'No publication date'
+                        if CONFIG.get_bool('NO_PUBDATE') and not book['date']:
+                            rejected.append(['date', 'No publication date'])
 
-                        if not rejected and CONFIG.get_bool('NO_ISBN'):
-                            if not book['isbn']:
-                                self.logger.debug(f'Rejecting {bookname}, no isbn')
-                                rejected = 'isbn', 'No ISBN'
+                        if CONFIG.get_bool('NO_ISBN') and not book['isbn']:
+                            rejected.append(['isbn', 'No ISBN'])
 
-                        if not rejected:
-                            cmd = ("SELECT BookID,gb_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
-                                   "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and "
-                                   "books.Status != 'Ignored' and AudioStatus != 'Ignored'")
-                            match = db.match(cmd, (bookname, authorname))
-                            if not match:
-                                in_db = lazylibrarian.librarysync.find_book_in_db(authorname, bookname, source='gb_id',
-                                                                                  ignored=False, library='eBook',
-                                                                                  reason='gb_get_author_books')
-                                if in_db and in_db[0]:
-                                    cmd = "SELECT BookID,gb_id FROM books WHERE BookID=?"
-                                    match = db.match(cmd, (in_db[0],))
-                            if match:
-                                if match['BookID'] != bookid:  # we have a different book with this author/title already
-                                    self.logger.debug(f'Rejecting bookid {bookid} for [{authorname}][{bookname}]'
-                                                      f' already got {match["BookID"]}')
-                                    rejected = 'bookid', f'Got under different bookid {bookid}'
-                                    if not match['gb_id']:
-                                        db.action("UPDATE books SET gb_id=? WHERE BookID=?", (bookid, match['BookID']))
-                                    duplicates += 1
+                        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
+                               '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
+                        name = replace_all(bookname, dic).strip()
+                        name = name.lower()
+                        # remove extra spaces if they're in a row
+                        name = " ".join(name.split())
+                        namewords = name.split(' ')
+                        badwords = get_list(CONFIG['REJECT_WORDS'], ',')
+
+                        for word in badwords:
+                            if (' ' in word and word in name) or word in namewords:
+                                rejected.append(['word', f'Name contains [{word}]'])
+                                break
+
+                        cmd = ("SELECT BookID,gb_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+                               "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and "
+                               "books.Status != 'Ignored' and AudioStatus != 'Ignored'")
+                        match = db.match(cmd, (bookname, authorname))
+                        if not match:
+                            in_db = lazylibrarian.librarysync.find_book_in_db(authorname, bookname, source='gb_id',
+                                                                              ignored=False, library='eBook',
+                                                                              reason='gb_get_author_books')
+                            if in_db and in_db[0]:
+                                cmd = "SELECT BookID,gb_id FROM books WHERE BookID=?"
+                                match = db.match(cmd, (in_db[0],))
+                        if match:
+                            if match['BookID'] != bookid:  # we have a different book with this author/title already
+                                self.logger.debug(f'Rejecting bookid {bookid} for [{authorname}][{bookname}]'
+                                                  f' already got {match["BookID"]}')
+                                rejected.append(['dupe', f'Got under different bookid {bookid}'])
+                                if not match['gb_id']:
+                                    db.action("UPDATE books SET gb_id=? WHERE BookID=?", (bookid, match['BookID']))
 
                         cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult,gb_id,BookID "
                                "FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?")
@@ -408,8 +411,7 @@ class GoogleBooks:
                                 if not match['gb_id']:
                                     db.action("UPDATE books SET gb_id=? WHERE BookID=?",
                                               (bookid, match['BookID']))
-                                duplicates += 1
-                                rejected = 'got', 'Already got this bookid in database'
+                                rejected.append(['dupe', 'Already got this bookid in database'])
                             else:
                                 msg = (f"Bookid {bookid} for [{authorname}][{bookname}] is in database "
                                        f"marked {match['Status']}")
@@ -417,23 +419,49 @@ class GoogleBooks:
                                     msg += f",{match['AudioStatus']}"
                                 msg += f" {match['ScanResult']}"
                                 self.logger.debug(msg)
-                                check_status = True
 
                             # Make sure we don't reject books we have got
                             if match['Status'] in ['Open', 'Have'] or match['AudioStatus'] in ['Open', 'Have']:
-                                rejected = None
+                                rejected = []
 
-                        if rejected and rejected[0] not in ignorable:
-                            removed_results += 1
-                        if check_status or rejected is None or (
-                                CONFIG.get_bool('IMP_IGNORE') and rejected[0] in ignorable):  # dates, isbn
+                        fatal = False
+                        reason = ''
+                        if rejected:
+                            for reject in rejected:
+                                if reject[0] not in ignorable:
+                                    if reject[0] == 'dupe':
+                                        duplicates += 1
+                                    if reject[0] in ['name', 'publisher', 'word']:
+                                        removed_results += 1
+                                    fatal = True
+                                    reason = reject[1]
+                                    break
 
+                            if not fatal:
+                                for reject in rejected:
+                                    if reject[0] in ignorable:
+                                        book_ignore_count += 1
+                                        reason = f"Ignored: {reject[1]}"
+                                        break
+
+                        elif 'author_update' in entryreason:
+                            reason += f" Author: {authorname}"
+                        else:
+                            reason = entryreason
+
+                        if fatal:
+                            self.logger.debug(f"Rejected {bookid} {reason}")
+                        else:
                             cmd = ("SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,ScanResult "
                                    "FROM books WHERE BookID=?")
                             existing = db.match(cmd, (bookid,))
                             if existing:
-                                book_status = existing['Status']
-                                audio_status = existing['AudioStatus']
+                                if reason.startswith('Ignored'):
+                                    book_status = 'Ignored'
+                                    audio_status = 'Ignored'
+                                else:
+                                    book_status = existing['Status']
+                                    audio_status = existing['AudioStatus']
                                 if CONFIG['FOUND_STATUS'] == 'Open':
                                     if book_status == 'Have' and existing['BookFile']:
                                         book_status = 'Open'

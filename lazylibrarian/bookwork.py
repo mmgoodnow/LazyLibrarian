@@ -191,7 +191,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         # no seriesid so generate it (first available unused integer)
                         res = 1
                         while True:
-                            cnt = db.match('select * from series where seriesid=?', (res,))
+                            cnt = db.match('select * from series where seriesid=?', (f"LL{res}",))
                             if not cnt:
                                 break
                             res += 1

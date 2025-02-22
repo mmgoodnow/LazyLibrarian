@@ -218,7 +218,6 @@ def direct_gen(book=None, prov=None, test=False):
                 "f_columns": 0,
                 "f_ext": "All"
             }
-            # for index.php, default to s=
             if "?req=" in search or "&req=" in search:
                 search = search.replace("?req=", "").replace("&req=", "")
                 params['req'] = make_utf8bytes(book['searchterm'])[0]

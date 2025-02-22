@@ -429,7 +429,7 @@ class GoodReads:
 
             removed_results = 0
             duplicates = 0
-            ignored = 0
+            bad_lang = 0
             added_count = 0
             updated_count = 0
             book_ignore_count = 0
@@ -442,7 +442,7 @@ class GoodReads:
             isbn_time = 0
             auth_start = time.time()
             # these are reject reasons we might want to override, so optionally add to database as "ignored"
-            ignorable = ['future', 'date', 'isbn', 'word', 'set']
+            ignorable = ['future', 'date', 'isbn', 'set']
             if CONFIG.get_bool('NO_LANG'):
                 ignorable.append('lang')
 
@@ -468,10 +468,7 @@ class GoodReads:
                             self.logger.debug(f"Aborting {threadname}")
                             break
                         total_count += 1
-                        rejected = None
-                        booksub = ''
-                        series = ''
-                        series_num = ''
+                        rejected = []
                         book_language = "Unknown"
                         find_field = "id"
                         bookisbn = ""
@@ -502,247 +499,237 @@ class GoodReads:
 
                         if not bookname:
                             self.logger.debug(f'Rejecting bookid {bookid} for {author_name_result}, no bookname')
-                            rejected = 'name', 'No bookname'
+                            rejected.append(['name', 'No bookname'])
 
                         if bookpub:
                             if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
                                 self.logger.warning(f"Ignoring {bookname}: Publisher {bookpub}")
-                                rejected = 'publisher', bookpub
+                                rejected.append(['publisher', bookpub])
 
-                        # bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
+                        if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
+                            bookimg = 'images/nocover.png'
 
-                        # if not rejected and re.match(r'[^\w-]', bookname):
-                        # reject books with bad characters in title
-                        # self.logger.debug("removed result [" + bookname + "] for bad characters")
-                        # rejected = 'chars', 'Bad characters in bookname'
+                        if book_language == "Unknown":
+                            book_language = ""
+                            if isbn13:
+                                find_field = 'isbn13'
+                                book_language, cache_hit, thing_hit = isbnlang(isbn13)
+                                if thing_hit:
+                                    lt_lang_hits += 1
+                            if not book_language and isbn10:
+                                find_field = 'isbn'
+                                book_language, cache_hit, thing_hit = isbnlang(isbn10)
+                                if thing_hit:
+                                    lt_lang_hits += 1
 
-                        if not rejected:
-                            if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
-                                bookimg = 'images/nocover.png'
-
-                            if book_language == "Unknown":
-                                book_language = ""
-                                if isbn13:
-                                    find_field = 'isbn13'
-                                    book_language, cache_hit, thing_hit = isbnlang(isbn13)
-                                    if thing_hit:
-                                        lt_lang_hits += 1
-                                if not book_language and isbn10:
-                                    find_field = 'isbn'
-                                    book_language, cache_hit, thing_hit = isbnlang(isbn10)
-                                    if thing_hit:
-                                        lt_lang_hits += 1
-
-                            if not book_language or book_language == "Unknown":
-                                # still  no earlier match, we'll have to search the goodreads api
-                                try:
-                                    if book.find(find_field).text:
-                                        book_url = '/'.join([CONFIG['GR_URL'],
-                                                             f"book/show?id={book.find(find_field).text}"
-                                                             f"&{urlencode(self.params)}"])
-                                        self.logger.debug(f"Book URL: {book_url}")
-                                        book_language = ""
-                                        try:
-                                            book_rootxml, in_cache = gr_xml_request(book_url)
-                                            if book_rootxml is None:
-                                                self.logger.debug(f'Failed to get book page for {find_field} '
-                                                                  f'{book.find(find_field).text}')
-                                            else:
-                                                try:
-                                                    book_language = book_rootxml.find('./book/language_code').text
-                                                except Exception as e:
-                                                    self.logger.error(
-                                                        f"{type(e).__name__} finding language_code in book xml: "
-                                                        f"{str(e)}")
-                                                # noinspection PyBroadException
-                                                try:
-                                                    res = book_rootxml.find('./book/isbn').text
-                                                    isbnhead = res[0:3]
-                                                except Exception:
-                                                    # noinspection PyBroadException
-                                                    try:
-                                                        res = book_rootxml.find('./book/isbn13').text
-                                                        isbnhead = res[3:6]
-                                                    except Exception:
-                                                        isbnhead = ''
-                                                # if bookLanguage and not isbnhead:
-                                                #     print(BOOK_URL)
-
-                                                # might as well get the original publication date from here
-                                                # noinspection PyBroadException
-                                                try:
-                                                    bookdate = book_rootxml.find(
-                                                        './book/work/original_publication_year').text
-                                                    if check_year(bookdate, past=1800, future=0):
-                                                        try:
-                                                            mn = check_int(book_rootxml.find(
-                                                                './book/work/original_publication_month').text, 0)
-                                                            dy = check_int(book_rootxml.find(
-                                                                './book/work/original_publication_day').text, 0)
-                                                            if mn and dy:
-                                                                bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
-                                                        except (KeyError, AttributeError):
-                                                            self.logger.debug("No extended date info")
-                                                            pass
-                                                except Exception:
-                                                    pass
-
-                                        except Exception as e:
-                                            self.logger.error(f"{type(e).__name__} getting book xml: {str(e)}")
-
-                                        if not in_cache:
-                                            gr_lang_hits += 1
-                                        if not book_language:
-                                            book_language = "Unknown"
-                                        elif isbnhead:
-                                            # if GR didn't give an isbn we can't cache it
-                                            # just use language for this book
-                                            control_value_dict = {"isbn": isbnhead}
-                                            new_value_dict = {"lang": book_language}
-                                            db.upsert("languages", new_value_dict, control_value_dict)
-                                            self.logger.debug(
-                                                f"GoodReads reports language [{book_language}] for {isbnhead}")
-                                        else:
-                                            not_cached += 1
-
-                                        self.logger.debug(f"GR language: {book_language}")
-                                    else:
-                                        self.logger.debug(f"No {find_field} provided for [{bookname}]")
-                                        # continue
-
-                                except Exception as e:
-                                    self.logger.error(f"Goodreads language search failed: {type(e).__name__} {str(e)}")
-
-                            if not isbnhead and CONFIG.get_bool('ISBN_LOOKUP'):
-                                # try lookup by name
-                                if bookname or shortname:
-                                    if shortname:
-                                        name = replace_all(shortname, {':': ' ', '"': '', '\'': ''}).strip()
-                                    else:
-                                        name = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
+                        if not book_language or book_language == "Unknown":
+                            # still  no earlier match, we'll have to search the goodreads api
+                            try:
+                                if book.find(find_field).text:
+                                    book_url = '/'.join([CONFIG['GR_URL'],
+                                                         f"book/show?id={book.find(find_field).text}"
+                                                         f"&{urlencode(self.params)}"])
+                                    self.logger.debug(f"Book URL: {book_url}")
+                                    book_language = ""
                                     try:
-                                        isbn_count += 1
-                                        start = time.time()
-                                        res = isbn_from_words(
-                                            f"{unaccented(name, only_ascii=False)} "
-                                            f"{unaccented(author_name_result, only_ascii=False)}")
-                                        isbn_time += (time.time() - start)
-                                    except Exception as e:
-                                        res = None
-                                        self.logger.warning(f"Error from isbn: {e}")
-                                    if res:
-                                        self.logger.debug(f"isbn found {res} for {bookid}")
-                                        bookisbn = res
-                                        if len(res) == 13:
-                                            isbnhead = res[3:6]
+                                        book_rootxml, in_cache = gr_xml_request(book_url)
+                                        if book_rootxml is None:
+                                            self.logger.debug(f'Failed to get book page for {find_field} '
+                                                              f'{book.find(find_field).text}')
                                         else:
-                                            isbnhead = res[0:3]
+                                            try:
+                                                book_language = book_rootxml.find('./book/language_code').text
+                                            except Exception as e:
+                                                self.logger.error(
+                                                    f"{type(e).__name__} finding language_code in book xml: "
+                                                    f"{str(e)}")
+                                            # noinspection PyBroadException
+                                            try:
+                                                res = book_rootxml.find('./book/isbn').text
+                                                isbnhead = res[0:3]
+                                            except Exception:
+                                                # noinspection PyBroadException
+                                                try:
+                                                    res = book_rootxml.find('./book/isbn13').text
+                                                    isbnhead = res[3:6]
+                                                except Exception:
+                                                    isbnhead = ''
+                                            # if bookLanguage and not isbnhead:
+                                            #     print(BOOK_URL)
 
-                            if not isbnhead and CONFIG.get_bool('NO_ISBN'):
-                                rejected = 'isbn', 'No ISBN'
-                                self.logger.debug(f'Rejecting {bookname}, {rejected[1]}')
+                                            # might as well get the original publication date from here
+                                            # noinspection PyBroadException
+                                            try:
+                                                bookdate = book_rootxml.find(
+                                                    './book/work/original_publication_year').text
+                                                if check_year(bookdate, past=1800, future=0):
+                                                    try:
+                                                        mn = check_int(book_rootxml.find(
+                                                            './book/work/original_publication_month').text, 0)
+                                                        dy = check_int(book_rootxml.find(
+                                                            './book/work/original_publication_day').text, 0)
+                                                        if mn and dy:
+                                                            bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                                                    except (KeyError, AttributeError):
+                                                        self.logger.debug("No extended date info")
+                                                        pass
+                                            except Exception:
+                                                pass
 
-                            if not book_language:
-                                book_language = 'Unknown'
+                                    except Exception as e:
+                                        self.logger.error(f"{type(e).__name__} getting book xml: {str(e)}")
 
-                            if "All" not in valid_langs:  # do we care about language
-                                if book_language not in valid_langs:
-                                    rejected = 'lang', f'Invalid language [{book_language}]'
-                                    self.logger.debug(f'Rejecting {bookname}, {rejected[1]}')
-                                    ignored += 1
-
-                        if not rejected:
-                            dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
-                                   '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
-                            name = replace_all(shortname, dic).strip()
-                            if not name:
-                                name = replace_all(bookname, dic).strip()
-                            name = name.lower()
-                            # remove extra spaces if they're in a row
-                            name = " ".join(name.split())
-                            namewords = name.split(' ')
-                            badwords = get_list(CONFIG['REJECT_WORDS'], ',')
-                            for word in badwords:
-                                if (' ' in word and word in name) or word in namewords:
-                                    rejected = 'word', f'Name contains [{word}]'
-                                    self.logger.debug(f'Rejecting {bookname}, {rejected[1]}')
-                                    break
-
-                        if not rejected:
-                            name = unaccented(bookname, only_ascii=False)
-                            if CONFIG.get_bool('NO_SETS'):
-                                # allow date ranges eg 1981-95
-                                m = re.search(r'(\d+)-(\d+)', name)
-                                if m:
-                                    if check_year(m.group(1), past=1800, future=0):
-                                        self.logger.debug(f"Allow {bookname}, looks like a date range")
+                                    if not in_cache:
+                                        gr_lang_hits += 1
+                                    if not book_language:
+                                        book_language = "Unknown"
+                                    elif isbnhead:
+                                        # if GR didn't give an isbn we can't cache it
+                                        # just use language for this book
+                                        control_value_dict = {"isbn": isbnhead}
+                                        new_value_dict = {"lang": book_language}
+                                        db.upsert("languages", new_value_dict, control_value_dict)
+                                        self.logger.debug(
+                                            f"GoodReads reports language [{book_language}] for {isbnhead}")
                                     else:
-                                        rejected = 'set', f'Set or Part {m.group(0)}'
-                                if re.search(r'\d+ of \d+', name) or \
-                                        re.search(r'\d+/\d+', name) and not re.search(r'\d+/\d+/\d+', name):
-                                    rejected = 'set', 'Set or Part'
-                                elif re.search(r'\w+\s*/\s*\w+', name):
-                                    rejected = 'set', 'Set or Part'
-                                if rejected:
-                                    self.logger.debug(f'Rejected {name}, {rejected[1]}')
+                                        not_cached += 1
 
-                        if not rejected:
-                            oldbookname = bookname
-                            bookname, booksub, bookseries = split_title(author_name_result, bookname)
-                            if shortname:
-                                sbookname, sbooksub, _ = split_title(author_name_result, shortname)
-                                if sbookname != bookname:
-                                    self.logger.warning(f'Different titles [{oldbookname}][{sbookname}][{bookname}]')
-                                    bookname = sbookname
-                                if sbooksub != booksub:
-                                    self.logger.warning(f'Different subtitles [{sbooksub}][{booksub}]')
-                                    booksub = sbooksub
-                            dic = {':': '.', '"': ''}  # do we need to strip apostrophes , '\'': ''}
-                            bookname = replace_all(bookname, dic).strip()
-                            booksub = replace_all(booksub, dic).strip()
-                            bookseries = replace_all(bookseries, dic).strip()
-                            if bookseries:
-                                series, series_num = book_series(bookseries)
-                            elif booksub:
-                                series, series_num = book_series(booksub)
-                            else:
-                                series, series_num = book_series(bookname)
+                                    self.logger.debug(f"GR language: {book_language}")
+                                else:
+                                    self.logger.debug(f"No {find_field} provided for [{bookname}]")
+                                    # continue
 
-                            # 1. The author/list page only contains one author per book even if the book/show page
-                            #    and html show multiple authors
-                            # 2. The author/list page doesn't always include the publication date even if the
-                            #    book/show page and html include it
-                            # 3. The author/list page gives the publication date of the "best book" edition
-                            #    and does not include the original publication date, though the book/show page
-                            #    and html often show it
-                            # We can't call book/show for every book because of api limits, and we can't scrape
-                            # the html as it breaks goodreads terms of service
-                            authors = book.find('authors')
-                            anames = authors.iter('author')
-                            amatch = False
-                            alist = ''
-                            role = ''
-                            for aname in anames:
-                                aid = aname.find('id').text
-                                anm = aname.find('name').text
-                                role = aname.find('role').text
-                                if alist:
-                                    alist += ', '
-                                alist += anm
-                                if aid == gr_id or anm == author_name_result:
-                                    if aid != gr_id:
-                                        self.logger.warning(f"Author {anm} has different authorid {aid}:{gr_id}")
-                                    if role is None or 'author' in role.lower() or \
-                                            'writer' in role.lower() or \
-                                            'creator' in role.lower() or \
-                                            'pseudonym' in role.lower() or \
-                                            'pen name' in role.lower():
-                                        amatch = True
+                            except Exception as e:
+                                self.logger.error(f"Goodreads language search failed: {type(e).__name__} {str(e)}")
+
+                        if not isbnhead and CONFIG.get_bool('ISBN_LOOKUP'):
+                            # try lookup by name
+                            if bookname or shortname:
+                                if shortname:
+                                    name = replace_all(shortname, {':': ' ', '"': '', '\'': ''}).strip()
+                                else:
+                                    name = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
+                                try:
+                                    isbn_count += 1
+                                    start = time.time()
+                                    res = isbn_from_words(
+                                        f"{unaccented(name, only_ascii=False)} "
+                                        f"{unaccented(author_name_result, only_ascii=False)}")
+                                    isbn_time += (time.time() - start)
+                                except Exception as e:
+                                    res = None
+                                    self.logger.warning(f"Error from isbn: {e}")
+                                if res:
+                                    self.logger.debug(f"isbn found {res} for {bookid}")
+                                    bookisbn = res
+                                    if len(res) == 13:
+                                        isbnhead = res[3:6]
                                     else:
-                                        self.logger.debug(f'Ignoring {anm} for {bookname}, role is {role}')
-                            if not amatch:
-                                rejected = 'author', f'Wrong Author (got {alist},{role})'
-                                self.logger.debug(f'Rejecting {bookname} for {author_name_result}, {rejected[1]}')
+                                        isbnhead = res[0:3]
+
+                        if not isbnhead and CONFIG.get_bool('NO_ISBN'):
+                            rejected.append(['isbn', 'No ISBN'])
+
+                        if not book_language:
+                            book_language = 'Unknown'
+
+                        if "All" not in valid_langs:  # do we care about language
+                            if book_language not in valid_langs:
+                                rejected.append(['lang', f'Invalid language [{book_language}]'])
+
+                        if CONFIG.get_bool('NO_FUTURE'):
+                            if bookdate > today()[:len(bookdate)]:
+                                rejected.append(['future', f'Future publication date [{bookdate}]'])
+
+                        if CONFIG.get_bool('NO_PUBDATE'):
+                            if not bookdate or bookdate == '0000':
+                                rejected.append(['date', 'No publication date'])
+
+                        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
+                               '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
+                        name = replace_all(shortname, dic).strip()
+                        if not name:
+                            name = replace_all(bookname, dic).strip()
+                        name = name.lower()
+                        # remove extra spaces if they're in a row
+                        name = " ".join(name.split())
+                        namewords = name.split(' ')
+                        badwords = get_list(CONFIG['REJECT_WORDS'], ',')
+                        for word in badwords:
+                            if (' ' in word and word in name) or word in namewords:
+                                rejected.append(['word', f'Name contains [{word}]'])
+                                break
+
+                        name = unaccented(bookname, only_ascii=False)
+                        if CONFIG.get_bool('NO_SETS'):
+                            # allow date ranges eg 1981-95
+                            m = re.search(r'(\d+)-(\d+)', name)
+                            if m:
+                                if check_year(m.group(1), past=1800, future=0):
+                                    self.logger.debug(f"Allow {bookname}, looks like a date range")
+                                else:
+                                    rejected.append(['set', f'Set or Part {m.group(0)}'])
+                            if re.search(r'\d+ of \d+', name) or \
+                                    re.search(r'\d+/\d+', name) and not re.search(r'\d+/\d+/\d+', name):
+                                rejected.append(['set', 'Set or Part'])
+                            elif re.search(r'\w+\s*/\s*\w+', name):
+                                rejected.append(['set', 'Set or Part'])
+
+                        oldbookname = bookname
+                        bookname, booksub, bookseries = split_title(author_name_result, bookname)
+                        if shortname:
+                            sbookname, sbooksub, _ = split_title(author_name_result, shortname)
+                            if sbookname != bookname:
+                                self.logger.warning(f'Different titles [{oldbookname}][{sbookname}][{bookname}]')
+                                bookname = sbookname
+                            if sbooksub != booksub:
+                                self.logger.warning(f'Different subtitles [{sbooksub}][{booksub}]')
+                                booksub = sbooksub
+                        dic = {':': '.', '"': ''}  # do we need to strip apostrophes , '\'': ''}
+                        bookname = replace_all(bookname, dic).strip()
+                        booksub = replace_all(booksub, dic).strip()
+                        bookseries = replace_all(bookseries, dic).strip()
+                        if bookseries:
+                            series, series_num = book_series(bookseries)
+                        elif booksub:
+                            series, series_num = book_series(booksub)
+                        else:
+                            series, series_num = book_series(bookname)
+
+                        # 1. The author/list page only contains one author per book even if the book/show page
+                        #    and html show multiple authors
+                        # 2. The author/list page doesn't always include the publication date even if the
+                        #    book/show page and html include it
+                        # 3. The author/list page gives the publication date of the "best book" edition
+                        #    and does not include the original publication date, though the book/show page
+                        #    and html often show it
+                        # We can't call book/show for every book because of api limits, and we can't scrape
+                        # the html as it breaks goodreads terms of service
+                        authors = book.find('authors')
+                        anames = authors.iter('author')
+                        amatch = False
+                        alist = ''
+                        role = ''
+                        for aname in anames:
+                            aid = aname.find('id').text
+                            anm = aname.find('name').text
+                            role = aname.find('role').text
+                            if alist:
+                                alist += ', '
+                            alist += anm
+                            if aid == gr_id or anm == author_name_result:
+                                if aid != gr_id:
+                                    self.logger.warning(f"Author {anm} has different authorid {aid}:{gr_id}")
+                                if role is None or 'author' in role.lower() or \
+                                        'writer' in role.lower() or \
+                                        'creator' in role.lower() or \
+                                        'pseudonym' in role.lower() or \
+                                        'pen name' in role.lower():
+                                    amatch = True
+                                else:
+                                    self.logger.debug(f'Ignoring {anm} for {bookname}, role is {role}')
+                        if not amatch:
+                            rejected.append(['author', f'Wrong Author (got {alist},{role})'])
 
                         cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult FROM books,authors "
                                "WHERE authors.AuthorID = books.AuthorID AND BookID=?")
@@ -751,9 +738,8 @@ class GoodReads:
                         if match:
                             # we have a book with this bookid already
                             if author_name_result != match['AuthorName']:
-                                rejected = 'author', (f"Different author for this bookid [{author_name_result}]"
-                                                      f"[{match['AuthorName']}]")
-                                self.logger.debug(f'Rejecting bookid {bookid}, {rejected[1]}')
+                                rejected.append(['author', (f"Different author for this bookid [{author_name_result}]"
+                                                            f"[{match['AuthorName']}]")])
                             elif bookname != match['BookName']:
                                 # same bookid and author, assume goodreads fixed the title, use the new title
                                 db.action("UPDATE books SET BookName=? WHERE BookID=?", (bookname, bookid))
@@ -772,7 +758,7 @@ class GoodReads:
                             elif match['AudioStatus'] not in ['Ignored', 'Skipped']:
                                 not_rejectable = f"AudioStatus: {match['AudioStatus']}"
 
-                        if not match and not rejected:
+                        if not match:
                             cmd = ("SELECT BookID,books.gr_id FROM books,authors WHERE "
                                    "books.AuthorID = authors.AuthorID and "
                                    "BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE and AuthorName=? "
@@ -801,15 +787,39 @@ class GoodReads:
                                         if not match['gr_id']:
                                             cmd = "UPDATE books SET gr_id=? WHERE BookID=?"
                                             db.action(cmd, (bookid, match['BookID']))
-                                        rejected = 'bookid', f"Got {bookid} under bookid {match['BookID']}"
-                                        self.logger.debug(
-                                            f"Rejecting bookid {bookid} for [{author_name_result}][{bookname}] "
-                                            f"already got {match['BookID']}")
+                                        rejected.append(['bookid', f"Got {bookid} under bookid {match['BookID']}"])
 
-                        if rejected and rejected[0] not in ignorable:
-                            removed_results += 1
-                        if not rejected or (rejected and rejected[0] in ignorable and
-                                            CONFIG.get_bool('IMP_IGNORE')):
+                        fatal = False
+                        reason = ''
+                        if rejected:
+                            for reject in rejected:
+                                if reject[0] not in ignorable:
+                                    if reject[0] == 'lang':
+                                        bad_lang += 1
+                                    if reject[0] == 'dupe':
+                                        duplicates += 1
+                                    if reject[0] in ['name', 'publisher', 'word']:
+                                        removed_results += 1
+                                    fatal = True
+                                    reason = reject[1]
+                                    break
+
+                            if not fatal:
+                                for reject in rejected:
+                                    if reject[0] in ignorable:
+                                        bookstatus = 'Ignored'
+                                        audiostatus = 'Ignored'
+                                        book_ignore_count += 1
+                                        reason = f"Ignored: {reject[1]}"
+                                        break
+                        elif 'author_update' in entryreason:
+                            reason += f" Author: {author_name_result}"
+                        else:
+                            reason = entryreason
+
+                        if fatal:
+                            self.logger.debug(f"Rejected {bookid} {reason}")
+                        else:
                             cmd = ("SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,"
                                    "OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?")
                             existing = db.match(cmd, (bookid,))
@@ -832,7 +842,8 @@ class GoodReads:
                                 if not originalpubdate:
                                     originalpubdate = existing['OriginalPubDate']
                             else:
-                                book_status = bookstatus  # new_book status, or new_author status
+                                # new_book status, or new_author status or ignored
+                                book_status = bookstatus
                                 audio_status = audiostatus
                                 added = today()
                                 locked = False
@@ -850,38 +861,6 @@ class GoodReads:
 
                             if originalpubdate:
                                 bookdate = originalpubdate
-
-                            if not rejected and CONFIG.get_bool('NO_FUTURE'):
-                                if bookdate > today()[:len(bookdate)]:
-                                    if not_rejectable:
-                                        self.logger.debug(
-                                            f"Not rejecting {bookname} (future pub date {bookdate}) "
-                                            f"as {not_rejectable}")
-                                    else:
-                                        rejected = 'future', f'Future publication date [{bookdate}]'
-                                        self.logger.debug(f'Rejecting {bookname}, {rejected[1]}')
-
-                            if not rejected and CONFIG.get_bool('NO_PUBDATE'):
-                                if not bookdate or bookdate == '0000':
-                                    if not_rejectable:
-                                        self.logger.debug(f"Not rejecting {bookname} (no pub date) as {not_rejectable}")
-                                    else:
-                                        rejected = 'date', 'No publication date'
-                                        self.logger.debug(f'Rejecting {bookname}, {rejected[1]}')
-
-                            if rejected:
-                                if rejected[0] in ignorable:
-                                    book_status = 'Ignored'
-                                    audio_status = 'Ignored'
-                                    book_ignore_count += 1
-                                    reason = f"Ignored: {rejected[1]}"
-                                else:
-                                    reason = f"Rejected: {rejected[1]}"
-                            else:
-                                if 'author_update' in entryreason:
-                                    reason = f'Author: {author_name_result}'
-                                else:
-                                    reason = entryreason
 
                             # Leave alone if locked
                             if locked:
@@ -960,7 +939,7 @@ class GoodReads:
                                     if pubdate and pubdate > originalpubdate:  # more detailed
                                         update_value_dict["OriginalPubDate"] = pubdate
 
-                                if not rejected:
+                                if not fatal:
                                     if existing and existing['ScanResult'] and \
                                             ' publication date' in existing['ScanResult'] and \
                                             bookdate and bookdate != '0000' and \
@@ -1073,7 +1052,7 @@ class GoodReads:
             self.logger.debug(
                 f"Found {total_count} {plural(total_count, 'result')} in {loop_count} {plural(loop_count, 'page')}")
             self.logger.debug(f"Found {locked_count} locked {plural(locked_count, 'book')}")
-            self.logger.debug(f"Removed {ignored} unwanted language {plural(ignored, 'result')}")
+            self.logger.debug(f"Removed {bad_lang} unwanted language {plural(bad_lang, 'result')}")
             self.logger.debug(f"Removed {removed_results} incorrect/incomplete {plural(removed_results, 'result')}")
             self.logger.debug(f"Removed {duplicates} duplicate {plural(duplicates, 'result')}")
             self.logger.debug(f"Ignored {book_ignore_count} {plural(book_ignore_count, 'book')}")
@@ -1092,7 +1071,7 @@ class GoodReads:
                 "LT_lang_hits": lt_lang_hits,
                 "GB_lang_change": gb_lang_change,
                 "cache_hits": cache_hits,
-                "bad_lang": ignored,
+                "bad_lang": bad_lang,
                 "bad_char": removed_results,
                 "uncached": not_cached,
                 "duplicates": duplicates

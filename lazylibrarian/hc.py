@@ -69,16 +69,11 @@ def hc_sync(library='', userid=None):
 
 def validate_bookdict(bookdict):
     logger = logging.getLogger(__name__)
-    if not bookdict.get('auth_id') or not bookdict.get('auth_name'):
-        rejected = 'name', "Authorname or ID not found"
-        logger.debug(f"Rejecting {bookdict.get('title')}, {rejected[1]}")
-        return rejected
+    rejected = []
 
-    # these are reject reasons we might want to override, so optionally add to database as "ignored"
-    ignorable = ['future', 'date', 'isbn', 'word', 'set']
-    if CONFIG.get_bool('NO_LANG'):
-        ignorable.append('lang')
-    rejected = False
+    if not bookdict.get('auth_id') or not bookdict.get('auth_name'):
+        rejected.append(['name', "Authorname or ID not found"])
+        return rejected
 
     db = database.DBConnection()
     try:
@@ -98,14 +93,15 @@ def validate_bookdict(bookdict):
                 lang = 'Unknown'
 
             if lang not in wantedlanguages:
-                rejected = 'lang', f'Invalid language [{lang}]'
+                rejected.append(['lang', f'Invalid language [{lang}]'])
 
-            if not rejected and not bookdict['title']:
-                rejected = 'name', 'No title'
-            if not rejected and bookdict['publishers']:
+            if not bookdict['title']:
+                rejected.append(['name', 'No title'])
+
+            if bookdict['publishers']:
                 for bookpub in bookdict['publishers']:
                     if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
-                        rejected = 'publisher', bookpub
+                        rejected.append(['publisher', bookpub])
                         break
 
             cmd = ("SELECT BookID,books.hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
@@ -127,7 +123,7 @@ def validate_bookdict(bookdict):
                     cmd = "SELECT BookID,hc_id FROM books WHERE BookID=?"
                     exists = db.match(cmd, (in_db[0],))
 
-            if exists and not rejected:
+            if exists:
                 # existing bookid might not still be listed at this source so won't refresh.
                 # should we keep new bookid or existing one?
                 # existing one might have been user edited, might be locked,
@@ -136,12 +132,12 @@ def validate_bookdict(bookdict):
                 # which that is, keep the old one which is already linked to other db tables
                 # but allow info (dates etc.) to be updated
                 if bookdict['bookid'] != exists['BookID']:
-                    rejected = 'dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"
+                    rejected.append(['dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"])
                     if not exists['hc_id']:
                         db.action("UPDATE books SET hc_id=? WHERE BookID=?", (bookdict['bookid'],
                                                                               exists['BookID']))
 
-            if not rejected and bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
+            if not bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
                 # try isbn lookup by name
                 title = bookdict.get('title')
                 if title:
@@ -157,62 +153,46 @@ def validate_bookdict(bookdict):
                         if len(res) in [10, 13]:
                             bookdict['isbn'] = res
 
-            if not rejected and not bookdict['isbn'] and CONFIG.get_bool('NO_ISBN'):
-                rejected = 'isbn', 'No ISBN'
+            if not bookdict['isbn'] and CONFIG.get_bool('NO_ISBN'):
+                rejected.append(['isbn', 'No ISBN'])
 
-            if not rejected:
-                dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
-                       '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
-                name = replace_all(bookdict['title'], dic).strip()
-                name = name.lower()
-                # remove extra spaces if they're in a row
-                name = " ".join(name.split())
-                namewords = name.split(' ')
-                badwords = get_list(CONFIG['REJECT_WORDS'], ',')
-                for word in badwords:
-                    if (' ' in word and word in name) or word in namewords:
-                        rejected = 'word', f'Name contains [{word}]'
-                        break
+            dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
+                   '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
+            name = replace_all(bookdict['title'], dic).strip()
+            name = name.lower()
+            # remove extra spaces if they're in a row
+            name = " ".join(name.split())
+            namewords = name.split(' ')
+            badwords = get_list(CONFIG['REJECT_WORDS'], ',')
 
-            if not rejected:
-                book_name = unaccented(bookdict['title'], only_ascii=False)
-                if CONFIG.get_bool('NO_SETS'):
-                    # allow date ranges eg 1981-95
-                    m = re.search(r'(\d+)-(\d+)', book_name)
-                    if m:
-                        if check_year(m.group(1), past=1800, future=0):
-                            logger.debug(f"Allow {book_name}, looks like a date range")
-                        else:
-                            rejected = 'set', f'Set or Part {m.group(0)}'
-                    if re.search(r'\d+ of \d+', book_name) or \
-                            re.search(r'\d+/\d+', book_name) and not re.search(r'\d+/\d+/\d+', book_name):
-                        rejected = 'set', 'Set or Part'
-                    elif re.search(r'\w+\s*/\s*\w+', book_name):
-                        rejected = 'set', 'Set or Part'
-                    if rejected:
-                        logger.debug(f'Rejected {book_name}, {rejected[1]}')
-                if rejected and rejected[0] not in ignorable:
-                    logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
-            elif rejected and not (rejected[0] in ignorable and CONFIG.get_bool('IMP_IGNORE')):
-                logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
-            else:
-                logger.debug(f"Found title: {bookdict['title']}")
-                if not rejected and CONFIG.get_bool('NO_FUTURE'):
-                    publish_date = bookdict.get('publish_date')
-                    if publish_date > today()[:len(publish_date)]:
-                        rejected = 'future', f'Future publication date [{publish_date}]'
-                        if ignorable is None:
-                            logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
-                        else:
-                            logger.debug(
-                                f"Not rejecting {bookdict['title']} (future pub date {publish_date}) as {ignorable}")
-                    if not rejected and CONFIG.get_bool('NO_PUBDATE'):
-                        if not publish_date or publish_date == '0000':
-                            rejected = 'date', 'No publication date'
-                    if ignorable is None:
-                        logger.debug(f"Rejecting {bookdict['title']}, {rejected[1]}")
+            for word in badwords:
+                if (' ' in word and word in name) or word in namewords:
+                    rejected.append(['word', f'Name contains [{word}]'])
+                    break
+
+            book_name = unaccented(bookdict['title'], only_ascii=False)
+            if CONFIG.get_bool('NO_SETS'):
+                # allow date ranges eg 1981-95
+                m = re.search(r'(\d+)-(\d+)', book_name)
+                if m:
+                    if check_year(m.group(1), past=1800, future=0):
+                        logger.debug(f"Allow {book_name}, looks like a date range")
                     else:
-                        logger.debug(f"Not rejecting {bookdict['title']} (no pub date) as {ignorable}")
+                        rejected.append(['set', f'Set or Part {m.group(0)}'])
+                if re.search(r'\d+ of \d+', book_name) or \
+                        re.search(r'\d+/\d+', book_name) and not re.search(r'\d+/\d+/\d+', book_name):
+                    rejected.append(['set', 'Set or Part'])
+                elif re.search(r'\w+\s*/\s*\w+', book_name):
+                    rejected.append(['set', 'Set or Part'])
+
+            if CONFIG.get_bool('NO_FUTURE'):
+                publish_date = bookdict.get('publish_date')
+                if publish_date > today()[:len(publish_date)]:
+                    rejected.append(['future', f'Future publication date [{publish_date}]'])
+
+                if CONFIG.get_bool('NO_PUBDATE'):
+                    if not publish_date or publish_date == '0000':
+                        rejected.append(['date', 'No publication date'])
     except Exception:
         logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
         logger.error(f"{bookdict}")
@@ -1136,7 +1116,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         entry_name = authorname
 
         # these are reject reasons we might want to override, so optionally add to database as "ignored"
-        ignorable = ['future', 'date', 'isbn', 'word', 'set']
+        ignorable = ['future', 'date', 'isbn', 'set']
         if CONFIG.get_bool('NO_LANG'):
             ignorable.append('lang')
 
@@ -1178,27 +1158,37 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 bookdict['book_status'] = bookstatus
                 bookdict['audio_status'] = audiostatus
                 rejected = validate_bookdict(bookdict)
-
+                fatal = False
+                reason = ''
                 if rejected:
-                    if rejected[0] in ignorable:
-                        bookdict['book_status'] = 'Ignored'
-                        bookdict['audio_status'] = 'Ignored'
-                        book_ignore_count += 1
-                        reason = f"Ignored: {rejected[1]}"
-                        rejected = ''
-                    elif rejected[0] == 'lang':
-                        bad_lang += 1
-                    elif rejected[0] == 'dupe':
-                        duplicates += 1
-                    elif rejected[0] in ['name', 'publisher']:
-                        removed_results += 1
+                    for reject in rejected:
+                        if reject[0] not in ignorable:
+                            if reject[0] == 'lang':
+                                bad_lang += 1
+                            if reject[0] == 'dupe':
+                                duplicates += 1
+                            if reject[0] in ['name', 'publisher', 'word']:
+                                removed_results += 1
+                            fatal = True
+                            reason = reject[1]
+                            break
+
+                    if not fatal:
+                        for reject in rejected:
+                            if reject[0] in ignorable:
+                                bookdict['book_status'] = 'Ignored'
+                                bookdict['audio_status'] = 'Ignored'
+                                book_ignore_count += 1
+                                reason = f"Ignored: {reject[1]}"
+                                break
 
                 elif 'author_update' in entryreason:
-                    reason = f"Author: {bookdict['auth_name']}"
+                    reason += f" Author: {bookdict['auth_name']}"
                 else:
                     reason = entryreason
-                if rejected:
-                    reason = rejected[1]
+
+                if fatal:
+                    self.logger.debug(f"Rejected {bookdict['bookid']} {reason}")
                 else:
                     update_value_dict = {}
                     exists = db.match("SELECT * from books WHERE BookID=?", (bookdict['bookid'],))
@@ -1382,7 +1372,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                                 db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
                                                           (', '.join(akas), auth_id))
                                         match = db.match(
-                                            f"SELECT * from seriesauthors WHERE SeriesID=? and AuthorID=?", (ser_id, auth_id))
+                                            f"SELECT * from seriesauthors WHERE SeriesID=? and AuthorID=?",
+                                            (ser_id, auth_id))
                                         if not match:
                                             self.logger.debug(f"Adding {auth_name} as series author for {ser_name}")
                                             new_authors += 1
