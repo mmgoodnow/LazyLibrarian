@@ -206,8 +206,8 @@ def search_wishlist():
                         for result in results:
                             if result['isbn_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                                 logger.info(
-                                    f"Found {result['bookid']} ({result['isbn_fuzz']}%) {result['authorname']}: "
-                                    f"{result['bookname']}")
+                                    f"Found {result['bookid']} ({round(result['isbn_fuzz'], 2)}%) "
+                                    f"{result['authorname']}: {result['bookname']}")
                                 if result['authorname'] != authorname:
                                     logger.debug(f"isbn authorname mismatch {result['authorname']}:{authorname}")
                                     authorname = result['authorname']
@@ -232,7 +232,8 @@ def search_wishlist():
                             if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
                                     and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                                 logger.info(
-                                    f"Found {result['bookid']} ({result['author_fuzz']}% {result['book_fuzz']}%) "
+                                    f"Found {result['bookid']} ({round(result['author_fuzz'], 2)}% "
+                                    f"{round(result['book_fuzz'], 2)}%) "
                                     f"{result['authorname']}: {result['bookname']}")
                                 bookmatch = result
                                 break
@@ -248,7 +249,8 @@ def search_wishlist():
                                 if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
                                         and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                                     logger.info(
-                                        f"Found {result['bookid']} ({result['author_fuzz']}% {result['book_fuzz']}%) "
+                                        f"Found {result['bookid']} ({round(result['author_fuzz'], 2)}% "
+                                        f"{round(result['book_fuzz'], 2)}%) "
                                         f"{result['authorname']}: {result['bookname']}")
                                     bookmatch = result
                                     break
@@ -273,7 +275,8 @@ def search_wishlist():
                             msg += ', No match found'
                             logger.warning(msg)
                             logger.warning(
-                                f"Closest match ({results[0]['author_fuzz']}% {results[0]['book_fuzz']}%) "
+                                f"Closest match ({round(results[0]['author_fuzz'], 2)}% "
+                                f"{round(results[0]['book_fuzz'], 2)}%) "
                                 f"{results[0]['authorname']}: {results[0]['bookname']}")
             if new_books or new_audio:
                 tot = len(new_books) + len(new_audio)
