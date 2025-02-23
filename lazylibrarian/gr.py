@@ -442,7 +442,7 @@ class GoodReads:
             isbn_time = 0
             auth_start = time.time()
             # these are reject reasons we might want to override, so optionally add to database as "ignored"
-            ignorable = ['future', 'date', 'isbn', 'set']
+            ignorable = ['future', 'date', 'isbn', 'set', 'word', 'publisher']
             if CONFIG.get_bool('NO_LANG'):
                 ignorable.append('lang')
 
@@ -798,11 +798,14 @@ class GoodReads:
                                         bad_lang += 1
                                     if reject[0] == 'dupe':
                                         duplicates += 1
-                                    if reject[0] in ['name', 'publisher', 'word']:
+                                    if reject[0] == 'name':
                                         removed_results += 1
                                     fatal = True
                                     reason = reject[1]
                                     break
+
+                            if not CONFIG['IMP_IGNORE']:
+                                fatal = True
 
                             if not fatal:
                                 for reject in rejected:
@@ -957,9 +960,11 @@ class GoodReads:
                                             f"entry status {entrystatus} {bookstatus},{audiostatus}")
                                         book_status, audio_status = get_status(bookid, serieslist, bookstatus,
                                                                                audiostatus, entrystatus)
-                                        self.loggersearching.debug(f"status is now {book_status},{audio_status}")
+                                    if book_status not in ['Ignored', 'Wanted', 'Open', 'Have']:
                                         update_value_dict["Status"] = book_status
+                                    if audio_status not in ['Ignored', 'Wanted', 'Open', 'Have']:
                                         update_value_dict["AudioStatus"] = audio_status
+                                    self.loggersearching.debug(f"status is now {book_status},{audio_status}")
 
                                     if 'nocover' in bookimg or 'nophoto' in bookimg:
                                         # try to get a cover from another source

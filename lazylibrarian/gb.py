@@ -260,6 +260,7 @@ class GoogleBooks:
             removed_results = 0
             duplicates = 0
             ignored = 0
+            bad_lang = 0
             added_count = 0
             updated_count = 0
             locked_count = 0
@@ -338,12 +339,10 @@ class GoogleBooks:
 
                             if not booklang:
                                 booklang = 'Unknown'
-                            if booklang not in valid_langs:
-                                self.logger.debug(f"Skipped [{book['name']}] with language {booklang}")
-                                ignored += 1
-                                continue
+                            if booklang not in valid_langs and 'All' not in valid_langs:
+                                bad_lang += 1
 
-                        ignorable = ['future', 'date', 'isbn']
+                        ignorable = ['future', 'date', 'isbn', 'set', 'word', 'publisher']
                         if CONFIG.get_bool('NO_LANG'):
                             ignorable.append('lang')
                         rejected = []
@@ -429,13 +428,18 @@ class GoogleBooks:
                         if rejected:
                             for reject in rejected:
                                 if reject[0] not in ignorable:
+                                    if reject[0] == 'lang':
+                                        bad_lang += 1
                                     if reject[0] == 'dupe':
                                         duplicates += 1
-                                    if reject[0] in ['name', 'publisher', 'word']:
+                                    if reject[0] == 'name':
                                         removed_results += 1
                                     fatal = True
                                     reason = reject[1]
                                     break
+
+                            if not CONFIG['IMP_IGNORE']:
+                                fatal = True
 
                             if not fatal:
                                 for reject in rejected:

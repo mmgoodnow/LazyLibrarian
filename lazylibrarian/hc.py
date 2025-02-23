@@ -1116,7 +1116,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         entry_name = authorname
 
         # these are reject reasons we might want to override, so optionally add to database as "ignored"
-        ignorable = ['future', 'date', 'isbn', 'set']
+        ignorable = ['future', 'date', 'isbn', 'set', 'word', 'publisher']
         if CONFIG.get_bool('NO_LANG'):
             ignorable.append('lang')
 
@@ -1167,11 +1167,14 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                 bad_lang += 1
                             if reject[0] == 'dupe':
                                 duplicates += 1
-                            if reject[0] in ['name', 'publisher', 'word']:
+                            if reject[0] == 'name':
                                 removed_results += 1
                             fatal = True
                             reason = reject[1]
                             break
+
+                    if not CONFIG['IMP_IGNORE']:
+                        fatal = True
 
                     if not fatal:
                         for reject in rejected:
@@ -1263,9 +1266,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
                             self.searchinglogger.debug(f"entry status {entrystatus} {bookstatus},{audiostatus}")
                             book_status, audio_status = get_status(bookdict['bookid'], serieslist, bookstatus,
                                                                    audiostatus, entrystatus)
+                            if bookdict['book_status'] not in ['Ignored', 'Wanted', 'Open', 'Have']:
+                                update_value_dict["Status"] = book_status
+                            if bookdict['audio_status'] not in ['Ignored', 'Wanted', 'Open', 'Have']:
+                                update_value_dict["AudioStatus"] = audio_status
                             self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
-                            update_value_dict["Status"] = book_status
-                            update_value_dict["AudioStatus"] = audio_status
 
                     if update_value_dict:
                         control_value_dict = {"BookID": bookdict['bookid']}
