@@ -259,7 +259,6 @@ class GoogleBooks:
             startindex = 0
             removed_results = 0
             duplicates = 0
-            ignored = 0
             bad_lang = 0
             added_count = 0
             updated_count = 0
@@ -337,11 +336,6 @@ class GoogleBooks:
                                     else:  # No match anywhere, accept google language
                                         booklang = googlelang
 
-                            if not booklang:
-                                booklang = 'Unknown'
-                            if booklang not in valid_langs and 'All' not in valid_langs:
-                                bad_lang += 1
-
                         ignorable = ['future', 'date', 'isbn', 'set', 'word', 'publisher']
                         if CONFIG.get_bool('NO_LANG'):
                             ignorable.append('lang')
@@ -354,6 +348,12 @@ class GoogleBooks:
                             rejected.append(['name', 'No bookname'])
                         else:
                             bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
+
+                        if not booklang:
+                            booklang = 'Unknown'
+                        if booklang not in valid_langs and 'All' not in valid_langs:
+                            rejected.append(['lang', f'Invalid language [{booklang}]'])
+                            bad_lang += 1
 
                         if CONFIG.get_bool('NO_FUTURE'):
                             # googlebooks sometimes gives yyyy, sometimes yyyy-mm, sometimes yyyy-mm-dd
@@ -425,8 +425,6 @@ class GoogleBooks:
 
                         fatal = False
                         reason = ''
-                        ignore_book = False
-                        ignore_audio = False
                         if rejected:
                             for reject in rejected:
                                 if reject[0] not in ignorable:
@@ -446,8 +444,6 @@ class GoogleBooks:
                             if not fatal:
                                 for reject in rejected:
                                     if reject[0] in ignorable:
-                                        ignore_book = True
-                                        ignore_audio = True
                                         book_ignore_count += 1
                                         reason = f"Ignored: {reject[1]}"
                                         break
@@ -487,15 +483,35 @@ class GoogleBooks:
                                 added = today()
                                 locked = False
 
+                            fatal = False
+                            reason = ''
+                            ignore_book = False
+                            ignore_audio = False
                             if rejected:
-                                if rejected[0] in ignorable:
-                                    book_status = 'Ignored'
-                                    audio_status = 'Ignored'
-                                    book_ignore_count += 1
-                                    reason = f"Ignored: {rejected[1]}"
-                                else:
-                                    reason = f"Rejected: {rejected[1]}"
-                            else:
+                                for reject in rejected:
+                                    if reject[0] not in ignorable:
+                                        if reject[0] == 'lang':
+                                            bad_lang += 1
+                                        if reject[0] == 'dupe':
+                                            duplicates += 1
+                                        if reject[0] == 'name':
+                                            removed_results += 1
+                                        fatal = True
+                                        reason = f"Ignored: {reject[1]}"
+                                        break
+
+                                if not CONFIG['IMP_IGNORE']:
+                                    fatal = True
+
+                            if not fatal:
+                                for reject in rejected:
+                                    if reject[0] in ignorable:
+                                        ignore_book = True
+                                        ignore_audio = True
+                                        book_ignore_count += 1
+                                        reason = f"Ignored: {reject[1]}"
+                                        break
+                            if not reason:
                                 if 'author_update' in entryreason:
                                     reason = f'Author: {authorname}'
                                 else:
@@ -504,6 +520,10 @@ class GoogleBooks:
                             if locked:
                                 locked_count += 1
                             else:
+                                if ignore_book:
+                                    book_status = 'Ignored'
+                                if ignore_audio:
+                                    audio_status = 'Ignored'
                                 reason = f"[{thread_name()}] {reason}"
                                 control_value_dict = {"BookID": bookid}
                                 new_value_dict = {
@@ -624,7 +644,7 @@ class GoogleBooks:
             resultcount = added_count + updated_count
             self.logger.debug(f"Found {total_count} total {plural(total_count, 'book')} for author")
             self.logger.debug(f"Found {locked_count} locked {plural(locked_count, 'book')}")
-            self.logger.debug(f"Removed {ignored} unwanted language {plural(ignored, 'result')}")
+            self.logger.debug(f"Removed {bad_lang} unwanted language {plural(bad_lang, 'result')}")
             self.logger.debug(f"Removed {removed_results} incorrect/incomplete {plural(removed_results, 'result')}")
             self.logger.debug(f"Removed {duplicates} duplicate {plural(duplicates, 'result')}")
             self.logger.debug(f"Ignored {book_ignore_count} {plural(book_ignore_count, 'book')}")
@@ -632,7 +652,7 @@ class GoogleBooks:
 
             db.action('insert into stats values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                       (authorname, api_hits, gr_lang_hits, lt_lang_hits, gb_lang_change,
-                       cache_hits, ignored, removed_results, not_cached, duplicates))
+                       cache_hits, bad_lang, removed_results, not_cached, duplicates))
 
             if refresh:
                 self.logger.info(
