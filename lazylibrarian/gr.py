@@ -477,7 +477,6 @@ class GoodReads:
                         bookgenre = ''
 
                         bookdict = self.get_bookdict(book)
-
                         shortname = bookdict['shortname']
                         bookname = bookdict['name']
                         bookid = bookdict['id']
@@ -638,7 +637,7 @@ class GoodReads:
                                 rejected.append(['lang', f'Invalid language [{book_language}]'])
 
                         if CONFIG.get_bool('NO_FUTURE'):
-                            if bookdate > today()[:len(bookdate)]:
+                            if bookdate and bookdate > today()[:len(bookdate)]:
                                 rejected.append(['future', f'Future publication date [{bookdate}]'])
 
                         if CONFIG.get_bool('NO_PUBDATE'):
@@ -791,6 +790,8 @@ class GoodReads:
 
                         fatal = False
                         reason = ''
+                        ignore_book = False
+                        ignore_audio = False
                         if rejected:
                             for reject in rejected:
                                 if reject[0] not in ignorable:
@@ -810,8 +811,8 @@ class GoodReads:
                             if not fatal:
                                 for reject in rejected:
                                     if reject[0] in ignorable:
-                                        bookstatus = 'Ignored'
-                                        audiostatus = 'Ignored'
+                                        ignore_book = True
+                                        ignore_audio = True
                                         book_ignore_count += 1
                                         reason = f"Ignored: {reject[1]}"
                                         break
@@ -846,8 +847,8 @@ class GoodReads:
                                     originalpubdate = existing['OriginalPubDate']
                             else:
                                 # new_book status, or new_author status or ignored
-                                book_status = bookstatus
-                                audio_status = audiostatus
+                                book_status = 'Ignored' if ignore_book else bookstatus
+                                audio_status = 'Ignored' if ignore_audio else audiostatus
                                 added = today()
                                 locked = False
 
@@ -952,19 +953,18 @@ class GoodReads:
                                             f"valid bookdate [{bookdate}] previous scanresult "
                                             f"[{existing['ScanResult']}]")
                                         update_value_dict["ScanResult"] = f"bookdate {bookdate} is now valid"
-                                    elif not existing:
-                                        update_value_dict["ScanResult"] = reason
-
-                                    if "ScanResult" in update_value_dict:
                                         self.loggersearching.debug(
                                             f"entry status {entrystatus} {bookstatus},{audiostatus}")
-                                        book_status, audio_status = get_status(bookid, serieslist, bookstatus,
-                                                                               audiostatus, entrystatus)
-                                    if book_status not in ['Ignored', 'Wanted', 'Open', 'Have']:
-                                        update_value_dict["Status"] = book_status
-                                    if audio_status not in ['Ignored', 'Wanted', 'Open', 'Have']:
-                                        update_value_dict["AudioStatus"] = audio_status
-                                    self.loggersearching.debug(f"status is now {book_status},{audio_status}")
+                                        book_stat, audio_stat = get_status(bookid, serieslist, bookstatus,
+                                                                           audiostatus, entrystatus)
+                                        if existing['Status'] not in ['Wanted', 'Open', 'Have'] and not ignore_book:
+                                            update_value_dict["Status"] = book_stat
+                                        if (existing['AudioStatus'] not in ['Wanted', 'Open', 'Have'] and not
+                                                ignore_audio):
+                                            update_value_dict["AudioStatus"] = audio_stat
+                                        self.loggersearching.debug(f"status is now {book_status},{audio_status}")
+                                    elif not existing:
+                                        update_value_dict["ScanResult"] = reason
 
                                     if 'nocover' in bookimg or 'nophoto' in bookimg:
                                         # try to get a cover from another source

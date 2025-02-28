@@ -425,6 +425,8 @@ class GoogleBooks:
 
                         fatal = False
                         reason = ''
+                        ignore_book = False
+                        ignore_audio = False
                         if rejected:
                             for reject in rejected:
                                 if reject[0] not in ignorable:
@@ -444,6 +446,8 @@ class GoogleBooks:
                             if not fatal:
                                 for reject in rejected:
                                     if reject[0] in ignorable:
+                                        ignore_book = True
+                                        ignore_audio = True
                                         book_ignore_count += 1
                                         reason = f"Ignored: {reject[1]}"
                                         break
@@ -548,22 +552,22 @@ class GoogleBooks:
 
                                 update_value_dict = {}
                                 control_value_dict = {"BookID": bookid}
-                                if not existing or (existing['ScanResult'] and
-                                                    ' publication date' in existing['ScanResult'] and
-                                                    book['date'] and book['date'] != '0000' and
-                                                    book['date'] <= today()[:len(book['date'])]):
+                                if existing and (existing['ScanResult'] and
+                                                 'publication date' in existing['ScanResult'] and
+                                                 book['date'] and book['date'] != '0000' and
+                                                 book['date'] <= today()[:len(book['date'])]):
                                     # was rejected on previous scan but bookdate is now valid
-                                    book_status, audio_status = get_status(bookid, serieslist, bookstatus, audiostatus,
-                                                                           entrystatus)
-                                    update_value_dict["Status"] = book_status
-                                    update_value_dict["AudioStatus"] = audio_status
+                                    book_stat, audio_stat = get_status(bookid, serieslist, bookstatus, audiostatus,
+                                                                       entrystatus)
 
-                                    if existing:
-                                        # was rejected on previous scan but bookdate has become valid
-                                        self.logger.debug(
-                                            f"valid bookdate [{book['date']}] previous scanresult "
-                                            f"[{existing['ScanResult']}]")
-                                        update_value_dict["ScanResult"] = f"bookdate {book['date']} is now valid"
+                                    if existing['Status'] not in ['Wanted', 'Open', 'Have'] and not ignore_book:
+                                        update_value_dict["Status"] = book_stat
+                                    if existing['AudioStatus'] not in ['Wanted', 'Open', 'Have'] and not ignore_audio:
+                                        update_value_dict["AudioStatus"] = audio_stat
+                                    self.logger.debug(
+                                        f"valid bookdate [{book['date']}] previous scanresult "
+                                        f"[{existing['ScanResult']}]")
+                                    update_value_dict["ScanResult"] = f"bookdate {book['date']} is now valid"
 
                                 worklink = get_work_page(bookid)
                                 if worklink:

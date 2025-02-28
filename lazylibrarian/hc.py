@@ -95,104 +95,106 @@ def validate_bookdict(bookdict):
             if lang not in wantedlanguages:
                 rejected.append(['lang', f'Invalid language [{lang}]'])
 
-            if not bookdict['title']:
-                rejected.append(['name', 'No title'])
+        if not bookdict['title']:
+            rejected.append(['name', 'No title'])
 
-            if bookdict['publishers']:
-                for bookpub in bookdict['publishers']:
-                    if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
-                        rejected.append(['publisher', bookpub])
-                        break
-
-            cmd = ("SELECT BookID,books.hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
-                   "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
-                   "and AudioStatus != 'Ignored'")
-            exists = db.match(cmd, (bookdict['title'], bookdict['auth_name']))
-            if not exists:
-                in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
-                                                                  source='hc_id', ignored=False, library='eBook',
-                                                                  reason=f"hc_get_author_books {bookdict['auth_id']},"
-                                                                         f"{bookdict['title']}")
-                if not in_db:
-                    in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
-                                                                      source='bookid', ignored=False, library='eBook',
-                                                                      reason=f"hc_get_author_books "
-                                                                             f"{bookdict['auth_id']},"
-                                                                             f"{bookdict['title']}")
-                if in_db and in_db[0]:
-                    cmd = "SELECT BookID,hc_id FROM books WHERE BookID=?"
-                    exists = db.match(cmd, (in_db[0],))
-
-            if exists:
-                # existing bookid might not still be listed at this source so won't refresh.
-                # should we keep new bookid or existing one?
-                # existing one might have been user edited, might be locked,
-                # might have been merged from another authorid or inherited from goodreads?
-                # Should probably use the one with the "best" info but since we don't know
-                # which that is, keep the old one which is already linked to other db tables
-                # but allow info (dates etc.) to be updated
-                if bookdict['bookid'] != exists['BookID']:
-                    rejected.append(['dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"])
-                    if not exists['hc_id']:
-                        db.action("UPDATE books SET hc_id=? WHERE BookID=?", (bookdict['bookid'],
-                                                                              exists['BookID']))
-
-            if not bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
-                # try isbn lookup by name
-                title = bookdict.get('title')
-                if title:
-                    try:
-                        res = isbn_from_words(
-                            f"{unaccented(title, only_ascii=False)} "
-                            f"{unaccented(bookdict['auth_name'], only_ascii=False)}")
-                    except Exception as e:
-                        res = None
-                        logger.warning(f"Error from isbn: {e}")
-                    if res:
-                        logger.debug(f"isbn found {res} for {bookdict['bookid']}")
-                        if len(res) in [10, 13]:
-                            bookdict['isbn'] = res
-
-            if not bookdict['isbn'] and CONFIG.get_bool('NO_ISBN'):
-                rejected.append(['isbn', 'No ISBN'])
-
-            dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
-                   '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
-            name = replace_all(bookdict['title'], dic).strip()
-            name = name.lower()
-            # remove extra spaces if they're in a row
-            name = " ".join(name.split())
-            namewords = name.split(' ')
-            badwords = get_list(CONFIG['REJECT_WORDS'], ',')
-
-            for word in badwords:
-                if (' ' in word and word in name) or word in namewords:
-                    rejected.append(['word', f'Name contains [{word}]'])
+        if bookdict['publishers']:
+            for bookpub in bookdict['publishers']:
+                if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
+                    rejected.append(['publisher', bookpub])
                     break
 
-            book_name = unaccented(bookdict['title'], only_ascii=False)
-            if CONFIG.get_bool('NO_SETS'):
-                # allow date ranges eg 1981-95
-                m = re.search(r'(\d+)-(\d+)', book_name)
-                if m:
-                    if check_year(m.group(1), past=1800, future=0):
-                        logger.debug(f"Allow {book_name}, looks like a date range")
-                    else:
-                        rejected.append(['set', f'Set or Part {m.group(0)}'])
-                if re.search(r'\d+ of \d+', book_name) or \
-                        re.search(r'\d+/\d+', book_name) and not re.search(r'\d+/\d+/\d+', book_name):
-                    rejected.append(['set', 'Set or Part'])
-                elif re.search(r'\w+\s*/\s*\w+', book_name):
-                    rejected.append(['set', 'Set or Part'])
+        cmd = ("SELECT BookID,books.hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+               "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
+               "and AudioStatus != 'Ignored'")
+        exists = db.match(cmd, (bookdict['title'], bookdict['auth_name']))
+        if not exists:
+            in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
+                                                              source='hc_id', ignored=False, library='eBook',
+                                                              reason=f"hc_get_author_books {bookdict['auth_id']},"
+                                                                     f"{bookdict['title']}")
+            if not in_db:
+                in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
+                                                                  source='bookid', ignored=False, library='eBook',
+                                                                  reason=f"hc_get_author_books "
+                                                                         f"{bookdict['auth_id']},"
+                                                                         f"{bookdict['title']}")
+            if in_db and in_db[0]:
+                cmd = "SELECT BookID,hc_id FROM books WHERE BookID=?"
+                exists = db.match(cmd, (in_db[0],))
 
-            if CONFIG.get_bool('NO_FUTURE'):
-                publish_date = bookdict.get('publish_date')
-                if publish_date > today()[:len(publish_date)]:
-                    rejected.append(['future', f'Future publication date [{publish_date}]'])
+        if exists:
+            # existing bookid might not still be listed at this source so won't refresh.
+            # should we keep new bookid or existing one?
+            # existing one might have been user edited, might be locked,
+            # might have been merged from another authorid or inherited from goodreads?
+            # Should probably use the one with the "best" info but since we don't know
+            # which that is, keep the old one which is already linked to other db tables
+            # but allow info (dates etc.) to be updated
+            if bookdict['bookid'] != exists['BookID']:
+                rejected.append(['dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"])
+                if not exists['hc_id']:
+                    db.action("UPDATE books SET hc_id=? WHERE BookID=?", (bookdict['bookid'],
+                                                                          exists['BookID']))
 
-                if CONFIG.get_bool('NO_PUBDATE'):
-                    if not publish_date or publish_date == '0000':
-                        rejected.append(['date', 'No publication date'])
+        if not bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
+            # try isbn lookup by name
+            title = bookdict.get('title')
+            if title:
+                try:
+                    res = isbn_from_words(
+                        f"{unaccented(title, only_ascii=False)} "
+                        f"{unaccented(bookdict['auth_name'], only_ascii=False)}")
+                except Exception as e:
+                    res = None
+                    logger.warning(f"Error from isbn: {e}")
+                if res:
+                    logger.debug(f"isbn found {res} for {bookdict['bookid']}")
+                    if len(res) in [10, 13]:
+                        bookdict['isbn'] = res
+
+        if not bookdict['isbn'] and CONFIG.get_bool('NO_ISBN'):
+            rejected.append(['isbn', 'No ISBN'])
+
+        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
+               '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
+        name = replace_all(bookdict['title'], dic).strip()
+        name = name.lower()
+        # remove extra spaces if they're in a row
+        name = " ".join(name.split())
+        namewords = name.split(' ')
+        badwords = get_list(CONFIG['REJECT_WORDS'], ',')
+
+        for word in badwords:
+            if (' ' in word and word in name) or word in namewords:
+                rejected.append(['word', f'Name contains [{word}]'])
+                break
+
+        book_name = unaccented(bookdict['title'], only_ascii=False)
+        if CONFIG.get_bool('NO_SETS'):
+            # allow date ranges eg 1981-95
+            m = re.search(r'(\d+)-(\d+)', book_name)
+            if m:
+                if check_year(m.group(1), past=1800, future=0):
+                    logger.debug(f"Allow {book_name}, looks like a date range")
+                else:
+                    rejected.append(['set', f'Set or Part {m.group(0)}'])
+            if re.search(r'\d+ of \d+', book_name) or \
+                    re.search(r'\d+/\d+', book_name) and not re.search(r'\d+/\d+/\d+', book_name):
+                rejected.append(['set', 'Set or Part'])
+            elif re.search(r'\w+\s*/\s*\w+', book_name):
+                rejected.append(['set', 'Set or Part'])
+
+        if CONFIG.get_bool('NO_FUTURE'):
+            publish_date = bookdict.get('publish_date', '')
+            if not publish_date:
+                publish_date = ''
+            if publish_date > today()[:len(publish_date)]:
+                rejected.append(['future', f'Future publication date [{publish_date}]'])
+
+            if CONFIG.get_bool('NO_PUBDATE'):
+                if not publish_date or publish_date == '0000':
+                    rejected.append(['date', 'No publication date'])
     except Exception:
         logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
         logger.error(f"{bookdict}")
@@ -241,7 +243,7 @@ query FindBook { books([order] where: [where])
     release_date
     release_year
     cached_tags
-    contributions(order_by: {author: {}, contribution: desc}) {
+    contributions(order_by: {author: {contributions_aggregate: {count: desc_nulls_last}}}) {
       author {
         name
         id
@@ -600,7 +602,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 #    if edition['contributions']:
                 #        authorname = edition['contributions'][0]['author']['name']
                 #        authorlink = edition['contributions'][0]['author']['id']
-
                 authorname = entry['book']['contributions'][0]['author']['name']
                 authorlink = entry['book']['contributions'][0]['author']['id']
                 edition = entry['book']['default_physical_edition']
@@ -987,7 +988,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict['bookdesc'] = book_data.get('description', '')
         bookdict['bookid'] = str(book_data.get('id', ''))
         bookdict['publish_date'] = book_data.get('release_date', '')
-        if bookdict['publish_date']:
+        if not bookdict['publish_date']:
+            bookdict['publish_date'] = ''
+        else:
             bookdict['publish_date'] = date_format(bookdict['publish_date'],
                                                    context=f"{bookdict['auth_name']}/{bookdict['title']}")
         bookdict['first_publish_year'] = book_data.get('release_year', '')
@@ -1066,7 +1069,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict['bookdesc'] = book_data.get('description', '')
         bookdict['bookid'] = str(book_data.get('id', ''))
         bookdict['publish_date'] = book_data.get('release_date', '')
-        if bookdict['publish_date']:
+        if not bookdict['publish_date']:
+            bookdict['publish_date'] = ''
+        else:
             bookdict['publish_date'] = date_format(bookdict['publish_date'],
                                                    context=f"{bookdict['auth_name']}/{bookdict['title']}")
         bookdict['first_publish_year'] = book_data.get('release_year', '')
@@ -1160,6 +1165,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 rejected = validate_bookdict(bookdict)
                 fatal = False
                 reason = ''
+                ignore_book = False
+                ignore_audio = False
                 if rejected:
                     for reject in rejected:
                         if reject[0] not in ignorable:
@@ -1179,8 +1186,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     if not fatal:
                         for reject in rejected:
                             if reject[0] in ignorable:
-                                bookdict['book_status'] = 'Ignored'
-                                bookdict['audio_status'] = 'Ignored'
+                                ignore_book = True
+                                ignore_audio = True
                                 book_ignore_count += 1
                                 reason = f"Ignored: {reject[1]}"
                                 break
@@ -1237,6 +1244,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         if not cover_link:  # no results on search or failed to cache it
                             cover_link = 'images/nocover.png'
 
+                        if ignore_book:
+                            bookdict['book_status'] = 'Ignored'
+                        if ignore_audio:
+                            bookdict['audio_status'] = 'Ignored'
+
                         db.action(
                             f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, BookDate, "
                             f"BookLang, BookAdded, Status, WorkPage, AudioStatus, ScanResult, OriginalPubDate, "
@@ -1259,18 +1271,16 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                 f"[{exists['ScanResult']}]")
 
                             update_value_dict["ScanResult"] = f"bookdate {bookdict['publish_date']} is now valid"
-                        elif not exists:
-                            update_value_dict["ScanResult"] = reason
-
-                        if "ScanResult" in update_value_dict:
                             self.searchinglogger.debug(f"entry status {entrystatus} {bookstatus},{audiostatus}")
                             book_status, audio_status = get_status(bookdict['bookid'], serieslist, bookstatus,
                                                                    audiostatus, entrystatus)
-                            if bookdict['book_status'] not in ['Ignored', 'Wanted', 'Open', 'Have']:
+                            if bookdict['book_status'] not in ['Wanted', 'Open', 'Have'] and not ignore_book:
                                 update_value_dict["Status"] = book_status
-                            if bookdict['audio_status'] not in ['Ignored', 'Wanted', 'Open', 'Have']:
+                            if bookdict['audio_status'] not in ['Wanted', 'Open', 'Have'] and not ignore_audio:
                                 update_value_dict["AudioStatus"] = audio_status
                             self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
+                        elif not exists:
+                            update_value_dict["ScanResult"] = reason
 
                     if update_value_dict:
                         control_value_dict = {"BookID": bookdict['bookid']}
