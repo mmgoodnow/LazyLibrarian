@@ -1306,6 +1306,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                             if not exists:
                                 exists = db.match("SELECT * from series WHERE seriesname=? "
                                                   "and instr(seriesid, 'HC') = 1", (ser_name,))
+                                if exists:
+                                    ser_id = exists['SeriesID']
                             if not exists:
                                 self.logger.debug(f"New series: {ser_id}:{ser_name}: {CONFIG['NEWSERIES_STATUS']}")
                                 db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
