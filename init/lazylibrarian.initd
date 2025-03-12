@@ -69,7 +69,7 @@ load_settings() {
             return 1; }
         [ -z "${RUN_AS%:*}" ] && exit 1
 
-        DAEMON_OPTS="LazyLibrarian.py --nolaunch --daemon "
+        DAEMON_OPTS="LazyLibrarian.py --nolaunch --daemon"
         [ -n "$CONFIG" ] && DAEMON_OPTS="$DAEMON_OPTS --config=$CONFIG"
         [ -z "$CONFIG" ] && DAEMON_OPTS="$DAEMON_OPTS --config=/home/$RUN_AS/.lazylibrarian/config.ini"
         [ -n "$DATADIR" ] && DAEMON_OPTS="$DAEMON_OPTS --datadir=$DATADIR"
@@ -121,7 +121,7 @@ start_lazylibrarian () {
 stop_lazylibrarian () {
     if is_running; then
         log_daemon_msg "Stopping $DESC"
-        start-stop-daemon -o --stop --pidfile $PID_FILE --retry 15
+        start-stop-daemon -o --stop --user $RUN_AS --pidfile $PID_FILE --retry 15
         check_retval
     else
         log_success_msg "$DESC: not running"
