@@ -165,7 +165,7 @@ def magazine_scan(title=None):
                         if issuedate:
                             exploded = replace_all(issuedate, dic).split()
                             issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
-                                                                                                 datetype=datetype)
+                                                                                                    datetype=datetype)
                             loggermatching.debug(f"Date style [{issuenum_type}][{issuedate}][{year}]")
                             if issuenum_type:
                                 if issuedate.isdigit() and 'I' in datetype:
@@ -178,7 +178,7 @@ def magazine_scan(title=None):
                         if not issuedate:
                             exploded = replace_all(fname, dic).split()
                             issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
-                                                                                                 datetype=datetype)
+                                                                                                    datetype=datetype)
                             loggermatching.debug(f"Filename date style [{issuenum_type}][{issuedate}][{year}]")
                             if issuenum_type:
                                 if issuedate.isdigit() and 'I' in datetype:
@@ -262,7 +262,11 @@ def magazine_scan(title=None):
                                 if not path_isdir(new_path):
                                     make_dirs(new_path)
                                 logger.debug(f"Rename {repr(issuefile)} -> {repr(newissuefile)}")
-                                newissuefile = safe_move(issuefile, newissuefile)
+                                try:
+                                    newissuefile = safe_move(issuefile, newissuefile)
+                                except Exception as e:
+                                    logger.error(str(e))
+
                                 for e in ['.jpg', '.opf']:
                                     if path_exists(issuefile.replace(extn, e)):
                                         safe_move(issuefile.replace(extn, e), newissuefile.replace(extn, e))
