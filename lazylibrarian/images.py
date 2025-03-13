@@ -157,7 +157,11 @@ def coverswap(sourcefile, coverpage=2):
         # so work on a local copy, then move it over.
         original = sourcefile
         logger.debug(f"Copying {original}")
-        srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, os.path.basename(sourcefile)))
+        try:
+            srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, os.path.basename(sourcefile)))
+        except Exception as e:
+            logger.warning(f"Failed to copy source file: {str(e)}")
+            return False
         writer = PdfWriter()
         with open(srcfile, "rb") as f:
             reader = PdfReader(f)
@@ -354,7 +358,10 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                         coverfile = os.path.join(cachedir, "book", bookid + extn)
                         coverlink = f"cache/book/{bookid}{extn}"
                         logger.debug(f"Caching {extn} for {bookid}")
-                        _ = safe_copy(coverimg, coverfile)
+                        try:
+                            _ = safe_copy(coverimg, coverfile)
+                        except Exception as e:
+                            logger.warning(f"Failed to copy cover file: {str(e)}")
                         return coverlink, src
                     else:
                         logger.debug(f"No cover found for {bookid} in {bookdir}")
@@ -546,10 +553,11 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                 res, src = crawl_image('bing', src, cachedir, bookid, safeparams, imgid=imgid)
                 if res:
                     return res, src
-            if not src or src == 'flikr' and 'flikr' not in ignore:
-                res, src = crawl_image('flickr', src, cachedir, bookid, safeparams, imgid=imgid)
-                if res:
-                    return res, src
+            # flikr now needs an api key
+            # if not src or src == 'flikr' and 'flikr' not in ignore:
+            #     res, src = crawl_image('flickr', src, cachedir, bookid, safeparams, imgid=imgid)
+            #     if res:
+            #         return res, src
             if not src or src == 'googleimage' and 'googleapis' not in ignore:
                 res, src = crawl_image('google', src, cachedir, bookid, safeparams, imgid=imgid)
                 if res:
