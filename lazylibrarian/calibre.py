@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -233,15 +233,16 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                 last_toread = get_list(res['SyncList'])
 
             for item in calibrelist:
+                itemid = str(item['id'])
                 if toreadcol and toreadcol in item and item[toreadcol]:  # only if True
-                    if str(item['id']) in map_ctol:
-                        calibre_toread.append(map_ctol[str(item['id'])])
+                    if itemid in map_ctol:
+                        calibre_toread.append(map_ctol[itemid])
                     else:
                         logger.warning(
                             f"Calibre to_read book {item['authors']}:{item['title']} has no lazylibrarian bookid")
                 if readcol and readcol in item and item[readcol]:  # only if True
-                    if str(item['id']) in map_ctol:
-                        calibre_read.append(map_ctol[str(item['id'])])
+                    if itemid in map_ctol:
+                        calibre_read.append(map_ctol[itemid])
                     else:
                         logger.warning(
                             f"Calibre read book {item['authors']}:{item['title']} has no lazylibrarian bookid")
@@ -479,10 +480,27 @@ def calibredb(cmd=None, prelib=None, postlib=None):
         return res, dest_url, 0
 
 
-def get_calibre_id(data):
+def delete_from_calibre(calibre_id):
+    logger = logging.getLogger(__name__)
+    if calibre_id:
+        res, err, rc = calibredb('remove', [calibre_id])
+        logger.debug(f"Delete result: {res} [{err}] {rc}")
+        return rc == 0
+    else:
+        logger.debug("Missing calibre ID")
+        return False
+
+
+def get_calibre_id(data, try_filename=True):
     """ Get the Calibre ID for 'data', which may be a book or a magazine """
     logger = logging.getLogger(__name__)
     logger.debug(str(data))
+    calibre_id = ''
+    if not isinstance(data, dict):  # could be sqlite3 row
+        try:
+            data = dict(data)
+        except ValueError:
+            return ''
     fname = data.get('BookFile', '')
     if fname:  # it's a book
         author = data.get('AuthorName', '')
@@ -496,17 +514,25 @@ def get_calibre_id(data):
             title = data.get('IssueID', '')
             author = data.get('ComicID', '')
             fname = data.get('IssueFile', '')
-    try:
-        fname = os.path.dirname(fname)
-        calibre_id = fname.rsplit('(', 1)[1].split(')')[0]
-        if not calibre_id.isdigit():
+    if try_filename:
+        try:
+            fname = os.path.dirname(fname)
+            calibre_id = fname.rsplit('(', 1)[1].split(')')[0]
+            if not calibre_id.isdigit():
+                calibre_id = ''
+        except IndexError:
             calibre_id = ''
-    except IndexError:
-        calibre_id = ''
+
     if not calibre_id:
         # ask calibre for id of this issue
         res, err, rc = calibredb('search', [f'author:"{author}" title:"{title}"'])
-        if not rc:
+        if rc:
+            if res:
+                logger.debug(f'Calibre rc {rc} res [{res}]')
+            else:
+                logger.debug(f'Calibre rc {rc} err [{err}]')
+        else:
+            logger.debug(f'Calibre res [{res}]')
             try:
                 calibre_id = res.split(',')[0].strip()
             except IndexError:
