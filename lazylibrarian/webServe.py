@@ -69,7 +69,7 @@ from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
-    create_opf, process_book_from_dir, process_issues
+    create_opf, process_book_from_dir, process_issues, send_mag_issue_to_calibre
 from lazylibrarian.processcontrol import get_info_on_caller
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
@@ -2207,7 +2207,8 @@ class WebInterface:
                 if not authorname or 'unknown' in authorname.lower() or 'anonymous' in authorname.lower():
                     authorname = None
                 threading.Thread(target=add_author_to_db, name=f"REFRESHAUTHOR_{authorid}",
-                                 args=[authorname, True, authorid, True, f"WebServer refresh_author {authorid}"]).start()
+                                 args=[authorname, True, authorid, True,
+                                       f"WebServer refresh_author {authorid}"]).start()
 
                 raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
             else:
@@ -2505,7 +2506,7 @@ class WebInterface:
                     logger.error(res)
                     snatch = False
                 if snatch:
-                    logger.info(f'Downloading {library} {bookdata["BookName"]} from {provider}')
+                    logger.info(f'Requested {library} {bookdata["BookName"]} from {provider}')
                     custom_notify_snatch(f"{bookid} {library}")
                     notify_snatch(
                         f"{unaccented(bookdata['BookName'], only_ascii=False)} from "
@@ -3949,7 +3950,11 @@ class WebInterface:
                             new_opf = opf_write(opf_template, subs)
                             remove_file(opf_template)
                             remove_file(opffile)
-                            safe_move(new_opf, opffile)
+                            try:
+                                safe_move(new_opf, opffile)
+                            except Exception as e:
+                                logger.warning(f"Failed to move file: {str(e)}")
+                                moved = False
                     if edited:
                         logger.info(f'Updated [ {edited}] for {bookname}')
                     else:
@@ -3976,7 +3981,10 @@ class WebInterface:
                             if opf_template:  # we already have a valid (new) opffile
                                 dest_opf = os.path.join(dest_path, global_name + '.opf')
                                 if opffile != dest_opf:
-                                    safe_copy(opffile, dest_opf)
+                                    try:
+                                        safe_copy(opffile, dest_opf)
+                                    except Exception as e:
+                                        logger.warning(f"Failed to copy opf file: {str(e)}")
                             else:
                                 create_opf(dest_path, data, global_name, overwrite=True)
 
@@ -5268,11 +5276,20 @@ class WebInterface:
             db.action("UPDATE magazines SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
             db.action("UPDATE issues SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
             db.action('PRAGMA foreign_keys = ON')
-
+            db.commit()
             # rename files/folders to match, and issuefile to match new location
-            issues = db.select("SELECT IssueDate,IssueFile from issues WHERE Title=?", (new_title,))
+            issues = db.select("SELECT IssueDate,IssueFile,IssueID from issues WHERE Title=?", (new_title,))
 
             for issue in issues:
+                calibre_id = None
+                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                    dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
+                    data = dict(dbentry)
+                    data['Title'] = old_title
+                    calibre_id = get_calibre_id(data, try_filename=False)
+                    if calibre_id:
+                        logger.debug(f"Found calibre ID {calibre_id} for {old_title} {issue['IssueDate']}")
+
                 dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
                     '$IssueDate', issue['IssueDate']).replace(
                     '$Title', new_title)
@@ -5297,19 +5314,44 @@ class WebInterface:
                 global_name = sanitize(global_name)
 
                 new_file = os.path.join(dest_path, global_name + ext)
+                if not path_isfile(issue['IssueFile']):
+                    logger.warning(f"Issue file {issue['IssueFile']} not found")
+                    raise cherrypy.HTTPError(404, f"Magazine IssueFile missing")
+
                 logger.debug(f"Moving {issue['IssueFile']} to {new_file}")
-                _ = safe_move(issue['IssueFile'], new_file)
-                db.action("UPDATE issues SET IssueFile=? WHERE IssueFile=?", (new_file, issue['IssueFile']))
+                try:
+                    _ = safe_move(issue['IssueFile'], new_file)
+                except Exception as e:
+                    logger.warning(f"Failed to move file: {str(e)}")
+                    raise cherrypy.HTTPError(404, f"Magazine IssueFile move failed")
+
+                db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_file, issue['IssueID']))
+                db.commit()
                 old_path = os.path.dirname(issue['IssueFile'])
                 old_file = os.path.splitext(issue['IssueFile'])[0]
                 for extn in ['.opf', '.jpg']:
                     if path_isfile(old_file + extn):
                         new_file = os.path.join(dest_path, global_name)
                         logger.debug(f"Moving {old_file + extn} to {new_file + extn}")
-                        _ = safe_move(old_file + extn, new_file + extn)
+                        try:
+                            _ = safe_move(old_file + extn, new_file + extn)
+                        except Exception as e:
+                            logger.warning(f"Failed to move file: {str(e)}")
+                            raise cherrypy.HTTPError(404, f"Magazine {extn} move failed")
+                if calibre_id:
+                    res, err, rc = calibredb('remove', [calibre_id])
+                    logger.debug(f"Remove result: {res} [{err}] {rc}")
+                    dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
+                    data = dict(dbentry)
+                    res, filename, pp_path = send_mag_issue_to_calibre(data)
+                    logger.debug(f"Add result: {res}")
+                    if res and filename:
+                        db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
+
                 if len(os.listdir(old_path)) == 0:
                     logger.debug(f"Removing empty directory {old_path}")
                     os.rmdir(old_path)
+
         except Exception:
             logger.error(f'Unhandled exception in magazine_update: {traceback.format_exc()}')
         finally:
@@ -5550,16 +5592,47 @@ class WebInterface:
                     global_name = sanitize(global_name)
 
                     new_file = os.path.join(dest_path, global_name + ext)
+                    if not path_isfile(issue['IssueFile']):
+                        logger.debug(f"Missing file: {issue['IssueFile']}")
+                        raise cherrypy.HTTPError(404, f"Magazine IssueFile missing")
+
                     logger.debug(f"Moving {issue['IssueFile']} to {new_file}")
-                    _ = safe_move(issue['IssueFile'], new_file)
+                    try:
+                        _ = safe_move(issue['IssueFile'], new_file)
+                    except Exception as e:
+                        logger.error(str(e))
+                        raise cherrypy.HTTPError(404, f"Magazine IssueFile move failed")
+
+                    calibre_id = None
+                    if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                        calibre_id = get_calibre_id(issue, try_filename=False)
+                        if calibre_id:
+                            logger.debug(f"Found calibre ID {calibre_id} for {issue['Title']} {issue['IssueDate']}")
+
                     db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_file, issue['IssueID']))
+                    db.commit()
+
                     old_path = os.path.dirname(issue['IssueFile'])
                     old_file = os.path.splitext(issue['IssueFile'])[0]
                     for extn in ['.opf', '.jpg']:
                         if path_isfile(old_file + extn):
                             new_file = os.path.join(dest_path, global_name)
                             logger.debug(f"Moving {old_file + extn} to {new_file + extn}")
-                            _ = safe_move(old_file + extn, new_file + extn)
+                            try:
+                                _ = safe_move(old_file + extn, new_file + extn)
+                            except Exception as e:
+                                logger.error(str(e))
+                                raise cherrypy.HTTPError(404, f"Magazine {extn} move failed")
+                    if calibre_id:
+                        res, err, rc = calibredb('remove', [calibre_id])
+                        logger.debug(f"Remove result: {res} [{err}] {rc}")
+                        dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
+                        data = dict(dbentry)
+                        res, filename, pp_path = send_mag_issue_to_calibre(data)
+                        logger.debug(f"Add result: {res}")
+                        if res and filename:
+                            db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
+
                     if len(os.listdir(old_path)) == 0:
                         logger.debug(f"Removing empty directory {old_path}")
                         os.rmdir(old_path)
