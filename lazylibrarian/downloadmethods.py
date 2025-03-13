@@ -34,8 +34,7 @@ from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.filesystem import DIRS, path_isdir, path_isfile, syspath, remove_file, setperm, \
     make_dirs, get_directory
-from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
-    seconds_to_midnight, check_int, sanitize
+from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
 from lazylibrarian.directparser import bok_login, session_get, bok_dlcount
@@ -348,7 +347,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             logger.warning(res)
             return False, res
 
-        if not str(r.status_code).startswith('2'):
+        if str(r.status_code) in ['502', '504']:
+            time.sleep(2)
+        elif not str(r.status_code).startswith('2'):
             res = f"Got a {r.status_code} response for {dl_url}"
             logger.debug(res)
             return False, res
@@ -441,13 +442,33 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         else:
             res = f"Got unexpected response type ({r.headers['Content-Type']}) for {dl_title}"
             logger.debug(res)
-            cache_location = os.path.join(DIRS.CACHEDIR, "HTMLCache")
-            myhash = md5_utf8(dl_url)
-            hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".html")
-            with open(syspath(hashfilename), "wb") as cachefile:
-                cachefile.write(r.content)
-            logger.debug(f"Saved html page: {hashfilename}")
-            return False, res
+            # see if there is a redirect...
+            redirect = False
+            if 'text/html' in r.headers['Content-Type']:
+                result, success = fetch_url(dl_url)
+                if success:
+                    newsoup = BeautifulSoup(result, 'html5lib')
+                    data = newsoup.find_all('a')
+                    link = None
+                    for d in data:
+                        link = d.get('href')
+                        if link.startswith('get.php'):
+                            break
+                    if link:
+                        dl_url = dl_url.rsplit('/', 1)[0] + '/' + link
+                        logger.debug(f"File {dl_title} redirected to {dl_url}")
+                        redirect = True
+                if 'get.php' in dl_url:
+                    redirect = True
+
+            if not redirect:
+                cache_location = os.path.join(DIRS.CACHEDIR, "HTMLCache")
+                myhash = md5_utf8(dl_url)
+                hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".html")
+                with open(syspath(hashfilename), "wb") as cachefile:
+                    cachefile.write(r.content)
+                logger.debug(f"Saved error page: {hashfilename}")
+                return False, res
 
     res = f'Failed to download file @ <a href="{dl_url}">{dl_url}</a>'
     logger.error(res)

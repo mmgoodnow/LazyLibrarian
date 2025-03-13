@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -18,9 +18,11 @@ import traceback
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.downloadmethods import tor_dl_method
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name, get_list
+from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name, get_list, now
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
+from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_wishlists
 from lazylibrarian.resultlist import process_result_list
 from lazylibrarian.scheduling import schedule_job, SchedulerCommand
@@ -151,8 +153,8 @@ def search_wishlist():
             # for each item in resultlist, add to database if necessary, and mark as wanted
             logger.debug(f"Processing {len(resultlist)} {plural(len(resultlist), 'item')} in wishlists")
             for book in resultlist:
-                # we get rss_author, rss_title, maybe rss_isbn, rss_bookid (goodreads bookid)
-                # we can just use bookid if goodreads, or try isbn and name matching on author/title if not
+                # we get rss_author, rss_title, maybe rss_isbn, rss_bookid, rss_link
+                # we can just use bookid if exists, or try isbn and name matching on author/title if not
                 # eg NYTimes wishlist
                 if lazylibrarian.STOPTHREADS and thread_name() == "SEARCHWISHLIST":
                     logger.debug("Aborting SEARCHWISHLIST")
@@ -172,14 +174,18 @@ def search_wishlist():
                     item['BookID'] = book['rss_bookid']
                 if book.get('rss_isbn'):
                     item['ISBN'] = book['rss_isbn']
+                if book.get('rss_link'):
+                    item['link'] = book['rss_link']
+                if book.get('rss_category'):
+                    item['category'] = book['rss_category']
 
                 bookmatch = finditem(item, book['rss_author'], reason=f"wishlist: {book['dispname']}")
                 if bookmatch:  # it's in the database
                     want_book, want_audio = want_existing(bookmatch, book, search_start, ebook_status, audio_status)
                     if want_book:
-                        new_books.append({"bookid": bookmatch['BookID']})
+                        new_books.append(item)
                     if want_audio:
-                        new_audio.append({"bookid": bookmatch['BookID']})
+                        new_audio.append(item)
                 else:  # not in database yet
                     results = []
                     authorname = format_author_name(book['rss_author'],
@@ -217,9 +223,9 @@ def search_wishlist():
                                         want_book, want_audio = want_existing(bookmatch, book, search_start,
                                                                               ebook_status, audio_status)
                                         if want_book:
-                                            new_books.append({"bookid": bookmatch['BookID']})
+                                            new_books.append(item)
                                         if want_audio:
-                                            new_audio.append({"bookid": bookmatch['BookID']})
+                                            new_audio.append(item)
                                         authorname = None  # to skip adding it again
                                 else:
                                     bookmatch = result
@@ -259,9 +265,9 @@ def search_wishlist():
                         import_book(bookmatch['bookid'], ebook_status, audio_status,
                                     reason=f"Added from wishlist {book['dispname']}")
                         if ebook_status == 'Wanted':
-                            new_books.append({"bookid": bookmatch['bookid']})
+                            new_books.append(item)
                         if audio_status == 'Wanted':
-                            new_audio.append({"bookid": bookmatch['bookid']})
+                            new_audio.append(item)
                         new_value_dict = {"Requester": f"{book['dispname']} ", "AudioRequester": f"{book['dispname']} "}
                         control_value_dict = {"BookID": bookmatch['bookid']}
                         db.upsert("books", new_value_dict, control_value_dict)
@@ -283,22 +289,67 @@ def search_wishlist():
                 logger.info(f"Wishlist marked {tot} {plural(tot, 'item')} as Wanted")
             else:
                 logger.debug("Wishlist marked no new items as Wanted")
+        except Exception:
+            logger.error(f'Unhandled exception in search_wishlist: {traceback.format_exc()}')
         finally:
             db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+
+        search_books = []
+        dl_books = []
+        for item in new_books:
+            if item.get('link', ''):
+                cat = item.get('category', '')
+                if not cat or 'Ebook' in cat:
+                    dl_books.append(item)
+            else:
+                search_books.append({'bookid', item['BookID']})
+
+        search_audio = []
+        dl_audio = []
+        for item in new_audio:
+            if item.get('link', ''):
+                cat = item.get('category', '')
+                if not cat or 'Audiobook' in cat:
+                    dl_audio.append(item)
+            else:
+                search_audio.append({'bookid', item['BookID']})
+
+        for item in dl_books:
+            success, msg = tor_dl_method(bookid=item['BookID'], tor_title=item['Title'],
+                                         tor_url=item['link'], library='eBook', provider='mam')
+            if success:
+                logger.info(f"Downloading eBook {item['Title']} from mam")
+                custom_notify_snatch(f"{item['BookID']} eBook")
+                notify_snatch(f"eBook {item['Title']} from mam at {now()}")
+                schedule_job(SchedulerCommand.START, target='PostProcessor')
+            else:
+                logger.error(f"Failed to download {item['Title']}: {msg}")
+
+        for item in dl_audio:
+            success, msg = tor_dl_method(bookid=item['BookID'], tor_title=item['Title'],
+                                         tor_url=item['link'], library='AudioBook', provider='mam')
+            if success:
+                logger.info(f"Downloading AudioBook {item['Title']} from mam")
+                custom_notify_snatch(f"{item['BookID']} AudioBook")
+                notify_snatch(f"AudioBook {item['Title']} from mam at {now()}")
+                schedule_job(SchedulerCommand.START, target='PostProcessor')
+            else:
+                logger.error(f"Failed to download {item['Title']}: {msg}")
+
+        if search_books:
+            threading.Thread(target=search_rss_book, name='WISHLISTRSSBOOKS',
+                             args=[search_books, 'eBook']).start()
+            threading.Thread(target=lazylibrarian.searchbook.search_book, name='WISHLISTBOOKS',
+                             args=[search_books, 'eBook']).start()
+        if search_audio:
+            threading.Thread(target=search_rss_book, name='WISHLISTRSSAUDIO',
+                             args=[search_audio, 'AudioBook']).start()
+            threading.Thread(target=lazylibrarian.searchbook.search_book, name='WISHLISTAUDIO',
+                             args=[search_audio, 'AudioBook']).start()
     except Exception:
         logger.error(f'Unhandled exception in search_wishlist: {traceback.format_exc()}')
     finally:
         db.close()
-        if new_books:
-            threading.Thread(target=search_rss_book, name='WISHLISTRSSBOOKS',
-                             args=[new_books, 'eBook']).start()
-            threading.Thread(target=lazylibrarian.searchbook.search_book, name='WISHLISTBOOKS',
-                             args=[new_books, 'eBook']).start()
-        if new_audio:
-            threading.Thread(target=search_rss_book, name='WISHLISTRSSAUDIO',
-                             args=[new_audio, 'AudioBook']).start()
-            threading.Thread(target=lazylibrarian.searchbook.search_book, name='WISHLISTAUDIO',
-                             args=[new_audio, 'AudioBook']).start()
         thread_name("WEBSERVER")
 
 

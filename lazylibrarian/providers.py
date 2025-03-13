@@ -1614,13 +1614,16 @@ def mam(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
         logger.debug(f"rss {provider} returned {len(data.entries)} {plural(len(data.entries), 'result')}")
         for post in data.entries:
             title = ''
-            book_id = ''
+            book_link = ''
             author_name = ''
             isbn = ''
+            category = ''
             if 'title' in post:
                 title = post.title
             if 'link' in post:
-                book_id = post.link
+                book_link = post.link
+            if 'category' in post:
+                category = post.category
             if 'summary' in post:
                 try:
                     author_name = post.summary.split('Author(s):')[1].split('<')[0].strip()
@@ -1634,8 +1637,10 @@ def mam(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
                     'rss_feed': feednr,
                     'rss_title': title,
                     'rss_author': author_name,
-                    'rss_bookid': book_id,
+                    'rss_bookid': '',
+                    'rss_link': book_link,
                     'rss_isbn': isbn,
+                    'rss_category': category,
                     'priority': priority,
                     'dispname': dispname,
                     'types': types,

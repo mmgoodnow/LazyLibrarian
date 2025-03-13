@@ -281,13 +281,19 @@ def direct_gen(book=None, prov=None, test=False):
             try:
                 soup = BeautifulSoup(result, 'html5lib')
                 rows = []
-
+                tabletype = None
                 try:
                     if 'comic' in search:
+                        tabletype = 'comic'
                         tables = soup.find_all('table', align='center')
                     else:
+                        tabletype = 'libgen'
+                        tables = soup.find_all('table', id='tablelibgen')
+                    if not tables:
+                        tabletype = 'rows'
                         tables = soup.find_all('table', rules='rows')  # the last table with rules=rows
                     if not tables:
+                        tabletype = 'table'
                         tables = soup.find_all('table')
                     if tables:
                         # all rows from the last matching table
@@ -308,7 +314,7 @@ def direct_gen(book=None, prov=None, test=False):
                     td = row.find_all('td')
                     links = []
                     prov_page = ''
-                    if td and 'comic' in search:
+                    if td and tabletype == 'comic':
                         try:
                             if 'FILE' in str(td[-1]):
                                 newsoup = BeautifulSoup(str(td[3]), 'html5lib')
@@ -344,6 +350,24 @@ def direct_gen(book=None, prov=None, test=False):
                         except Exception as e:
                             logger.debug(f'Error parsing libgen comic results: {str(e)}')
                             TELEMETRY.record_usage_data("libgenComicError")
+                            pass
+
+                    elif td and tabletype == 'libgen':
+                        try:
+                            author = format_author_name(td[1].text, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
+                            title = td[0].text.split('\n')[0].strip()
+                            # publisher = td[2].text
+                            # year = td[3].text
+                            # language = td[4].text
+                            size = td[6].text.upper()
+                            extn = td[7].text
+                            newsoup = BeautifulSoup(str(td[8]), 'html5lib')
+                            data = newsoup.find_all('a')
+                            for d in data:
+                                links.append(d.get('href'))
+                        except Exception as e:
+                            logger.debug(f'Error parsing libgen results: {str(e)}')
+                            TELEMETRY.record_usage_data("libgenError")
                             pass
 
                     elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
@@ -421,6 +445,8 @@ def direct_gen(book=None, prov=None, test=False):
                                 break
                             elif link.startswith('http'):
                                 url = redirect_url(host, link)
+                            elif tabletype == 'libgen' and link.startswith('/ads'):
+                                url = 'https://libgen.li' + link
                             else:
                                 if "/index.php?" in link:
                                     link = f"md5{link.split('md5')[1]}"
@@ -429,7 +455,7 @@ def direct_gen(book=None, prov=None, test=False):
                                 else:
                                     url = url_fix(f"{host}/ads.php?{link}")
 
-                            # redirect page for other sources [libgen.me, library1.org, booksdl.org]
+                            # redirect page for other sources [libgen.me, libgen.li, library1.org, booksdl.org]
                             bookresult, success = fetch_url(url)
                             if not success:
                                 logger.debug(f'Error fetching link data from {provider}: {bookresult}')
