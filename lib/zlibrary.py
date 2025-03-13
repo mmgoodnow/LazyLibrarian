@@ -7,8 +7,10 @@ For more information, see:
 https://github.com/bipinkrish/Zlibrary-API/
 """
 
+# annotations needed for python3.8
 from __future__ import annotations
 import requests
+
 
 class Zlibrary:
     def __init__(
