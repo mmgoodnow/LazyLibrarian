@@ -36,7 +36,7 @@ from lazylibrarian import database, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
 from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3read
 from lazylibrarian.cache import cache_img, ImageType
-from lazylibrarian.calibre import calibredb
+from lazylibrarian.calibre import calibredb, get_calibre_id
 from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, \
@@ -130,7 +130,11 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         global_name = unaccented(global_name, only_ascii=False)
         global_name = sanitize(global_name)
         tempdir = tempfile.mkdtemp()
-        _ = safe_copy(source_file, os.path.join(tempdir, os.path.basename(source_file)))
+        try:
+            _ = safe_copy(source_file, os.path.join(tempdir, os.path.basename(source_file)))
+        except Exception as e:
+            logger.warning(f"Failed to copy source file: {str(e)}")
+            return False
         data = {"IssueDate": issuenum, "Title": title}
         success, dest_file, pp_path = process_destination(tempdir, dest_path, global_name, data, "magazine")
         shutil.rmtree(tempdir, ignore_errors=True)
@@ -2687,7 +2691,11 @@ def send_to_calibre(booktype, global_name, folder, data):
                 else:
                     dstfile = os.path.join(folder, global_name.replace('"', '_') + extn)
                     # calibre does not like quotes in author names
-                    _ = safe_move(srcfile, dstfile)
+                    try:
+                        _ = safe_move(srcfile, dstfile)
+                    except Exception as e:
+                        logger.warning(f"Failed to move file: {str(e)}")
+                        return False, str(e)
             else:
                 logger.debug(f'Removing {fname} as not wanted')
                 if path_isfile(srcfile):
@@ -2719,7 +2727,11 @@ def send_to_calibre(booktype, global_name, folder, data):
             if path_isfile(jpgfile):
                 # calibre likes "cover.jpg"
                 coverfile = os.path.basename(jpgfile)
-                jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+                try:
+                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+                except Exception as e:
+                    logger.warning(f"Failed to copy jpeg file: {str(e)}")
+                    return False, str(e)
             elif magfile:
                 if coverpage == 0:
                     coverpage = 1  # if not set, default to page 1
@@ -2824,8 +2836,11 @@ def send_to_calibre(booktype, global_name, folder, data):
                         # calibre likes "metadata.opf"
                         opffile = os.path.basename(opfpath)
                         if opffile != 'metadata.opf':
-                            opfpath = safe_copy(opfpath, opfpath.replace(opffile, 'metadata.opf'))
-
+                            try:
+                                opfpath = safe_copy(opfpath, opfpath.replace(opffile, 'metadata.opf'))
+                            except Exception as e:
+                                logger.warning(f"Failed to copy opf file: {str(e)}")
+                                opfpath = ''
                 if opfpath:
                     _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
                     if rc:
@@ -3602,3 +3617,66 @@ def write_meta(book_folder, opf):
                 logger.debug(f"Metadata written from {opf}")
             except Exception as e:
                 logger.error(str(e))
+
+
+def send_mag_issue_to_calibre(data):
+    logger = logging.getLogger(__name__)
+    calibre_id = get_calibre_id(data, try_filename=False)
+    logger.debug(f"Calibre ID {calibre_id}")
+    if calibre_id:
+        logger.debug(f"Calibre ID {calibre_id} exists: {data['Title']} {data['IssueDate']}")
+        filename = os.path.basename(data['IssueFile'])
+        pp_path = os.path.dirname(data['IssueFile'])
+        return 'Exists', filename, pp_path
+
+    logger.debug(f"Calibre ID does not exist: {data['Title']}:{data['IssueDate']}:{data['IssueFile']}")
+    global_name = os.path.splitext(os.path.basename(data['IssueFile']))[0]
+    logger.debug(f" Global name = [{global_name}]")
+    sourcedir = os.path.dirname(data['IssueFile'])
+    logger.debug(f" Source Dir = [{sourcedir}]")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        for item in listdir(sourcedir):
+            if item.startswith(global_name):
+                logger.debug(f"Copy file [{item}]")
+                shutil.copyfile(os.path.join(sourcedir, item), os.path.join(temp_dir, item))
+        return send_to_calibre("magazine", global_name, temp_dir, data)
+
+
+def send_comic_issue_to_calibre(data):
+    logger = logging.getLogger(__name__)
+    calibre_id = get_calibre_id(data, try_filename=False)
+    if calibre_id:
+        logger.debug(f"Calibre ID {calibre_id} exists: {data['ComicID']} {data['IssueID']}")
+        filename = os.path.basename(data['IssueFile'])
+        pp_path = os.path.dirname(data['IssueFile'])
+        return 'Exists', filename, pp_path
+
+    logger.debug(f"Calibre ID does not exist: {data['ComicID']}:{data['IssueID']}")
+    global_name = os.path.splitext(os.path.basename(data['IssueFile']))[0]
+    sourcedir = os.path.dirname(data['IssueFile'])
+    with tempfile.TemporaryDirectory() as temp_dir:
+        for item in listdir(sourcedir):
+            if item.startswith(global_name):
+                logger.debug(f"Copy file [{item}]")
+                shutil.copyfile(os.path.join(sourcedir, item), os.path.join(temp_dir, item))
+        return send_to_calibre("comic", global_name, temp_dir, data)
+
+
+def send_ebook_to_calibre(data):
+    logger = logging.getLogger(__name__)
+    calibre_id = get_calibre_id(data, try_filename=False)
+    if calibre_id:
+        logger.debug(f"Calibre ID {calibre_id} exists: {data['AuthorName']} {data['BookName']}")
+        filename = os.path.basename(data['BookFile'])
+        pp_path = os.path.dirname(data['BookFile'])
+        return 'Exists', filename, pp_path
+
+    logger.debug(f"Calibre ID does not exist: {data['AuthorName']} {data['BookName']}")
+    global_name = os.path.splitext(os.path.basename(data['BookFile']))[0]
+    with tempfile.TemporaryDirectory() as temp_dir:
+        sourcedir = os.path.dirname(data['IssueFile'])
+        for item in listdir(sourcedir):
+            if item.startswith(global_name):
+                logger.debug(f"Copy file [{item}]")
+                shutil.copyfile(os.path.join(sourcedir, item), os.path.join(temp_dir, item))
+        return send_to_calibre("ebook", global_name, temp_dir, data)
