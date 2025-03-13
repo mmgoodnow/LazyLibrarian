@@ -32,7 +32,7 @@ from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_pag
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
     set_work_id, get_gb_info, set_genres, genre_filter, get_book_pubdate, add_series_members
 from lazylibrarian.cache import cache_img, clean_cache, ImageType
-from lazylibrarian.calibre import sync_calibre_list, calibre_list
+from lazylibrarian.calibre import sync_calibre_list, calibre_list, delete_from_calibre
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
@@ -55,7 +55,8 @@ from lazylibrarian.magazinescan import magazine_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
-    process_book_from_dir, process_mag_from_file
+    process_book_from_dir, process_mag_from_file, send_ebook_to_calibre, send_mag_issue_to_calibre, \
+    send_comic_issue_to_calibre
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.providers import get_capabilities
@@ -244,6 +245,11 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'telemetryShow': (0, 'show the current telemetry data'),
             'telemetrySend': (1, 'send the latest telemetry data, if configured'),
             'backup': (1, 'Backup database and config files'),
+            'sendEbooktoCalibre': (1, "&id= Send a book that's in LazyLibrarian database to calibre"),
+            'sendMagtoCalibre': (1, "&title= Send all issues of a magazine in LazyLibrarian database to calibre"),
+            'sendMagIssuetoCalibre': (1, "&id= Send a magazine issue already in LazyLibrarian database to calibre"),
+            'sendComicIssuetoCalibre': (1, "&id= Send a comic issue already in LazyLibrarian database to calibre"),
+            'ignoredStats': (0, 'show count of reasons books were ignored'),
             }
 
 
@@ -359,7 +365,7 @@ class Api(object):
                 if row_as_dic.get(key):
                     try:
                         row_as_dic[key] = f"{dp.parse(row_as_dic[key]).isoformat()}Z"
-                    except dp._parser.ParserError:
+                    except dp.ParserError:
                         pass
             rows_as_dic.append(row_as_dic)
 
@@ -987,6 +993,11 @@ class Api(object):
             res += '</ul></html>'
         self.data = res
 
+    def _ignoredstats(self):
+        TELEMETRY.record_usage_data()
+        cmd = "select scanresult,count(*) counter from books where status='Ignored' group by scanresult"
+        self.data = self._dic_from_query(cmd)
+
     def _listalienauthors(self):
         TELEMETRY.record_usage_data()
         cmd = "SELECT AuthorID,AuthorName from authors WHERE AuthorID "
@@ -1510,8 +1521,8 @@ class Api(object):
         self.sort = kwargs.get('sort')
         if self.id:
             magazine = self._dic_from_query(
-                f"SELECT * from magazines WHERE Title=\"{self.id}\"")
-            q = f"SELECT * from issues WHERE Title=\"{self.id}\""
+                f"SELECT * from magazines WHERE Title='{self.id}' COLLATE NOCASE")
+            q = f"SELECT * from issues WHERE Title='{self.id}' COLLATE NOCASE"
             if self.sort:
                 q += f' order by {self.sort}'
             if self.limit and self.limit.isnumeric():
@@ -1659,8 +1670,8 @@ class Api(object):
             return
         db = database.DBConnection()
         try:
-            db.action('DELETE from magazines WHERE Title=?', (self.id,))
-            db.action('DELETE from wanted WHERE BookID=?', (self.id,))
+            db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (self.id,))
+            db.action('DELETE from wanted WHERE BookID=? COLLATE NOCASE', (self.id,))
         finally:
             db.close()
 
@@ -2609,3 +2620,121 @@ class Api(object):
     def _telemetrysend(self):
         TELEMETRY.record_usage_data()
         self.data = telemetry_send()
+
+    def deletefromcalibre(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return False
+        rc = delete_from_calibre(kwargs['id'])
+        self.data = f"Delete result: {rc}"
+
+    def _sendmagtocalibre(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'title' not in kwargs:
+            self.data = 'Missing parameter: title'
+            return
+
+        title = unquote_plus(kwargs['title'])
+        title = title.replace('&amp;', '&')
+        db = database.DBConnection()
+        dbentry = db.select("SELECT issueid from issues WHERE Title=?", (title,))
+        db.close()
+        if not dbentry:
+            self.data = f"Magazine {title} not found in database"
+            return
+        cnt = 0
+        for issue in dbentry:
+            if self._sendmagissuetocalibre(id=issue['issueid']):
+                cnt += 1
+        self.data = f"Sent {cnt} issues of {title} to calibre"
+
+    def _sendmagissuetocalibre(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return False
+
+        db = database.DBConnection()
+        dbentry = db.match("SELECT * from issues WHERE IssueID=?", (kwargs['id'],))
+        db.close()
+        if not dbentry:
+            self.data = f"IssueID {kwargs['id']} not found in database"
+            return False
+
+        data = dict(dbentry)
+        if not data['IssueFile'] or not path_isfile(data['IssueFile']):
+            self.data = f"IssueID {kwargs['id']} IssueFile {data['IssueFile']} not found"
+            return False
+
+        res, filename, pp_path = send_mag_issue_to_calibre(data)
+        self.data = f"{res}: {filename}: {pp_path}"
+        return res is not False
+
+    def _sendcomictocalibre(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'title' not in kwargs:
+            self.data = 'Missing parameter: title'
+            return
+
+        title = unquote_plus(kwargs['title'])
+        title = title.replace('&amp;', '&')
+        db = database.DBConnection()
+        dbentry = db.select("select title,comics.comicid,issueid from comics,comicissues "
+                            "where comics.comicid = comicissues.comicid and Title=?", (title,))
+        db.close()
+        if not dbentry:
+            self.data = f"Magazine {title} not found in database"
+            return
+        for issue in dbentry:
+            self._sendcomicissuetocalibre(id=f"{issue['ComicID']}_{issue['issueid']}")
+        self.data = f"Sent {len(dbentry)} issues of {title} to calibre"
+
+    def _sendcomicissuetocalibre(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        if '_' not in kwargs['id']:
+            self.data = 'Invalid parameter: id'
+            return
+
+        comicid, issueid = kwargs['id'].split('_')
+        db = database.DBConnection()
+        dbentry = db.match("SELECT * from comicissues,comics WHERE comics.comicid=comicissues.comicid "
+                           "and comics.comicid=? and IssueID=?", (comicid, issueid))
+        db.close()
+        if not dbentry:
+            self.data = f"ComicID_IssueID {kwargs['id']} not found in database"
+            return
+
+        data = dict(dbentry)
+        if not data['IssueFile'] or not path_isfile(data['IssueFile']):
+            self.data = f"IssueID {kwargs['id']} IssueFile {data['IssueFile']} not found"
+            return False
+
+        res, filename, pp_path = send_comic_issue_to_calibre(data)
+        self.data = f"{res}: {filename}: {pp_path}"
+        return res is not False
+
+    def _sendebooktocalibre(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+
+        db = database.DBConnection()
+        dbentry = db.match("SELECT * from books WHERE IssueID=?", (kwargs['id'],))
+        db.close()
+        if not dbentry:
+            self.data = f"IssueID {kwargs['id']} not found in database"
+            return
+
+        data = dict(dbentry)
+        if not data['IssueFile'] or not path_isfile(data['IssueFile']):
+            self.data = f"Book {kwargs['id']} BookFile {data['BookFile']} not found"
+            return False
+
+        res, filename, pp_path = send_ebook_to_calibre(data)
+        self.data = f"{res}: {filename}: {pp_path}"
+        return res is not False
