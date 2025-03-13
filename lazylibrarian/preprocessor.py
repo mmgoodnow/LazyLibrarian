@@ -516,8 +516,11 @@ def preprocess_magazine(bookfolder, cover=0):
         # reordering or shrinking pages is quite slow if the source is on a networked drive
         # so work on a local copy, then move it over.
         original = os.path.join(bookfolder, sourcefile)
-        srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, sourcefile))
-
+        try:
+            srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, sourcefile))
+        except Exception as e:
+            logger.warning(f"Failed to copy source file: {str(e)}")
+            return False, str(e)
         if dpi:
             logger.debug(f"Resizing {srcfile} to {dpi} dpi")
             shrunkfile = shrink_mag(srcfile, dpi)
