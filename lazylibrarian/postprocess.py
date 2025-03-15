@@ -2723,22 +2723,28 @@ def send_to_calibre(booktype, global_name, folder, data):
             issueid = create_id(f"{title} {issuedate}")
             identifier = f"lazylibrarian:{issueid}"
             magfile = book_file(folder, "magazine", config=CONFIG)
-            jpgfile = f"{os.path.splitext(magfile)[0]}.jpg"
-            if path_isfile(jpgfile):
+            coverfile = os.path.join(folder, 'cover.jpg')
+            if path_isfile(coverfile):
                 # calibre likes "cover.jpg"
-                coverfile = os.path.basename(jpgfile)
-                try:
-                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
-                except Exception as e:
-                    logger.warning(f"Failed to copy jpeg file: {str(e)}")
-                    return False, str(e)
-            elif magfile:
-                if coverpage == 0:
-                    coverpage = 1  # if not set, default to page 1
-                jpgfile = create_mag_cover(magfile, pagenum=coverpage, refresh=True)
-                if jpgfile:
-                    coverfile = os.path.basename(jpgfile)
-                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+                jpgfile = coverfile
+            else:
+                jpgfile = f"{os.path.splitext(magfile)[0]}.jpg"
+                if path_isfile(jpgfile):
+                    try:
+                        jpgfile = safe_copy(jpgfile, coverfile)
+                    except Exception as e:
+                        logger.warning(f"Failed to copy jpeg file: {str(e)}")
+                        return False, str(e)
+                elif magfile:
+                    if coverpage == 0:
+                        coverpage = 1  # if not set, default to page 1
+                    jpgfile = create_mag_cover(magfile, pagenum=coverpage, refresh=True)
+                    if jpgfile:
+                        try:
+                            jpgfile = safe_copy(jpgfile, coverfile)
+                        except Exception as e:
+                            logger.warning(f"Failed to copy jpeg file: {str(e)}")
+                            return False, str(e)
 
             if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                 authors = title
