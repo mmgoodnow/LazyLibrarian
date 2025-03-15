@@ -1996,7 +1996,6 @@ class Api(object):
             return
         try:
             authordata = db.select(f"SELECT AuthorName from authors WHERE {key}='' or {key} is null")
-            print(len(authordata))
             api = None
             res = {}
             for author in authordata:
