@@ -15,7 +15,6 @@
 # https://www.googleapis.com/books/v1/volumes?q=+inauthor:george+martin+intitle:song+ice+fire
 
 import logging
-import re
 import time
 import traceback
 from urllib.parse import quote, quote_plus, urlencode
@@ -25,11 +24,11 @@ from rapidfuzz import fuzz
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
-    set_series, get_status, google_book_dict, isbnlang
+    set_series, get_status, google_book_dict, isbnlang, is_set_or_part
 from lazylibrarian.cache import json_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
-    get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, check_year, thread_name
+    get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, thread_name
 from lazylibrarian.hc import HardCover
 from lazylibrarian.images import cache_bookimg
 from lazylibrarian.images import get_book_cover
@@ -715,26 +714,9 @@ class GoogleBooks:
                     return
 
         if CONFIG.get_bool('NO_SETS'):
-            # allow date ranges eg 1981-95
-            m = re.search(r'(\d+)-(\d+)', bookname)
-            if m:
-                if check_year(m.group(1), past=1800, future=0):
-                    self.logger.debug(f"Allow {bookname}, looks like a date range")
-                else:
-                    msg = f"Book {bookname} Set or Part"
-                    self.logger.warning(msg)
-                    if reason.startswith("Series:"):
-                        return
-            # book 1 of 3 or 1/3 but not dates 01/02/21
-            if re.search(r'\d+ of \d+', bookname) or \
-                    re.search(r'\d+/\d+', bookname) and not re.search(r'\d+/\d+/\d+', bookname):
-                msg = f"Book {bookname} Set or Part"
-                self.logger.warning(msg)
-                if reason.startswith("Series:"):
-                    return
-            # book title / another titla
-            elif re.search(r'\w+\s*/\s*\w+', bookname):
-                msg = f"Book {bookname} Set or Part"
+            is_set, set_msg = is_set_or_part(bookname)
+            if is_set:
+                msg = f"Book {bookname} {set_msg}"
                 self.logger.warning(msg)
                 if reason.startswith("Series:"):
                     return

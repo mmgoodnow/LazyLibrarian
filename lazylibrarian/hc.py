@@ -1,9 +1,9 @@
+import enum
 import http.client
 import json
 import logging
 import os
 import platform
-import re
 import threading
 import time
 import traceback
@@ -15,13 +15,23 @@ from rapidfuzz import fuzz
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian.bookwork import get_status, isbn_from_words, isbnlang
+from lazylibrarian.bookwork import get_status, isbn_from_words, isbnlang, is_set_or_part
 from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import md5_utf8, make_unicode, is_valid_isbn, get_list, format_author_name, \
-    date_format, thread_name, now, today, plural, unaccented, replace_all, check_year, check_int
+    date_format, thread_name, now, today, plural, unaccented, replace_all, check_int
 from lazylibrarian.images import cache_bookimg, get_book_cover
+
+
+class ReadStatus(enum.Enum):
+    unknown = 0
+    wanttoread = 1
+    reading = 2
+    read = 3
+    paused = 4
+    dnf = 5
+    ignored = 6
 
 
 def test_auth(userid=None):
@@ -173,17 +183,9 @@ def validate_bookdict(bookdict):
         book_name = unaccented(bookdict['title'], only_ascii=False)
         if CONFIG.get_bool('NO_SETS'):
             # allow date ranges eg 1981-95
-            m = re.search(r'(\d+)-(\d+)', book_name)
-            if m:
-                if check_year(m.group(1), past=1800, future=0):
-                    logger.debug(f"Allow {book_name}, looks like a date range")
-                else:
-                    rejected.append(['set', f'Set or Part {m.group(0)}'])
-            if re.search(r'\d+ of \d+', book_name) or \
-                    re.search(r'\d+/\d+', book_name) and not re.search(r'\d+/\d+/\d+', book_name):
-                rejected.append(['set', 'Set or Part'])
-            elif re.search(r'\w+\s*/\s*\w+', book_name):
-                rejected.append(['set', 'Set or Part'])
+            is_set, set_msg = is_set_or_part(book_name)
+            if is_set:
+                rejected.append(['set', set_msg])
 
         if CONFIG.get_bool('NO_FUTURE'):
             publish_date = bookdict.get('publish_date', '')
@@ -215,7 +217,6 @@ class HardCover:
         self.apikey = CONFIG.get_str('HC_API')
 
         #       user_id = result of whoami/userid
-        #       status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
         self.HC_USERBOOKS = '''
             query mybooks { user_books(order_by: {date_added: desc} where:
               {status_id: {_eq: [status]}, user_id: {_eq: [whoami]}})
@@ -1564,14 +1565,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     msg = f'Book {title} Future publication date [{bookdate}] does not match preference'
 
             elif CONFIG.get_bool('NO_SETS'):
-                if re.search(r'\d+ of \d+', title) or re.search(r'\d+/\d+', title):
-                    msg = f'Book {title} Set or Part'
-                # allow date ranges eg 1981-95
-                m = re.search(r'(\d+)-(\d+)', title)
-                if m:
-                    if check_year(m.group(1), past=1800, future=0):
-                        self.logger.debug(f"Allow {m.group(1)}, looks like a date range")
-                        msg = ''
+                is_set, set_msg = is_set_or_part(title)
+                if is_set:
+                    msg = f'Book {title} {set_msg}'
             if msg:
                 self.logger.warning(f"{msg} : adding anyway")
 
@@ -1636,9 +1632,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return str(results)
 
     def sync(self, library='', userid=None):
-        # hc status_id = 1 want-to-read, 2 currently_reading, 3 read, 4 owned, 5 dnf
-        # map to ll tables 'ToRead', 'Reading', 'HaveRead', 'Abandoned'
-        # and status Have/Open = owned
+        # hc status_id maps to ll tables 'ToRead', 'Reading', 'HaveRead', 'Abandoned'
         # library = eBook, AudioBook or leave empty for both
         msg = ''
         if not userid:
@@ -1694,7 +1688,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
             whoami = 0
             if 'error' in results:
                 self.logger.error(str(results['error']))
-            elif 'data' in results and 'me' in results['data']:
+                return msg
+            if 'data' in results and 'me' in results['data']:
                 # this is the hc_id tied to the api bearer token
                 res = results['data']['me']
                 whoami = res[0]['id']
@@ -1711,8 +1706,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
             hc_owned = []
             remapped = []
             sync_dict = {}
-            hc_mapping = [[hc_dnf, 5, 'DNF'], [hc_reading, 2, 'Reading'], [hc_read, 3, 'Read'],
-                          [hc_toread, 1, 'ToRead'], [hc_owned, 4, 'Owned']]
+            hc_mapping = [[hc_dnf, ReadStatus.dnf.value, 'DNF'], [hc_reading, ReadStatus.reading.value, 'Reading'],
+                            [hc_read, ReadStatus.read.value, 'Read'], [hc_toread, ReadStatus.wanttoread.value, 'ToRead'],
+                            [hc_owned, ReadStatus.paused.value, 'Owned']]
             for mapp in hc_mapping:
                 searchcmd = self.HC_USERBOOKS.replace('[whoami]', str(whoami)).replace('[status]',
                                                                                        str(mapp[1]))
@@ -1886,27 +1882,26 @@ query FindAuthor { authors_by_pk(id: [authorid])
             cmd = (f"SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
                    f"books.bookid=readinglists.bookid and userid=? and books.bookid=?")
 
-            status_ids = {1: 'want-to-read', 2: 'currently-reading', 3: 'read', 4: 'owned', 5: 'dnf'}
             for item in new_set:
                 res = db.match(cmd, (userid, item))
                 if res and res[0]:
-                    old_status = 0
+                    old_status = ReadStatus.unknown
                     if item in hc_toread:
-                        old_status = 1
+                        old_status = ReadStatus.wanttoread
                     if item in hc_reading:
-                        old_status = 2
+                        old_status = ReadStatus.reading
                     elif item in hc_read:
-                        old_status = 3
+                        old_status = ReadStatus.read
                     elif item in hc_dnf:
-                        old_status = 5
-                    if res[1] != old_status:
-                        if old_status:
-                            self.syncinglogger.debug(f"Setting status of HardCover {res[0]} to {status_ids[res[1]]}, "
-                                                     f"(was {status_ids[old_status]})")
+                        old_status = ReadStatus.dnf
+                    if res[1] != old_status.value:
+                        if old_status.value:
+                            self.syncinglogger.debug(f"Setting status of HardCover {res[0]} "
+                                                     f"to {ReadStatus(res[1]).name}, (was {old_status.name})")
                             sync_id = sync_dict[item]
                         else:
                             self.syncinglogger.debug(f"Adding new entry {res[0]} {res[2]} to HardCover, "
-                                                     f"status {status_ids[res[1]]}")
+                                                     f"status {ReadStatus(res[1]).name}")
                             sync_id = res[0]
                         addcmd = self.HC_ADDUSERBOOK.replace('[bookid]',
                                                              str(sync_id)).replace('[status]', str(res[1]))

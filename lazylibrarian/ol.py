@@ -11,7 +11,6 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import re
 import time
 import traceback
 from urllib.parse import quote_plus
@@ -22,11 +21,11 @@ from rapidfuzz import fuzz
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
-    isbnlang
+    isbnlang, is_set_or_part
 from lazylibrarian.cache import json_request, html_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
-    get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
+    get_list, make_utf8bytes, plural, unaccented, replace_all, today, date_format, thread_name
 from lazylibrarian.images import cache_bookimg
 from lazylibrarian.images import get_book_cover
 
@@ -670,18 +669,9 @@ class OpenLibrary:
 
                     bookname = unaccented(title, only_ascii=False)
                     if CONFIG.get_bool('NO_SETS'):
-                        # allow date ranges eg 1981-95
-                        m = re.search(r'(\d+)-(\d+)', bookname)
-                        if m:
-                            if check_year(m.group(1), past=1800, future=0):
-                                self.logger.debug(f"Allow {bookname}, looks like a date range")
-                            else:
-                                rejected.append(['set', f'Set or Part {m.group(0)}'])
-                        if re.search(r'\d+ of \d+', bookname) or \
-                                re.search(r'\d+/\d+', bookname) and not re.search(r'\d+/\d+/\d+', bookname):
-                            rejected.append(['set', 'Set or Part'])
-                        elif re.search(r'\w+\s*/\s*\w+', bookname):
-                            rejected.append(['set', 'Set or Part'])
+                        is_set, set_msg = is_set_or_part(bookname)
+                        if is_set:
+                            rejected.append(['set', set_msg])
 
                     if CONFIG.get_bool('NO_FUTURE'):
                         if publish_date > today()[:len(publish_date)]:
@@ -820,18 +810,18 @@ class OpenLibrary:
                                 if CONFIG.get_bool('NO_FUTURE'):
                                     if publish_date > today()[:len(publish_date)]:
                                         rejected = True
-                                        self.logger.debug(f'Future publication date [{publish_date}]')
+                                        reason = f'Future publication date [{publish_date}]'
 
                                 if CONFIG.get_bool('NO_PUBDATE'):
                                     if not publish_date or publish_date == '0000':
                                         rejected = True
-                                        self.logger.debug('No publication date')
+                                        reason = 'No publication date'
 
                                 if not rejected:
                                     wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
                                     if wantedlanguages and 'All' not in wantedlanguages:
                                         if not lang or lang not in wantedlanguages:
-                                            self.logger.debug(f"Invalid language {lang}")
+                                            reason = f"Invalid language {lang}"
                                             if 'lang' not in ignorable:
                                                 bad_lang += 1
                                                 rejected = True
@@ -839,319 +829,326 @@ class OpenLibrary:
                                                 book_status = 'Ignored'
                                                 audio_status = 'Ignored'
                                 if not rejected:
-                                    db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
-                                          'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
-                                          'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
-                                          'ScanResult, OriginalPubDate, BookPages, ol_id) ' +
-                                          'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                          (authorid, title, bookdesc, genres, isbn, publishers, bookrate,
-                                           cover_link, link, key, bookdate, lang, now(), book_status, '',
-                                           audio_status, id_librarything, reason, first_publish_year, bookpages,
-                                           key))
-
-                                # Leave alone if locked
-                                if locked:
-                                    locked_count += 1
+                                    db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, '
+                                              'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, '
+                                              'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, '
+                                              'ScanResult, OriginalPubDate, BookPages, ol_id) '
+                                              'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                              (authorid, title, bookdesc, genres, isbn, publishers, bookrate,
+                                               cover_link, link, key, bookdate, lang, now(), book_status, '',
+                                               audio_status, id_librarything, reason, first_publish_year, bookpages,
+                                               key))
                                 else:
-                                    if exists and exists['ScanResult'] and ' publication date' in exists['ScanResult'] \
-                                            and publish_date and publish_date != '0000' and \
-                                            publish_date <= today()[:len(publish_date)]:
-                                        # was rejected on previous scan but bookdate has become valid
-                                        self.logger.debug(
-                                            f"valid bookdate [{publish_date}] previous scanresult "
-                                            f"[{exists['ScanResult']}]")
+                                    self.logger.debug(f"Rejected {key} {reason}")
+                                    continue  # next book in docs
 
-                                        update_value_dict["ScanResult"] = f"bookdate {publish_date} is now valid"
-                                        self.searchinglogger.debug(
-                                            f"entry status {entrystatus} {bookstatus},{audiostatus}")
-                                        book_stat, audio_stat = get_status(key, serieslist, bookstatus,
-                                                                           audiostatus, entrystatus)
-                                        if book_status not in ['Wanted', 'Open', 'Have'] and not ignore_book:
-                                            update_value_dict["Status"] = book_stat
-                                        if audio_status not in ['Wanted', 'Open', 'Have'] and not ignore_book:
-                                            update_value_dict["AudioStatus"] = audio_stat
-                                        self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
-                                    elif not exists:
-                                        update_value_dict["ScanResult"] = reason
+                            # Leave alone if locked
+                            if locked:
+                                locked_count += 1
+                            else:
+                                if exists and exists['ScanResult'] and ' publication date' in exists['ScanResult'] \
+                                        and publish_date and publish_date != '0000' and \
+                                        publish_date <= today()[:len(publish_date)]:
+                                    # was rejected on previous scan but bookdate has become valid
+                                    self.logger.debug(
+                                        f"valid bookdate [{publish_date}] previous scanresult "
+                                        f"[{exists['ScanResult']}]")
 
-                                if update_value_dict:
-                                    control_value_dict = {"LT_WorkID": id_librarything}
-                                    db.upsert("books", update_value_dict, control_value_dict)
+                                    update_value_dict["ScanResult"] = f"bookdate {publish_date} is now valid"
+                                    self.searchinglogger.debug(
+                                        f"entry status {entrystatus} {bookstatus},{audiostatus}")
+                                    book_stat, audio_stat = get_status(key, serieslist, bookstatus,
+                                                                       audiostatus, entrystatus)
+                                    if book_status not in ['Wanted', 'Open', 'Have'] and not ignore_book:
+                                        update_value_dict["Status"] = book_stat
+                                    if audio_status not in ['Wanted', 'Open', 'Have'] and not ignore_book:
+                                        update_value_dict["AudioStatus"] = audio_stat
+                                    self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
+                                elif not exists:
+                                    update_value_dict["ScanResult"] = reason
 
-                                if not exists:
-                                    typ = 'Added'
-                                    added_count += 1
-                                else:
-                                    typ = 'Updated'
-                                    updated_count += 1
-                                msg = f"[{auth_name}] {typ} book: {title} [{lang}] status {bookstatus}"
-                                if CONFIG.get_bool('AUDIO_TAB'):
-                                    msg += f" audio {audiostatus}"
-                                self.logger.debug(msg)
+                            if update_value_dict:
+                                control_value_dict = {"LT_WorkID": id_librarything}
+                                db.upsert("books", update_value_dict, control_value_dict)
 
-                                if CONFIG.get_bool('ADD_SERIES'):
-                                    for series in serieslist:
-                                        newseries = f"{series[0]} {series[1]}"
-                                        newseries.strip()
-                                        seriesid = series[2]
-                                        exists = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
-                                        if not exists:
-                                            exists = db.match("SELECT * from series WHERE seriesname=? "
-                                                              "and instr(seriesid, 'LT') = 1", (series[0],))
-                                        if not exists:
-                                            self.logger.debug(f"New series: {series[0]}")
-                                            db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
-                                                      'Updated, Reason) VALUES (?,?,?,?,?)',
-                                                      (seriesid, series[0], 'Paused', time.time(),
-                                                       id_librarything), suppress='UNIQUE')
-                                            db.commit()
-                                            exists = {'Status': 'Paused'}
-                                        seriesmembers = None
-                                        cmd = "SELECT * from member WHERE seriesid=? AND WorkID=?"
-                                        if not db.match(cmd, (seriesid, id_librarything)):
-                                            seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
-                                            if seriesid in series_updates:
-                                                self.logger.debug(f"Series {seriesid} already updated")
-                                            elif exists['Status'] in ['Paused', 'Ignored']:
-                                                self.logger.debug(
-                                                    f"Not getting additional series members for "
-                                                    f"{seriesid}:{series[0]}, status is {exists['Status']}")
-                                            else:
-                                                seriesmembers = self.get_series_members(seriesid, series[0])
-                                                series_updates.append(seriesid)
-                                                if not seriesmembers:
-                                                    self.logger.warning(
-                                                        f"Series {series[0]} ({seriesid}) has no members "
-                                                        f"at librarything")
-                                        if seriesmembers:
-                                            if len(seriesmembers) == 1:
-                                                self.logger.debug(
-                                                    f"Found member {seriesmembers[0][0]} for series {series[0]}")
-                                            else:
-                                                self.logger.debug(
-                                                    f"Found {len(seriesmembers)} members for series {series[0]}")
-                                            for member in seriesmembers:
-                                                # member[order, bookname, authorname, authorlink, workid]
-                                                # remove any old entries for this series member
-                                                db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
-                                                          (seriesid, member[0]))
-                                                auth_name, exists = lazylibrarian.importer.get_preferred_author_name(
-                                                    member[2])
-                                                if not exists:
-                                                    reason = f"Series author {series[0]}:{member[1]}"
-                                                    lazylibrarian.importer.add_author_name_to_db(author=member[2],
-                                                                                                 refresh=False,
-                                                                                                 addbooks=False,
-                                                                                                 reason=reason
-                                                                                                 )
-                                                    auth_name, exists = \
-                                                        lazylibrarian.importer.get_preferred_author_name(member[2])
-                                                    if exists:
-                                                        auth_name = member[2]
-                                                    else:
-                                                        self.logger.debug(
-                                                            f"Unable to add {member[2]} for {member[1]}, "
-                                                            f"author not found")
-                                                        continue
-                                                else:
-                                                    cmd = "SELECT * from authors WHERE authorname=?"
-                                                    exists = db.match(cmd, (auth_name,))
-                                                    if exists:
-                                                        auth_key = exists['AuthorID']
-                                                        if fuzz.ratio(auth_name.lower().replace('.', ''),
-                                                                      member[2].lower().replace('.', '')) < 95:
-                                                            akas = get_list(exists['AKA'], ',')
-                                                            if member[2] not in akas:
-                                                                akas.append(member[2])
-                                                                db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
-                                                                          (', '.join(akas), auth_key))
-                                                        match = db.match(
-                                                            f"SELECT * from seriesauthors WHERE SeriesID=? "
-                                                            f"and AuthorID=?",
-                                                            (seriesid, auth_key))
-                                                        if not match:
-                                                            self.logger.debug(
-                                                                f"Adding {auth_name} as series author for {series[0]}")
-                                                            db.action('INSERT INTO seriesauthors (SeriesID, '
-                                                                      'AuthorID) VALUES (?, ?)',
-                                                                      (seriesid, auth_key), suppress='UNIQUE')
+                            if not exists:
+                                typ = 'Added'
+                                added_count += 1
+                            else:
+                                typ = 'Updated'
+                                updated_count += 1
+                            msg = f"[{auth_name}] {typ} book: {title} [{lang}] status {bookstatus}"
+                            if CONFIG.get_bool('AUDIO_TAB'):
+                                msg += f" audio {audiostatus}"
+                            self.logger.debug(msg)
 
-                                                # if book not in library, use librarything workid to get an isbn
-                                                # use that to get openlibrary workid
-                                                # add book to library, then add seriesmember
-                                                exists = db.match("SELECT * from books WHERE LT_Workid=?",
-                                                                  (member[4],))
+                            if CONFIG.get_bool('ADD_SERIES'):
+                                for series in serieslist:
+                                    newseries = f"{series[0]} {series[1]}"
+                                    newseries.strip()
+                                    seriesid = series[2]
+                                    exists = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
+                                    if not exists:
+                                        exists = db.match("SELECT * from series WHERE seriesname=? "
+                                                          "and instr(seriesid, 'LT') = 1", (series[0],))
+                                    if not exists:
+                                        self.logger.debug(f"New series: {series[0]}")
+                                        db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
+                                                  'Updated, Reason) VALUES (?,?,?,?,?)',
+                                                  (seriesid, series[0], 'Paused', time.time(),
+                                                   id_librarything), suppress='UNIQUE')
+                                        db.commit()
+                                        exists = {'Status': 'Paused'}
+                                    seriesmembers = None
+                                    cmd = "SELECT * from member WHERE seriesid=? AND WorkID=?"
+                                    if not db.match(cmd, (seriesid, id_librarything)):
+                                        seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
+                                        if seriesid in series_updates:
+                                            self.logger.debug(f"Series {seriesid} already updated")
+                                        elif exists['Status'] in ['Paused', 'Ignored']:
+                                            self.logger.debug(
+                                                f"Not getting additional series members for "
+                                                f"{seriesid}:{series[0]}, status is {exists['Status']}")
+                                        else:
+                                            seriesmembers = self.get_series_members(seriesid, series[0])
+                                            series_updates.append(seriesid)
+                                            if not seriesmembers:
+                                                self.logger.warning(
+                                                    f"Series {series[0]} ({seriesid}) has no members "
+                                                    f"at librarything")
+                                    if seriesmembers:
+                                        if len(seriesmembers) == 1:
+                                            self.logger.debug(
+                                                f"Found member {seriesmembers[0][0]} for series {series[0]}")
+                                        else:
+                                            self.logger.debug(
+                                                f"Found {len(seriesmembers)} members for series {series[0]}")
+                                        for member in seriesmembers:
+                                            # member[order, bookname, authorname, authorlink, workid]
+                                            # remove any old entries for this series member
+                                            db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
+                                                      (seriesid, member[0]))
+                                            auth_name, exists = lazylibrarian.importer.get_preferred_author_name(
+                                                member[2])
+                                            if not exists:
+                                                reason = f"Series author {series[0]}:{member[1]}"
+                                                lazylibrarian.importer.add_author_name_to_db(author=member[2],
+                                                                                             refresh=False,
+                                                                                             addbooks=False,
+                                                                                             reason=reason
+                                                                                             )
+                                                auth_name, exists = \
+                                                    lazylibrarian.importer.get_preferred_author_name(member[2])
                                                 if exists:
+                                                    auth_name = member[2]
+                                                else:
+                                                    self.logger.debug(
+                                                        f"Unable to add {member[2]} for {member[1]}, "
+                                                        f"author not found")
+                                                    continue
+                                            else:
+                                                cmd = "SELECT * from authors WHERE authorname=?"
+                                                exists = db.match(cmd, (auth_name,))
+                                                if exists:
+                                                    auth_key = exists['AuthorID']
+                                                    if fuzz.ratio(auth_name.lower().replace('.', ''),
+                                                                  member[2].lower().replace('.', '')) < 95:
+                                                        akas = get_list(exists['AKA'], ',')
+                                                        if member[2] not in akas:
+                                                            akas.append(member[2])
+                                                            db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
+                                                                      (', '.join(akas), auth_key))
                                                     match = db.match(
-                                                        f"SELECT * from member WHERE SeriesID=? AND BookID=?",
-                                                        (seriesid, exists['BookID']))
+                                                        f"SELECT * from seriesauthors WHERE SeriesID=? "
+                                                        f"and AuthorID=?",
+                                                        (seriesid, auth_key))
                                                     if not match:
                                                         self.logger.debug(
-                                                            f"Inserting new member [{member[0]}] for {series[0]}")
-                                                        db.action(
-                                                            f"INSERT INTO member (SeriesID, BookID, WorkID, "
-                                                            f"SeriesNum) VALUES (?,?,?,?)",
-                                                            (seriesid, exists['BookID'], member[4], member[0]),
-                                                            suppress='UNIQUE')
-                                                    ser = db.match(
-                                                        f"select count(*) as counter from member where seriesid=?",
-                                                        (seriesid,))
-                                                    if ser:
-                                                        counter = check_int(ser['counter'], 0)
-                                                        db.action("UPDATE series SET Total=? WHERE SeriesID=?",
-                                                                  (counter, seriesid))
-                                                else:
-                                                    if not self.lt_cache:
-                                                        librarything_wait()
-                                                    bookresult, self.lt_cache = html_request(self.LT_WORK + member[4])
-                                                    if bookresult:
-                                                        isbns = bookresult.split(b'ISBN:')
-                                                        isbnlist = []
-                                                        for item in isbns:
-                                                            item = item.decode('utf-8')
-                                                            isbn = item.split('&', 1)[0].split(',', 1)[0]
-                                                            if is_valid_isbn(isbn):
-                                                                isbnlist.append(isbn)
-                                                        workid = None
-                                                        worklink = None
-                                                        for isbn in isbnlist:
-                                                            bookinfo, in_cache = json_request(
-                                                                f"{self.OL_ISBN + isbn}.json")
-                                                            api_hits += not in_cache
-                                                            cache_hits += in_cache
-                                                            if bookinfo and bookinfo.get('works'):
-                                                                try:
-                                                                    for work in bookinfo.get('works'):
-                                                                        worklink = work.get('key')
-                                                                        workid = work.get('key').split('/')[-1]
-                                                                except IndexError:
-                                                                    workid = None
-                                                                if workid:
-                                                                    break
-                                                        if workid:
-                                                            workinfo, in_cache = json_request(
-                                                                f"{self.OL_WORK + workid}.json")
-                                                            api_hits += not in_cache
-                                                            cache_hits += in_cache
-                                                            if workinfo and 'title' in workinfo:
-                                                                title = workinfo.get('title')
-                                                                covers = workinfo.get('covers')
-                                                                if covers:
-                                                                    cover = 'http://covers.openlibrary.org/b/id/'
-                                                                    cover += f'{covers[0]}-M.jpg'
-                                                                else:
-                                                                    cover = 'images/nocover.png'
-                                                                publish_date = date_format(workinfo.get('publish_date',
-                                                                                                        ''),
-                                                                                           context=title)
-                                                                rating, genrelist, _ = self.lt_workinfo(member[4])
-                                                                genrenames = []
-                                                                for item in genrelist:
-                                                                    genrenames.append(item[0])
-                                                                genres = ', '.join(genrenames)
-                                                                lang = ''
+                                                            f"Adding {auth_name} as series author for {series[0]}")
+                                                        db.action('INSERT INTO seriesauthors (SeriesID, '
+                                                                  'AuthorID) VALUES (?, ?)',
+                                                                  (seriesid, auth_key), suppress='UNIQUE')
+
+                                            # if book not in library, use librarything workid to get an isbn
+                                            # use that to get openlibrary workid
+                                            # add book to library, then add seriesmember
+                                            exists = db.match("SELECT * from books WHERE LT_Workid=?",
+                                                              (member[4],))
+                                            if exists:
+                                                match = db.match(
+                                                    f"SELECT * from member WHERE SeriesID=? AND BookID=?",
+                                                    (seriesid, exists['BookID']))
+                                                if not match:
+                                                    self.logger.debug(
+                                                        f"Inserting new member [{member[0]}] for {series[0]}")
+                                                    db.action(
+                                                        f"INSERT INTO member (SeriesID, BookID, WorkID, "
+                                                        f"SeriesNum) VALUES (?,?,?,?)",
+                                                        (seriesid, exists['BookID'], member[4], member[0]),
+                                                        suppress='UNIQUE')
+                                                ser = db.match(
+                                                    f"select count(*) as counter from member where seriesid=?",
+                                                    (seriesid,))
+                                                if ser:
+                                                    counter = check_int(ser['counter'], 0)
+                                                    db.action("UPDATE series SET Total=? WHERE SeriesID=?",
+                                                              (counter, seriesid))
+                                            else:
+                                                if not self.lt_cache:
+                                                    librarything_wait()
+                                                bookresult, self.lt_cache = html_request(self.LT_WORK + member[4])
+                                                if bookresult:
+                                                    isbns = bookresult.split(b'ISBN:')
+                                                    isbnlist = []
+                                                    for item in isbns:
+                                                        item = item.decode('utf-8')
+                                                        isbn = item.split('&', 1)[0].split(',', 1)[0]
+                                                        if is_valid_isbn(isbn):
+                                                            isbnlist.append(isbn)
+                                                    workid = None
+                                                    worklink = None
+                                                    for isbn in isbnlist:
+                                                        bookinfo, in_cache = json_request(
+                                                            f"{self.OL_ISBN + isbn}.json")
+                                                        api_hits += not in_cache
+                                                        cache_hits += in_cache
+                                                        if bookinfo and bookinfo.get('works'):
+                                                            try:
+                                                                for work in bookinfo.get('works'):
+                                                                    worklink = work.get('key')
+                                                                    workid = work.get('key').split('/')[-1]
+                                                            except IndexError:
+                                                                workid = None
+                                                            if workid:
+                                                                break
+                                                    if workid:
+                                                        workinfo, in_cache = json_request(
+                                                            f"{self.OL_WORK + workid}.json")
+                                                        api_hits += not in_cache
+                                                        cache_hits += in_cache
+                                                        if workinfo and 'title' in workinfo:
+                                                            title = workinfo.get('title')
+                                                            covers = workinfo.get('covers')
+                                                            if covers:
+                                                                cover = 'http://covers.openlibrary.org/b/id/'
+                                                                cover += f'{covers[0]}-M.jpg'
+                                                            else:
+                                                                cover = 'images/nocover.png'
+                                                            publish_date = date_format(workinfo.get('publish_date',
+                                                                                                    ''),
+                                                                                       context=title)
+                                                            rating, genrelist, _ = self.lt_workinfo(member[4])
+                                                            genrenames = []
+                                                            for item in genrelist:
+                                                                genrenames.append(item[0])
+                                                            genres = ', '.join(genrenames)
+                                                            lang = ''
+                                                            match = db.match(
+                                                                f"SELECT * from authors WHERE AuthorName=? "
+                                                                f"COLLATE NOCASE",
+                                                                (auth_name,))
+                                                            if match:
+                                                                bauth_key = match['AuthorID']
+                                                            else:
+                                                                reason = f"Series author {series[0]}:{member[1]}"
+                                                                lazylibrarian.importer.add_author_name_to_db(
+                                                                    author=auth_name, refresh=False,
+                                                                    addbooks=False, reason=reason)
                                                                 match = db.match(
-                                                                    f"SELECT * from authors WHERE AuthorName=? "
-                                                                    f"COLLATE NOCASE",
+                                                                    f"SELECT * from authors WHERE "
+                                                                    f"AuthorName=? COLLATE NOCASE",
                                                                     (auth_name,))
                                                                 if match:
                                                                     bauth_key = match['AuthorID']
                                                                 else:
-                                                                    reason = f"Series author {series[0]}:{member[1]}"
-                                                                    lazylibrarian.importer.add_author_name_to_db(
-                                                                        author=auth_name, refresh=False,
-                                                                        addbooks=False, reason=reason)
-                                                                    match = db.match(
-                                                                        f"SELECT * from authors WHERE "
-                                                                        f"AuthorName=? COLLATE NOCASE",
-                                                                        (auth_name,))
-                                                                    if match:
-                                                                        bauth_key = match['AuthorID']
-                                                                    else:
-                                                                        msg = f"Unable to add {auth_name} for {title}"
-                                                                        msg += ", author not in database"
-                                                                        self.logger.debug(msg)
-                                                                        continue
+                                                                    msg = f"Unable to add {auth_name} for {title}"
+                                                                    msg += ", author not in database"
+                                                                    self.logger.debug(msg)
+                                                                    continue
 
-                                                                match = db.match(f"SELECT * from books WHERE BookID=?",
-                                                                                 (workid,))
-                                                                rejected = False
+                                                            match = db.match(f"SELECT * from books WHERE BookID=?",
+                                                                             (workid,))
+                                                            rejected = False
+                                                            if not match:
+                                                                self.logger.debug(
+                                                                    f"Insert new member [{member[0]}] for "
+                                                                    f"{series[0]}")
+
+                                                                reason = f"Member {member[0]} of series {series[0]}"
+                                                                reason = f"[{thread_name()}] {reason}"
+                                                                added_count += 1
+                                                                if not lang:
+                                                                    lang = 'Unknown'
+                                                                if wantedlanguages and 'All' not in wantedlanguages:
+                                                                    if lang not in wantedlanguages:
+                                                                        self.logger.debug(
+                                                                            f"Invalid language {lang}")
+                                                                        if 'lang' not in ignorable:
+                                                                            bad_lang += 1
+                                                                            rejected = True
+                                                                        else:
+                                                                            book_status = 'Ignored'
+                                                                            audio_status = 'Ignored'
+                                                                if not rejected:
+                                                                    if 'nocover' in cover or 'nophoto' in cover:
+                                                                        start = time.time()
+                                                                        cover, _ = get_book_cover(
+                                                                            workid, ignore='openlibrary')
+                                                                        cover_time += (time.time() - start)
+                                                                        cover_count += 1
+                                                                    elif cover and cover.startswith('http'):
+                                                                        cover = cache_bookimg(
+                                                                            cover, workid, 'ol')
+                                                                    if not cover:  # no results or failed to cache
+                                                                        cover = 'images/nocover.png'
+                                                                    db.action('INSERT INTO books (AuthorID, '
+                                                                              'BookName, BookDesc, BookGenre, '
+                                                                              'BookIsbn, BookPub, BookRate, '
+                                                                              'BookImg, BookLink, BookID, '
+                                                                              'BookDate, BookLang, BookAdded, '
+                                                                              'Status, WorkPage, AudioStatus, '
+                                                                              'LT_WorkID, ScanResult, '
+                                                                              'OriginalPubDate, ol_id) '
+                                                                              'VALUES (?,?,?,?,?,?,?,?,?,?,?,'
+                                                                              '?,?,?,?,?,?,?,?,?)',
+                                                                              (bauth_key, title, '', genres, '',
+                                                                               '', rating, cover, worklink, workid,
+                                                                               publish_date, lang, '', bookstatus,
+                                                                               '', audiostatus, member[4],
+                                                                               reason, publish_date, workid))
+                                                            if not rejected:
+                                                                match = db.match(
+                                                                    f"SELECT * from seriesauthors WHERE "
+                                                                    f"SeriesID=? AND AuthorID=?",
+                                                                    (seriesid, bauth_key))
                                                                 if not match:
                                                                     self.logger.debug(
-                                                                        f"Insert new member [{member[0]}] for "
-                                                                        f"{series[0]}")
+                                                                        f'Add {auth_name} as series author for '
+                                                                        f'{series[0]}')
+                                                                    db.action(
+                                                                        f"INSERT INTO seriesauthors ('SeriesID', "
+                                                                        f"\"AuthorID\") VALUES (?, ?)",
+                                                                        (seriesid, bauth_key), suppress='UNIQUE')
 
-                                                                    reason = f"Member {member[0]} of series {series[0]}"
-                                                                    reason = f"[{thread_name()}] {reason}"
-                                                                    added_count += 1
-                                                                    if not lang:
-                                                                        lang = 'Unknown'
-                                                                    if wantedlanguages and 'All' not in wantedlanguages:
-                                                                        if lang not in wantedlanguages:
-                                                                            self.logger.debug(f"Invalid language {lang}")
-                                                                            if 'lang' not in ignorable:
-                                                                                bad_lang += 1
-                                                                                rejected = True
-                                                                            else:
-                                                                                book_status = 'Ignored'
-                                                                                audio_status = 'Ignored'
-                                                                    if not rejected:
-                                                                        if 'nocover' in cover or 'nophoto' in cover:
-                                                                            start = time.time()
-                                                                            cover, _ = get_book_cover(workid,
-                                                                                                      ignore='openlibrary')
-                                                                            cover_time += (time.time() - start)
-                                                                            cover_count += 1
-                                                                        elif cover and cover.startswith('http'):
-                                                                            cover = cache_bookimg(cover, workid, 'ol')
-                                                                        if not cover:  # no results or failed to cache it
-                                                                            cover = 'images/nocover.png'
-                                                                        db.action('INSERT INTO books (AuthorID, '
-                                                                                  'BookName, BookDesc, BookGenre, BookIsbn,'
-                                                                                  ' BookPub, BookRate, BookImg, BookLink, '
-                                                                                  'BookID,BookDate, BookLang, BookAdded, '
-                                                                                  'Status, WorkPage, AudioStatus, '
-                                                                                  'LT_WorkID, ScanResult, OriginalPubDate,'
-                                                                                  ' ol_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,'
-                                                                                  '?,?,?,?,?,?,?,?,?)',
-                                                                                  (bauth_key, title, '', genres, '',
-                                                                                   '', rating, cover, worklink, workid,
-                                                                                   publish_date, lang, '', bookstatus,
-                                                                                   '', audiostatus, member[4],
-                                                                                   reason, publish_date, workid))
-                                                                if not rejected:
-                                                                    match = db.match(
-                                                                        f"SELECT * from seriesauthors WHERE "
-                                                                        f"SeriesID=? AND AuthorID=?",
-                                                                        (seriesid, bauth_key))
-                                                                    if not match:
-                                                                        self.logger.debug(
-                                                                            f'Add {auth_name} as series author for '
-                                                                            f'{series[0]}')
+                                                                match = db.match(
+                                                                    f"SELECT * from member WHERE SeriesID=? "
+                                                                    f"AND BookID=?",
+                                                                    (seriesid, workid))
+                                                                if not match:
+                                                                    db.action(
+                                                                        f"INSERT INTO member (SeriesID, BookID, "
+                                                                        f"WorkID, SeriesNum) VALUES (?,?,?,?)",
+                                                                        (seriesid, workid, member[4],
+                                                                         member[0]), suppress='UNIQUE')
+                                                                    ser = db.match(
+                                                                        f"select count(*) as counter from member "
+                                                                        f"where seriesid=?",
+                                                                        (seriesid,))
+                                                                    if ser:
+                                                                        counter = check_int(ser['counter'], 0)
                                                                         db.action(
-                                                                            f"INSERT INTO seriesauthors ('SeriesID', "
-                                                                            f"\"AuthorID\") VALUES (?, ?)",
-                                                                            (seriesid, bauth_key), suppress='UNIQUE')
-
-                                                                    match = db.match(
-                                                                        f"SELECT * from member WHERE SeriesID=? "
-                                                                        f"AND BookID=?",
-                                                                        (seriesid, workid))
-                                                                    if not match:
-                                                                        db.action(
-                                                                            f"INSERT INTO member (SeriesID, BookID, "
-                                                                            f"WorkID, SeriesNum) VALUES (?,?,?,?)",
-                                                                            (seriesid, workid, member[4],
-                                                                             member[0]), suppress='UNIQUE')
-                                                                        ser = db.match(
-                                                                            f"select count(*) as counter from member "
-                                                                            f"where seriesid=?",
-                                                                            (seriesid,))
-                                                                        if ser:
-                                                                            counter = check_int(ser['counter'], 0)
-                                                                            db.action(
-                                                                                f"UPDATE series SET Total=? WHERE "
-                                                                                f"SeriesID=?", (counter, seriesid))
+                                                                            f"UPDATE series SET Total=? WHERE "
+                                                                            f"SeriesID=?", (counter, seriesid))
                     if rating == 0:
                         self.logger.debug("No additional librarything info")
                         exists = db.match("SELECT * from books WHERE BookID=?", (key,))
@@ -1328,20 +1325,9 @@ class OpenLibrary:
                         return
 
             if CONFIG.get_bool('NO_SETS'):
-                if re.search(r'\d+ of \d+', title) or re.search(r'\d+/\d+', title):
-                    msg = f'Book {title} Set or Part'
-                    self.logger.warning(msg)
-                    if reason.startswith("Series:"):
-                        return
-
-            # allow date ranges eg 1981-95
-            m = re.search(r'(\d+)-(\d+)', title)
-            if m:
-                if check_year(m.group(1), past=1800, future=0):
-                    msg = f"Allow {m.group(1)}, looks like a date range"
-                    self.logger.debug(msg)
-                else:
-                    msg = f'Set or Part {title}'
+                is_set, set_msg = is_set_or_part(title)
+                if is_set:
+                    msg = f'Book {title} {set_msg}'
                     self.logger.warning(msg)
                     if reason.startswith("Series:"):
                         return

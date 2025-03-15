@@ -906,6 +906,27 @@ def get_series_authors(seriesid):
     return newauth
 
 
+def is_set_or_part(title):
+    logger = logging.getLogger(__name__)
+    rejected = False
+    msg = ''
+    m = re.search(r'(\d+)-(\d+)', title)
+    if m:
+        if check_year(m.group(1), past=1400, future=0):
+            logger.debug(f"Allow {title}, looks like a date range")
+        else:
+            rejected = True
+            msg = f'Set or Part {m.group(0)}'
+    if re.search(r'\d+ of \d+', title) or \
+            re.search(r'\d+/\d+', title) and not re.search(r'\d+/\d+/\d+', title):
+        rejected = True
+        msg = 'Set or Part'
+    elif re.search(r'\w+\s*/\s*\w+', title):
+        rejected = True
+        msg = 'Set or Part'
+    return rejected, msg
+
+
 def get_series_members(seriesid=None, seriesname=None, refresh=False):
     """ Ask librarything, hardcover or goodreads for details on all books in a series
         order, bookname, authorname, workid, authorid, pubyear, pubmonth, pubday, bookid
@@ -1022,19 +1043,10 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
             bookname = ''
             rejected = True
         if not rejected and CONFIG.get_bool('NO_SETS'):
-            if re.search(r'\d+ of \d+', str(order)) or \
-                    re.search(r'\d+/\d+', str(order)):
-                rejected = 'Set or Part'
+            is_set, msg = is_set_or_part(str(order))
+            if is_set:
+                rejected = msg
                 logger.debug(f'Rejected {bookname}: {order}, {rejected}')
-            if not rejected:
-                # allow date ranges eg 1981-95
-                m = re.search(r'(\d+)-(\d+)', str(order))
-                if m:
-                    if check_year(m.group(1), past=1800, future=0):
-                        logger.debug(f"Allow {order}, looks like a date range")
-                    else:
-                        rejected = f'Set or Part {m.group(0)}'
-                        logger.debug(f'Rejected {bookname}: {order}, {rejected}')
 
         if not rejected and CONFIG.get_bool('NO_NONINTEGER_SERIES') and '.' in str(item[0]):
             rejected = f'Rejected non-integer {item[0]}'
@@ -1257,9 +1269,7 @@ def get_work_series(bookid=None, source='GR', reason=""):
                     logger.debug(f"Ignoring goodreads single-book-series ({seriesid}) {seriesname}")
                 elif CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
                     logger.debug(f"Ignoring non-integer series member ({seriesnum}) {seriesname}")
-                elif CONFIG.get_bool('NO_SETS') and seriesnum and (not (
-                        not re.search(r'\d+ of \d+', seriesnum) and not re.search(r'\d+/\d+', seriesnum)) or
-                                                                   re.search(r'\d+-\d+', seriesnum)):
+                elif CONFIG.get_bool('NO_SETS') and any(is_set_or_part(seriesnum)):
                     logger.debug(f"Ignoring set or part ({seriesnum}) {seriesname}")
                 elif seriesname and seriesid:
                     seriesname = clean_name(seriesname, '&/')
@@ -1281,9 +1291,7 @@ def get_work_series(bookid=None, source='GR', reason=""):
 
             if CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
                 logger.debug(f"Ignoring non-integer series member ({seriesnum}) {seriesname}")
-            elif CONFIG.get_bool('NO_SETS') and seriesnum and (not (not re.search(r'\d+ of \d+', seriesnum)
-                                                                    and not re.search(r'\d+/\d+', seriesnum))
-                                                               or re.search(r'\d+-\d+', seriesnum)):
+            elif CONFIG.get_bool('NO_SETS') and any(is_set_or_part(seriesnum)):
                 logger.debug(f"Ignoring set or part ({seriesnum}) {seriesname}")
             elif seriesname and seriesid:
                 seriesname = clean_name(seriesname, '&/')

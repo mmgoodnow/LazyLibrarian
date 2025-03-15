@@ -11,7 +11,6 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import re
 import time
 import traceback
 import unicodedata
@@ -23,7 +22,7 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, isbn_from_words, isbnlang, get_book_pubdate, get_gb_info, \
-    get_gr_genres, set_genres, genre_filter
+    get_gr_genres, set_genres, genre_filter, is_set_or_part
 from lazylibrarian.cache import gr_xml_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
@@ -661,18 +660,9 @@ class GoodReads:
 
                         name = unaccented(bookname, only_ascii=False)
                         if CONFIG.get_bool('NO_SETS'):
-                            # allow date ranges eg 1981-95
-                            m = re.search(r'(\d+)-(\d+)', name)
-                            if m:
-                                if check_year(m.group(1), past=1800, future=0):
-                                    self.logger.debug(f"Allow {bookname}, looks like a date range")
-                                else:
-                                    rejected.append(['set', f'Set or Part {m.group(0)}'])
-                            if re.search(r'\d+ of \d+', name) or \
-                                    re.search(r'\d+/\d+', name) and not re.search(r'\d+/\d+/\d+', name):
-                                rejected.append(['set', 'Set or Part'])
-                            elif re.search(r'\w+\s*/\s*\w+', name):
-                                rejected.append(['set', 'Set or Part'])
+                            is_set, set_msg = is_set_or_part(name)
+                            if is_set:
+                                rejected.append(['set', set_msg])
 
                         oldbookname = bookname
                         bookname, booksub, bookseries = split_title(author_name_result, bookname)
@@ -1266,25 +1256,9 @@ class GoodReads:
                     return
 
         if CONFIG.get_bool('NO_SETS'):
-            if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
-                msg = f'Book {bookname} Set or Part'
-                self.logger.warning(msg)
-                if reason.startswith("Series:"):
-                    return
-
-            # allow date ranges eg 1981-95
-            m = re.search(r'(\d+)-(\d+)', bookname)
-            if m:
-                if check_year(m.group(1), past=1800, future=0):
-                    msg = f"Allow {m.group(1)}, looks like a date range"
-                    self.logger.debug(msg)
-                else:
-                    msg = f'Set or Part {bookname}'
-                    self.logger.warning(msg)
-                    if reason.startswith("Series:"):
-                        return
-            elif re.search(r'\w+\s*/\s*\w+', bookname):
-                msg = f'Set or Part {bookname}'
+            is_set, set_msg = is_set_or_part(bookname)
+            if is_set:
+                msg = f'Book {bookname} {set_msg}'
                 self.logger.warning(msg)
                 if reason.startswith("Series:"):
                     return
