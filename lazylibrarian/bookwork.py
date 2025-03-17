@@ -910,6 +910,8 @@ def is_set_or_part(title):
     logger = logging.getLogger(__name__)
     rejected = False
     msg = ''
+    if not title:
+        return rejected, msg
     m = re.search(r'(\d+)-(\d+)', title)
     if m:
         if check_year(m.group(1), past=1400, future=0):
@@ -1269,7 +1271,7 @@ def get_work_series(bookid=None, source='GR', reason=""):
                     logger.debug(f"Ignoring goodreads single-book-series ({seriesid}) {seriesname}")
                 elif CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
                     logger.debug(f"Ignoring non-integer series member ({seriesnum}) {seriesname}")
-                elif CONFIG.get_bool('NO_SETS') and any(is_set_or_part(seriesnum)):
+                elif CONFIG.get_bool('NO_SETS') and seriesnum and any(is_set_or_part(seriesnum)):
                     logger.debug(f"Ignoring set or part ({seriesnum}) {seriesname}")
                 elif seriesname and seriesid:
                     seriesname = clean_name(seriesname, '&/')
