@@ -46,6 +46,7 @@ def cron_search_wishlist():
 
 
 def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
+    # modify wanted status according to existing/author/series statuses
     logger = logging.getLogger(__name__)
     want_book = False
     want_audio = False
@@ -60,6 +61,7 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
             auth_status = auth_res['Status']
         else:
             auth_status = 'Unknown'
+        # not wanted if _any_ series the book is part of is paused/ignored
         cmd = "SELECT SeriesName,Status from series,member where series.SeriesID=member.SeriesID and member.BookID=?"
         series = db.select(cmd, (bookid,))
         reject_series = None
@@ -67,6 +69,7 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
             if ser['Status'] in ['Paused', 'Ignored']:
                 reject_series = {"Name": ser['SeriesName'], "Status": ser['Status']}
                 break
+        # not wanted if currently have book or already marked wanted
         if bookmatch['Status'] in ['Open', 'Wanted', 'Have']:
             logger.info(
                 f"Found book {bookname} by {authorname}, already marked as \"{bookmatch['Status']}\"")
@@ -79,15 +82,18 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
                 new_value_dict = {"Requester": f"{book['dispname']} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
-        elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
+        elif auth_status in ['Ignored', 'Paused'] and auth_res['Updated'] < search_start:
+            # not wanted if author is ignored or paused
             logger.info(f'Found book {bookname}, but author is "{auth_status}"')
         elif reject_series and auth_res['Updated'] < search_start:
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
         elif ebook_status == 'Wanted':
+            # still wanted...
             logger.info(f'Found book {bookname} by {authorname}, marking as "Wanted"')
             control_value_dict = {"BookID": bookid}
             new_value_dict = {"Status": "Wanted"}
             db.upsert("books", new_value_dict, control_value_dict)
+            want_book = True
             if bookmatch["Requester"]:  # Already on a wishlist
                 if book["dispname"] not in bookmatch["Requester"]:
                     new_value_dict = {"Requester": f"{bookmatch['Requester'] + book['dispname']} "}
@@ -108,15 +114,16 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
                 new_value_dict = {"AudioRequester": f"{book['dispname']} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
-        elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
+        elif auth_status in ['Ignored', 'Paused'] and auth_res['Updated'] < search_start:
             logger.info(f'Found book {bookname}, but author is "{auth_status}"')
         elif reject_series and auth_res['Updated'] < search_start:
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
-        elif audio_status == 'Wanted':  # skipped/ignored
+        elif audio_status == 'Wanted':
             logger.info(f'Found audiobook {bookname} by {authorname}, marking as "Wanted"')
             control_value_dict = {"BookID": bookid}
             new_value_dict = {"AudioStatus": "Wanted"}
             db.upsert("books", new_value_dict, control_value_dict)
+            want_audio = True
             if bookmatch["AudioRequester"]:  # Already on a wishlist
                 if book["dispname"] not in bookmatch["AudioRequester"]:
                     new_value_dict = {"AudioRequester": f"{bookmatch['AudioRequester'] + book['dispname']} "}
@@ -294,31 +301,36 @@ def search_wishlist():
         finally:
             db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
 
+        logger.debug(f"Wishlist found eBook:{len(new_books)}, Audio:{len(new_audio)}")
         search_books = []
         dl_books = []
         for item in new_books:
-            if item.get('link', ''):
-                cat = item.get('category', '')
-                if not cat or 'Ebook' in cat:
-                    dl_books.append(item)
+            link = item.get('link', '')
+            cat = item.get('category', '')
+            if link and (not cat or 'Ebook' in cat):
+                dl_books.append(item)
             else:
                 search_books.append({'bookid', item['BookID']})
+
+        logger.debug(f"eBooks: Download {len(dl_books)}, Search {len(search_books)}")
 
         search_audio = []
         dl_audio = []
         for item in new_audio:
-            if item.get('link', ''):
-                cat = item.get('category', '')
-                if not cat or 'Audiobook' in cat:
-                    dl_audio.append(item)
+            link = item.get('link', '')
+            cat = item.get('category', '')
+            if link and (not cat or 'Audiobook' in cat):
+                dl_audio.append(item)
             else:
                 search_audio.append({'bookid', item['BookID']})
 
+        logger.debug(f"Audio: Download {len(dl_audio)}, Search {len(search_audio)}")
+
         for item in dl_books:
+            logger.info(f"Downloading eBook {item['Title']} from mam")
             success, msg = tor_dl_method(bookid=item['BookID'], tor_title=item['Title'],
                                          tor_url=item['link'], library='eBook', provider='mam')
             if success:
-                logger.info(f"Downloading eBook {item['Title']} from mam")
                 custom_notify_snatch(f"{item['BookID']} eBook")
                 notify_snatch(f"eBook {item['Title']} from mam at {now()}")
                 schedule_job(SchedulerCommand.START, target='PostProcessor')
@@ -326,10 +338,10 @@ def search_wishlist():
                 logger.error(f"Failed to download {item['Title']}: {msg}")
 
         for item in dl_audio:
+            logger.info(f"Downloading AudioBook {item['Title']} from mam")
             success, msg = tor_dl_method(bookid=item['BookID'], tor_title=item['Title'],
                                          tor_url=item['link'], library='AudioBook', provider='mam')
             if success:
-                logger.info(f"Downloading AudioBook {item['Title']} from mam")
                 custom_notify_snatch(f"{item['BookID']} AudioBook")
                 notify_snatch(f"AudioBook {item['Title']} from mam at {now()}")
                 schedule_job(SchedulerCommand.START, target='PostProcessor')
