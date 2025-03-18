@@ -343,11 +343,11 @@ def serve_template(templatename, **kwargs):
 
         if templatename in ["login.html", "formlogin.html"]:
             cherrypy.response.cookie['ll_template'] = ''
-            if templatename == "login.html":
-                return template.render(perm=0, title="Redirected", style=style)
-            img = '/images/ll.png'
+            img = 'images/ll.png'
             if CONFIG['HTTP_ROOT']:
-                img = f'/{CONFIG["HTTP_ROOT"]}{img}'
+                img = f'{CONFIG["HTTP_ROOT"]}/{img}'
+            if templatename == "login.html":
+                return template.render(perm=0, title="Redirected", img=img, style=style)
             return template.render(perm=0, title='Login', img=img, from_page='/home')
 
         # keep template name for help context

@@ -138,9 +138,9 @@ class AuthController(object):
     @staticmethod
     def get_loginform(username, msg="Enter login information", from_page="/"):
         from lazylibrarian.webServe import serve_template
-        img = '/images/ll.png'
+        img = 'images/ll.png'
         if CONFIG['HTTP_ROOT']:
-            img = f"/{CONFIG['HTTP_ROOT']}{img}"
+            img = f"{CONFIG['HTTP_ROOT']}/{img}"
         return serve_template(templatename="formlogin.html", username=escape(username, True),
                               title='Login', img=img, from_page=from_page)
 
@@ -168,6 +168,8 @@ class AuthController(object):
             # cherrypy.session[SESSION_KEY] = {'user':    cherrypy.request.login,
             #                                 'expiry':  expiry}
             self.on_login(current_username)
+            if CONFIG['HTTP_ROOT']:
+                from_page = f"{CONFIG['HTTP_ROOT']}/{from_page}"
             raise cherrypy.HTTPRedirect(from_page or CONFIG['HTTP_ROOT'])
 
     @cherrypy.expose
@@ -178,5 +180,7 @@ class AuthController(object):
         if username:
             cherrypy.request.login = None
             self.on_logout(username)
+            if CONFIG['HTTP_ROOT']:
+                from_page = f"{CONFIG['HTTP_ROOT']}/{from_page}"
             raise cherrypy.HTTPRedirect(from_page or CONFIG['HTTP_ROOT'])
 
