@@ -93,20 +93,16 @@ def bok_login():
         zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
     else:
         # logger.error("Zlibrary check credentials")
-        return None
+        return None, None
     profile = zlib.getProfile()
     if not profile:
         logger.error("Zlibrary invalid credentials")
-        return None
+        return None, None
     if not CONFIG['BOK_REMIX_USERID'] or not CONFIG['BOK_REMIX_USERKEY']:
         CONFIG['BOK_REMIX_USERID'] = profile["user"]["id"]
         CONFIG['BOK_REMIX_USERKEY'] = profile["user"]["remix_userkey"]
-
-    dl_limit = profile["user"]["downloads_limit"]
-    dl_today = profile["user"]["downloads_today"]
-    logger.debug(f"z-library used {dl_today} of {dl_limit} daily downloads")
-    CONFIG.set_int('BOK_DLLIMIT', dl_limit)
-    return zlib
+    CONFIG.set_int('BOK_DLLIMIT', profile["user"]["downloads_limit"])
+    return zlib, profile
 
 
 def direct_bok(book=None, prov=None, test=False):
@@ -119,7 +115,7 @@ def direct_bok(book=None, prov=None, test=False):
             return False
         return [], "provider is already blocked"
 
-    zlib = bok_login()
+    zlib, _ = bok_login()
     if not zlib:
         if test:
             return False
@@ -549,12 +545,11 @@ def bok_dlcount() -> (int, int):
     # we might be out of sync with zlibrary download counter, eg we might not be the only downloader
     # so although we can count how many we downloaded, ask zlibrary and use their counter if known
     # we try to use our datestamp to find out when the counter will reset
-    dl_today = None
-    zlib = bok_login()
-    if zlib:
-        profile = zlib.getProfile()
-        dl_today = profile["user"]["downloads_today"]
+    zlib, profile = bok_login()
+    if not zlib:
+        return 0, 0
 
+    dl_today = profile["user"]["downloads_today"]
     db = database.DBConnection()
     try:
         yesterday = time.time() - 24 * 60 * 60
@@ -563,9 +558,5 @@ def bok_dlcount() -> (int, int):
     finally:
         db.close()
     if grabs:
-        if dl_today is None:
-            dl_today = len(grabs)
-        return dl_today, grabs[0]['completed']
-    if dl_today is None:
-        dl_today = 0
+        return len(grabs), grabs[0]['completed']
     return dl_today, 0
