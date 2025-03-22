@@ -302,6 +302,7 @@ def get_latest_version():
 def get_latest_version_from_git():
     # Don't call directly, use get_latest_version as wrapper.
     logger = logging.getLogger(__name__)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     latest_version = 'Unknown'
     created_at = ''
 
@@ -380,6 +381,7 @@ def get_commit_difference_from_git() -> (int, str):
     Takes current latest version value and tries to diff it with the latest version in the current branch.
     Returns # of commits behind, and the list of commits as a string """
     logger = logging.getLogger(__name__)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     commit_list = ''
     commits = -1
     if CONFIG['LATEST_VERSION'] and CONFIG['LATEST_VERSION'].startswith('Not_Available_From_Git'):
@@ -480,6 +482,7 @@ def update_version_file(new_version_id):
 def update():
     TELEMETRY.record_usage_data('Version/Update')
     logger = logging.getLogger(__name__)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     logdir = DIRS.ensure_data_subdir('Logs')
     with open(os.path.join(logdir, 'upgrade.log'), 'a') as upgradelog:
         if CONFIG['INSTALL_TYPE'] == 'win':
