@@ -202,23 +202,29 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                 # this new authorname may already be in the
                 # database, so check again
                 check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                if not check_exist_author:
+                    check_exist_author = db.match('SELECT * FROM authors where AuthorName=? COLLATE NOCASE', (author,))
                 if check_exist_author:
                     logger.debug(f'Found authorname {author} in database')
                     new = False
                 else:
                     logger.info(f"Adding new author [{author}] {authorid} {reason} addbooks={addbooks}")
                     try:
-                        add_author_to_db(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
-                                         reason=reason)
-                        cmd = 'SELECT * FROM authors where AuthorID=?'
-                        if authorid.startswith('OL'):
-                            cmd += " or ol_id=?"
-                            check_exist_author = db.match(cmd, (authorid, authorid))
-                        else:
-                            cmd += " or gr_id=? or hc_id=?"
-                            check_exist_author = db.match(cmd, (authorid, authorid, authorid))
+                        ret_id = add_author_to_db(authorname=author, refresh=refresh, authorid=authorid,
+                                                  addbooks=addbooks, reason=reason)
+                        if ret_id and ret_id != authorid:
+                            logger.debug(f"Authorid mismatch {authorid}/{ret_id}")
+                            authorid = ret_id
+                        check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                        if not check_exist_author:
+                            check_exist_author = db.match('SELECT * FROM authors where AuthorName=? '
+                                                          'COLLATE NOCASE', (author,))
                         if check_exist_author:
+                            logger.debug(f"Added new author [{check_exist_author['AuthorName']}] "
+                                         f"{check_exist_author['AuthorID']}")
                             new = True
+                        else:
+                            logger.debug(f"Failed to add author [{author}] {authorid} to database")
                     except Exception as e:
                         logger.error(f'Failed to add author [{author}] to db: {type(e).__name__} {str(e)}')
 
@@ -392,6 +398,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     if "Thread" in threadname:
         thread_name("AddAuthorToDB")
     db = database.DBConnection()
+    ret_id = None
     # noinspection PyBroadException
     try:
         new_author = True
@@ -429,12 +436,11 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             current_author['status'] = dbauthor['status']
 
         if not current_author or not current_author.get('authorid'):
-            msg = f"No author info for {authorid}:{authorname}"
             # goodreads sometimes changes authorid
             # maybe change of provider or no reply from provider
-            logger.error(msg)
+            logger.error(f"No author info for {authorid}:{authorname}")
             db.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
-            return msg
+            return ret_id
 
         if authorname and current_author['authorname'] != authorname:
             dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (current_author['authorname'],))
@@ -574,9 +580,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 update_totals(current_author['authorid'])
 
             if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
-                msg = f"[{current_author['authorname']}] Author update aborted, status {entry_status}"
-                logger.debug(msg)
-                return msg
+                logger.debug(f"[{current_author['authorname']}] Author update aborted, status {entry_status}")
+                return ret_id
 
             if new_author and CONFIG['GR_FOLLOWNEW']:
                 res = grfollow(current_author['authorid'], True)
@@ -600,18 +605,16 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             msg = (f"{current_author['authorid']} [{current_author['authorname']}] Author update complete, "
                    f"status {entry_status}")
             logger.info(msg)
-            return current_author['authorid']
+            ret_id = current_author['authorid']
         else:
-            msg = f"Authorid {authorid} ({authorname}) not found in database"
-            logger.warning(msg)
-            return msg
+            logger.warning(f"Authorid {authorid} ({authorname}) not found in database")
+            return ret_id
 
     except Exception:
-        msg = f'Unhandled exception in add_author_to_db: {traceback.format_exc()}'
-        logger.error(msg)
-        return msg
+        ret_id = None
     finally:
         db.close()
+        return ret_id
 
 
 # translations: e.g. allow "fire & fury" to match "fire and fury"
@@ -667,7 +670,6 @@ def de_duplicate(authorid):
     author = db.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
     db.connection.create_collation('fuzzy', collate_fuzzy)
     total = 0
-    dupes = 0
     authorname = ''
     # noinspection PyBroadException
     try:

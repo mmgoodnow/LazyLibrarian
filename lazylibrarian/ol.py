@@ -259,8 +259,10 @@ class OpenLibrary:
             about = ''
 
         photos = authorinfo.get('photos', '')
-        if photos and isinstance(photos, list):
-            author_img = f'http://covers.openlibrary.org/a/id/{photos[0]}-M.jpg'
+        if photos:
+            if isinstance(photos, list):
+                photos = photos[0]
+            author_img = f'http://covers.openlibrary.org/a/id/{photos}-M.jpg'
         else:
             author_img = 'images/nophoto.png'
 
@@ -721,6 +723,8 @@ class OpenLibrary:
                     if not cover:
                         cover = 'images/nocover.png'
                     else:
+                        if isinstance(cover, list):
+                            cover = cover[0]
                         cover = f'http://covers.openlibrary.org/b/id/{cover}-M.jpg'
                     rating = 0
 
@@ -1030,8 +1034,10 @@ class OpenLibrary:
                                                             title = workinfo.get('title')
                                                             covers = workinfo.get('covers')
                                                             if covers:
+                                                                if isinstance(covers, list):
+                                                                    covers = covers[0]
                                                                 cover = 'http://covers.openlibrary.org/b/id/'
-                                                                cover += f'{covers[0]}-M.jpg'
+                                                                cover += f'{covers}-M.jpg'
                                                             else:
                                                                 cover = 'images/nocover.png'
                                                             publish_date = date_format(workinfo.get('publish_date',
@@ -1287,8 +1293,10 @@ class OpenLibrary:
                 return
             covers = workinfo.get('covers', '')
             if covers:
+                if isinstance(covers, list):
+                    covers = covers[0]
                 cover = 'http://covers.openlibrary.org/b/id/'
-                cover += f'{covers[0]}-M.jpg'
+                cover += f'{covers}-M.jpg'
             else:
                 cover = 'images/nocover.png'
             publish_date = date_format(workinfo.get('publish_date', ''), context=title)
@@ -1369,7 +1377,7 @@ class OpenLibrary:
                                                                       addbooks=False,
                                                                       reason=f"ol.find_book {bookid}")
                     # authorid may have changed on importing
-                    if authorid != auth_id and auth_id.startswith('OL'):
+                    if auth_id and authorid != auth_id and auth_id.startswith('OL'):
                         authorid = auth_id
                     match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
                     if match:
