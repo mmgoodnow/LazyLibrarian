@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -89,6 +89,7 @@ def main():
         'opds_username': lazylibrarian.config2.CONFIG['OPDS_USERNAME'],
         'opds_password': lazylibrarian.config2.CONFIG['OPDS_PASSWORD'],
         'authentication': lazylibrarian.config2.CONFIG['AUTH_TYPE'],
+        'user_accounts': lazylibrarian.config2.CONFIG.get_bool('USER_ACCOUNTS'),
         'login_timeout': 43800,
     })
 
