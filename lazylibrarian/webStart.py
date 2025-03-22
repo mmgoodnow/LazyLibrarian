@@ -162,7 +162,7 @@ def initialize(options=None):
             # 'tools.proxy.local': 'X-Forwarded-For' or 'X-Real-IP' # this is for caddy
             'tools.proxy.local': CONFIG['PROXY_LOCAL']
         })
-    if options['http_pass'] != "":
+    if not options['user_accounts']:
         logger.info(f"Web server {options['authentication']} authentication is enabled, "
                     f"username is '{options['http_user']}'")
         if options['authentication'] == 'FORM':

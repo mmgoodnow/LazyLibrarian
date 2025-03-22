@@ -290,8 +290,8 @@ def serve_template(templatename, **kwargs):
                 userprefs = check_int(cookie['ll_prefs'].value, 0)
 
             if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-                if CONFIG.get_str('auth_type') == 'FORM':
-                    templatename = "login.html"  # TODO: fix formlogin
+                if not CONFIG.get_bool('USER_ACCOUNTS') and CONFIG.get_str('auth_type') == 'FORM':
+                    templatename = "formlogin.html"
                 else:
                     templatename = "login.html"
             elif (templatename == 'config.html' and not perm & lazylibrarian.perm_config) or \
@@ -313,8 +313,8 @@ def serve_template(templatename, **kwargs):
                     (templatename in ['manualsearch.html', 'searchresults.html']
                      and not perm & lazylibrarian.perm_search):
                 logger.warning(f'User {username} attempted to access {templatename}')
-                if CONFIG.get_str('auth_type') == 'FORM':
-                    templatename = "login.html"  # TODO: fix formlogin
+                if not CONFIG.get_bool('USER_ACCOUNTS') and CONFIG.get_str('auth_type') == 'FORM':
+                    templatename = "formlogin.html"
                 else:
                     templatename = "login.html"
 
@@ -2305,7 +2305,6 @@ class WebInterface:
                     if exists:
                         author_name = matchname
                     matchname = unaccented(matchname).lower()
-                    bestmatch = [0, '']
                     for item in listdir(libdir):
                         match = fuzz.ratio(format_author_name(unaccented(item),
                                                               get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
@@ -2314,8 +2313,6 @@ class WebInterface:
                             loggerfuzz.debug(f"Fuzzy match folder {match}% {item} for {author_name}")
                             # Add this name variant as an aka if not already there?
                             break
-                        elif match > bestmatch[0]:
-                            bestmatch = [match, item]
 
                 if not path_isdir(authordir):
                     # if still not found, see if we have a book by them, and what directory it's in
