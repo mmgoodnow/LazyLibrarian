@@ -189,6 +189,7 @@ def search_wishlist():
                 bookmatch = finditem(item, book['rss_author'], reason=f"wishlist: {book['dispname']}")
                 if bookmatch:  # it's in the database
                     want_book, want_audio = want_existing(bookmatch, book, search_start, ebook_status, audio_status)
+                    item['BookID'] = bookmatch['BookID']
                     if want_book:
                         new_books.append(item)
                     if want_audio:
@@ -215,6 +216,7 @@ def search_wishlist():
                             authorname = ''
 
                     if authorname and book['rss_isbn']:
+                        logger.debug(f"Searching using isbn {book['rss_isbn']}:{authorname}")
                         results = search_for(book['rss_isbn'])
                         for result in results:
                             if result['isbn_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
@@ -229,6 +231,7 @@ def search_wishlist():
                                     if bookmatch:  # it's in the database under isbn authorname
                                         want_book, want_audio = want_existing(bookmatch, book, search_start,
                                                                               ebook_status, audio_status)
+                                        item['BookID'] = bookmatch['BookID']
                                         if want_book:
                                             new_books.append(item)
                                         if want_audio:
@@ -240,6 +243,7 @@ def search_wishlist():
 
                     if authorname and not bookmatch:
                         searchterm = f"{book['rss_title']} <ll> {authorname}"
+                        logger.debug(f"Searching using title {book['rss_title']}:{authorname}")
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:
                             if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
@@ -255,6 +259,7 @@ def search_wishlist():
                         # no match on full searchterm, try splitting out subtitle and series
                         newtitle, _, _ = split_title(authorname, book['rss_title'])
                         if newtitle != book['rss_title']:
+                            logger.debug(f"Searching using newtitle {newtitle}:{authorname}")
                             title = newtitle
                             searchterm = f"{title} <ll> {authorname}"
                             results = search_for(unaccented(searchterm, only_ascii=False))
@@ -271,6 +276,7 @@ def search_wishlist():
                     if authorname and bookmatch:
                         import_book(bookmatch['bookid'], ebook_status, audio_status,
                                     reason=f"Added from wishlist {book['dispname']}")
+                        item['BookID'] = bookmatch['bookid']
                         if ebook_status == 'Wanted':
                             new_books.append(item)
                         if audio_status == 'Wanted':
@@ -279,7 +285,7 @@ def search_wishlist():
                         control_value_dict = {"BookID": bookmatch['bookid']}
                         db.upsert("books", new_value_dict, control_value_dict)
 
-                    elif authorname is not None:
+                    if not bookmatch:
                         msg = f"Skipping book {book['rss_title']} by {book['rss_author']}"
                         if not results:
                             msg += ', No results returned'
@@ -291,6 +297,7 @@ def search_wishlist():
                                 f"Closest match ({round(results[0]['author_fuzz'], 2)}% "
                                 f"{round(results[0]['book_fuzz'], 2)}%) "
                                 f"{results[0]['authorname']}: {results[0]['bookname']}")
+
             if new_books or new_audio:
                 tot = len(new_books) + len(new_audio)
                 logger.info(f"Wishlist marked {tot} {plural(tot, 'item')} as Wanted")
