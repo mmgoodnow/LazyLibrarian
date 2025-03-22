@@ -27,7 +27,7 @@ from rapidfuzz import fuzz
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.bookrename import book_rename, audio_rename, id3read
+from lazylibrarian.bookrename import book_rename, audio_rename, id3read, delete_empty_folders
 from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
@@ -367,7 +367,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         # But the leading : is removed by has_clean_subtitle, so we allow all non (): subtitles
         has_clean_subtitle = re.search(r"^\s+([^:()]+|\([^)]+\))$", book_sub) is not None
 
-        logger.debug(f"Searching {len(books)} {ign}{plural(len(books), 'book')} by [{author}] in database for [{book}]")
+        logger.debug(f"Searching {len(books)} {ign}{plural(len(books), 'book')} by "
+                     f"[{authorid}:{author}] in database for [{book}]")
         loggerfuzz.debug(f'book partname [{book_partname}] book_sub [{book_sub}]')
         if book_partname == book_lower:
             book_partname = ''
@@ -390,14 +391,14 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             #
             # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
             ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
-            loggerfuzz.debug(f"Ratio {ratio} [{book_lower}][{a_book_lower}]")
+            loggerfuzz.debug(f"Ratio {round(ratio, 2)} [{book_lower}][{a_book_lower}]")
             # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
             partial = fuzz.partial_ratio(book_lower, a_book_lower)
-            loggerfuzz.debug(f"PartialRatio {partial} [{book_lower}][{a_book_lower}]")
+            loggerfuzz.debug(f"PartialRatio {round(partial, 2)} [{book_lower}][{a_book_lower}]")
             if book_partname:
                 # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
                 partname = fuzz.partial_ratio(book_partname, a_book_lower)
-                loggerfuzz.debug(f"PartName {partname} [{book_partname}][{a_book_lower}]")
+                loggerfuzz.debug(f"PartName {round(partname, 2)} [{book_partname}][{a_book_lower}]")
 
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
@@ -668,9 +669,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     logger.debug(f'Found .ll_ignore file in {os.path.join(rootdir, directory)}')
                     dirnames.remove(directory)
             subdirectory = rootdir.replace(make_unicode(startdir), '')
-
             for files in filenames:
-                file_count += 1
                 # Added new code to skip if we've done this directory before.
                 # Made this conditional with a switch in config.ini
                 # in case user keeps multiple different books in the same subdirectory
@@ -693,7 +692,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                             (library == 'AudioBook' and CONFIG.is_valid_booktype(files, 'audiobook')):
 
                         logger.debug(f"[{startdir}] Now scanning subdirectory {subdirectory}")
-
+                        file_count += 1
                         language = "Unknown"
                         isbn = ""
                         book = ""
@@ -1094,7 +1093,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                                                          book_filename))[0],
                                                                                      overwrite=False)
 
-                                            old_filename = book_filename
                                             db.action("UPDATE books SET BookFile=? where BookID=?",
                                                       (book_filename, bookid))
 
@@ -1113,24 +1111,22 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                     break
 
                                             # location may have changed on rename
-                                            if book_filename != old_filename:
+                                            if book_filename != check_status['BookFile']:
                                                 db.action('UPDATE books SET BookFile=? WHERE BookID=?',
                                                           (book_filename, bookid))
-                                                if (check_status['BookFile'] and check_status['BookFile'] != 'None'
-                                                        and check_status['BookFile' != book_filename]):
-                                                    modified_count += 1
+                                                modified_count += 1
 
-                                                if 'unknown' in check_status['AuthorName'].lower():
-                                                    oldauth = db.match("SELECT * from authors WHERE AuthorName=?",
-                                                                       (author,))
-                                                    if oldauth:
-                                                        logger.debug(
-                                                            f"Moving {bookid} from {check_status['AuthorName']} "
-                                                            f"to {author}")
-                                                        db.action('UPDATE books set AuthorID=? where BookID=?',
-                                                                  (oldauth['AuthorID'], bookid))
-                                                        db.action("DELETE from authors WHERE AuthorID=?",
-                                                                  (check_status['AuthorID'],))
+                                            if 'unknown' in check_status['AuthorName'].lower():
+                                                newauth = db.match("SELECT * from authors WHERE AuthorName=?",
+                                                                   (author,))
+                                                if newauth:
+                                                    logger.debug(
+                                                        f"Moving {bookid} from {check_status['AuthorName']} "
+                                                        f"to {author}")
+                                                    db.action('UPDATE books set AuthorID=? where BookID=?',
+                                                              (newauth['AuthorID'], bookid))
+                                                    db.action("DELETE from authors WHERE AuthorID=?",
+                                                              (check_status['AuthorID'],))
 
                                         elif library == 'AudioBook':
                                             if 'narrator' and not check_status['Narrator']:
@@ -1179,15 +1175,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                             # location may have changed since last scan
                                             if book_filename and book_filename != check_status['AudioFile']:
-                                                if check_status['AudioFile'] and check_status['AudioFile'] != 'None':
-                                                    modified_count += 1
-                                                    logger.warning(
-                                                        f"Updating audiobook location for {author} {book} from "
-                                                        f"{check_status['AudioFile']} to {book_filename}")
-                                                logger.debug(
-                                                    f"{author} {book} matched {check_status['AudioStatus']} "
-                                                    f"BookID {bookid}, [{check_status['AuthorName']}]"
-                                                    f"[{check_status['BookName']}]")
+                                                modified_count += 1
+                                                logger.warning(f"Updating audiobook location for {author} {book} from "
+                                                               f"{check_status['AudioFile']} to {book_filename}")
                                                 db.action('UPDATE books set AudioFile=? where BookID=?',
                                                           (book_filename, bookid))
 
@@ -1292,6 +1282,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     newimg, success, _ = cache_img(ImageType.BOOK, bookid, bookimg)
                     if success:
                         db.action('update books set BookImg=? where BookID=?', (newimg, bookid))
+                    else:
+                        logger.warning(f"Unable to cache image for BookID {bookid}")
+                        db.action('update books set BookImg=? where BookID=?', ('images/nocover.png', bookid))
 
             images = db.select("select AuthorID, AuthorImg, AuthorName from authors where instr(AuthorImg, 'http') = 1")
             if len(images):
@@ -1303,6 +1296,12 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     newimg, success, _ = cache_img(ImageType.AUTHOR, img_id(), authorimg)
                     if success:
                         db.action('update authors set AuthorImg=? where AuthorID=?', (newimg, authorid))
+                    else:
+                        logger.warning(f"Unable to cache image for AuthorID {authorid}")
+                        db.action('update authors set AuthorImg=? where AuthorID=?', ('images/nophoto.png', authorid))
+
+            cnt = len(delete_empty_folders(startdir))  # tidy up
+            logger.debug(f"Deleted {cnt} empty {plural(cnt, 'folder')} in {startdir}")
 
             if library == 'eBook':
                 lazylibrarian.EBOOK_UPDATE = 0
