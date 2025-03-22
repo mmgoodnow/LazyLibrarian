@@ -568,11 +568,6 @@ def book_rename(bookid):
         logger.debug(msg)
         return '', msg
 
-    if not os.path.isfile(fullname):
-        msg = f"Missing source file for {bookid} in BookRename"
-        logger.debug(msg)
-        return '', msg
-
     old_path = os.path.dirname(fullname)
     if CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
         try:
@@ -599,8 +594,17 @@ def book_rename(bookid):
     dest_dir = get_directory('eBook')
     dest_path = os.path.join(dest_dir, dest_path)
     dest_path = stripspaces(dest_path.rstrip(os.path.sep))
-
     new_basename = namevars['BookFile']
+
+    if fullname and not os.path.isfile(fullname):
+        _, extn = os.path.splitext(fullname)
+        if extn:
+            new_location = os.path.join(dest_path, new_basename + extn)
+            if os.path.isfile(new_location):
+                msg = f"Source file for {bookid} already moved"
+                logger.debug(msg)
+                return new_location, msg
+
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
         msg = f"[{new_basename}] looks like an omnibus? Not renaming"
         logger.warning(msg)
@@ -612,58 +616,78 @@ def book_rename(bookid):
 
     if old_path != dest_path:
         try:
-            if len(old_path) > len(dest_path) and old_path.startswith(dest_path):
-                # old_path is a subdir within new correct destination
-                logger.debug(f"move contents of folder {old_path} to {dest_path}")
-                shutil.copytree(old_path, dest_path, dirs_exist_ok=True)
-                shutil.rmtree(old_path)
-            else:
-                logger.debug(f"rename folder {old_path} to {dest_path}")
-                dest_path = safe_move(old_path, dest_path)
-            fullname = os.path.join(dest_path, os.path.basename(fullname))
+            os.makedirs(dest_path, exist_ok=True)
         except Exception as why:
-            msg = f'Rename failed: {why}'
+            msg = f'makedirs failed: {why}'
             logger.error(msg)
             return fullname, msg
 
-    book_basename, _ = os.path.splitext(os.path.basename(fullname))
-
-    if book_basename == new_basename:
-        if old_path != dest_path:
-            return fullname, "Folder change"
+    msg = ''
+    # only rename bookname.type, bookname.jpg, bookname.opf
+    # not cover.jpg or metadata.opf or anything else in the folder
+    for fname in listdir(old_path):
+        extn = ''
+        if CONFIG.is_valid_booktype(fname, booktype='ebook'):
+            extn = os.path.splitext(fname)[1]
+        elif fname.endswith('.opf') and not fname == 'metadata.opf':
+            extn = '.opf'
+        elif fname.endswith('.jpg') and not fname == 'cover.jpg':
+            extn = '.jpg'
+        if extn:
+            ofname = os.path.join(old_path, fname)
+            nfname = os.path.join(dest_path, new_basename + extn)
+            # check for windows case-insensitive
+            if os.name == 'nt' and nfname.lower() == ofname.lower():
+                nfname = ofname
+            if ofname != nfname:
+                try:
+                    nfname = safe_move(ofname, nfname)
+                    m = f"move file {ofname} to {nfname} "
+                    logger.debug(m)
+                    msg += m
+                    if ofname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
+                        fullname = nfname
+                except Exception as e:
+                    m = f'Unable to move [{ofname}] to [{nfname}] {type(e).__name__} {str(e)} '
+                    logger.error(m)
+                    msg += m
         else:
-            return fullname, "No change"
-    else:
-        msg = ''
-        # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
-        for fname in listdir(dest_path):
-            extn = ''
-            if CONFIG.is_valid_booktype(fname, booktype='ebook'):
-                extn = os.path.splitext(fname)[1]
-            elif fname.endswith('.opf') and not fname == 'metadata.opf':
-                extn = '.opf'
-            elif fname.endswith('.jpg') and not fname == 'cover.jpg':
-                extn = '.jpg'
-            if extn:
-                ofname = os.path.join(dest_path, fname)
-                nfname = os.path.join(dest_path, new_basename + extn)
-                # check for windows case-insensitive
-                if os.name == 'nt' and nfname.lower() == ofname.lower():
-                    nfname = ofname
-                if ofname != nfname:
-                    try:
-                        nfname = safe_move(ofname, nfname)
-                        m = f"rename file {ofname} to {nfname} "
-                        logger.debug(m)
-                        msg += m
-                        oldname = os.path.join(old_path, fname)
-                        if oldname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
-                            fullname = nfname
-                    except Exception as e:
-                        m = f'Unable to rename [{ofname}] to [{nfname}] {type(e).__name__} {str(e)} '
-                        logger.error(m)
-                        msg += m
+            # just move everything else without renaming
+            ofname = os.path.join(old_path, fname)
+            nfname = os.path.join(dest_path, fname)
+            if os.name == 'nt' and nfname.lower() == ofname.lower():
+                nfname = ofname
+            if ofname != nfname:
+                try:
+                    nfname = safe_move(ofname, nfname)
+                    m = f"move file {ofname} to {nfname} "
+                    logger.debug(m)
+                    msg += m
+                except Exception as e:
+                    m = f'Unable to move [{ofname}] to [{nfname}] {type(e).__name__} {str(e)} '
+                    logger.error(m)
+                    msg += m
+
+    if not len(listdir(old_path)):
+        # everything moved out...
+        os.rmdir(old_path)
+
     return fullname, msg
+
+
+def delete_empty_folders(startdir):
+    deleted = set()
+    for current_dir, subdirs, files in os.walk(startdir, topdown=False):
+        still_has_subdirs = False
+        for subdir in subdirs:
+            if os.path.join(current_dir, subdir) not in deleted:
+                still_has_subdirs = True
+                break
+
+        if not any(files) and not still_has_subdirs:
+            os.rmdir(current_dir)
+            deleted.add(current_dir)
+    return deleted
 
 
 def name_vars(bookid, abridged=''):
