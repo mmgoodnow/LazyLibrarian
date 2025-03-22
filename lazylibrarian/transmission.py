@@ -303,6 +303,7 @@ def torrent_action(method, arguments):
 
     logger = logging.getLogger(__name__)
     loggerdlcomms = logging.getLogger('special.dlcomms')
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     username = CONFIG['TRANSMISSION_USER']
     password = CONFIG['TRANSMISSION_PASS']
 

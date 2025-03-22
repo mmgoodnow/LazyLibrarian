@@ -212,6 +212,7 @@ class LazyTelemetry(object):
     def _send_url(url: str):
         """ Sends url to the telemetry server, returns result """
         logger = logging.getLogger(__name__)
+        logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
         proxies = proxy_list()
         timeout = 5
         headers = {'User-Agent': 'LazyLibrarian'}

@@ -189,6 +189,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 
     loggerdlcomms = logging.getLogger('special.dlcomms')
     loggerdlcomms.debug(f'sab params: {repr(params)}')
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
 
     url = f"{host}/api?{urlencode(params)}"
 
