@@ -262,6 +262,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
 
 def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=''):
     logger = logging.getLogger(__name__)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     source = "DIRECT"
     logger.debug(f"Starting Direct Download for [{dl_title}]")
 
@@ -478,6 +479,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
 def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', label='', provider=''):
     logger = logging.getLogger(__name__)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     download_id = False
     source = ''
     torrent = ''
