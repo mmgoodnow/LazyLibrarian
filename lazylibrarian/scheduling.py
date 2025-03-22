@@ -304,7 +304,7 @@ def author_update(restart=True, only_overdue=True):
                 msg = f"Oldest author info ({name}) is {days} {plural(days, 'day')} old, no update due"
             else:
                 logger.info(f'Starting update for {name}')
-                add_author_to_db(refresh=True, authorid=ident, reason=f"author_update {name}")
+                _ = add_author_to_db(refresh=True, authorid=ident, reason=f"author_update {name}")
                 if lazylibrarian.STOPTHREADS:
                     return ''
                 msg = f'Updated author {name}'
@@ -364,8 +364,8 @@ def all_author_update(refresh=False):
             if lazylibrarian.STOPTHREADS:
                 logger.debug("Aborting ActiveAuthorUpdate")
                 break
-            add_author_to_db(refresh=refresh, authorid=author['AuthorID'], authorname=author['AuthorName'],
-                             reason="all_author_update")
+            _ = add_author_to_db(refresh=refresh, authorid=author['AuthorID'], authorname=author['AuthorName'],
+                                 reason="all_author_update")
         logger.info('Active author update complete')
         msg = f"Updated {len(activeauthors)} active {plural(len(activeauthors), 'author')}"
         logger.debug(msg)

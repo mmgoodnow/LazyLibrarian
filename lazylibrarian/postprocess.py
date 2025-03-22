@@ -540,8 +540,11 @@ def process_alternate(source_dir=None, library='eBook'):
                 else:
                     logger.debug(f"Author {authorname} not found, adding to database")
                     if authorid:
-                        add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
-                                         reason=f"process_alternate: {bookname}")
+                        ret_id = add_author_to_db(authorid=authorid, addbooks=CONFIG.get_bool('NEWAUTHOR_BOOKS'),
+                                                  reason=f"process_alternate: {bookname}")
+                        if ret_id and ret_id != authorid:
+                            logger.debug(f"Authorid mismatch {authorid}/{ret_id}")
+                            authorid = ret_id
                     else:
                         aname, authorid, _ = add_author_name_to_db(author=authorname,
                                                                    reason=f"process_alternate: {bookname}",

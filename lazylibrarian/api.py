@@ -1745,7 +1745,7 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
         try:
-            add_author_to_db(self.id, refresh=refresh, reason=f"API refresh_author {self.id}")
+            self.data = add_author_to_db(self.id, refresh=refresh, reason=f"API refresh_author {self.id}")
         except Exception as e:
             self.data = f"{type(e).__name__} {str(e)}"
 
