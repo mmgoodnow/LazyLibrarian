@@ -61,13 +61,19 @@ class LLConfigHandler(ConfigDict):
             parser.read(syspath(configfile))
             for section in parser.sections():
                 if section[-1:].isdigit():
-                    self._load_array_section(section, parser)
+                    try:
+                        self._load_array_section(section, parser)
+                    except Exception as e:
+                        self.logger.warning(f"Error loading {section}: {parser}: {str(e)}")
                 else:
                     self._load_section(section, parser, self)
             self._update_redactlist()
         else:
             self.configfilename = ''
-        self.ensure_arrays_have_empty_item()
+        try:
+            self.ensure_arrays_have_empty_item()
+        except Exception as e:
+            self.logger.warning(f"Error ensuring empty items {str(e)}")
 
     def _copydefaults(self, defaults: Optional[List[ConfigItem]] = None):
         """ Copy the default values and settings for the given config """
@@ -282,11 +288,15 @@ class LLConfigHandler(ConfigDict):
             count += add_to_parser(parser, item.section, item)
 
         for name, array in self.arrays.items():
+            array.cleanup_for_save()
             for inx in range(0, len(array)):
-                config = array[inx]
-                sectionname = array.get_section_str(inx)
-                for key, item in config.items():
-                    count += add_to_parser(parser, sectionname, item)
+                try:
+                    config = array[inx]
+                    sectionname = array.get_section_str(inx)
+                    for key, item in config.items():
+                        count += add_to_parser(parser, sectionname, item)
+                except KeyError:
+                    pass
         try:
             output = io.StringIO()
             parser.write(output)
@@ -558,12 +568,15 @@ class LLConfigHandler(ConfigDict):
             array = self.get_array(provider)
             if array:
                 for inx in range(0, len(array)):
-                    host = array.primary_host(inx)
-                    ok = array.is_in_use(inx) and not BLOCKHANDLER.is_blocked(host)
-                    if wishlist is not None:
-                        ok = ok and bool(wishlist_type(host)) == wishlist
-                    if ok:
-                        count += 1
+                    try:
+                        host = array.primary_host(inx)
+                        ok = array.is_in_use(inx) and not BLOCKHANDLER.is_blocked(host)
+                        if wishlist is not None:
+                            ok = ok and bool(wishlist_type(host)) == wishlist
+                        if ok:
+                            count += 1
+                    except KeyError:
+                        pass
         return count
 
     def use_rss(self) -> int:
@@ -717,8 +730,10 @@ def wishlist_type(host: str) -> str:
     array = CONFIG.get_array('RSS')
     if array:
         for inx in range(0, len(array)):
-            config = dict(array.configs[inx])
-            if config['HOST'] == host and 'mam wish' in config['LABEL'].lower():
-                return 'myanonamouse'
-
+            try:
+                config = dict(array.configs[inx])
+                if config['HOST'] == host and 'mam' in config['LABEL'].lower() and 'wish' in config['LABEL'].lower():
+                    return 'myanonamouse'
+            except KeyError:
+                pass
     return ''

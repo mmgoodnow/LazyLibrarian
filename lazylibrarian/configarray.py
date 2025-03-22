@@ -3,7 +3,6 @@
 # Purpose:
 #   Handle array-configs, such as providers and notifiers
 
-import logging
 from collections import OrderedDict
 from typing import Dict, List
 
@@ -63,7 +62,11 @@ class ArrayConfig:
         """ Check if the index'th item is in use, or spare """
         if index > len(self):
             return False
-        return self.primary_host(index) != ''
+        try:
+            res = self.primary_host(index) != ''
+            return res
+        except KeyError:
+            return False
 
     def get_section_str(self, index: int) -> str:
         return self._secstr % index
@@ -84,22 +87,18 @@ class ArrayConfig:
 
         renum = 0
         # Because we use an OrderedDict, items will be in numeric order
+        # Can't modify ordered dict while iterating, so make a copy
+        temp_configs = OrderedDict()
         for number in self.configs:
             if number > renum:
-                config = self.configs.pop(number)
+                config = self.configs[number]
                 # Update the section key in each item
                 for name, item in config.items():
                     item.section = self.get_section_str(renum)
                 # Update the key of the dict entry
-                self.configs[renum] = config
+                temp_configs[renum] = config
+            else:
+                temp_configs[number] = self.configs[number]
             renum += 1
+        self.configs = temp_configs
 
-        # Validate that this worked, it's a bit iffy
-        logger = logging.getLogger(__name__)
-        if keepcount != len(self):
-            logger.error(f'Internal error cleaning up {self._name}')
-        for index in range(0, len(self)):
-            config = self.configs[index]
-            for name, item in config.items():
-                if item.section != self.get_section_str(index):
-                    logger.error(f'Internal error in {self._name}:{name}')
