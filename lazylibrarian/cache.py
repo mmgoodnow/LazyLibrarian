@@ -93,6 +93,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True
     # for key in logging.Logger.manager.loggerDict:
     #     print(key)
     logging.getLogger('chardet').setLevel(logging.CRITICAL)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
 
     url = make_unicode(url)
 
@@ -179,7 +180,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True
             logger.debug(f'Request denied, {r.status_code}, blocking {to_block} for {delay} seconds')
             BLOCKHANDLER.replace_provider_entry(to_block, delay, msg)
         else:
-            logger.debug(f"Error {r.status_code} url={url} headers={headers}")
+            logger.debug(f"Error {r.status_code} url={url}")
 
     elif 'googleapis' in url:
         if 'Limit Exceeded' in msg:
@@ -197,7 +198,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True
         logger.debug(f'Request denied, {r.status_code}, blocking googleapis for {delay} seconds: {msg}')
         BLOCKHANDLER.replace_provider_entry('googleapis', delay, msg)
     else:
-        logger.debug(f"Error {r.status_code} url={url} headers={headers}")
+        logger.debug(f"Error {r.status_code} url={url}")
 
     if r.status_code in responses:
         msg = responses[r.status_code]
@@ -213,6 +214,7 @@ def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> 
         On error, return message, False, False """
 
     logger = logging.getLogger(__name__)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     had_cache = False
     cachefile = DIRS.get_cachefile(img_type.value, f"{img_id}.jpg")
     link = f'cache/{img_type.value}/{img_id}.jpg'

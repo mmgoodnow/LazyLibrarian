@@ -1524,6 +1524,7 @@ def thinglang(isbn):
     # if no language found, librarything return value is "invalid" or "unknown"
     # librarything returns plain text, not xml
     logger = logging.getLogger(__name__)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     book_url = '/'.join([CONFIG['LT_URL'], f"api/thinglang.php?isbn={isbn}"])
     proxies = proxy_list()
     booklang = ''
