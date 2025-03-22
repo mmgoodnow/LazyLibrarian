@@ -144,7 +144,7 @@ def test_provider(name: str, host=None, api=None):
                     elif 'indigo' in host:
                         return indigo(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                       provider['DISPNAME'], test=True), provider['DISPNAME']
-                    elif 'mam wish' in label.lower():
+                    elif 'mam' in label.lower() and 'wish' in label.lower():
                         return mam(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
@@ -1624,13 +1624,24 @@ def mam(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
                 book_link = post.link
             if 'category' in post:
                 category = post.category
-            if 'summary' in post:
-                try:
-                    author_name = post.summary.split('Author(s):')[1].split('<')[0].strip()
-                except IndexError:
-                    pass
             if 'isbn' in post:
                 isbn = post.isbn
+
+            for key in post:
+                try:
+                    author_name = post[key].split('Author(s):')[1].split('<')[0].strip()
+                    if author_name:
+                        break
+                except (IndexError, AttributeError):
+                    pass
+
+            # mam uses period as a separator between multiple author names
+            # but fortunately doesn't add a period after initials
+            if '.' in author_name and ' ' in author_name.split('.')[0]:
+                # more than one word before the first period, assume first author is primary
+                # and author names are always more than one word
+                author_name = author_name.split('.')[0]
+
             if title and author_name:
                 results.append({
                     'rss_prov': provider,
