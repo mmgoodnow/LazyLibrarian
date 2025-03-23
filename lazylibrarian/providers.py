@@ -511,12 +511,12 @@ def iterate_over_znab_sites(book=None, search_type=None):
     providers = 0
 
     for provider in CONFIG.providers('NEWZNAB'):
-        iterateproviderslogger.debug(f"DLTYPES: {provider['HOST']}: {provider['ENABLED']} {provider['DLTYPES']}")
+        dispname = provider['DISPNAME']
+        if not dispname:
+            dispname = provider['HOST']
+        iterateproviderslogger.debug(f"DLTYPES: {dispname}: {bool(provider['ENABLED'])} {provider['DLTYPES']}")
         if provider['ENABLED'] and search_type:
             ignored = False
-            dispname = provider['DISPNAME']
-            if not dispname:
-                dispname = provider['HOST']
             if BLOCKHANDLER.is_blocked(provider['HOST']):
                 logger.debug(f'{dispname} is BLOCKED')
                 ignored = True
@@ -560,12 +560,12 @@ def iterate_over_znab_sites(book=None, search_type=None):
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
 
     for provider in CONFIG.providers('TORZNAB'):
-        iterateproviderslogger.debug(f"DLTYPES: {provider['HOST']}: {provider['ENABLED']} {provider['DLTYPES']}")
+        dispname = provider['DISPNAME']
+        if not dispname:
+            dispname = provider['HOST']
+        iterateproviderslogger.debug(f"DLTYPES: {dispname}: {bool(provider['ENABLED'])} {provider['DLTYPES']}")
         if provider['ENABLED'] and search_type:
             ignored = False
-            dispname = provider['DISPNAME']
-            if not dispname:
-                dispname = provider['HOST']
             if BLOCKHANDLER.is_blocked(provider['HOST']):
                 logger.debug(f'{dispname} is BLOCKED')
                 ignored = True
