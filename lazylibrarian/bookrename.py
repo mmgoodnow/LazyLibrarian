@@ -309,12 +309,12 @@ def audio_parts(folder, bookname, authorname):
             for part in parts:
                 match = fuzz.partial_ratio(part[1], book)
                 if match < 95:
-                    logger.warning(f"{bookname}: Inconsistent title: [{part[1]}][{book}] ({match}%)")
+                    logger.warning(f"{bookname}: Inconsistent title: [{part[1]}][{book}] ({round(match, 2)}%)")
                     failed = True
 
                 match = fuzz.partial_ratio(part[2], author)
                 if match < 95:
-                    logger.warning(f"{bookname}: Inconsistent author: [{part[2]}][{author} ({match}%)]")
+                    logger.warning(f"{bookname}: Inconsistent author: [{part[2]}][{author} ({round(match, 2)}%)]")
                     failed = True
 
         # do we have any usable track info from id3 tags

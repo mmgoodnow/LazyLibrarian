@@ -583,7 +583,7 @@ def process_alternate(source_dir=None, library='eBook'):
                                     break
                     if match:
                         logger.info(
-                            f"Found ({match['book_fuzz']}%) {match['authorname']}: {match['bookname']} for "
+                            f"Found ({round(match['book_fuzz'], 2)}%) {match['authorname']}: {match['bookname']} for "
                             f"{authorname}: {bookname}")
                         import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
                                     reason="Added from alternate dir")
@@ -602,7 +602,8 @@ def process_alternate(source_dir=None, library='eBook'):
                 else:
                     msg += ', No match found'
                     logger.warning(msg)
-                    msg = (f"Closest match ({results[0]['author_fuzz']}% {results[0]['book_fuzz']}%) "
+                    msg = (f"Closest match ({round(results[0]['author_fuzz'], 2)}% "
+                           f"{round(results[0]['book_fuzz'], 2)}%) "
                            f"{results[0]['authorname']}: {results[0]['bookname']}")
                     if results[0]['authorid'] != authorid:
                         msg += ' wrong authorid'
@@ -1044,7 +1045,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             matchname = sanitize(matchname)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
                             pp_path = ''
-                            loggerfuzz.debug(f"{match}% match {matchtitle} : {matchname}")
+                            loggerfuzz.debug(f"{round(match, 2)}% match {matchtitle} : {matchname}")
                             if match >= CONFIG.get_int('DLOAD_RATIO'):
                                 # matching file or folder name
                                 pp_path = os.path.join(download_dir, fname)
@@ -1056,7 +1057,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                                         matchname = sanitize(matchname)
                                         match = fuzz.token_set_ratio(matchtitle, matchname)
-                                        loggerfuzz.debug(f"{match}% match {matchtitle} : {matchname}")
+                                        loggerfuzz.debug(f"{round(match, 2)}% match {matchtitle} : {matchname}")
                                         if match >= CONFIG.get_int('DLOAD_RATIO'):
                                             # found matching file in this folder
                                             pp_path = os.path.join(download_dir, fname)
@@ -1109,7 +1110,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             logger.debug(f'Skipping unhandled file {fname}')
 
                                 if path_isdir(pp_path):
-                                    logger.debug(f'Found folder ({match}%) [{pp_path}] for {booktype} {matchtitle}')
+                                    logger.debug(f'Found folder ({round(match, 2)}%) [{pp_path}] '
+                                                 f'for {booktype} {matchtitle}')
                                     # some magazines are packed as multipart zip files, each zip contains a rar file
                                     # and the rar files need assembling into the final magazine
                                     zipfiles = 0
@@ -1162,7 +1164,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             for f in listdir(pp_path):
                                                 if CONFIG.is_valid_booktype(f, booktype="book"):
                                                     bookmatch = fuzz.token_set_ratio(matchtitle, f)
-                                                    loggerfuzz.debug(f"{bookmatch}% match {matchtitle} : {f}")
+                                                    loggerfuzz.debug(f"{round(bookmatch, 2)}% match {matchtitle} : {f}")
                                                     if bookmatch > found_score:
                                                         found_file = f
                                                         found_score = bookmatch
@@ -1174,7 +1176,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                     logger.error(f"Failed to create target dir {targetdir}")
                                                 else:
                                                     logger.debug(
-                                                        f"Found {found_file} ({found_score}%) for {matchtitle}")
+                                                        f"Found {found_file} ({round(found_score, 2)}%) "
+                                                        f"for {matchtitle}")
                                                     found_file, _ = os.path.splitext(found_file)
                                                     # copy all valid types of this title, plus opf, jpg
                                                     for f in listdir(pp_path):
@@ -1245,7 +1248,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         pp_path = highest[1]
                         book = highest[2]  # type: dict
                     if match and match >= CONFIG.get_int('DLOAD_RATIO'):
-                        logger.debug(f"Found match ({match}%): {repr(pp_path)} for {booktype} {repr(book['NZBtitle'])}")
+                        logger.debug(f"Found match ({round(match, 2)}%): {pp_path} for {booktype} {book['NZBtitle']}")
                         cmd = ("SELECT AuthorName,BookName,books.gr_id,books.ol_id,books.gb_id,books.hc_id "
                                "from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID")
                         data = db.match(cmd, (book['BookID'],))
@@ -1365,9 +1368,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     else:
                         logger.debug(f"Snatched {book['NZBmode']} {book['NZBtitle']} is not in download directory")
                         if match:
-                            logger.debug(f'Closest match ({match}%): {pp_path}')
+                            logger.debug(f'Closest match ({round(match, 2)}%): {pp_path}')
                             for match in matches:
-                                loggerfuzz.debug(f'Match: {match[0]}%  {match[1]}')
+                                loggerfuzz.debug(f'Match: {round(match[0], 2)}%  {match[1]}')
 
                     if not dest_path:
                         continue

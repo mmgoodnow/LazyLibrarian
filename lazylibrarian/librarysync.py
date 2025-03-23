@@ -20,7 +20,7 @@ import shutil
 import threading
 import traceback
 import zipfile
-from operator import itemgetter
+from operator import attrgetter
 from xml.etree import ElementTree
 
 from rapidfuzz import fuzz
@@ -982,8 +982,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         bookid, mtype = find_book_in_db(newauthorname, book, ignored=False,
                                                                         reason=f'New author for {book}')
                                         if bookid and mtype == "Ignored":
-                                            msg = "Book %s by %s is marked Ignored in database, importing anyway"
-                                            logger.warning(msg % (book, newauthorname))
+                                            logger.warning(f"Book {book} by {newauthorname} is marked "
+                                                           f"Ignored in database, importing anyway")
                                         if bookid:
                                             logger.warning(
                                                 f"{book} not found under [{author}], found under [{newauthorname}]")
@@ -1009,7 +1009,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     for source in sources:
                                         res += search_for(f"{book} <ll> {author}", source)
 
-                                    sortedlist = sorted(res, key=itemgetter('highest_fuzz', 'bookrate_count'),
+                                    sortedlist = sorted(res, key=attrgetter('highest_fuzz', 'bookrate_count'),
                                                         reverse=True)
                                     rescan_count += 1
                                     bookid = ''
@@ -1058,13 +1058,12 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             src_id.find_book(bookid, reason=f"Librarysync {source} rescan {bookauthor}")
                                             if language and language != "Unknown":
                                                 # set language from book metadata
-                                                msg = "Setting language from metadata %s : %s"
-                                                logger.debug(msg % (booktitle, language))
+                                                logger.debug(f"Setting language from metadata {booktitle} : {language}")
                                                 cmd = "UPDATE books SET BookLang=? WHERE BookID=?"
                                                 db.action(cmd, (language, bookid))
                                     else:
-                                        logger.warning(f"Rescan no match for {book}, closest {closest}%")
-                                        remiss.append(f"{book} {closest}%")
+                                        logger.warning(f"Rescan no match for {book}, closest {round(closest, 2)}%")
+                                        remiss.append(f"{book} {round(closest, 2)}%")
 
                                 # see if it's there now...
                                 if bookid:

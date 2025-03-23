@@ -16,7 +16,7 @@ import string
 import threading
 import time
 import traceback
-from operator import itemgetter
+from operator import attrgetter
 from queue import Queue
 from urllib.parse import unquote_plus
 
@@ -69,7 +69,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
                 if aname:
                     match_fuzz = fuzz.ratio(aname.lower().replace('.', ''), match_name)
                     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                        logger.debug(f"Fuzzy match [{item['AuthorName']}] {match_fuzz}% for [{author}]")
+                        logger.debug(f"Fuzzy match [{item['AuthorName']}] {round(match_fuzz, 2)}% for [{author}]")
                         author = item['AuthorName']
                         match = True
                         break
@@ -78,7 +78,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
                     for aka in akas:
                         match_fuzz = fuzz.token_set_ratio(aka.lower().replace('.', '').replace(',', ''), match_name)
                         if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-                            logger.debug(f"Fuzzy AKA match [{aka}] {match_fuzz}% for [{author}]")
+                            logger.debug(f"Fuzzy AKA match [{aka}] {round(match_fuzz, 2)}% for [{author}]")
                             author = item['AuthorName']
                             match = True
                             break
@@ -877,7 +877,7 @@ def search_for(searchterm, source=None):
     if search_api:
         search_api.join()
         searchresults = myqueue.get()
-        sortedlist = sorted(searchresults, key=itemgetter('highest_fuzz', 'bookrate_count'), reverse=True)
+        sortedlist = sorted(searchresults, key=attrgetter('highest_fuzz', 'bookrate_count'), reverse=True)
         loggersearching.debug(str(sortedlist))
         return sortedlist
     return []

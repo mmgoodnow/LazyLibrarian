@@ -267,7 +267,7 @@ def search_book(books=None, library=None):
                             logger.info(f"NZB search for {book['library']} {book['searchterm']} returned no results.")
                         else:
                             logger.info(
-                                f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"Found NZB result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                 f"priority {match[3]}")
                             matches.append(match)
 
@@ -282,7 +282,7 @@ def search_book(books=None, library=None):
                                 f"Torrent search for {book['library']} {book['searchterm']} returned no results.")
                         else:
                             logger.info(
-                                f"Found Torrent result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"Found Torrent result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                 f"priority {match[3]}")
                             matches.append(match)
 
@@ -297,8 +297,8 @@ def search_book(books=None, library=None):
                                 f"Direct search for {book['library']} {book['searchterm']} returned no results.")
                         else:
                             logger.info(
-                                f"Found Direct result: {searchtype} {match[0]}%, {match[1]['NZBprov']} priority "
-                                f"{match[3]}")
+                                f"Found Direct result: {searchtype} {round(match[0], 2)}%, "
+                                f"{match[1]['NZBprov']} priority {match[3]}")
                             matches.append(match)
 
                 if CONFIG.use_irc():
@@ -311,7 +311,7 @@ def search_book(books=None, library=None):
                             logger.info(f"IRC search for {book['library']} {book['searchterm']} returned no results.")
                         else:
                             logger.info(
-                                f"Found IRC result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"Found IRC result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                 f"priority {match[3]}")
                             matches.append(match)
 
@@ -321,7 +321,8 @@ def search_book(books=None, library=None):
                         logger.info(f"RSS search for {book['library']} {book['searchterm']} returned no results.")
                     else:
                         logger.info(
-                            f"Found RSS result: {searchtype} {match[0]}%, {match[1]['NZBprov']} priority {match[3]}")
+                            f"Found RSS result: {searchtype} {round(match[0], 2)}%, "
+                            f"{match[1]['NZBprov']} priority {match[3]}")
                         matches.append(match)
 
                 # if you can't find the book, try author/title without any "(extended details, series etc)"
@@ -337,7 +338,7 @@ def search_book(books=None, library=None):
                                     f"NZB short search for {book['library']} {book['searchterm']} returned no results.")
                             else:
                                 logger.info(
-                                    f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"Found NZB result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                     f"priority {match[3]}")
                                 matches.append(match)
 
@@ -353,7 +354,7 @@ def search_book(books=None, library=None):
                                     f"returned no results.")
                             else:
                                 logger.info(
-                                    f"Found Torrent result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"Found Torrent result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                     f"priority {match[3]}")
                                 matches.append(match)
 
@@ -369,7 +370,7 @@ def search_book(books=None, library=None):
                                     f"returned no results.")
                             else:
                                 logger.info(
-                                    f"Found Direct result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"Found Direct result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                     f"priority {match[3]}")
                                 matches.append(match)
 
@@ -384,8 +385,8 @@ def search_book(books=None, library=None):
                                     f"IRC short search for {book['library']} {book['searchterm']} returned no results.")
                             else:
                                 logger.info(
-                                    f"Found IRC result: {searchtype} {match[0]}%, {match[1]['NZBprov']} priority "
-                                    f"{match[3]}")
+                                    f"Found IRC result: {searchtype} {round(match[0], 2)}%, "
+                                    f"{match[1]['NZBprov']} priority {match[3]}")
                                 matches.append(match)
 
                     if CONFIG.use_rss() and rss_resultlist:
@@ -395,7 +396,7 @@ def search_book(books=None, library=None):
                                 f"RSS short search for {book['library']} {book['searchterm']} returned no results.")
                         else:
                             logger.info(
-                                f"Found RSS result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"Found RSS result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                 f"priority {match[3]}")
                             matches.append(match)
 
@@ -412,7 +413,7 @@ def search_book(books=None, library=None):
                                 f"NZB general search for {book['library']} {book['searchterm']} returned no results.")
                         else:
                             logger.info(
-                                f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"Found NZB result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                 f"priority {match[3]}")
                             matches.append(match)
 
@@ -430,7 +431,7 @@ def search_book(books=None, library=None):
                                 f"returned no results.")
                         else:
                             logger.info(
-                                f"Found NZB result: {searchtype} {match[0]}%, "
+                                f"Found NZB result: {searchtype} {round(match[0], 2)}%, "
                                 f"{match[1]['NZBprov']} priority {match[3]}")
                             matches.append(match)
 
@@ -447,7 +448,7 @@ def search_book(books=None, library=None):
                                     f"NZB title search for {book['library']} {book['searchterm']} returned no results.")
                             else:
                                 logger.info(
-                                    f"Found NZB result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"Found NZB result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                     f"priority {match[3]}")
                                 matches.append(match)
 
@@ -463,7 +464,7 @@ def search_book(books=None, library=None):
                                     f"returned no results.")
                             else:
                                 logger.info(
-                                    f"Found Torrent result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"Found Torrent result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                     f"priority {match[3]}")
                                 matches.append(match)
 
@@ -479,7 +480,7 @@ def search_book(books=None, library=None):
                                     f" returned no results.")
                             else:
                                 logger.info(
-                                    f"Found Direct result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"Found Direct result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                     f"priority {match[3]}")
                                 matches.append(match)
 
@@ -496,7 +497,7 @@ def search_book(books=None, library=None):
                                     f"IRC title search for {book['library']} {book['searchterm']} returned no results.")
                             else:
                                 logger.info(
-                                    f"Found IRC result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                    f"Found IRC result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                     f"priority {match[3]}")
                                 matches.append(match)
 
@@ -507,7 +508,7 @@ def search_book(books=None, library=None):
                                 f"RSS title search for {book['library']} {book['searchterm']} returned no results.")
                         else:
                             logger.info(
-                                f"Found RSS result: {searchtype} {match[0]}%, {match[1]['NZBprov']} "
+                                f"Found RSS result: {searchtype} {round(match[0], 2)}%, {match[1]['NZBprov']} "
                                 f"priority {match[3]}")
                             matches.append(match)
 
@@ -518,7 +519,7 @@ def search_book(books=None, library=None):
                     highest = max(matches, key=lambda s: (str(s[0]), str(s[3])))
 
                 logger.info(
-                    f"Requesting {book['library']} download: {highest[0]}% {highest[1]['NZBprov']}: "
+                    f"Requesting {book['library']} download: {round(highest[0], 2)}% {highest[1]['NZBprov']}: "
                     f"{highest[1]['NZBtitle']}")
                 if download_result(highest, book) > 1:
                     book_count += 1  # we found it

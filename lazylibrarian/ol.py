@@ -314,7 +314,8 @@ class OpenLibrary:
                 if seriesname:
                     match = fuzz.partial_ratio(seriesname, series_name)
                     if match < 95:
-                        self.logger.debug(f"Series name mismatch for {series_id}, {match}% {seriesname}/{series_name}")
+                        self.logger.debug(f"Series name mismatch for {series_id}, "
+                                          f"{round(match, 2)}% {seriesname}/{series_name}")
                     else:
                         table = data.split(b'<table>')[1].split(b'</table>')[0]
                         rows = table.split(b'<tr>')

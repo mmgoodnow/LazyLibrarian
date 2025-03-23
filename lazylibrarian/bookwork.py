@@ -1115,7 +1115,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
             if high_parts:
                 logger.debug(
                     f"No GoogleBooks match in {len(results['items'])} {stype}{plural(len(results['items']))} "
-                    f"({high_parts[0]}%/{high_parts[1]}%) cached={cached} [{author}:{title}]")
+                    f"({round(high_parts[0], 2)}%/{round(high_parts[1], 2)}%) cached={cached} [{author}:{title}]")
             else:
                 logger.debug(
                     f"No GoogleBooks match in {len(results['items'])} {stype}{plural(len(results['items']))} "

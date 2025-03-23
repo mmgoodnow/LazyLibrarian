@@ -146,7 +146,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                             if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
                                     and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                                 logger.debug(
-                                    f"Found ({result['author_fuzz']}% {result['book_fuzz']}%) "
+                                    f"Found ({round(result['author_fuzz'], 2)}% {round(result['book_fuzz'], 2)}%) "
                                     f"{result['authorname']}: {result['bookname']}")
                                 bookid = result['bookid']
                                 import_book(bookid, reason="Added by calibre sync")
@@ -202,7 +202,8 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
 
                             if high > 95:
                                 logger.debug(
-                                    f"Found ratio match {high}% [{highname}] for {idlist[0]} [{book['BookName']}]")
+                                    f"Found ratio match {round(high, 2)}% [{highname}] "
+                                    f"for {idlist[0]} [{book['BookName']}]")
                                 map_ctol[str(highid)] = str(bookid)
                                 map_ltoc[str(bookid)] = str(highid)
                                 match = True
@@ -210,7 +211,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                         if not match:
                             logger.warning(
                                 f"No match for {idlist[0]} {book['BookName']} by {author['AuthorName']} "
-                                f"in calibre database, closest match {high}% [{highname}]")
+                                f"in calibre database, closest match {round(high, 2)}% [{highname}]")
                             nomatch += 1
 
         logger.debug(f"BookID mapping complete, {username} match {len(map_ctol)}, nomatch {nomatch}")

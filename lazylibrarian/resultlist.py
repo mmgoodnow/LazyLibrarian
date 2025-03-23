@@ -295,11 +295,11 @@ def find_best_result(resultlist, book, searchtype, source):
 
             if score < CONFIG.get_int('MATCH_RATIO'):
                 logger.info(
-                    f"Nearest match ({score}%): {new_value_dict['NZBtitle']} using {searchtype} search for "
+                    f"Nearest match ({round(score, 2)}%): {new_value_dict['NZBtitle']} using {searchtype} search for "
                     f"{book['authorName']} {book['bookName']}")
             else:
                 logger.info(
-                    f"Best match ({score}%): {new_value_dict['NZBtitle']} using {searchtype} search, "
+                    f"Best match ({round(score, 2)}%): {new_value_dict['NZBtitle']} using {searchtype} search, "
                     f"{new_value_dict['NZBprov']} priority {dlpriority}")
         else:
             logger.debug(f"No {source} found for [{book['searchterm']}] using searchtype {searchtype}")

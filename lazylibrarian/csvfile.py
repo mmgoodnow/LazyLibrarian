@@ -377,8 +377,8 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
                                     break
                     if bookmatch:
                         logger.info(
-                            f"Found ({bookmatch['book_fuzz']}%) {bookmatch['authorname']}: {bookmatch['bookname']} "
-                            f"for {authorname}: {title}")
+                            f"Found ({round(bookmatch['book_fuzz'], 2)}%) {bookmatch['authorname']}: "
+                            f"{bookmatch['bookname']} for {authorname}: {title}")
                         if library == 'eBook':
                             import_book(bookmatch['bookid'], ebook=status, wait=True,
                                         reason=f"Added by import_csv {csvfile}")
@@ -402,7 +402,8 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
                     else:
                         msg += ', No match found'
                         logger.warning(msg)
-                        msg = (f"Closest match ({results[0]['author_fuzz']}% {results[0]['book_fuzz']}%) "
+                        msg = (f"Closest match ({round(results[0]['author_fuzz'], 2)}% "
+                               f"{round(results[0]['book_fuzz'], 2)}%) "
                                f"{results[0]['authorname']}: {results[0]['bookname']}")
                         if results[0]['authorid'] != authorid:
                             msg += ' wrong authorid'

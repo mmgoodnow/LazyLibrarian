@@ -2310,7 +2310,7 @@ class WebInterface:
                                                               get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
                         if match >= CONFIG.get_int('NAME_RATIO'):
                             authordir = os.path.join(libdir, item)
-                            loggerfuzz.debug(f"Fuzzy match folder {match}% {item} for {author_name}")
+                            loggerfuzz.debug(f"Fuzzy match folder {round(match, 2)}% {item} for {author_name}")
                             # Add this name variant as an aka if not already there?
                             break
 

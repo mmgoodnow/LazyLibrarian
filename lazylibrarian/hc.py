@@ -582,7 +582,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
             if series_name != series_title:
                 match = fuzz.partial_ratio(series_name, series_title)
                 if match < 95:
-                    self.logger.debug(f"Series name mismatch for {series_id}, {match}% {series_name}/{series_title}")
+                    self.logger.debug(f"Series name mismatch for {series_id}, "
+                                      f"{round(match, 2)}% {series_name}/{series_title}")
 
             for entry in results['data']['series_by_pk']['book_series']:
                 # use HC_EDITION_BY_PK to get language, authorid, authorname
@@ -1706,9 +1707,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
             hc_owned = []
             remapped = []
             sync_dict = {}
-            hc_mapping = [[hc_dnf, ReadStatus.dnf.value, 'DNF'], [hc_reading, ReadStatus.reading.value, 'Reading'],
-                            [hc_read, ReadStatus.read.value, 'Read'], [hc_toread, ReadStatus.wanttoread.value, 'ToRead'],
-                            [hc_owned, ReadStatus.paused.value, 'Owned']]
+            hc_mapping = [[hc_dnf, ReadStatus.dnf.value, 'DNF'],
+                          [hc_reading, ReadStatus.reading.value, 'Reading'],
+                          [hc_read, ReadStatus.read.value, 'Read'],
+                          [hc_toread, ReadStatus.wanttoread.value, 'ToRead'],
+                          [hc_owned, ReadStatus.paused.value, 'Owned']]
             for mapp in hc_mapping:
                 searchcmd = self.HC_USERBOOKS.replace('[whoami]', str(whoami)).replace('[status]',
                                                                                        str(mapp[1]))
