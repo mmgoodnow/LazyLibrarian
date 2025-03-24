@@ -20,7 +20,7 @@ import shutil
 import threading
 import traceback
 import zipfile
-from operator import attrgetter
+from operator import itemgetter
 from xml.etree import ElementTree
 
 from rapidfuzz import fuzz
@@ -1009,7 +1009,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     for source in sources:
                                         res += search_for(f"{book} <ll> {author}", source)
 
-                                    sortedlist = sorted(res, key=attrgetter('highest_fuzz', 'bookrate_count'),
+                                    sortedlist = sorted(res, key=itemgetter('highest_fuzz', 'bookrate_count'),
                                                         reverse=True)
                                     rescan_count += 1
                                     bookid = ''
