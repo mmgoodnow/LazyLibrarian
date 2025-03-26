@@ -2007,9 +2007,11 @@ class WebInterface:
             booklist = list(set(booklist))
             # we don't know if searchfor is an author, book or isbn
             searchresults = search_for(searchfor, CONFIG['BOOK_API'])
+            sortedlist = sorted(searchresults, key=lambda x: (x['highest_fuzz'], x['bookrate_count']),
+                                reverse=True)
             lazylibrarian.SEARCHING = 0
             return serve_template(templatename="searchresults.html", title='Search Results: "' + searchfor + '"',
-                                  searchresults=searchresults, authorlist=authorlist, loadlist=loadlist,
+                                  searchresults=sortedlist, authorlist=authorlist, loadlist=loadlist,
                                   booklist=booklist, booksearch=booksearch)
 
     # AUTHOR ############################################################
