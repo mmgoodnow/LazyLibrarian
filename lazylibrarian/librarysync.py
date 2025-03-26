@@ -20,7 +20,6 @@ import shutil
 import threading
 import traceback
 import zipfile
-from operator import itemgetter
 from xml.etree import ElementTree
 
 from rapidfuzz import fuzz
@@ -1005,11 +1004,12 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         if "GoogleBooks" not in sources and CONFIG['GB_API']:
                                             sources.append("GoogleBooks")
 
-                                    res = []
+                                    searchresults = []
                                     for source in sources:
-                                        res += search_for(f"{book} <ll> {author}", source)
+                                        searchresults += search_for(f"{book} <ll> {author}", source)
 
-                                    sortedlist = sorted(res, key=itemgetter('highest_fuzz', 'bookrate_count'),
+                                    sortedlist = sorted(searchresults,
+                                                        key=lambda x: (x['highest_fuzz'], x['bookrate_count']),
                                                         reverse=True)
                                     rescan_count += 1
                                     bookid = ''

@@ -16,7 +16,6 @@ import string
 import threading
 import time
 import traceback
-from operator import itemgetter
 from queue import Queue
 from urllib.parse import unquote_plus
 
@@ -876,8 +875,5 @@ def search_for(searchterm, source=None):
 
     if search_api:
         search_api.join()
-        searchresults = myqueue.get()
-        sortedlist = sorted(searchresults, key=itemgetter('highest_fuzz', 'bookrate_count'), reverse=True)
-        loggersearching.debug(str(sortedlist))
-        return sortedlist
+        return myqueue.get()
     return []
