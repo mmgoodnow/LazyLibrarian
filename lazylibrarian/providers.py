@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -19,6 +19,7 @@ import time
 from typing import Dict
 from urllib.parse import urlencode, urlparse
 from xml.etree import ElementTree
+from copy import deepcopy
 
 from bs4 import BeautifulSoup
 
@@ -169,6 +170,7 @@ def test_provider(name: str, host=None, api=None):
     # for torznab/newznab get capabilities first, unless locked,
     # then try book search if enabled, fall back to general search
     if name.startswith('torznab_'):
+        caps_changed = []
         try:
             for provider in CONFIG.providers('TORZNAB'):
                 if provider['NAME'].lower() == name:
@@ -186,12 +188,19 @@ def test_provider(name: str, host=None, api=None):
                             ap, seed = api.split(' : ', 1)
                             provider['API'] = ap
                             provider.set_int('SEEDERS', seed)
-                        provider = get_capabilities(provider, force=True)
+
+                        provider_copy = deepcopy(provider)
+                        updated = get_capabilities(provider_copy, force=True)
+                        if updated:
+                            for item in provider:
+                                if provider[item] != provider_copy[item]:
+                                    caps_changed.append([provider, item, provider_copy[item]])
 
                     if provider['BOOKSEARCH']:
                         success, error_msg = newznab_plus(book, provider, 'book', 'torznab', True)
                         if not success:
                             if cancel_search_type('book', error_msg, provider):
+                                caps_changed.append([provider, 'BOOKSEARCH', ''])
                                 success, _ = newznab_plus(book, provider, 'generalbook', 'torznab', True)
                     else:
                         success, _ = newznab_plus(book, provider, 'generalbook', 'torznab', True)
@@ -201,8 +210,12 @@ def test_provider(name: str, host=None, api=None):
             pass
         except Exception as e:
             logger.debug(f"Exception: {str(e)}")
+        finally:
+            for item in caps_changed:
+                item[0][item[1]] = item[2]
 
     if name.startswith('newznab_'):
+        caps_changed = []
         try:
             for provider in CONFIG.providers('NEWZNAB'):
                 if provider['NAME'].lower() == name:
@@ -217,11 +230,17 @@ def test_provider(name: str, host=None, api=None):
                         if api:
                             provider['API'] = api
 
-                        provider = get_capabilities(provider, force=True)
+                        provider_copy = deepcopy(provider)
+                        updated = get_capabilities(provider_copy, force=True)
+                        if updated:
+                            for item in provider:
+                                if provider[item] != provider_copy[item]:
+                                    caps_changed.append([provider, item, provider_copy[item]])
                     if provider['BOOKSEARCH']:
                         success, error_msg = newznab_plus(book, provider, 'book', 'newznab', True)
                         if not success:
                             if cancel_search_type('book', error_msg, provider):
+                                caps_changed.append([provider, 'BOOKSEARCH', ''])
                                 success, _ = newznab_plus(book, provider, 'generalbook', 'newznab', True)
                     else:
                         success, _ = newznab_plus(book, provider, 'generalbook', 'newznab', True)
@@ -230,6 +249,9 @@ def test_provider(name: str, host=None, api=None):
             pass
         except Exception as e:
             logger.debug(f"Exception: {str(e)}")
+        finally:
+            for item in caps_changed:
+                item[0][item[1]] = item[2]
 
     if name.startswith('irc_'):
         try:
@@ -314,14 +336,14 @@ def get_capabilities(provider: ConfigDict, force=False):
     """
     logger = logging.getLogger(__name__)
     if not force and len(provider['UPDATED']) == 10:  # any stored values?
-        match = True
+        updated = False
         if (age(provider['UPDATED']) > CONFIG.get_int('CACHE_AGE')) and not provider.get_bool('MANUAL'):
             logger.debug(f"Stored capabilities for {provider['HOST']} are too old")
-            match = False
+            updated = True
     else:
-        match = False
+        updated = True
 
-    if match:
+    if not updated:
         logger.debug(f"Using stored capabilities for {provider['HOST']}")
     else:
         host = provider['HOST']
@@ -385,7 +407,7 @@ def get_capabilities(provider: ConfigDict, force=False):
                 provider['UPDATED'] = str(today)
                 provider.set_int('APILIMIT', 0)
                 provider.set_int('RATELIMIT', 0)
-                CONFIG.save_config_and_backup_old(section=provider['NAME'])
+                # CONFIG.save_config_and_backup_old(section=provider['NAME'])
         elif data is not None:
             logger.debug(f"Parsing xml for capabilities of {url}")
             #
@@ -493,8 +515,8 @@ def get_capabilities(provider: ConfigDict, force=False):
                 f"Categories: Books {provider['BOOKCAT']} : Mags {provider['MAGCAT']} : Audio "
                 f"{provider['AUDIOCAT']} : Comic {provider['COMICCAT']} : BookSearch '{provider['BOOKSEARCH']}'")
             provider['UPDATED'] = today()
-            CONFIG.save_config_and_backup_old(section=provider['NAME'])
-    return provider
+            # CONFIG.save_config_and_backup_old(section=provider['NAME'])
+    return updated
 
 
 def iterate_over_znab_sites(book=None, search_type=None):
@@ -509,6 +531,17 @@ def iterate_over_znab_sites(book=None, search_type=None):
     iterateproviderslogger.debug(f"ZNAB: Book:{book}, SearchType:{search_type}")
     resultslist = []
     providers = 0
+    caps_changed = []
+    for provider in CONFIG.providers('NEWZNAB'):
+        if provider['ENABLED']:
+            provider_copy = deepcopy(provider)
+            updated = get_capabilities(provider_copy)
+            if updated:
+                for item in provider:
+                    if provider[item] != provider_copy[item]:
+                        caps_changed.append([provider, item, provider_copy[item]])
+    for item in caps_changed:
+        item[0][item[1]] = item[2]
 
     for provider in CONFIG.providers('NEWZNAB'):
         dispname = provider['DISPNAME']
@@ -554,10 +587,22 @@ def iterate_over_znab_sites(book=None, search_type=None):
                                 time.sleep(delay)
                         provider.set_int('LASTUSED', int(time.time()))
 
-                    provider = get_capabilities(provider)
                     providers += 1
                     logger.debug(f'Querying provider {dispname}')
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
+
+    caps_changed = []
+    # can't update while iterating so copy and update after
+    for provider in CONFIG.providers('TORZNAB'):
+        if provider['ENABLED']:
+            provider_copy = deepcopy(provider)
+            updated = get_capabilities(provider_copy)
+            if updated:
+                for item in provider:
+                    if provider[item] != provider_copy[item]:
+                        caps_changed.append([provider, item, provider_copy[item]])
+    for item in caps_changed:
+        item[0][item[1]] = item[2]
 
     for provider in CONFIG.providers('TORZNAB'):
         dispname = provider['DISPNAME']
@@ -603,7 +648,6 @@ def iterate_over_znab_sites(book=None, search_type=None):
                                 time.sleep(delay)
                         provider.set_int('LASTUSED', int(time.time()))
 
-                    provider = get_capabilities(provider)
                     providers += 1
                     logger.debug(f'Querying provider {dispname}')
                     resultslist += newznab_plus(book, provider, search_type, "torznab")[1]
@@ -1847,7 +1891,7 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     return results
 
 
-def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, errorCode=0):
+def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, errorcode=0):
     """ See if errorMsg contains a known error response for an unsupported search function
     depending on which searchType. If it does, disable that searchtype for the relevant provider
     return True if cancelled
@@ -1857,7 +1901,7 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, e
     if (provider['BOOKSEARCH'] and search_type in ["book", "shortbook", 'titlebook']) or \
             (provider['AUDIOSEARCH'] and search_type in ["audio", "shortaudio"]):
 
-        match = (200 <= errorCode < 300)  # 200-299 are API call specific error codes
+        match = (200 <= errorcode < 300)  # 200-299 are API call specific error codes
 
         if not match:
             errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
@@ -1885,7 +1929,7 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, e
                             if not prov['MANUAL']:
                                 logger.error(f"Disabled {msg}={prov[msg]} for {prov['DISPNAME']}")
                                 prov[msg] = ""
-                                CONFIG.save_config_and_backup_old(section=prov['NAME'])
+                                # CONFIG.save_config_and_backup_old(section=prov['NAME'])
                                 return True
             logger.error(f"Unable to disable searchtype [{search_type}] for {provider['DISPNAME']}")
     return False
