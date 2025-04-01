@@ -87,13 +87,18 @@ def session_get(sess, url, headers):
 
 def bok_login():
     logger = logging.getLogger(__name__)
-    if CONFIG['BOK_REMIX_USERID'] and CONFIG['BOK_REMIX_USERKEY']:
-        zlib = Zlibrary(remix_userid=CONFIG['BOK_REMIX_USERID'], remix_userkey=CONFIG['BOK_REMIX_USERKEY'])
-    elif CONFIG['BOK_EMAIL'] and CONFIG['BOK_PASS']:
-        zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
-    else:
-        # logger.error("Zlibrary check credentials")
+    try:
+        if CONFIG['BOK_REMIX_USERID'] and CONFIG['BOK_REMIX_USERKEY']:
+            zlib = Zlibrary(remix_userid=CONFIG['BOK_REMIX_USERID'], remix_userkey=CONFIG['BOK_REMIX_USERKEY'])
+        elif CONFIG['BOK_EMAIL'] and CONFIG['BOK_PASS']:
+            zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
+        else:
+            # logger.error("Zlibrary check credentials")
+            return None, None
+    except Exception as e:
+        logger.error(str(e))
         return None, None
+
     profile = zlib.getProfile()
     if not profile:
         logger.error("Zlibrary invalid credentials")
