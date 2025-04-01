@@ -606,7 +606,7 @@ class OPDS(object):
         for author in page:
             totalbooks = check_int(author['TotalBooks'], 0)
             havebooks = check_int(author['HaveEBooks'], 0)
-            lastupdated = datetime.datetime.fromtimestamp(author['Updated'], datetime.UTC).strftime("%Y-%m-%d")
+            lastupdated = datetime.datetime.fromtimestamp(author['Updated']).strftime("%Y-%m-%d")
             name = make_unicode(author['AuthorName'])
             entry = {
                     'title': escape(f'{name} ({havebooks}/{totalbooks})'),
@@ -683,7 +683,7 @@ class OPDS(object):
         for author in page:
             totalbooks = check_int(author['TotalBooks'], 0)
             havebooks = check_int(author['HaveAudioBooks'], 0)
-            lastupdated = datetime.datetime.fromtimestamp(author['Updated'], datetime.UTC).strftime("%Y-%m-%d")
+            lastupdated = datetime.datetime.fromtimestamp(author['Updated']).strftime("%Y-%m-%d")
             name = make_unicode(author['AuthorName'])
             entry = {
                     'title': escape(f'{name} ({havebooks}/{totalbooks})'),
