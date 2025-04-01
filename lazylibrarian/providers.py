@@ -213,6 +213,8 @@ def test_provider(name: str, host=None, api=None):
         finally:
             for item in caps_changed:
                 item[0][item[1]] = item[2]
+            if caps_changed:
+                CONFIG.save_config_and_backup_old(section=name)
 
     if name.startswith('newznab_'):
         caps_changed = []
@@ -252,6 +254,8 @@ def test_provider(name: str, host=None, api=None):
         finally:
             for item in caps_changed:
                 item[0][item[1]] = item[2]
+            if caps_changed:
+                CONFIG.save_config_and_backup_old(section=name)
 
     if name.startswith('irc_'):
         try:
@@ -542,6 +546,8 @@ def iterate_over_znab_sites(book=None, search_type=None):
                         caps_changed.append([provider, item, provider_copy[item]])
     for item in caps_changed:
         item[0][item[1]] = item[2]
+    if caps_changed:
+        CONFIG.save_config_and_backup_old(section=caps_changed[0]['NAME'])
 
     for provider in CONFIG.providers('NEWZNAB'):
         dispname = provider['DISPNAME']
@@ -603,6 +609,8 @@ def iterate_over_znab_sites(book=None, search_type=None):
                         caps_changed.append([provider, item, provider_copy[item]])
     for item in caps_changed:
         item[0][item[1]] = item[2]
+    if caps_changed:
+        CONFIG.save_config_and_backup_old(section=caps_changed[0]['NAME'])
 
     for provider in CONFIG.providers('TORZNAB'):
         dispname = provider['DISPNAME']
