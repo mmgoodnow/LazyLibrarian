@@ -94,20 +94,21 @@ def bok_login():
             zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
         else:
             # logger.error("Zlibrary check credentials")
-            return None, None
+            return None
     except Exception as e:
         logger.error(str(e))
-        return None, None
+        return None
 
     profile = zlib.getProfile()
     if not profile:
         logger.error("Zlibrary invalid credentials")
-        return None, None
+        return None
     if not CONFIG['BOK_REMIX_USERID'] or not CONFIG['BOK_REMIX_USERKEY']:
         CONFIG['BOK_REMIX_USERID'] = profile["user"]["id"]
         CONFIG['BOK_REMIX_USERKEY'] = profile["user"]["remix_userkey"]
     CONFIG.set_int('BOK_DLLIMIT', profile["user"]["downloads_limit"])
-    return zlib, profile
+    lazylibrarian.TIMERS['BOK_TODAY'] = profile["user"]["downloads_today"]
+    return zlib
 
 
 def direct_bok(book=None, prov=None, test=False):
@@ -120,7 +121,7 @@ def direct_bok(book=None, prov=None, test=False):
             return False
         return [], "provider is already blocked"
 
-    zlib, _ = bok_login()
+    zlib = bok_login()
     if not zlib:
         if test:
             return False
@@ -546,22 +547,15 @@ def direct_gen(book=None, prov=None, test=False):
     return results, errmsg
 
 
-def bok_dlcount() -> (int, int):
+def bok_grabs() -> (int, int):
     # we might be out of sync with zlibrary download counter, eg we might not be the only downloader
-    # so although we can count how many we downloaded, ask zlibrary and use their counter if known
-    # we try to use our datestamp to find out when the counter will reset
-    zlib, profile = bok_login()
-    if not zlib:
-        return 0, 0
-
-    dl_today = profile["user"]["downloads_today"]
+    # so although we can count how many we downloaded, normally we ask zlibrary and use their counter
+    # If we are over limit we try to use our datestamp to find out when the counter will reset
     db = database.DBConnection()
-    try:
-        yesterday = time.time() - 24 * 60 * 60
-        grabs = db.select("SELECT completed from wanted WHERE nzbprov='zlibrary' and completed > ? order by completed",
-                          (yesterday,))
-    finally:
-        db.close()
+    yesterday = time.time() - 24 * 60 * 60
+    grabs = db.select("SELECT completed from wanted WHERE nzbprov='zlibrary' and completed > ? order by completed",
+                      (yesterday,))
+    db.close()
     if grabs:
         return len(grabs), grabs[0]['completed']
-    return dl_today, 0
+    return 0, 0

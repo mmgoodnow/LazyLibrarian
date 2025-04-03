@@ -30,7 +30,7 @@ from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.directparser import direct_gen, direct_bok, bok_dlcount
+from lazylibrarian.directparser import direct_gen, direct_bok, bok_grabs
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num, md5_utf8
@@ -214,7 +214,7 @@ def test_provider(name: str, host=None, api=None):
             for item in caps_changed:
                 item[0][item[1]] = item[2]
             if caps_changed:
-                CONFIG.save_config_and_backup_old(section=name)
+                CONFIG.save_config_and_backup_old(section='Capabilities')
 
     if name.startswith('newznab_'):
         caps_changed = []
@@ -255,7 +255,7 @@ def test_provider(name: str, host=None, api=None):
             for item in caps_changed:
                 item[0][item[1]] = item[2]
             if caps_changed:
-                CONFIG.save_config_and_backup_old(section=name)
+                CONFIG.save_config_and_backup_old(section='Capabilities')
 
     if name.startswith('irc_'):
         try:
@@ -547,7 +547,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
     for item in caps_changed:
         item[0][item[1]] = item[2]
     if caps_changed:
-        CONFIG.save_config_and_backup_old(section=caps_changed[0]['NAME'])
+        CONFIG.save_config_and_backup_old(section='Capabilities')
 
     for provider in CONFIG.providers('NEWZNAB'):
         dispname = provider['DISPNAME']
@@ -610,7 +610,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
     for item in caps_changed:
         item[0][item[1]] = item[2]
     if caps_changed:
-        CONFIG.save_config_and_backup_old(section=caps_changed[0]['NAME'])
+        CONFIG.save_config_and_backup_old(section='Capabilities')
 
     for provider in CONFIG.providers('TORZNAB'):
         dispname = provider['DISPNAME']
@@ -789,12 +789,13 @@ def iterate_over_direct_sites(book=None, search_type=None):
                 if error:
                     # use a short delay for site unavailable etc
                     delay = CONFIG.get_int('BLOCKLIST_TIMER')
-                    count, oldest = bok_dlcount()
                     dl_limit = CONFIG.get_int('BOK_DLLIMIT')
+                    count = lazylibrarian.TIMERS['BOK_TODAY']
                     if count and count >= dl_limit:
                         # rolling 24hr delay if limit reached
+                        grabs, oldest = bok_grabs()
                         delay = oldest + 24 * 60 * 60 - time.time()
-                        error = f"Reached Daily download limit ({dl_limit})"
+                        error = f"Reached Daily download limit ({grabs}/{dl_limit})"
                     BLOCKHANDLER.block_provider('zlibrary', error, delay=delay)
                 else:
                     resultslist += results

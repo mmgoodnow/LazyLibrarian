@@ -37,7 +37,7 @@ from lazylibrarian.filesystem import DIRS, path_isdir, path_isfile, syspath, rem
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
-from lazylibrarian.directparser import bok_login, session_get, bok_dlcount
+from lazylibrarian.directparser import bok_login, session_get, bok_grabs
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
@@ -267,14 +267,14 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     logger.debug(f"Starting Direct Download for [{dl_title}]")
 
     if provider == 'zlibrary':
-        zlib, profile = bok_login()
+        zlib = bok_login()
         if not zlib:
             return False, 'Login failed'
 
-        count = profile["user"]["downloads_today"]
-        dl_limit = profile["user"]["downloads_limit"]
+        count = lazylibrarian.TIMERS['BOK_TODAY']
+        dl_limit = CONFIG.get_int('BOK_DLLIMIT')
         if count and count >= dl_limit:
-            grabs, oldest = bok_dlcount()
+            grabs, oldest = bok_grabs()
             # rolling 24hr delay if limit reached
             delay = oldest + 24 * 60 * 60 - time.time()
             res = f"Reached Daily download limit ({grabs}/{dl_limit})"
