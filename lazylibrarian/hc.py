@@ -783,7 +783,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     })
                     resultcount += 1
 
-            self.logger.debug(f"Used {api_hits} api hit, {cache_hits} in cache")
+            self.logger.debug(f"Found {len(resultlist)} {plural(len(resultlist), 'result')}, "
+                              f"Used {api_hits} api hit, {cache_hits} in cache")
             queue.put(resultlist)
 
         except Exception:
@@ -1037,15 +1038,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         if 'contributions' in book_data and len(book_data['contributions']):
             author = book_data['contributions'][0]
             bookdict['auth_name'] = " ".join(author['author']['name'].split())
-            try:
-                url = author['author']['cachedImage']['url']
-                if url:
-                    # try to extract the authorid from the author image url
-                    parts = url.split('/')
-                    if len(parts) == 6:
-                        bookdict['auth_id'] = str(parts[4])
-            except (KeyError, IndexError):
-                pass
+            bookdict['auth_id'] = str(author['author']['id'])
 
         bookdict['title'] = book_data.get('title', '')
         bookdict['subtitle'] = book_data.get('subtitle', '')
