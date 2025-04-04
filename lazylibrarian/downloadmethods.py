@@ -26,7 +26,7 @@ except Exception:  # magic might fail for multiple reasons
     magic = None
 
 from lazylibrarian import database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
-    deluge, rtorrent, synology
+    deluge, rtorrent, synology, TIMERS
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
@@ -271,7 +271,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         if not zlib:
             return False, 'Login failed'
 
-        count = lazylibrarian.TIMERS['BOK_TODAY']
+        count = TIMERS['BOK_TODAY']
         dl_limit = CONFIG.get_int('BOK_DLLIMIT')
         if count and count >= dl_limit:
             grabs, oldest = bok_grabs()
