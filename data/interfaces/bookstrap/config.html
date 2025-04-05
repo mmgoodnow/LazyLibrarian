@@ -1694,6 +1694,29 @@
                         </span>
                       </div>
                     </div>
+                    <% checked = 'checked="checked"' if CONFIG['ABB'] else '' %>
+                    <div class="col-md-4 form-group">
+                      <label for="abb_host" class="sr-only">audiobookbay host</label>
+                      <div class="input-group">
+                        <input type="text" placeholder="audiobookbay host" id="abb_host" name="abb_host" value="${CONFIG['ABB_HOST']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
+                        <input type="checkbox" id="abb" name="abb" value="1" ${checked} />
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Priority</span>
+                        <input type="number" id="abb_dlpriority" name="abb_dlpriority" value="${CONFIG['ABB_DLPRIORITY']}" class="form-control" placeholder="0">
+                        <span class="input-group-addon">Seeders</span>
+                        <input type="number" id="abb_seeders" name="abb_seeders" value="${CONFIG['ABB_SEEDERS']}" class="form-control" placeholder="0">
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Types</span>
+                        <input type="text" id="abb_dltypes" name="abb_dltypes" value="${CONFIG['ABB_DLTYPES']}" class="form-control" placeholder="">
+                        <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="ABB"> Test</button>
+                        </span>
+                      </div>
+                    </div>
                   </fieldset>
                 </fieldset>
               </div>

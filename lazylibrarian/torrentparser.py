@@ -12,16 +12,135 @@
 
 import logging
 import re
+import requests
 import traceback
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, quote_plus, urlencode
 
 import lib.feedparser as feedparser
 from bs4 import BeautifulSoup
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.common import get_user_agent
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes
 from lazylibrarian.telemetry import TELEMETRY
+
+
+def torrent_abb(book=None, test=False):
+    # The audiobookbay code is based on code originally found at
+    # https://github.com/JamesRy96/audiobookbay-automated/blob/main/app/app.py
+    provider = "torrent_abb"
+    logger = logging.getLogger(__name__)
+    results = []
+    errmsg = ''
+    sterm = quote_plus(book['searchterm']).lower()
+    host = CONFIG["ABB_HOST"]
+    if not host.startswith('http'):
+        host = f"https://{host}"
+    host = host.strip('/')
+
+    for page in range(1, 5):
+        if page > 1:
+            search_url = f"{host}/page/{page}/?s={sterm}&cat=undefined%2Cundefined"
+        else:
+            search_url = f"{host}/?s={sterm}&cat=undefined%2Cundefined"
+        result, success = fetch_url(search_url)
+        if not success:
+            # may return 404 if no results, not really an error
+            if '404' in result:
+                logger.debug(f"No results found from {provider} for {sterm}")
+                if test:
+                    return len(results)  # no (more) results but no error
+            else:
+                logger.debug(search_url)
+                logger.debug(f'Error fetching data from {provider}: {result}')
+                errmsg = result
+                TELEMETRY.record_usage_data("abbError")
+            result = False
+            break
+
+        logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
+        soup = BeautifulSoup(result, 'html5lib')
+        for post in soup.select('.post'):
+            try:
+                title = post.select_one('.postTitle > h2 > a').text.strip()
+                link = f"{host}/{post.select_one('.postTitle > h2 > a')['href']}"
+                size = 0
+                try:
+                    size = str(post).split('File Size:')[1].split('</p>')[0]
+                    unit = size.split('>')[2].split('<')[0]
+                    size = size.split('>')[1].split('<')[0]
+                    size = size_in_bytes(f"{size} {unit}")
+                except IndexError:
+                    size = 0
+
+                magnet = extract_magnet_link(link)
+                if magnet:
+                    results.append({
+                        'bookid': book['bookid'],
+                        'tor_prov': provider,
+                        'tor_title': title,
+                        'tor_url': magnet,
+                        'tor_size': size,
+                        'tor_type': 'magnet',
+                        'priority': CONFIG["ABB_DLPRIORITY"],
+                        'prov_page': ''
+                    })
+
+            except Exception as e:
+                logger.error(f"Skipping post due to error: {e}")
+                TELEMETRY.record_usage_data("abbParserError")
+                continue
+
+        if test:
+            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from {provider} for {book['searchterm']}")
+            return len(results)
+
+    return results, errmsg
+
+
+def extract_magnet_link(details_url):
+    logger = logging.getLogger(__name__)
+    try:
+        response = requests.get(details_url, headers={'User-Agent': f'{get_user_agent()}'})
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch details page. Status Code: {response.status_code}")
+            return None
+
+        soup = BeautifulSoup(response.text, 'html5lib')
+
+        # Extract Info Hash
+        info_hash_row = soup.find('td', string=re.compile(r'Info Hash', re.IGNORECASE))
+        if not info_hash_row:
+            logger.error("Info Hash not found on the page.")
+            return None
+        info_hash = info_hash_row.find_next_sibling('td').text.strip()
+
+        # Extract Trackers
+        tracker_rows = soup.find_all('td', string=re.compile(r'udp://|http://', re.IGNORECASE))
+        trackers = [row.text.strip() for row in tracker_rows]
+
+        if not trackers:
+            logger.warning("No trackers found on the page. Using default trackers.")
+            trackers = [
+                "udp://tracker.openbittorrent.com:80",
+                "udp://opentor.org:2710",
+                "udp://tracker.ccc.de:80",
+                "udp://tracker.blackunicorn.xyz:6969",
+                "udp://tracker.coppersurfer.tk:6969",
+                "udp://tracker.leechers-paradise.org:6969"
+            ]
+
+        # Construct the magnet link
+        trackers_query = "&".join(f"tr={quote(tracker)}" for tracker in trackers)
+        magnet_link = f"magnet:?xt=urn:btih:{info_hash}&{trackers_query}"
+
+        logger.debug(f"Generated Magnet Link: {magnet_link}")
+        return magnet_link
+
+    except Exception as e:
+        logger.error(f"Failed to extract magnet link: {e}")
+        return None
 
 
 def torrent_tpb(book=None, test=False):

@@ -35,7 +35,7 @@ from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num, md5_utf8
 from lazylibrarian.ircbot import irc_query, irc_results
-from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, torrent_lime
+from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, torrent_lime, torrent_abb
 
 
 def test_provider(name: str, host=None, api=None):
@@ -80,6 +80,11 @@ def test_provider(name: str, host=None, api=None):
         if host:
             CONFIG.set_str('TDL_HOST', host)
         return torrent_tdl(book, test=True), "TorrentDownloads"
+    if name == 'ABB':
+        logger.debug(f"Testing provider {name}")
+        if host:
+            CONFIG.set_str('ABB_HOST', host)
+        return torrent_abb(book, test=True), "AudioBookBay"
 
     if name.startswith('gen_'):
         for provider in CONFIG.providers('GEN'):
@@ -678,7 +683,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
             book['searchterm'] = f"{authorname} {bookname}"
         book['searchterm'] = no_umlauts(book['searchterm'])
 
-    for prov in ['KAT', 'TPB', 'TDL', 'LIME']:
+    for prov in ['KAT', 'TPB', 'TDL', 'LIME', 'ABB']:
         iterateproviderslogger.debug(f"DLTYPES: {prov}: {CONFIG[prov]} {CONFIG[prov + '_DLTYPES']}")
         if CONFIG[prov]:
             ignored = False
@@ -708,6 +713,8 @@ def iterate_over_torrent_sites(book=None, search_type=None):
                     results, error = torrent_tdl(book)
                 elif prov == 'LIME':
                     results, error = torrent_lime(book)
+                elif prov == 'ABB':
+                    results, error = torrent_abb(book)
                 else:
                     results = ''
                     error = ''
