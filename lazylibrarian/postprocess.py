@@ -3021,6 +3021,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     booktype = booktype.lower()
     pp_path = make_unicode(pp_path)
     bestformat = ''
+    found_types = []
     cover = ''
     issueid = data.get('IssueDate', '')
     authorname = data.get('AuthorName', '')
@@ -3033,15 +3034,16 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     if booktype == 'ebook' and CONFIG.get_bool('ONE_FORMAT'):
         booktype_list = get_list(CONFIG['EBOOK_TYPE'])
         for btype in booktype_list:
-            if not bestformat:
-                for fname in listdir(pp_path):
-                    extn = os.path.splitext(fname)[1].lstrip('.')
-                    if extn and extn.lower() == btype:
+            for fname in listdir(pp_path):
+                extn = os.path.splitext(fname)[1].lstrip('.')
+                if extn and extn.lower() == btype:
+                    found_types.append(btype)
+                    if not bestformat:
                         bestformat = btype
-                        break
+
     if bestformat:
         match = bestformat
-        logger.debug(f'One format import, best match = {bestformat}')
+        logger.debug(f"One format import, found {','.join(found_types)}, best match {bestformat}")
     else:  # mag, comic or audiobook or multi-format book
         match = False
         for fname in listdir(pp_path):
@@ -3089,6 +3091,20 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if rc:
                 return False, f"Preprocessor returned {rc}: res[{res}] err[{err}]", pp_path
             logger.debug(f"PreProcessor: {res}"), pp_path
+
+        if booktype == 'ebook' and CONFIG.get_bool('ONE_FORMAT'):
+            # bestformat may be different after preprocessing
+            bestformat = ''
+            found_types = []
+            booktype_list = get_list(CONFIG['EBOOK_TYPE'])
+            for btype in booktype_list:
+                for fname in listdir(pp_path):
+                    extn = os.path.splitext(fname)[1].lstrip('.')
+                    if extn and extn.lower() == btype:
+                        found_types.append(btype)
+                        if not bestformat:
+                            bestformat = btype
+            logger.debug(f"After preprocessing, found {','.join(found_types)}, best match {bestformat}")
 
     # If ebook, magazine or comic, do we want calibre to import it for us
     newbookfile = ''
