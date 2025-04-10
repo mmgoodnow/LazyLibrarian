@@ -687,7 +687,7 @@ class WebInterface:
                 return "Passwords do not match"
         if kwargs['password']:
             if not pwd_check(kwargs['password']):
-                return "Password must be at least 8 digits long\nand not contain spaces"
+                return "Password must be at least 8 characters long\nand not contain spaces"
         logger = logging.getLogger(__name__)
         changes = ''
         cookie = cherrypy.request.cookie
@@ -711,7 +711,7 @@ class WebInterface:
                         changes += ' name'
                         db.action('UPDATE users SET Name=? WHERE UserID=?', (kwargs['fullname'], userid))
 
-                    if user['Email'] != kwargs['email']:
+                    if kwargs['email'] and user['Email'] != kwargs['email']:
                         changes += ' email'
                         db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
 

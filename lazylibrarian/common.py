@@ -164,8 +164,7 @@ def pwd_generator(size=10, chars=string.ascii_letters + string.digits):
 
 def pwd_check(password):
     # password rules:
-    # At least 8 digits long
-    # with no spaces
+    # At least 8 characters long with no spaces
     # we don't enforce mix of alnum as longer passwords
     # made of random words are more secure
     if len(password) < 8:

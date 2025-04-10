@@ -524,7 +524,7 @@ def csv_file(search_dir: str, library: str) -> str:
         try:
             for fname in listdir(search_dir):
                 if fname.endswith('.csv'):
-                    if not library or library in fname:
+                    if not library or library.lower() in fname.lower():
                         return os.path.join(search_dir, fname)
         except Exception as err:
             logger = logging.getLogger(__name__)
