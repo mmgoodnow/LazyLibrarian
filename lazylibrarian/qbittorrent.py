@@ -16,6 +16,7 @@ import logging
 import mimetypes
 import os
 import random
+import ssl
 import string
 import time
 from http.cookiejar import CookieJar
@@ -38,6 +39,8 @@ class QbittorrentClient(object):
 
         host = CONFIG['QBITTORRENT_HOST']
         port = CONFIG.get_int('QBITTORRENT_PORT')
+        if not CONFIG.get_bool('SSL_VERIFY') and host.startswith("https"):
+            ssl._create_default_https_context = ssl._create_unverified_context
         if not host or not port:
             self.logger.error('Invalid Qbittorrent host or port, check your config')
 
