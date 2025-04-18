@@ -272,7 +272,7 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
     logger = logging.getLogger(__name__)
     msg = 'Import CSV'
     if not library:
-        library = 'audio' if CONFIG.get_bool('AUDIO_TAB') else 'eBook'
+        library = 'AudioBook' if CONFIG.get_bool('AUDIO_TAB') else 'eBook'
     if not search_dir:
         msg = "Alternate Directory not configured"
         logger.warning(msg)
