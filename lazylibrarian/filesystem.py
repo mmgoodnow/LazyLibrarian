@@ -518,7 +518,7 @@ def bts_file(search_dir: str) -> str:
 
 def csv_file(search_dir: str, library: str) -> str:
     """ Returns the first CSV file in search_dir that matches the library name.
-    The library name is 'eBook', 'audio', etc.
+    The library name is 'eBook', 'AudioBook', etc.
     If library name is blank, just return the first CSV file. """
     if search_dir and path_isdir(search_dir):
         try:
