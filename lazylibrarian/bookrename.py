@@ -880,9 +880,21 @@ def replacevars(base, mydict):
         return ''
     loggermatching = logging.getLogger('special.matching')
     loggermatching.debug(base)
-    for item in ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum',
+    vardict = ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum',
                  '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total',
-                 '$Abridged']:
+                 '$Abridged']
+
+    # first strip any braced expressions where the var is empty
+    while '{' in base and '}' in base and base.index('{') < base.index('}'):
+        left, rest = base.split('{', 1)
+        middle, right = rest.split('}', 1)
+        for item in vardict:
+            if item in middle and item[1:] in mydict and mydict[item[1:]] == '':
+                middle = ''
+                break
+        base = f"{left}{middle}{right}"
+
+    for item in vardict:
         if item[1:] in mydict:
             base = base.replace(item, mydict[item[1:]].replace(os.path.sep, '_'))
     base = base.replace('$$', ' ')
