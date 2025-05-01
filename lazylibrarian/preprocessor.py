@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -97,22 +97,12 @@ def preprocess_ebook(bookfolder):
     return True
 
 
-def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
+def get_ffmpeg_details():
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
-    if merge is None:
-        merge = CONFIG.get_bool('CREATE_SINGLEAUDIO')
-    if tag is None:
-        tag = CONFIG.get_bool('WRITE_AUDIOTAGS')
-    if zipp is None:
-        zipp = CONFIG.get_bool('ZIP_AUDIOPARTS')
-    if not merge and not tag and not zipp:
-        return True  # nothing to do
-
     ffmpeg = CONFIG['FFMPEG']
     if not ffmpeg:
         logger.error("Check config setting for ffmpeg")
-        return False
+        return ''
     ff_ver = lazylibrarian.FFMPEGVER
     if not ff_ver:
         try:
@@ -146,22 +136,256 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             ff_aac = ''
         finally:
             lazylibrarian.FFMPEGAAC = ff_aac
+    if ff_aac and ('D' not in ff_aac or 'E' not in ff_aac):
+        logger.warning(f"Your version of ffmpeg does not report supporting read/write aac ({ff_aac})")
+    return ffmpeg
 
-    logger.debug(f"Preprocess audio {bookfolder} {authorname} {bookname}")
-    if zipp:
-        _ = zip_audio(bookfolder, bookname, bookid)
 
-    partslist = os.path.join(bookfolder, "partslist.ll")
-    metadata = os.path.join(bookfolder, "metadata.ll")
+def write_metadata(source_file, metadata_file):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
+    ffmpeg = CONFIG['FFMPEG']
+    params = [ffmpeg, '-i', source_file,
+              '-f', 'ffmetadata', '-y', metadata_file]
+    if loggerpostprocess.isEnabledFor(logging.DEBUG):
+        params.append('-report')
+        logger.debug(str(params))
+        ffmpeg_env = os.environ.copy()
+        ffmpeg_env["FFREPORT"] = "file=" + \
+            DIRS.get_tmpfilename(f"ffmpeg-meta-{now().replace(':', '-').replace(' ', '-')}.log")
+    else:
+        ffmpeg_env = None
+    try:
+        if os.name != 'nt':
+            _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                        stderr=subprocess.STDOUT, env=ffmpeg_env)
+        else:
+            _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.debug(f"Error reading metadata from {source_file}, aborting")
+        logger.error(f"{type(e).__name__}: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"{type(e).__name__}: {str(e)}")
+        return False
+
+
+def read_part_durations(bookfolder, parts, metadata_file, duration_file):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
+    ffmpeg = CONFIG['FFMPEG']
+    part_durations = []
+    highest_bitrate = 0
+    for part in parts:
+        params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
+                  '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
+        if loggerpostprocess.isEnabledFor(logging.DEBUG):
+            params.append('-report')
+            logger.debug(str(params))
+            ffmpeg_env = os.environ.copy()
+            ffmpeg_env["FFREPORT"] = "file=" + \
+                DIRS.get_tmpfilename(f"ffmpeg-part-{now().replace(':', '-').replace(' ', '-')}.log")
+        else:
+            ffmpeg_env = None
+        try:
+            if os.name != 'nt':
+                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                              stderr=subprocess.STDOUT, env=ffmpeg_env)
+            else:
+                res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+
+            res = res.decode('utf-8')
+            if 'Duration: ' in res:
+                try:
+                    duration = res.split('Duration: ', 1)[1].split(',')[0]
+                    bitrate = res.split('bitrate: ', 1)[1].split(' ')[0]
+                    h, m, s = duration.split(':')
+                    secs = check_float(s, 0) + (check_int(m, 0) * 60) + (check_int(h, 0) * 3600)
+                    part_durations.append([part[0], secs])
+                    bitrate = check_int(bitrate, 0)
+                    logger.debug(f"Part {part[0]}, duration {secs}, bitrate {bitrate}")
+                    if bitrate > highest_bitrate:
+                        highest_bitrate = bitrate
+                except IndexError:
+                    logger.debug(f"Error reading duration from {part[3]}, assume 0")
+                    part_durations.append([part[0], 0])
+                    pass
+            else:
+                logger.debug(f"No duration found in {part[3]}, assume 0")
+                part_durations.append([part[0], 0])
+
+        except subprocess.CalledProcessError as e:
+            logger.debug(f"Error getting duration from {part[3]}, assume 0")
+            logger.error(f"{type(e).__name__}: {str(e)}")
+            part_durations.append([part[0], 0])
+        except Exception as e:
+            logger.error(f"{type(e).__name__}: {str(e)}")
+            return False
+
+    if part_durations:
+        part_durations.sort(key=lambda x: x[0])
+        start = 0
+        with open(metadata_file, 'r', encoding="utf-8") as f:
+            with open(os.path.join(bookfolder, duration_file), 'w', encoding="utf-8") as o:
+                for lyne in f.readlines():
+                    if not lyne.startswith('[CHAPTER]') and not lyne.startswith('TIMEBASE='):
+                        if not lyne.startswith('START=') and not lyne.startswith('END='):
+                            if not lyne.startswith('title='):
+                                o.write(lyne)
+
+        with open(duration_file, 'a', encoding="utf-8") as f:
+            for item in part_durations:
+                if item[0]:
+                    f.write("[CHAPTER]\nTIMEBASE=1/1000\n")
+                    f.write(f"START={int(start)}\n")
+                    start = start + (1000 * item[1])
+                    f.write(f"END={int(start)}\n")
+                    f.write(f"title=Chapter {item[0]}\n")
+
+    if highest_bitrate:
+        logger.debug(f"Highest bitrate is {highest_bitrate}")
+    return part_durations, highest_bitrate
+
+
+def get_metatags(bookid, bookfile, authorname, bookname, source_file):
+    db = database.DBConnection()
+    try:
+        match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
+    finally:
+        db.close()
+
+    if bookfile:
+        title = bookfile
+    else:
+        title = f"{authorname} - {bookname}"
+
+    if match:
+        id3r = id3read(source_file)
+        if not match['Narrator'] and id3r['narrator']:
+            db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
+        # noinspection PyUnusedLocal
+        artist = id3r['artist']
+        # noinspection PyUnusedLocal
+        composer = id3r['composer']
+        # noinspection PyUnusedLocal
+        album_artist = id3r['albumartist']
+        # noinspection PyUnusedLocal
+        album = id3r['album']
+        # title = id3r.title
+        # "unused" locals are used in eval() statement below
+        # noinspection PyUnusedLocal
+        comment = id3r['comment']
+        # noinspection PyUnusedLocal
+        author = authorname
+        # noinspection PyUnusedLocal
+        media_type = "Audiobook"
+        # noinspection PyUnusedLocal
+        genre = match['BookGenre']
+        # noinspection PyUnusedLocal
+        description = match['BookDesc']
+        # noinspection PyUnusedLocal
+        date = match['BookDate']
+        if date == '0000':
+            # noinspection PyUnusedLocal
+            date = ''
+        if match['SeriesDisplay']:
+            series = match['SeriesDisplay'].split('<br>')[0].strip()
+            if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
+                title = f"{title} ({series})"
+        metatags = ['-metadata', f"title={title}"]
+        for item in ['artist', 'album_artist', 'composer', 'album', 'author',
+                     'date', 'comment', 'description', 'genre', 'media_type']:
+            value = eval(item)
+            if value:
+                metatags.extend(['-metadata', f"{item}={value}"])
+    else:
+        metatags = ['-metadata', f"album={bookname}",
+                    '-metadata', f"artist={authorname}",
+                    '-metadata', f"title={bookfile}"]
+    return metatags
+
+
+def write_tags(bookfolder, filename, track, metatags):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
+    ffmpeg = CONFIG['FFMPEG']
+    try:
+        extn = os.path.splitext(filename)[1]
+        params = [ffmpeg, '-i', os.path.join(bookfolder, filename),
+                  '-y', '-c:a', 'copy']
+        params.extend(metatags)
+        params.extend(['-metadata', f'track={track}'])
+        tempfile = os.path.join(bookfolder, f"tempaudio{extn}")
+        if extn == '.m4b':
+            # some versions of ffmpeg will not add tags to m4b files, but they will add them to m4a
+            b2a = True
+            tempfile = tempfile.replace('.m4b', '.m4a')
+        else:
+            b2a = False
+
+        params.append(tempfile)
+        if loggerpostprocess.isEnabledFor(logging.DEBUG):
+            params.append('-report')
+            logger.debug(str(params))
+            ffmpeg_env = os.environ.copy()
+            ffmpeg_env["FFREPORT"] = "file=" + \
+                DIRS.get_tmpfilename(f"ffmpeg-merge_tag-{now().replace(':', '-').replace(' ', '-')}.log")
+        else:
+            ffmpeg_env = None
+        try:
+            if os.name != 'nt':
+                _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                            stderr=subprocess.STDOUT, env=ffmpeg_env)
+            else:
+                _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+
+            outfile = os.path.join(bookfolder, filename)
+            remove_file(outfile)
+            if b2a:
+                tempfile.replace('.m4a', '.m4b')
+            os.rename(tempfile, outfile)
+            logger.debug(f"Metadata written to {outfile}")
+        except subprocess.CalledProcessError as e:
+            logger.debug(f"Error writing metadata to {filename}")
+            logger.error(f"{type(e).__name__}: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"{type(e).__name__}: {str(e)}")
+            return False
+    except Exception as e:
+        logger.error(f" Error writing tags to files: {e}")
+        return False
+    return True
+
+
+def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
+    logger = logging.getLogger(__name__)
+    loggerpostprocess = logging.getLogger('special.postprocess')
+    if merge is None:
+        merge = CONFIG.get_bool('CREATE_SINGLEAUDIO')
+    if tag is None:
+        tag = CONFIG.get_bool('WRITE_AUDIOTAGS')
+    if zipp is None:
+        zipp = CONFIG.get_bool('ZIP_AUDIOPARTS')
+    if not merge and not tag and not zipp:
+        return True  # nothing to do
+
+    logger.debug(f"Preprocess audio {bookfolder} {authorname} {bookname}, merge={merge}, tag={tag}, zip={zipp}")
+
+    ffmpeg = get_ffmpeg_details()
+    if not ffmpeg:
+        return False
+
+    partslist_file = os.path.join(bookfolder, "partslist.ll")
+    metadata_file = os.path.join(bookfolder, "metadata.ll")
+    duration_file = os.path.join(bookfolder, "durationdata.ll")
 
     # this is to work around an ffmpeg oddity...
     if os.path.__name__ == 'ntpath':
-        partslist = partslist.replace("\\", "/")
-        metadata = metadata.replace("\\", "/")
-
-    # this produces a single file audiobook
-    ffmpeg_params = ['-f', 'concat', '-safe', '0', '-i', partslist, '-f', 'ffmetadata',
-                     '-i', metadata, '-map_metadata', '1', '-id3v2_version', '3']
+        partslist_file = partslist_file.replace("\\", "/")
+        metadata_file = metadata_file.replace("\\", "/")
+        duration_file = duration_file.replace("\\", "/")
 
     parts, failed, token, abridged = audio_parts(bookfolder, bookname, authorname)
 
@@ -191,8 +415,6 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     force_mp4 = False
     if out_type in ['.m4b', '.m4a', '.aac', '.mp4']:
         force_mp4 = True
-        if 'D' not in ff_aac or 'E' not in ff_aac:
-            logger.warning(f"Your version of ffmpeg does not report supporting read/write aac ({ff_aac}) trying anyway")
     # else:  # should we force mp4 if input is mp4 but output is mp3?
     #     for part in parts:
     #         if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
@@ -207,289 +429,112 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             ffmpeg_options = pre + '-f mp4 ' + post
         else:
             ffmpeg_options = CONFIG['AUDIO_OPTIONS'] + ' -f mp4'
-        logger.debug(f"ffmpeg options: {ffmpeg_options}")
     else:
         ffmpeg_options = CONFIG['AUDIO_OPTIONS']
 
-    with open(partslist, 'w', encoding="utf-8") as f:
+    logger.debug(f"ffmpeg options: {ffmpeg_options}")
+
+    with open(partslist_file, 'w', encoding="utf-8") as f:
         for part in parts:
             f.write(f"file '{part[3]}'\n")
 
-            if CONFIG.get_bool('KEEP_SEPARATEAUDIO') and ff_ver and tag and authorname and bookname:
-                if token or (part[2] != authorname) or (part[1] != bookname):
-                    extn = os.path.splitext(part[3])[1]
-                    params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
-                              '-y', '-c:a', 'copy', '-metadata', f"album={bookname}",
-                              '-metadata', f"artist={authorname}",
-                              '-metadata', f"track={part[0]}",
-                              os.path.join(bookfolder, f"tempaudio{extn}")]
-                    if loggerpostprocess.isEnabledFor(logging.DEBUG):
-                        params.append('-report')
-                        logger.debug(str(params))
-                        ffmpeg_env = os.environ.copy()
-                        ffmpeg_env["FFREPORT"] = "file=" + \
-                            DIRS.get_tmpfilename(f"ffmpeg-tag-{now().replace(':', '-').replace(' ', '-')}.log")
-                    else:
-                        ffmpeg_env = None
-                    try:
-                        if os.name != 'nt':
-                            _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                        stderr=subprocess.STDOUT, env=ffmpeg_env)
-                        else:
-                            _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
-
-                        remove_file(os.path.join(bookfolder, part[3]))
-                        os.rename(os.path.join(bookfolder, f"tempaudio{extn}"),
-                                  os.path.join(bookfolder, part[3]))
-                        logger.debug(f"Metadata written to {part[3]}")
-                    except subprocess.CalledProcessError as e:
-                        logger.error(f"{type(e).__name__}: {str(e)}")
-                        return False
-                    except Exception as e:
-                        logger.error(f"{type(e).__name__}: {str(e)}")
-                        return False
-
-    bookfile = namevars['AudioSingleFile']
+    bookfile = namevars['AudioSingleFile'] if namevars['Author'] else ''
+    # might not have any namevars (eg no bookid)
     if not bookfile:
         bookfile = f"{authorname} - {bookname}"
     outfile = bookfile + out_type
 
-    if ff_ver and merge:
-        if len(parts) == 1 and out_type == os.path.splitext(parts[0][3])[1]:
+    if len(parts) == 1:
+        if out_type == os.path.splitext(parts[0][3])[1]:
             logger.info("Only one audio file found, nothing to merge")
+            merge = False
         else:
-            # read metadata from first file
-            params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
-                      '-f', 'ffmetadata', '-y', metadata]
-            if loggerpostprocess.isEnabledFor(logging.DEBUG):
-                params.append('-report')
-                logger.debug(str(params))
-                ffmpeg_env = os.environ.copy()
-                ffmpeg_env["FFREPORT"] = "file=" + \
-                    DIRS.get_tmpfilename(f"ffmpeg-meta-{now().replace(':', '-').replace(' ', '-')}.log")
+            logger.info(f"Only one audio file found, changing format from "
+                        f"{os.path.splitext(parts[0][3])[1]} to {out_type}")
+            merge = True
+
+    ff_ver = lazylibrarian.FFMPEGVER
+    if ff_ver and merge:
+        # read metadata from first file
+        source_file = os.path.join(bookfolder, parts[0][3])
+        if not os.path.isfile(source_file):
+            logger.error(f"Source file {source_file} not found, aborting")
+            return False
+
+        if not write_metadata(source_file, metadata_file):
+            return False
+
+        part_durations, highest_bitrate = read_part_durations(bookfolder, parts, metadata_file, duration_file)
+
+        params = [ffmpeg]
+
+        # this produces a single file audiobook from partslist and adds metadata from file
+        ffmpeg_params = ['-f', 'concat', '-safe', '0', '-i', partslist_file, '-f', 'ffmetadata',
+                         '-i', duration_file, '-map_metadata', '1', '-id3v2_version', '3']
+
+        params.extend(ffmpeg_params)
+        options = get_list(ffmpeg_options)
+        if '-b:a' in options:
+            config_bitrate = check_int(''.join(c for c in options[options.index('-b:a') + 1] if c.isdigit()), 128)
+            if highest_bitrate < config_bitrate:
+                options[options.index('-b:a') + 1] = f"{highest_bitrate}k"
+                logger.debug(f"Dropping output bitrate to {highest_bitrate}k")
+        params.extend(options)
+        params.append('-y')
+        params.append(os.path.join(bookfolder, outfile))
+        if loggerpostprocess.isEnabledFor(logging.DEBUG):
+            params.append('-report')
+            logger.debug(str(params))
+            ffmpeg_env = os.environ.copy()
+            ffmpeg_env["FFREPORT"] = "file=" + \
+                DIRS.get_tmpfilename(f"ffmpeg-merge-{now().replace(':', '-').replace(' ', '-')}.log")
+        else:
+            ffmpeg_env = None
+        res = ''
+        try:
+            logger.debug(f"Merging {len(parts)} {plural(len(parts), 'file')} to {outfile}")
+            if os.name != 'nt':
+                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                              stderr=subprocess.STDOUT, env=ffmpeg_env)
             else:
-                ffmpeg_env = None
-            try:
-                if os.name != 'nt':
-                    _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                stderr=subprocess.STDOUT, env=ffmpeg_env)
-                else:
-                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+                res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+        except subprocess.CalledProcessError as e:
+            logger.debug("Error merging files, aborting")
+            logger.error(f"{type(e).__name__}: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"{type(e).__name__}: {str(e)}")
+            if res:
+                logger.error(res)
+            return False
 
-                logger.debug("Metadata written to metadata.ll")
-            except subprocess.CalledProcessError as e:
-                logger.error(f"{type(e).__name__}: {str(e)}")
-                return False
-            except Exception as e:
-                logger.error(f"{type(e).__name__}: {str(e)}")
-                return False
-
-            part_durations = []
-            for part in parts:
-                params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
-                          '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
-                if loggerpostprocess.isEnabledFor(logging.DEBUG):
-                    params.append('-report')
-                    logger.debug(str(params))
-                    ffmpeg_env = os.environ.copy()
-                    ffmpeg_env["FFREPORT"] = "file=" + \
-                        DIRS.get_tmpfilename(f"ffmpeg-part-{now().replace(':', '-').replace(' ', '-')}.log")
-                else:
-                    ffmpeg_env = None
-                try:
-                    if os.name != 'nt':
-                        res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                      stderr=subprocess.STDOUT, env=ffmpeg_env)
-                    else:
-                        res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
-
-                    res = res.decode('utf-8')
-                    if 'Duration: ' in res:
-                        try:
-                            duration = res.split('Duration: ', 1)[1].split(',')[0]
-                            h, m, s = duration.split(':')
-                            secs = check_float(s, 0) + (check_int(m, 0) * 60) + (check_int(h, 0) * 3600)
-                            part_durations.append([part[0], secs])
-                            logger.debug(f"Part {part[0]}, duration {secs}")
-                        except IndexError:
-                            pass
-
-                except subprocess.CalledProcessError as e:
-                    logger.error(f"{type(e).__name__}: {str(e)}")
-                    return False
-                except Exception as e:
-                    logger.error(f"{type(e).__name__}: {str(e)}")
-                    return False
-
-            if part_durations:
-                part_durations.sort(key=lambda x: x[0])
-                start = 0
-                with open(metadata, 'r', encoding="utf-8") as f:
-                    with open(os.path.join(bookfolder, "newmetadata.ll"), 'w', encoding="utf-8") as o:
-                        for lyne in f.readlines():
-                            if not lyne.startswith('[CHAPTER]') and not lyne.startswith('TIMEBASE='):
-                                if not lyne.startswith('START=') and not lyne.startswith('END='):
-                                    if not lyne.startswith('title='):
-                                        o.write(lyne)
-                remove_file(metadata)
-                os.rename(os.path.join(bookfolder, "newmetadata.ll"), metadata)
-
-                with open(metadata, 'a', encoding="utf-8") as f:
-                    for item in part_durations:
-                        if item[0]:
-                            f.write("[CHAPTER]\nTIMEBASE=1/1000\n")
-                            f.write(f"START={int(start)}\n")
-                            start = start + (1000 * item[1])
-                            f.write(f"END={int(start)}\n")
-                            f.write(f"title=Chapter {item[0]}\n")
-
-            params = [ffmpeg]
-            params.extend(ffmpeg_params)
-            params.extend(get_list(ffmpeg_options))
-            params.append('-y')
-            params.append(os.path.join(bookfolder, outfile))
-            if loggerpostprocess.isEnabledFor(logging.DEBUG):
-                params.append('-report')
-                logger.debug(str(params))
-                ffmpeg_env = os.environ.copy()
-                ffmpeg_env["FFREPORT"] = "file=" + \
-                    DIRS.get_tmpfilename(f"ffmpeg-merge-{now().replace(':', '-').replace(' ', '-')}.log")
-            else:
-                ffmpeg_env = None
-            res = ''
-            try:
-                logger.debug(f"Merging {len(parts)} files")
-                if os.name != 'nt':
-                    res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                  stderr=subprocess.STDOUT, env=ffmpeg_env)
-                else:
-                    res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
-
-            except subprocess.CalledProcessError as e:
-                logger.error(f"{type(e).__name__}: {str(e)}")
-                return False
-            except Exception as e:
-                logger.error(f"{type(e).__name__}: {str(e)}")
-                if res:
-                    logger.error(res)
-                return False
-
-            if len(parts) > 1:
-                logger.info(f"{len(parts)} files merged into {outfile}")
-            else:
-                logger.info(f"Source {os.path.splitext(parts[0][3])[1]} file rewritten to {outfile}")
-
-        if tag:
-            try:
-                extn = os.path.splitext(outfile)[1]
-                params = [ffmpeg, '-i', os.path.join(bookfolder, outfile),
-                          '-y', '-c:a', 'copy',
-                          '-metadata', 'track=0']
-
-                db = database.DBConnection()
-                try:
-                    match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
-                    audio_path = os.path.join(bookfolder, parts[0][3])
-                    if match:
-                        id3r = id3read(audio_path)
-                        if not match['Narrator'] and id3r['narrator']:
-                            db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
-                        # noinspection PyUnusedLocal
-                        artist = id3r['artist']
-                        # noinspection PyUnusedLocal
-                        composer = id3r['composer']
-                        # noinspection PyUnusedLocal
-                        album_artist = id3r['albumartist']
-                        # noinspection PyUnusedLocal
-                        album = id3r['album']
-                        # title = id3r.title
-                        # "unused" locals are used in eval() statement below
-                        # noinspection PyUnusedLocal
-                        comment = id3r['comment']
-                        # noinspection PyUnusedLocal
-                        author = authorname
-                        # noinspection PyUnusedLocal
-                        media_type = "Audiobook"
-                        # noinspection PyUnusedLocal
-                        genre = match['BookGenre']
-                        # noinspection PyUnusedLocal
-                        description = match['BookDesc']
-                        # noinspection PyUnusedLocal
-                        date = match['BookDate']
-                        if date == '0000':
-                            # noinspection PyUnusedLocal
-                            date = ''
-
-                        if bookfile:
-                            title = bookfile
-                        else:
-                            title = f"{authorname} - {bookname}"
-                            if match['SeriesDisplay']:
-                                series = match['SeriesDisplay'].split('<br>')[0].strip()
-                                if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
-                                    title = f"{title} ({series})"
-                                    outfile, extn = os.path.splitext(outfile)
-                                    outfile = f"{outfile} ({series}){extn}"
-                        params.extend({'-metadata', f"title={title}"})
-                        for item in ['artist', 'album_artist', 'composer', 'album', 'author',
-                                     'date', 'comment', 'description', 'genre', 'media_type']:
-                            value = eval(item)
-                            if value:
-                                params.extend(['-metadata', f"{item}={value}"])
-                    else:
-                        params.extend(['-metadata', f"album={bookname}",
-                                       '-metadata', f"artist={authorname}",
-                                       '-metadata', f"title={bookfile}"])
-                finally:
-                    db.close()
-
-                tempfile = os.path.join(bookfolder, f"tempaudio{extn}")
-                if extn == '.m4b':
-                    # some versions of ffmpeg will not add tags to m4b files, but they will add them to m4a
-                    b2a = True
-                    tempfile = tempfile.replace('.m4b', '.m4a')
-                else:
-                    b2a = False
-
-                params.append(tempfile)
-                if loggerpostprocess.isEnabledFor(logging.DEBUG):
-                    params.append('-report')
-                    logger.debug(str(params))
-                    ffmpeg_env = os.environ.copy()
-                    ffmpeg_env["FFREPORT"] = "file=" + \
-                        DIRS.get_tmpfilename(f"ffmpeg-merge_tag-{now().replace(':', '-').replace(' ', '-')}.log")
-                else:
-                    ffmpeg_env = None
-                try:
-                    if os.name != 'nt':
-                        _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                    stderr=subprocess.STDOUT, env=ffmpeg_env)
-                    else:
-                        _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
-
-                    outfile = os.path.join(bookfolder, outfile)
-                    remove_file(outfile)
-                    if b2a:
-                        tempfile.replace('.m4a', '.m4b')
-                    os.rename(tempfile, outfile)
-                    logger.debug(f"Metadata written to {outfile}")
-                except subprocess.CalledProcessError as e:
-                    logger.error(f"{type(e).__name__}: {str(e)}")
-                    return False
-                except Exception as e:
-                    logger.error(f"{type(e).__name__}: {str(e)}")
-                    return False
-            except Exception as e:
-                logger.error(f" Error writing tags to files: {e}")
-                return False
-
-        if not CONFIG.get_bool('KEEP_SEPARATEAUDIO') and len(parts):
+        if not CONFIG.get_bool('KEEP_SEPARATEAUDIO'):
             logger.debug(f"Removing {len(parts)} part {plural(len(parts), 'file')}")
             for part in parts:
                 remove_file(os.path.join(bookfolder, part[3]))
+            parts = parts[:1]
+            # track, title, author, file
+            parts[0][3] = outfile
+            parts[0][0] = 0
 
-    remove_file(partslist)
-    remove_file(metadata)
+    if tag:
+        source_file = os.path.join(bookfolder, parts[0][3])
+        metatags = get_metatags(bookid, bookfile, authorname, bookname, source_file)
+        logger.debug(f"Writing new tags: {metatags}")
+
+        errored = 0
+        for part in parts:
+            res = write_tags(bookfolder, part[3], part[0], metatags)
+            if not res:
+                errored += 1
+        logger.debug(f"Written tags to {len(parts)}, errors on {errored}")
+
+    if zipp:
+        _ = zip_audio(bookfolder, bookname, bookid)
+
+    remove_file(partslist_file)
+    remove_file(metadata_file)
+    remove_file(duration_file)
     return True
 
 
