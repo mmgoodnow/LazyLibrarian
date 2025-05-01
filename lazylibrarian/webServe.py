@@ -980,9 +980,10 @@ class WebInterface:
                 last_login = check_int(match['Last_Login'], 0)
                 subscriptions = ''
                 for item in subs:
-                    if subscriptions:
-                        subscriptions += '\n'
-                    subscriptions += f'{item["Type"]} {item["WantID"]}'
+                    if item['Type'] != 'ebook':
+                        if subscriptions:
+                            subscriptions += '\n'
+                        subscriptions += f'{item["Type"]} {item["WantID"]}'
                 res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
                                   'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
                                   'sendto': match['SendTo'], 'booktype': match['BookType'], 'userid': match['UserID'],
@@ -1625,6 +1626,10 @@ class WebInterface:
                             userid = cookie['ll_uid'].value
                             db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                       (userid, 'series', seriesid))
+                            res = db.select('SELECT bookid from series where seriesid=?', (seriesid, ))
+                            for iss in res:
+                                db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                          (userid, 'series', iss['bookid']))
                             logger.debug(f"Unsubscribe {userid} to series {seriesid}")
 
                 if "redirect" in args:
@@ -2069,6 +2074,10 @@ class WebInterface:
                             userid = cookie['ll_uid'].value
                             db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                       (userid, 'author', authorid))
+                            res = db.select('SELECT bookid from books where authorid=?', (authorid, ))
+                            for iss in res:
+                                db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                          (userid, 'ebook', iss['bookid']))
                             logger.debug(f"Unsubscribe {userid} author {authorid}")
             finally:
                 db.close()
@@ -2489,8 +2498,11 @@ class WebInterface:
                 }
                 db.upsert("wanted", new_value_dict, control_value_dict)
                 author_id = bookdata["AuthorID"]
+                dl_title = bookdata["BookName"]
+                if provider in ['soulseek', 'annas']:
+                    dl_title = title
                 if mode == 'direct':
-                    snatch, res = direct_dl_method(bookid, bookdata["BookName"], url, library, provider)
+                    snatch, res = direct_dl_method(bookid, dl_title, url, library, provider)
                 elif mode in ["torznab", "torrent", "magnet"]:
                     snatch, res = tor_dl_method(bookid, bookdata["BookName"], url, library, provider=provider)
                 elif mode == 'nzb':
@@ -5018,6 +5030,10 @@ class WebInterface:
                         userid = cookie['ll_uid'].value
                         db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                   (userid, 'comic', item))
+                        res = db.select('SELECT issueid from comicissues where comicid=?', (item, ))
+                        for iss in res:
+                            db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                      (userid, 'comic', iss['issueid']))
                         logger.debug(f"Unsubscribe {userid} to comic {item}")
         finally:
             db.close()
@@ -6183,6 +6199,10 @@ class WebInterface:
                         userid = cookie['ll_uid'].value
                         db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                   (userid, 'magazine', title))
+                        res = db.select('SELECT issueid from issues where title=?', (title, ))
+                        for iss in res:
+                            db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                      (userid, 'magazine', iss['issueid']))
                         logger.debug(f"Unsubscribe {userid} to magazine {title}")
         finally:
             db.close()
