@@ -40,6 +40,8 @@ def test_auth(userid=None):
         userid, msg = get_current_userid()
     if userid:
         h_c = HardCover(userid)
+        if BLOCKHANDLER.is_blocked('HardCover'):
+            BLOCKHANDLER.remove_provider_entry('HardCover')
         msg = h_c.hc_whoami()
     return msg
 
