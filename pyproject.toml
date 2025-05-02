@@ -37,6 +37,7 @@ dependencies = [
     'irc',
     'apscheduler',
     'tzdata',
+    'slskd_api',
 ]
 
 [project.urls]

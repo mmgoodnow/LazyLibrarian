@@ -127,6 +127,7 @@ class LazyTelemetry(object):
             'TOR_DOWNLOADER_RTORRENT', 'TOR_DOWNLOADER_UTORRENT',
             'TOR_DOWNLOADER_QBITTORRENT', 'TOR_DOWNLOADER_BLACKHOLE',
             # Providers
+            'BOK', 'SLSK', 'ANNA',
             # Processing
             'CALIBRE_USE_SERVER', 'OPF_TAGS', 'MULTI_SOURCE',
             # Notifiers

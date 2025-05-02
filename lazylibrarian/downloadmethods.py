@@ -11,6 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import json
 import os
 import re
 import time
@@ -38,6 +39,8 @@ from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unico
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
 from lazylibrarian.directparser import bok_login, session_get, bok_grabs
+from lazylibrarian.soulseek import SLSKD
+from lazylibrarian.annas import annas_download
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
@@ -264,7 +267,72 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     logger = logging.getLogger(__name__)
     logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     source = "DIRECT"
-    logger.debug(f"Starting Direct Download for [{dl_title}]")
+    logger.debug(f"Starting Direct Download from {provider} for [{dl_title}]")
+
+    if provider == 'soulseek':
+        slsk = SLSKD()
+        if not slsk.slskd:
+            return False, "Unable to connect to slskd, is it running?"
+        try:
+            slsk_username, slsk_dir = dl_url.split('^')
+        except IndexError:
+            msg = f"Failed to get username and dir from url {dl_url}"
+            logger.debug(msg)
+            return False, msg
+
+        directory = json.loads(slsk_dir)
+        queued = slsk.enqueue(slsk_username, directory)
+        if not queued:
+            return False, f'Unable to queue {dl_title}'
+
+        wanted = [{'username': slsk_username, 'directory': directory}]
+        res = slsk.download(wanted)
+        if res:
+            db = database.DBConnection()
+            hashid = sha1(bencode(dl_url)).hexdigest()
+            try:
+                if library == 'eBook':
+                    db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
+                elif library == 'AudioBook':
+                    db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
+                cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=?")
+                db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
+            finally:
+                db.close()
+            record_usage_data(f'Download/Direct/{provider}/Success')
+            return True, ''
+        record_usage_data(f'Download/Direct/{provider}/False')
+        return False, ''
+
+    if provider == 'annas':
+        title, extn = os.path.splitext(dl_title)
+        db = database.DBConnection()
+        folder = ''
+        try:
+            res = db.match('SELECT bookname from books WHERE bookid=?', (bookid,))
+            if res and res['bookname']:
+                folder = res['bookname']
+        finally:
+            db.close()
+        success, fname = annas_download(dl_url, folder, title, extn)
+
+        if success:
+            db = database.DBConnection()
+            try:
+                if library == 'eBook':
+                    db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
+                elif library == 'AudioBook':
+                    db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
+                cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=?")
+                db.action(cmd, (source, dl_url, int(time.time()), bookid, provider))
+            finally:
+                db.close()
+            record_usage_data(f'Download/Direct/{provider}/Success')
+            return True, ''
+        record_usage_data(f'Download/Direct/{provider}/False')
+        return False, ''
 
     if provider == 'zlibrary':
         zlib = bok_login()
