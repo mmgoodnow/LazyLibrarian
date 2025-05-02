@@ -1,0 +1,406 @@
+#  This file is part of Lazylibrarian.
+#  Lazylibrarian is free software, you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  Lazylibrarian is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
+
+# Heavily modified from code found at https://pypi.org/project/annas-py/annas_py-0.1.0
+
+import json
+import logging
+import os
+import time
+from dataclasses import dataclass
+from enum import Enum
+from html import unescape as html_unescape
+from urllib.parse import urljoin
+
+from bs4 import Tag, BeautifulSoup
+from requests import get
+
+import lazylibrarian
+from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
+from lazylibrarian.formatter import md5_utf8, plural, check_int, size_in_bytes, get_list
+
+
+@dataclass(slots=True)
+class FileInfo:
+    extension: str
+    size: str
+    language: str | None
+
+
+@dataclass(slots=True)
+class SearchResult:
+    id: str
+    title: str
+    authors: str
+    file_info: FileInfo
+    thumbnail: str | None
+    publisher: str | None
+    publish_date: str | None
+
+
+class OrderBy(Enum):
+    MOST_RELEVANT = ""
+    NEWEST = "newest"
+    OLDEST = "oldest"
+    LARGEST = "largest"
+    SMALLEST = "smallest"
+
+
+class FileType(Enum):
+    ANY = ""
+    PDF = "pdf"
+    EPUB = "epub"
+    MOBI = "mobi"
+    AZW3 = "azw3"
+    FB2 = "fb2"
+    LIT = "lit"
+    DJVU = "djvu"
+    RTF = "rtf"
+    ZIP = "zip"
+    RAR = "rar"
+    CBR = "cbr"
+    TXT = "txt"
+    CBZ = "cbz"
+    HTML = "html"
+    FB2_ZIP = "fb2.zip"
+    DOC = "doc"
+    HTM = "htm"
+    DOCX = "docx"
+    LRF = "lrf"
+    MHT = "mht"
+
+
+class Language(Enum):
+    ANY = ""
+    EN = "en"
+    AR = "ar"
+    BE = "be"
+    BG = "bg"
+    BN = "bn"
+    CA = "ca"
+    CS = "cs"
+    DE = "de"
+    EL = "el"
+    EO = "eo"
+    ES = "es"
+    FA = "fa"
+    FR = "fr"
+    HI = "hi"
+    HU = "hu"
+    ID = "id"
+    IT = "it"
+    JA = "ja"
+    KO = "ko"
+    LT = "lt"
+    ML = "ml"
+    NL = "nl"
+    NO = "no"
+    OR = "or"
+    PL = "pl"
+    PT = "pt"
+    RO = "ro"
+    RU = "ru"
+    SK = "sk"
+    SL = "sl"
+    SQ = "sq"
+    SR = "sr"
+    SV = "sv"
+    TR = "tr"
+    TW = "tw"
+    UK = "uk"
+    UR = "ur"
+    VI = "vi"
+    ZH = "zh"
+
+
+class HTTPFailed(Exception):
+    pass
+
+
+def extract_file_info(raw: str) -> FileInfo:
+    # Extract file info from raw string given from the website
+    # it assumes that the string will always have the file format
+    # and size, but can have language and file name too
+    # > Cases:
+    #     Language, format, size and file name is provided;
+    #     Language, format and size is provided, file name is omitted;
+    #     Format and size is provided, language and name is omitted.
+
+    # sample data:
+    #  English [en], pdf, 7.5MB, "Python_Web_Scraping_-_Second_Edition.pdf"
+    #  Portuguese [pt], epub, 1.5MB
+    #  mobi, 4.1MB
+    # English [en], .pdf, 🚀/ia, 14.9MB, 📗 Book (unknown), ia/londonrules0000herr_q7j9.pdf
+
+    info_list = raw.split(", ")
+    language = None
+    if "[" in info_list[0]:
+        language = info_list.pop(0)
+    extension = info_list.pop(0)
+    size = info_list.pop(0)
+    if not size.endswith('B'):
+        size = info_list.pop(0)
+    return FileInfo(extension, size, language)
+
+
+def extract_publish_info(raw: str) -> tuple[str | None, str | None]:
+    # Sample data:
+    #  John Wiley and Sons; Wiley (Blackwell Publishing); Blackwell Publishing Inc.;
+    #  Wiley; JSTOR (ISSN 0020-6598), International Economic Review, #2, 45, pages 327-350, 2004 may
+    #  Cambridge University Press, 10.1017/CBO9780511510854, 2001
+    #  Cambridge University Press, 1, 2008
+    #  Cambridge University Press, 2014 feb 16
+    #  1, 2008
+    #  2008
+
+    if raw.strip() == "":
+        return None, None
+    info = [i for i in raw.split(", ") if i.strip()]
+    last_info = info[-1].split()
+    date = None
+    if last_info[0].isdecimal() and last_info[0] != "0":
+        info.pop()
+        date = last_info.pop(0)
+        if last_info:
+            date = " ".join(last_info) + " of " + date
+        elif info and info[-1].isdecimal():
+            date = info.pop() + ", " + date
+    publisher = ", ".join(info) or None
+    return publisher, date
+
+
+# noinspection PyDefaultArgument
+def html_parser(url: str, params: dict = {}) -> BeautifulSoup:
+    params = dict(filter(lambda i: i[1], params.items()))
+    response = get(url, params=params)
+    if response.status_code >= 400:
+        raise HTTPFailed(f"server returned http status {response.status_code}")
+    html = response.text.replace("<!--", "").replace("-->", "")
+    return BeautifulSoup(html, "html5lib")
+
+
+def annas_search(
+    query: str,
+    language: Language = Language.ANY,
+    file_type: FileType = FileType.ANY,
+    order_by: OrderBy = OrderBy.MOST_RELEVANT,
+) -> str:
+
+    if not query.strip():
+        raise ValueError("query can not be empty")
+    params = {
+        "q": query,
+        "lang": language.value,
+        "ext": file_type.value,
+        "sort": order_by.value,
+    }
+    soup = html_parser(urljoin(CONFIG['ANNA_HOST'], "search"), params)
+    raw_results = soup.find_all("a", class_="js-vim-focus")
+    results = list(filter(lambda i: i is not None, map(parse_result, raw_results)))
+    myhash = md5_utf8(query)
+    cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache")
+    hashfilename = os.path.join(cache_location, f"{myhash}.anna")
+    resultslist = []
+    for r in results:
+        resultdict = {'title': r.title,
+                      'id': r.id,
+                      'authors': r.authors,
+                      'thumbnail': r.thumbnail,
+                      'publisher': r.publisher,
+                      'publish_date': r.publish_date,
+                      'extension': r.file_info.extension,
+                      'size': r.file_info.size,
+                      'language': r.file_info.language,
+                      }
+        resultslist.append(resultdict)
+
+    with open(hashfilename, 'w') as fp:
+        json.dump(resultslist, fp)
+    return hashfilename
+
+
+def parse_result(raw_content: Tag) -> SearchResult | None:
+    try:
+        title = raw_content.find("h3").text.strip()
+    except AttributeError:
+        return None
+
+    authors = raw_content.find("div", class_="max-lg:text-sm") or ''
+    if authors:
+        authors = authors.text
+    publish_info = raw_content.find("div", class_="max-lg:text-xs") or ''
+    if publish_info:
+        publish_info = publish_info.text
+        publisher, publish_date = extract_publish_info(publish_info)
+    else:
+        publish_date = ''
+        publisher = ''
+    try:
+        thumbnail = raw_content.find("img").get("src") or None
+    except AttributeError:
+        thumbnail = None
+    hashid = raw_content.get("href").split("md5/")[-1]
+
+    raw_file_info = raw_content.find(
+        "div", class_="text-gray-500"
+    )
+    if raw_file_info:
+        raw_file_info = raw_file_info.text
+        file_info = extract_file_info(raw_file_info)
+    else:
+        file_info = ''
+    
+    res = SearchResult(
+        id=hashid,
+        title=html_unescape(title),
+        authors=html_unescape(authors),
+        file_info=file_info,
+        thumbnail=thumbnail,
+        publisher=html_unescape(publisher) if publisher else None,
+        publish_date=publish_date,
+    )
+    return res
+
+
+def annas_download(md5, folder, title, extn):
+    logger = logging.getLogger(__name__)
+    url = urljoin(CONFIG['ANNA_HOST'], '/dyn/api/fast_download.json')
+    secret_key = CONFIG['ANNA_KEY']
+    params = {'md5': md5, 'key': secret_key, 'domain_index': 0}
+    response = get(url, params=params)
+    if str(response.status_code).startswith('2'):
+        res = response.json()
+        url = res['download_url']
+        if url and url.startswith('http'):
+            r = get(url)
+            if not str(r.status_code).startswith('2'):
+                res = f"Got a {r.status_code} response for {url}"
+                logger.warning(res)
+                return False, res
+            filedata = r.content
+            if not len(filedata):
+                res = f"Got empty response for {url}"
+                logger.warning(res)
+                return False, res
+            if len(filedata) < 100:
+                res = f"Only got {len(filedata)} bytes for {url}"
+                logger.warning(res)
+                return False, res
+            logger.debug(f"Got {len(filedata)} bytes for {url}")
+            download_dir = get_list(CONFIG['DOWNLOAD_DIR'])[0]
+            if folder:
+                parent = os.path.join(download_dir, folder)
+                if not os.path.isdir(parent):
+                    os.mkdir(parent)
+            dest_filename = os.path.join(download_dir, folder, f"{title}{extn}")
+            with open(dest_filename, 'wb') as f:
+                f.write(filedata)
+            logger.debug(f"Data written to file {dest_filename}")
+            return True, dest_filename
+        else:
+            errmsg = f"Invalid url: {url} {res['error']}"
+            logger.error(errmsg)
+            return False, errmsg
+    else:
+        errmsg = f"Error Status: {response.status_code}"
+        logger.error(errmsg)
+        return False, errmsg
+
+
+def anna_search(book=None, test=False):
+    logger = logging.getLogger(__name__)
+    provider = "annas"
+    # searchtype = 'eBook'
+
+    if BLOCKHANDLER.is_blocked(provider):
+        if test:
+            return False
+        return [], "provider is already blocked"
+
+    cache = True
+    cachelogger = logging.getLogger('special.cache')
+    cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache")
+
+    if test:
+        book['bookid'] = '0'
+        cache = False
+
+    if cache:
+        myhash = md5_utf8(book['searchterm'])
+        valid_cache = False
+        hashfilename = os.path.join(cache_location, f"{myhash}.anna")
+        # cache results so we can do multiple searches for the same author
+        # or multiple search types for a book without hammering the provider
+        # expire cache after 2 hours, there might be new additions
+        expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 2 * 3600)
+
+        if path_isfile(hashfilename):
+            cache_modified_time = os.stat(hashfilename).st_mtime
+            time_now = time.time()
+            if cache_modified_time < time_now - expiry:
+                # Cache entry is too old, delete it
+                cachelogger.debug(f"Expiring {myhash}")
+                remove_file(hashfilename)
+            else:
+                valid_cache = True
+
+        if valid_cache:
+            lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
+            cachelogger.debug(f"CacheHandler: Found CACHED response {hashfilename} for {book['searchterm']}")
+        else:
+            lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
+            hashfilename = annas_search(book['searchterm'])
+    else:
+        hashfilename = annas_search(book['searchterm'])
+
+    with open(hashfilename, 'r') as f:
+        searchresults = json.load(f)
+
+    logger.debug(f"{provider} returned {len(searchresults)}")
+    results = []
+    removed = 0
+    for item in searchresults:
+        author = item['authors']
+        title = item['title']
+        extn = item['extension']
+        size = str(size_in_bytes(item['size']))
+        lang = item['language']
+        dl = item['id']
+
+        if not author or not title or not size or not dl:
+            removed += 1
+        else:
+            if author and author not in title:
+                title = f"{author.strip()} {title.strip()}"
+
+            results.append({
+                'bookid': book['bookid'],
+                'tor_prov': provider,
+                'tor_title': f"{title}{extn}",
+                'tor_url': dl,
+                'tor_size': size,
+                'tor_type': 'direct',
+                'tor_extn': extn,
+                'tor_lang': lang,
+                'priority': CONFIG["ANNA_DLPRIORITY"],
+                'hash_file': hashfilename
+            })
+            logger.debug(f'Found {title}, Size {size}')
+
+    if test:
+        logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} ({removed} removed)")
+        return len(results)
+
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {book['searchterm']}")
+    return results, ''

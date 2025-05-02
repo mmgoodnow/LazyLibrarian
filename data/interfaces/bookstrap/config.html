@@ -1785,6 +1785,64 @@
                       <label for="show_direct_prov" class="fa">  Direct Providers</label>
                   </legend>
                     <fieldset id=direct_prov>
+                    <% checked = 'checked="checked"' if CONFIG['SLSK'] else '' %>
+                    <div class="col-md-4 form-group">
+                      <label for="slsk_host" class="sr-only">soulseek daemon</label>
+                      <div class="input-group">
+                        <span class="input-group-addon">SoulSeek</span>
+                        <input type="text" placeholder="soulseek daemon" id="slsk_host" name="slsk_host" value="${CONFIG['SLSK_HOST']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
+                        <input type="checkbox" id="slsk" name="slsk" value="1" ${checked} />
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">API Key</span>
+                        <input type="text" placeholder="api key" id="slsk_api" name="slsk_api" value="${CONFIG['SLSK_API']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="API key to access the daemon">
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">URL Base</span>
+                        <input type="text" placeholder="normally /" id="slsk_urlbase" name="slsk_urlbase" value="${CONFIG['SLSK_URLBASE']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="URL Base">
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Priority</span>
+                        <input type="number" id="slsk_dlpriority" name="slsk_dlpriority" value="${CONFIG['SLSK_DLPRIORITY']}" class="form-control" placeholder="0">
+                        <span class="input-group-addon">Types</span>
+                        <input type="text" id="slsk_dltypes" name="slsk_dltypes" value="${CONFIG['SLSK_DLTYPES']}" class="form-control" placeholder="">
+                        <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="SLSK"> Test</button>
+                        </span>
+                      </div>
+                    </div>
+                    <% checked = 'checked="checked"' if CONFIG['ANNA'] else '' %>
+                    <div class="col-md-4 form-group">
+                      <label for="anna_host" class="sr-only">Annas Archive</label>
+                      <div class="input-group">
+                        <span class="input-group-addon">Anna</span>
+                        <input type="text" placeholder="Annas Archive" id="anna_host" name="anna_host" value="${CONFIG['ANNA_HOST']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
+                        <input type="checkbox" id="anna" name="anna" value="1" ${checked} />
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Member Key</span>
+                        <input type="text" placeholder="member key" id="anna_key" name="anna_key" value="${CONFIG['ANNA_KEY']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Member key to access fast downloads">
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Priority</span>
+                        <input type="number" id="anna_dlpriority" name="anna_dlpriority" value="${CONFIG['ANNA_DLPRIORITY']}" class="form-control" placeholder="0">
+                        <span class="input-group-addon">Types</span>
+                        <input type="text" id="anna_dltypes" name="anna_dltypes" value="${CONFIG['ANNA_DLTYPES']}" class="form-control" placeholder="">
+                        <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="ANNA"> Test</button>
+                        </span>
+                      </div>
+                    </div>
                     <% checked = 'checked="checked"' if CONFIG['BOK'] else '' %>
                     <div class="col-md-4 form-group">
                       <label for="bok_host" class="sr-only">zlibrary host</label>
