@@ -181,7 +181,7 @@ def coverswap(sourcefile, coverpage=2):
         # but shutil.copyfile used by safe_copy should work
         try:
             logger.debug(f"Copying {srcfile}new to {original}")
-            newcopy = safe_copy(f"{srcfile}new", original)
+            _ = safe_copy(f"{srcfile}new", original)
         except Exception as e:
             logger.warning(f"Failed to copy output file: {str(e)}")
             return False

@@ -205,7 +205,8 @@ class SLSKD:
                                 self.ignored_users.append(username)
                             else:
                                 for i in range(0, len(directory['files'])):
-                                    directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
+                                    directory['files'][i]['filename'] = (file_dir + "\\" +
+                                                                         directory['files'][i]['filename'])
                                 data = {
                                     "dir": file_dir.split("\\")[-1],
                                     "filename": file_name,

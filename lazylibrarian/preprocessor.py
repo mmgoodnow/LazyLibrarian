@@ -344,7 +344,7 @@ def write_tags(bookfolder, filename, track, metatags):
             remove_file(outfile)
             if b2a:
                 tempfile.replace('.m4a', '.m4b')
-            os.rename(tempfile, outfile)
+            safe_move(tempfile, outfile)
             logger.debug(f"Metadata written to {outfile}")
         except subprocess.CalledProcessError as e:
             logger.debug(f"Error writing metadata to {filename}")
@@ -583,8 +583,7 @@ def preprocess_magazine(bookfolder, cover=0):
                 new_size = 0
             logger.debug(f"New size {human_size(new_size)}, was {human_size(old_size)}")
             if new_size and new_size < old_size:
-                remove_file(srcfile)
-                os.rename(shrunkfile, srcfile)
+                safe_move(shrunkfile, srcfile)
                 _ = setperm(srcfile)
             elif shrunkfile:
                 remove_file(shrunkfile)
