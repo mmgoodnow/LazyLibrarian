@@ -176,43 +176,48 @@ class SLSKD:
 
         self.logger.info(f"Search returned results from "
                          f"{len(self.slskd.searches.search_responses(search['id']))} users")
-
-        for result in self.slskd.searches.search_responses(search['id']):
-            username = result['username']
-            if username in self.ignored_users:
-                self.logger.info(f"Ignoring user {username}")
-            else:
-                self.logger.info(f"Parsing result from user: {username}")
-                files = result['files']
-                for file in files:
-                    file_name = file['filename'].rsplit("\\", 1)[1]
-                    if not CONFIG.is_valid_booktype(file_name, booktype=searchtype):
-                        self.logger.debug(f"Rejecting {file_name}")
-                    else:
-                        file_size = file['size']
-                        file_dir = file['filename'].rsplit("\\", 1)[0]
-                        try:
-                            if slskd_version_check(self.version):
-                                directory = self.slskd.users.directory(username=username, directory=file_dir)[0]
+        try:
+            for result in self.slskd.searches.search_responses(search['id']):
+                username = result['username']
+                if username in self.ignored_users:
+                    self.logger.info(f"Ignoring user {username}")
+                else:
+                    self.logger.info(f"Parsing result from user: {username}")
+                    files = result['files']
+                    for file in files:
+                        file_name = file['filename'].rsplit("\\", 1)[1]
+                        if not CONFIG.is_valid_booktype(file_name, booktype=searchtype):
+                            self.logger.debug(f"Rejecting {file_name}")
+                        else:
+                            file_size = file['size']
+                            file_dir = file['filename'].rsplit("\\", 1)[0]
+                            try:
+                                if slskd_version_check(self.version):
+                                    directory = self.slskd.users.directory(username=username, directory=file_dir)[0]
+                                else:
+                                    directory = self.slskd.users.directory(username=username, directory=file_dir)
+                            except Exception as e:
+                                self.logger.warning(str(e))
+                                continue
+                            # some users dump all their books in one folder so directory is huge
+                            # we exclude these users as we don't want all their books
+                            if directory['fileCount'] > 10:  # allow for multiple formats, opf, jpg
+                                self.ignored_users.append(username)
                             else:
-                                directory = self.slskd.users.directory(username=username, directory=file_dir)
-                        except Exception as e:
-                            self.logger.warning(str(e))
-                            continue
-                        # some users dump all their books in one folder so directory is huge
-                        # we should exclude these users as we don't want all their books
-                        if directory['fileCount'] < 10:  # allow for multiple formats, opf, jpg
-                            for i in range(0, len(directory['files'])):
-                                directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
-                            data = {
-                                "dir": file_dir.split("\\")[-1],
-                                "filename": file_name,
-                                "username": username,
-                                "directory": directory,
-                                "size": file_size
-                            }
-                            results.append(data)
-
+                                for i in range(0, len(directory['files'])):
+                                    directory['files'][i]['filename'] = file_dir + "\\" + directory['files'][i]['filename']
+                                data = {
+                                    "dir": file_dir.split("\\")[-1],
+                                    "filename": file_name,
+                                    "username": username,
+                                    "directory": directory,
+                                    "size": file_size
+                                }
+                                results.append(data)
+                    self.logger.info(f"Finished processing user: {username}")
+            self.logger.info(f"Processed results from {len(self.slskd.searches.search_responses(search['id']))} users")
+        except Exception as e:
+            self.logger.error(f"Error getting responses: {e}")
         if self.delete_searches:
             self.slskd.searches.delete(search['id'])
         myhash = md5_utf8(searchterm)
