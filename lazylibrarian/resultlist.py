@@ -192,7 +192,7 @@ def find_best_result(resultlist, book, searchtype, source):
                     if not url.startswith('!'):
                         rejected = True
                         logger.debug(f"Rejecting {res[prefix + 'title']}, invalid nick [{url}]")
-                elif res[prefix + 'prov'] == 'zlibrary':
+                elif res[prefix + 'prov'] in ['zlibrary', 'soulseek']:
                     if '^' not in url:
                         rejected = True
                         logger.debug(f"Rejecting {res[prefix + 'title']}, invalid URL [{url}]")
