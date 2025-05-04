@@ -176,17 +176,17 @@ def coverswap(sourcefile, coverpage=2):
                 p += 1
             with open(f"{srcfile}new", "wb") as outputStream:
                 writer.write(outputStream)
-        logger.debug("Writing new output file")
+            logger.debug(f"Written new output file {srcfile}new")
+        # windows does not allow rename to overwrite an existing file
+        # but shutil.copyfile used by safe_copy should work
         try:
-            newcopy = safe_copy(f"{srcfile}new", f"{original}new")
+            logger.debug(f"Copying {srcfile}new to {original}")
+            newcopy = safe_copy(f"{srcfile}new", original)
         except Exception as e:
             logger.warning(f"Failed to copy output file: {str(e)}")
             return False
         os.remove(srcfile)
         os.remove(f"{srcfile}new")
-        # windows does not allow rename to overwrite an existing file
-        os.remove(original)
-        os.rename(newcopy, original)
         logger.info(f"{sourcefile} has {cnt:d} pages. Swapped pages 1 and 2\n")
         return True
 
