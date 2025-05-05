@@ -34,10 +34,9 @@ def slskd_version_check(version, target="0.22.2"):
     return version_tuple >= target_tuple
 
 
-def slsk_search(book=None, test=False):
+def slsk_search(book=None, searchtype='ebook', test=False):
     logger = logging.getLogger(__name__)
     provider = "soulseek"
-    searchtype = 'eBook'
 
     if BLOCKHANDLER.is_blocked(provider):
         if test:
@@ -157,17 +156,21 @@ class SLSKD:
             self.slskd = None
             self.logger.error(str(e))
 
-    def search(self, searchterm, searchtype='eBook'):
+    def search(self, searchterm, searchtype='ebook'):
         results = []
         if not self.slskd:
             self.logger.error("Not connected to slskd")
             return ''
 
-        search = self.slskd.searches.search_text(searchText=searchterm,
-                                                 searchTimeout=5000,
-                                                 filterResponses=True,
-                                                 maximumPeerQueueLength=50,
-                                                 minimumPeerUploadSpeed=0)
+        try:
+            search = self.slskd.searches.search_text(searchText=searchterm,
+                                                     searchTimeout=5000,
+                                                     filterResponses=True,
+                                                     maximumPeerQueueLength=50,
+                                                     minimumPeerUploadSpeed=0)
+        except Exception as e:
+            self.logger.error(f"Error searching slskd: {e}")
+            return ''
 
         while True:
             if self.slskd.searches.state(search['id'])['state'] != 'InProgress':
@@ -237,7 +240,7 @@ class SLSKD:
             downloads = self.slskd.transfers.get_downloads(username)
             for cancel_directory in downloads["directories"]:
                 if cancel_directory["directory"] == directory["name"]:
-                    self.cancel_and_delete(file_dir.split("\\")[-1], username, cancel_directory["files"])
+                    self.cancel_and_delete(directory["name"].split("\\")[-1], username, cancel_directory["files"])
                     self.ignored_users.append(username)
             return False
 
@@ -256,7 +259,12 @@ class SLSKD:
             unfinished = 0
             for result in list(results):
                 username, folder = result['username'], result['directory']
-                downloads = self.slskd.transfers.get_downloads(username)
+                try:
+                    downloads = self.slskd.transfers.get_downloads(username)
+                except Exception as e:
+                    self.logger.warning(f"Error {e} getting downloads. Adding {username} to ignored users list.")
+                    self.ignored_users.append(username)
+                    continue
                 for directory in downloads["directories"]:
                     if directory["directory"] == folder["name"]:
                         # Generate list of errored or failed downloads

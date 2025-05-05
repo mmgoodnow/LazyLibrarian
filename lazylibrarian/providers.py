@@ -848,8 +848,9 @@ def iterate_over_direct_sites(book=None, search_type=None):
             logger.debug(f"Ignoring {prov} for Comic")
             ignored = True
         if not ignored:
-            logger.debug(f'Querying {provider}')
-            results, error = slsk_search(book)
+            logger.debug(f'Querying {search_type} {provider}')
+            searchtype = 'audio' if 'audio' in search_type else 'ebook'
+            results, error = slsk_search(book, searchtype=searchtype)
             if error:
                 # use a short delay for site unavailable etc
                 delay = CONFIG.get_int('BLOCKLIST_TIMER')
