@@ -454,7 +454,7 @@ def audio_rename(bookid, rename=False, playlist=False):
             if len(old_path) > len(dest_path) and old_path.startswith(dest_path):
                 # old_path is a subdir within new correct destination
                 logger.debug(f"move contents of folder {old_path} to {dest_path}")
-                shutil.copytree(old_path, dest_path, dirs_exist_ok=True)
+                shutil.copytree(old_path, dest_path, copy_function=shutil.copyfile, dirs_exist_ok=True)
                 shutil.rmtree(old_path)
             else:
                 logger.debug(f"moving folder {old_path} to {dest_path}")

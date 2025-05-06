@@ -426,7 +426,7 @@ def safe_move(src, dst, action='move'):
             if action == 'copy':
                 shutil.copyfile(syspath(src), syspath(dst))
             elif path_isdir(src) and dst.startswith(src):
-                shutil.copytree(syspath(src), syspath(dst), dirs_exist_ok=True)
+                shutil.copytree(syspath(src), syspath(dst), copy_function=shutil.copyfile, dirs_exist_ok=True)
             else:
                 shutil.move(syspath(src), syspath(dst))
             return dst
