@@ -145,7 +145,7 @@ class SLSKD:
         self.host_url = CONFIG['SLSK_HOST']
         self.download_dir = get_list(CONFIG['DOWNLOAD_DIR'])[0]
         self.url_base = CONFIG['SLSK_URLBASE']
-        self.ignored_users = ['MiNiMaX']
+        self.ignored_users = []
         try:
             self.slskd = slskd_api.SlskdClient(host=self.host_url, api_key=self.api_key, url_base=self.url_base)
             self.stalled_timeout = 3600
@@ -204,7 +204,7 @@ class SLSKD:
                                 continue
                             # some users dump all their books in one folder so directory is huge
                             # we exclude these users as we don't want all their books
-                            if directory['fileCount'] > 10:  # allow for multiple formats, opf, jpg
+                            if searchtype == 'ebook' and directory['fileCount'] > 10:  # multiple formats, opf, jpg
                                 self.ignored_users.append(username)
                             else:
                                 for i in range(0, len(directory['files'])):
@@ -232,6 +232,9 @@ class SLSKD:
         return hashfilename
 
     def enqueue(self, username, directory):
+        if not self.slskd:
+            self.logger.error("Not connected to slskd")
+            return False
         try:
             self.slskd.transfers.enqueue(username=username, files=directory['files'])
             return True
@@ -245,6 +248,9 @@ class SLSKD:
             return False
 
     def cancel_and_delete(self, delete_dir, username, files):
+        if not self.slskd:
+            self.logger.error("Not connected to slskd")
+            return
         for file in files:
             self.slskd.transfers.cancel_download(username=username, id=file['id'])
 
@@ -294,6 +300,9 @@ class SLSKD:
                 self.logger.info("Stall timeout reached! Removing stuck downloads...")
                 for result in list(results):
                     username, folder = result['username'], result['directory']
+                    if not self.slskd:
+                        self.logger.error("Not connected to slskd")
+                        return False
                     downloads = self.slskd.transfers.get_downloads(username)
                     for directory in downloads["directories"]:
                         if directory["directory"] == folder["name"]:

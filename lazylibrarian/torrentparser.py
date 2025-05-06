@@ -29,7 +29,7 @@ from lazylibrarian.telemetry import TELEMETRY
 def torrent_abb(book=None, test=False):
     # The audiobookbay code is based on code originally found at
     # https://github.com/JamesRy96/audiobookbay-automated/blob/main/app/app.py
-    provider = "torrent_abb"
+    provider = "audiobookbay"
     logger = logging.getLogger(__name__)
     results = []
     errmsg = ''
@@ -56,7 +56,6 @@ def torrent_abb(book=None, test=False):
                 logger.debug(f'Error fetching data from {provider}: {result}')
                 errmsg = result
                 TELEMETRY.record_usage_data("abbError")
-            result = False
             break
 
         logger.debug(f'Parsing results from <a href="{search_url}">{provider}</a>')
@@ -65,7 +64,6 @@ def torrent_abb(book=None, test=False):
             try:
                 title = post.select_one('.postTitle > h2 > a').text.strip()
                 link = f"{host}/{post.select_one('.postTitle > h2 > a')['href']}"
-                size = 0
                 try:
                     size = str(post).split('File Size:')[1].split('</p>')[0]
                     unit = size.split('>')[2].split('<')[0]
@@ -93,7 +91,8 @@ def torrent_abb(book=None, test=False):
                 continue
 
         if test:
-            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from {provider} for {book['searchterm']}")
+            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from "
+                         f"{provider} for {book['searchterm']}")
             return len(results)
 
     return results, errmsg
