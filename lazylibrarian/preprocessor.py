@@ -10,6 +10,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import os
 import subprocess
 import logging
@@ -250,10 +251,7 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
 
 def get_metatags(bookid, bookfile, authorname, bookname, source_file):
     db = database.DBConnection()
-    try:
-        match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
-    finally:
-        db.close()
+    match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
 
     if bookfile:
         title = bookfile
@@ -303,6 +301,7 @@ def get_metatags(bookid, bookfile, authorname, bookname, source_file):
         metatags = ['-metadata', f"album={bookname}",
                     '-metadata', f"artist={authorname}",
                     '-metadata', f"title={bookfile}"]
+    db.close()
     return metatags
 
 
@@ -436,7 +435,8 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
     with open(partslist_file, 'w', encoding="utf-8") as f:
         for part in parts:
-            f.write(f"file '{part[3]}'\n")
+            # json.dumps escapes the invalid chars for us, eg apostrophe
+            f.write(f"file {json.dumps(part[3])}\n")
 
     bookfile = namevars['AudioSingleFile'] if namevars['Author'] else ''
     # might not have any namevars (eg no bookid)
