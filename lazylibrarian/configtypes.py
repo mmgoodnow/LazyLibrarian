@@ -539,7 +539,7 @@ class ConfigCSV(ConfigStr):
                 return True
             else:
                 # Check if the string only contains alphanumeric characters, and select symbols
-                if all(c.isalnum() or c in ', !-+#.' for c in value):
+                if all(c.isalnum() or c in ', /!-+#.' for c in value):
                     # Split the string by the comma and check if the resulting parts are not empty
                     parts = value.split(',')
                     return all(part.strip() for part in parts)
