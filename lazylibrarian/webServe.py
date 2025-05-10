@@ -256,7 +256,18 @@ def serve_template(templatename, **kwargs):
                         if not remote_ip:
                             remote_ip = cherrypy.request.remote.ip
                         whitelist = get_list(CONFIG.get_csv('WHITELIST'))
+                        to_whitelist = False
                         if remote_ip in whitelist:
+                            # exact match
+                            to_whitelist = True
+                        for white in whitelist:
+                            # allow ranges in the format 192.168.1.1/24
+                            white_parts = white.split('.')
+                            if len(white_parts) == 4 and white_parts[3] == '1/24':
+                                if remote_ip.startswith('.'.join(white_parts[:3])):
+                                    to_whitelist = True
+                                    break
+                        if to_whitelist:
                             columns = db.select('PRAGMA table_info(users)')
                             if not columns:  # no such table
                                 cnt = 0
