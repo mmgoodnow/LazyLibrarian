@@ -182,6 +182,8 @@ def syspath(path: str, prefix: bool = True) -> str:
         # arbitrarily. But earlier versions used MBCS because it is
         # reported as the FS encoding by Windows. Try both.
         try:
+            # if path is _not_ a string, ie bytes
+            # noinspection PyUnresolvedReferences
             path = path.decode('utf-8')
         except UnicodeError:
             # The encoding should always be MBCS, Windows' broken
@@ -426,7 +428,7 @@ def safe_move(src, dst, action='move'):
             if action == 'copy':
                 shutil.copyfile(syspath(src), syspath(dst))
             elif path_isdir(src) and dst.startswith(src):
-                shutil.copytree(syspath(src), syspath(dst), copy_function=shutil.copyfile, dirs_exist_ok=True)
+                _ = copy_tree(syspath(src), syspath(dst))
             else:
                 shutil.move(syspath(src), syspath(dst))
             return dst
@@ -615,3 +617,47 @@ def get_directory(dirname):
         usedir = DIRS.DATADIR
 
     return make_unicode(usedir)
+
+
+def copy_tree(src_dir, dest_dir):
+    # rolled our own copytree using walk and copyfile as odd permission errors from the library version
+    # This should hopefully just work, or if not at least it will show what's going on
+    failed = 0
+    err = []
+    logger = logging.getLogger(__name__)
+    for rootdir, dirnames, filenames in walk(src_dir):
+        for f in filenames:
+            src = os.path.join(rootdir, f)
+            dst = src.replace(src_dir, dest_dir, 1)
+            got_dir = make_dirs(os.path.dirname(os.path.abspath(dst)))
+            if not got_dir:
+                failed += 1
+                err.append([src, dst, "Failed to create destination folder"])
+                continue  # try next file
+            try:
+                shutil.copyfile(src, dst)
+                logger.debug(f"Copied {f}")
+            except Exception as e:
+                msg = f"Failed to copy {src} to {dst}: {e}"
+                err.append([src, dst, f"Copy failed: {e}"])
+                logger.error(msg)
+                failed += 1
+                if not os.path.exists(src):
+                    logger.debug(f"{src} does not exist")
+                else:
+                    st = os.stat(src)
+                    readable = os.access(src, os.R_OK)
+                    if not readable:
+                        err.append([src, dst, f"Cannot read source: {oct(st.st_mode)}"])
+                        DIRS.permlogger.debug(f"My uid/gid {os.getuid()}/{os.getgid()}")
+                        DIRS.permlogger.debug(f"Cannot read {src}, {oct(st.st_mode)}, {st.st_uid}, {st.st_gid}")
+                if not os.path.exists(dst):
+                    logger.debug(f"{dst} does not exist")
+                else:
+                    st = os.stat(dst)
+                    writeable = os.access(dst, os.W_OK)
+                    if not writeable:
+                        err.append([src, dst, f"Cannot write to destination: {oct(st.st_mode)}"])
+                        DIRS.permlogger.debug(f"My uid/gid {os.getuid()}/{os.getgid()}")
+                        DIRS.permlogger.debug(f"Cannot write to {dst}, {oct(st.st_mode)}, {st.st_uid}, {st.st_gid}")
+    return failed, err

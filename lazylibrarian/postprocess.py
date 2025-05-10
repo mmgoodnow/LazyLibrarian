@@ -40,7 +40,7 @@ from lazylibrarian.calibre import calibredb, get_calibre_id
 from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, \
-    setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory, walk
+    setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory, walk, copy_tree
 from lazylibrarian.formatter import unaccented, plural, now, today, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, sanitize, thread_name
@@ -3059,9 +3059,17 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     if not pp_path.endswith('.unpack') and (CONFIG.get_bool('DESTINATION_COPY') or
                                             (mode in ['torrent', 'magnet', 'torznab'] and
                                              CONFIG.get_bool('KEEP_SEEDING'))):
-        logger.debug(f"Copying to target {pp_path}.unpack")
-        shutil.copytree(pp_path, f"{pp_path}.unpack", copy_function=shutil.copyfile, dirs_exist_ok=True)
-        pp_path += '.unpack'
+
+        dest_dir = f"{pp_path}.unpack"
+        logger.debug(f"Copying to target {dest_dir}")
+        failed, err = copy_tree(pp_path, f"{pp_path}.unpack")
+        if not failed:
+            pp_path = dest_dir
+        else:
+            msg = f"Failed to copy {failed} files to {dest_dir}, aborted"
+            logger.error(msg)
+            logger.debug(f"{err}")
+            return False, msg
 
     if preprocess:
         logger.debug(f"preprocess ({booktype}) {pp_path}")

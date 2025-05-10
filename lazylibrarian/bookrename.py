@@ -20,7 +20,7 @@ from rapidfuzz import fuzz
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation
-from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory
+from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory, copy_tree
 from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, sanitize
 from lazylibrarian.opfedit import opf_read
 
@@ -454,14 +454,19 @@ def audio_rename(bookid, rename=False, playlist=False):
             if len(old_path) > len(dest_path) and old_path.startswith(dest_path):
                 # old_path is a subdir within new correct destination
                 logger.debug(f"move contents of folder {old_path} to {dest_path}")
-                shutil.copytree(old_path, dest_path, copy_function=shutil.copyfile, dirs_exist_ok=True)
-                shutil.rmtree(old_path)
+                failed, err = copy_tree(old_path, dest_path)
+                if failed:
+                    logger.error(f"Failed to copy {failed} files to {dest_path}")
+                    logger.debug(f"{err}")
+                    return ''
+                else:
+                    shutil.rmtree(old_path)
             else:
                 logger.debug(f"moving folder {old_path} to {dest_path}")
                 dest_path = safe_move(old_path, dest_path)
             book_filename = os.path.join(dest_path, os.path.basename(book_filename))
         except Exception as why:
-            msg = f'Rename failed: {str(why)}'
+            msg = f'Rename failed: {why}'
             logger.error(msg)
             return ''
 
@@ -881,8 +886,7 @@ def replacevars(base, mydict):
     loggermatching = logging.getLogger('special.matching')
     loggermatching.debug(base)
     vardict = ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum',
-                 '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total',
-                 '$Abridged']
+               '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total', '$Abridged']
 
     # first strip any braced expressions where the var is empty
     while '{' in base and '}' in base and base.index('{') < base.index('}'):
