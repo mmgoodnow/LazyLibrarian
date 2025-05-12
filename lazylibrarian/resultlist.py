@@ -55,7 +55,7 @@ def find_best_result(resultlist, book, searchtype, source):
     """ resultlist: collated results from search providers
         book:       the book we want to find
         searchtype: book, magazine, shortbook, audiobook etc.
-        source:     nzb, tor, rss, direct
+        source:     nzb, tor, rss, irc, direct
         return:     highest scoring match, or None if no match
     """
     # noinspection PyBroadException
@@ -188,18 +188,20 @@ def find_best_result(resultlist, book, searchtype, source):
                         logger.debug(ignore_msg)
 
             if not rejected:
-                if source == 'irc':
-                    if not url.startswith('!'):
+                if source == 'irc' and not url.startswith('!'):
+                    rejected = True
+                elif res[prefix + 'prov'] in ['zlibrary', 'soulseek'] and '^' not in url:
+                    rejected = True
+                elif res[prefix + 'prov'] == 'annas':
+                    # annas gives us an id in hex, verify we got hex digits
+                    try:
+                        _ = int(url, 16)
+                    except ValueError:
                         rejected = True
-                        logger.debug(f"Rejecting {res[prefix + 'title']}, invalid nick [{url}]")
-                elif res[prefix + 'prov'] in ['zlibrary', 'soulseek']:
-                    if '^' not in url:
-                        rejected = True
-                        logger.debug(f"Rejecting {res[prefix + 'title']}, invalid URL [{url}]")
-                else:
-                    if not url.startswith('http') and not url.startswith('magnet'):
-                        rejected = True
-                        logger.debug(f"Rejecting {res[prefix + 'title']}, invalid URL [{url}]")
+                elif not url.startswith('http') and not url.startswith('magnet'):
+                    rejected = True
+                if rejected:
+                    logger.debug(f"Rejecting {res[prefix + 'title']}, invalid URL [{url}]")
 
             if not rejected:
                 for word in reject_list:
