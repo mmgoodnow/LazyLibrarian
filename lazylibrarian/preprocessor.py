@@ -179,6 +179,8 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
     part_durations = []
     highest_bitrate = 0
     for part in parts:
+        # we don't actually need the output file here, but ffmpeg insists on having one.
+        # we get the duration data from the subprocess response
         params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
         if loggerpostprocess.isEnabledFor(logging.DEBUG):
@@ -246,6 +248,7 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
 
     if highest_bitrate:
         logger.debug(f"Highest bitrate is {highest_bitrate}")
+    remove_file(os.path.join(bookfolder, "partmeta.ll"))
     return part_durations, highest_bitrate
 
 
