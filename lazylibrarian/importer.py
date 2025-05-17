@@ -808,24 +808,26 @@ def update_totals(authorid):
         f"Updated totals for [{res['AuthorName']}] {new_value_dict['HaveBooks']}/{new_value_dict['TotalBooks']}")
 
 
-def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
+def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book', source=None):
     """ search goodreads or googlebooks for a bookid and import the book
         ebook/audio=None makes find_book use configured default """
     logger = logging.getLogger(__name__)
-    if CONFIG['BOOK_API'] == "GoogleBooks":
+    if not source:
+        source = CONFIG['BOOK_API']
+    if source in ["GB", "GoogleBooks"]:
         gb = GoogleBooks(bookid)
         if not wait:
             threading.Thread(target=gb.find_book, name='GB-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             gb.find_book(bookid, ebook, audio, reason)
-    elif CONFIG['BOOK_API'] == 'OpenLibrary':
+    elif source in ["OL", "OpenLibrary"]:
         ol = OpenLibrary(bookid)
         logger.debug(f"bookstatus={ebook}, audiostatus={audio}")
         if not wait:
             threading.Thread(target=ol.find_book, name='OL-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             ol.find_book(bookid, ebook, audio, reason)
-    elif CONFIG['BOOK_API'] == 'HardCover':
+    elif source in ["HC", "HardCover"]:
         hc = HardCover(bookid)
         logger.debug(f"bookstatus={ebook}, audiostatus={audio}")
         if not wait:
@@ -834,7 +836,6 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
             hc.find_book(bookid, ebook, audio, reason)
     else:
         gr = GoodReads(bookid)
-        logger.debug(f"bookstatus={ebook}, audiostatus={audio}")
         if not wait:
             threading.Thread(target=gr.find_book, name='GR-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:

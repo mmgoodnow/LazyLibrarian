@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -29,7 +29,8 @@ from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
-    check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, quotes
+    check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, \
+    split_title, quotes
 from lazylibrarian.processcontrol import get_info_on_caller
 
 
@@ -709,6 +710,7 @@ def add_series_members(seriesid, refresh=False):
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action("UPDATE series SET Status='Active' WHERE SeriesID=?", (seriesid,))
         members, _ = get_series_members(seriesid, seriesname)
+        logger.debug(f"Processing {len(members)} for {seriesname}")
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action('UPDATE series SET Status=? WHERE SeriesID=?', (entrystatus, seriesid))
         for member in members:
@@ -721,15 +723,28 @@ def add_series_members(seriesid, refresh=False):
             # pubmonth = member[6]
             # pubday = member[7]
             bookid = member[8]
+            # Ensure just title, strip out subtitle, series
+            member[1], _, _ = split_title(member[2], member[1])
+            if member[0] is None:
+                logger.debug(f"Rejecting {member[1]} - {member[2]}")
+                continue
+            logger.debug(f"{member[0]}:{member[1]} - {member[2]}")
             book = None
             if bookid:
-                book = db.match("select * from books where bookid=?", (bookid,))
+                cmd = "SELECT * from books WHERE bookid=? or ol_id=? or gr_id=? or gb_id=? or hc_id=?"
+                book = db.match(cmd, (bookid, bookid, bookid, bookid, bookid))
+                if not book:
+                    cmd = ("SELECT * from books,authors where bookname=? COLLATE NOCASE "
+                           "and authorname=? COLLATE NOCASE and books.authorid = authors.authorid")
+                    book = db.match(cmd, (member[1], member[2]))
                 if book:
+                    bookid = book['bookid']
                     db.action("INSERT into member (SeriesID, SeriesNum, WorkID, BookID) VALUES (?, ?, ?, ?)",
                               (seriesid, member[0], member[3], bookid), suppress='UNIQUE')
             if bookid and not book:
                 # new addition to series, try to import with default newbook/newauthor statuses
-                lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason=f"Series: {seriesname}")
+                lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason=f"Series: {seriesname}",
+                                                   source=seriesid[:2])
                 newbook = db.match("select * from books where bookid=?", (bookid,))
                 if newbook:
                     logger.debug(
@@ -758,7 +773,7 @@ def add_series_members(seriesid, refresh=False):
                             if CONFIG.get_bool('AUDIO_TAB') and newbook['AudioStatus'] != wanted_status:
                                 db.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
                                 logger.debug(f"Author {member[4]} set audiostatus to {wanted_status} for {member[1]}")
-                count += 1
+                    count += 1
         db.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
         logger.debug(f"Found {len(members)} series {plural(len(members), 'member')}, {count} new for {seriesname}")
         searchlogger = logging.getLogger('special.searching')
@@ -948,7 +963,7 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
                     f"Not getting additional series members for {result['SeriesName']}, status is {result['Status']}")
                 return results, api_hits, source
 
-        if not source or source == 'GR':
+        if source == 'GR':
             params = {"format": "xml", "key": CONFIG['GR_API']}
             url = '/'.join([CONFIG['GR_URL'], f'series/{seriesid[2:]}?{urlencode(params)}'])
             try:
@@ -960,9 +975,8 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
                 return [], api_hits, source
 
             if rootxml is None:
-                logger.debug(f"Series {seriesid}:{seriesname} not recognised at goodreads")
+                logger.debug(f"Series {seriesid[2:]}:{seriesname} not recognised at goodreads")
             else:
-                source = 'GR'
                 works = rootxml.find('series/series_works')
                 books = works.iter('series_work')
                 if books is None:
@@ -987,29 +1001,33 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
                     results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
                                     mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
                                     mydict['pubday'], mydict['bookid']])
+                logger.debug(f"{source} found {len(results)} members for {seriesname}")
 
-        elif not source or source == 'HC':
+        if source == 'HC':
             results = []
             hc = lazylibrarian.hc.HardCover(seriesid)
             res = hc.get_series_members(seriesid, seriesname)
             if res:
+                source = 'HC'
                 for item in res:
                     # item[6] is pubdate, can extract y/m/d
                     results.append([item[0], item[1], item[2], item[4], item[3], item[5], '', '', item[4]])
+                logger.debug(f"{source} found {len(results)} members for {seriesname}")
 
-        if not source or source == 'OL':  # googlebooks and openlibrary
+        if source in ['OL', 'LT']:  # googlebooks and openlibrary use librarything series info
             api_hits = 0
             results = []
-            # noinspection PyUnresolvedReferences
-            ol = lazylibrarian.ol.OpenLibrary(seriesid)
-            res = ol.get_series_members(seriesid, seriesname)
-            if res:
-                for item in res:
-                    book = db.match("SELECT authorid,bookid from books WHERE LT_WorkID=?", (item[4],))
-                    if book:
-                        results.append([item[0], item[1], item[2], item[4], book[0], '', '', '', book[1]])
-                    else:
-                        results.append([item[0], item[1], item[2], item[4], '', '', '', '', ''])
+            if source == 'OL':
+                # noinspection PyUnresolvedReferences
+                ol = lazylibrarian.ol.OpenLibrary(seriesid)
+                res = ol.get_series_members(seriesid, seriesname)
+                if res:
+                    for item in res:
+                        book = db.match("SELECT authorid,bookid from books WHERE LT_WorkID=?", (item[4],))
+                        if book:
+                            results.append([item[0], item[1], item[2], item[4], book[0], '', '', '', book[1]])
+                        else:
+                            results.append([item[0], item[1], item[2], item[4], '', '', '', '', ''])
             if not results:
                 data = get_bookwork(None, "SeriesPage", seriesid)
                 if data:
@@ -1031,6 +1049,7 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
                     except IndexError:
                         if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
                             logger.debug(f'Error in series table for series {seriesid}')
+            logger.debug(f"{source} found {len(results)} members for {seriesname}")
     finally:
         db.close()
     first = False
