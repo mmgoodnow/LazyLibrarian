@@ -443,6 +443,12 @@ def calibredb(cmd=None, prelib=None, postlib=None):
     params = [CONFIG['IMP_CALIBREDB'], cmd]
     if CONFIG.get_bool('CALIBRE_USE_SERVER'):
         dest_url = CONFIG['CALIBRE_SERVER']
+        if not dest_url.startswith('http'):
+            if CONFIG.get_bool('HTTPS_ENABLED'):
+                dest_url = 'https://' + dest_url
+            else:
+                dest_url = 'http://' + dest_url
+
         if CONFIG['CALIBRE_USER'] and CONFIG['CALIBRE_PASS']:
             params.extend(['--username', CONFIG['CALIBRE_USER'],
                            '--password', CONFIG['CALIBRE_PASS']])
