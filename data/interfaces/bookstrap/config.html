@@ -1842,6 +1842,10 @@
                         <button role="testprov" class="button btn btn-xs btn-warning active" type="button" value="ANNA"> Test</button>
                         </span>
                       </div>
+                      <div class="input-group">
+                      <span class="input-group-addon">Daily Downloads: (${lazylibrarian.TIMERS['ANNA_REMAINING']} left)</span>
+                      <input type="number" placeholder="API Limit" id="anna_dllimit" name="anna_dllimit" value="${CONFIG['ANNA_DLLIMIT']}" class="form-control">
+                      </div>
                     </div>
                     <% checked = 'checked="checked"' if CONFIG['BOK'] else '' %>
                     <div class="col-md-4 form-group">
@@ -2303,13 +2307,13 @@
                   <div class="form-group">
                     <label for="fmt_series">Series Pattern: ($Series variable)</label>
                     <input type="text" id="fmt_series" name="fmt_series" value="${CONFIG['FMT_SERIES']}" class="form-control" placeholder="eg ($SerName #$SerNum)">
-                    <span class="help-block">Options: $SerName, $FmtName, $SerNum, $FmtNum, $PadNum, $PubYear, $SerYear, $$, any string.</span>
+                    <span class="help-block">Options: $SerName, $FmtName, $Language, $SerNum, $FmtNum, $PadNum, $PubYear, $SerYear, $$, any string.</span>
                     <small>Example:  <mark>${config['namevars']['Series']}</mark></small>
                   </div>
                   <div class="form-group">
                     <label for="fmt_sername">Series Name Pattern: ($FmtName variable)</label>
                     <input type="text" id="fmt_sername" name="fmt_sername" value="${CONFIG['FMT_SERNAME']}" class="form-control" placeholder="eg $SerName">
-                    <span class="help-block">Options: $SerName, $PubYear, $SerYear, $$, any string.</span>
+                    <span class="help-block">Options: $SerName, $Language, $PubYear, $SerYear, $$, any string.</span>
                     <small>Example:  <mark>${config['namevars']['FmtName']}</mark></small>
                   </div>
                   <div class="form-group">
@@ -2321,14 +2325,14 @@
                   <div class="form-group">
                     <label for="ebook_dest_folder">eBook Foldername Pattern:</label>
                     <input type="text" id="ebook_dest_folder" name="ebook_dest_folder" value="${CONFIG['EBOOK_DEST_FOLDER']}" class="form-control" placeholder="eBook Destination Folder">
-                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Language, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
                     <small>Example:  <mark>${config['namevars']['FolderName']}</mark></small>
                   </div>
                   <div class="form-group">
                     <label for="ebook_dest_file">eBook Filename Pattern:</label>
                     <input type="text" id="ebook_dest_file" name="ebook_dest_file" value="${CONFIG['EBOOK_DEST_FILE']}" class="form-control" placeholder="eBook Destination File">
-                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Language, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
                       <small>Example:  <mark>${config['namevars']['BookFile']}</mark></small>
                   </div>
@@ -2336,21 +2340,21 @@
                   <div class="form-group">
                     <label for="audiobook_dest_folder">AudioBook Foldername Pattern:</label>
                     <input type="text" id="audiobook_dest_folder" name="audiobook_dest_folder" value="${CONFIG['AUDIOBOOK_DEST_FOLDER']}" class="form-control" placeholder="AudioBook Destination Folder">
-                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Language, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
                     <small>Example:  <mark>${config['namevars']['AudioFolderName']}</mark></small>
                   </div>
                   <div class="form-group">
                     <label for="audiobook_dest_file">AudioBook Filename Pattern:</label>
                     <input type="text" id="audiobook_dest_file" name="audiobook_dest_file" value="${CONFIG['AUDIOBOOK_DEST_FILE']}" class="form-control" placeholder="audioBook Destination File">
-                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $Part, $Total, $$, any string.<br/>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Language, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $Part, $Total, $$, any string.<br/>
                       <strong>Current limitation: Has to include $Title or $SortTitle and $Part</strong></span>
                       <small>Example:  <mark>${config['namevars']['AudioFile']}</mark></small>
                   </div>
                   <div class="form-group">
                     <label for="audiobook_single_file">AudioBook Filename Pattern for single file:</label>
                     <input type="text" id="audiobook_single_file" name="audiobook_single_file" value="${CONFIG['AUDIOBOOK_SINGLE_FILE']}" class="form-control" placeholder="Single file audioBook">
-                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged $$, any string.<br/>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Language, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged $$, any string.<br/>
                       <strong>Current limitation: Has to include $Title or $SortTitle</strong></span>
                       <small>Example:  <mark>${config['namevars']['AudioSingleFile']}</mark></small>
                   </div>
@@ -2371,7 +2375,8 @@
                   <div class="form-group">
                     <label for="mag_dest_folder">Magazine Foldername Pattern:</label>
                     <input type="text" id="mag_dest_folder" name="mag_dest_folder" value="${CONFIG['MAG_DEST_FOLDER']}" class="form-control" placeholder="Magazines Destination Folder">
-                    <span class="help-block">Absolute path, or inside book folder</span>
+                    <span class="help-block">Absolute path, or inside book folder. Options: $Title, $IssueDate, $IssueYear, $IssueVol, $IssueNum, $IssueMonth, any string
+                      <BR><strong>All options are discretionary but Title is recommended unless included in Filename to prevent issue name collisions</strong></span>
                   </div>
                   <div class="checkbox">
                     <% checked = 'checked="checked"' if CONFIG['MAG_RELATIVE'] else '' %>
@@ -2388,8 +2393,8 @@
                   <div class="form-group">
                     <label for="mag_dest_file">Magazine Filename Pattern:</label>
                     <input type="text" id="mag_dest_file" name="mag_dest_file" value="${CONFIG['MAG_DEST_FILE']}" class="form-control" placeholder="Magazine Issue Filename">
-                    <span class="help-block">Options: $Title, $IssueDate, any string
-                      <BR><strong>Current limitation: Filename must contain IssueDate</strong></span>
+                    <span class="help-block">Options: $Title, $IssueDate, $IssueYear, $IssueVol, $IssueNum, $IssueMonth, any string
+                      <BR><strong>Current limitation: Filename must contain IssueDate, or IssueYear and one of IssueNum/IssueMonth</strong></span>
                   </div>
                   %endif
                   %if CONFIG['COMIC_TAB']:
@@ -3751,7 +3756,6 @@
               </div>
             </div>
           </div>
-        </div>
       </div>
     <!-- tabs content -->
     </div>
