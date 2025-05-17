@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -21,7 +21,8 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation
 from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory, copy_tree
-from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, sanitize
+from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, \
+    sanitize, replacevars
 from lazylibrarian.opfedit import opf_read
 
 try:
@@ -706,6 +707,7 @@ def name_vars(bookid, abridged=''):
         SerName and SerNum are the unformatted base strings
         PubYear is the publication year of the book or empty string
         SerYear is the publication year of the first book in the series or empty string
+        Language is the language(s) if known or empty string
         """
     mydict = {}
     seriesnum = ''
@@ -718,6 +720,7 @@ def name_vars(bookid, abridged=''):
             serieslist = ['3']
             pubyear = '1955'
             seryear = '1954'
+            lang = 'Eng'
             seriesname = 'The Lord of the Rings'
             mydict['Author'] = 'J.R.R. Tolkien'
             mydict['Title'] = 'The Fellowship of the Ring'
@@ -748,15 +751,17 @@ def name_vars(bookid, abridged=''):
                 serieslist = []
                 seryear = ''
 
-            cmd = "SELECT BookDate from books WHERE bookid=?"
-            res_date = db.match(cmd, (bookid,))
-            if res_date:
-                pubyear = res_date['BookDate']
+            cmd = "SELECT BookDate,BookLang from books WHERE bookid=?"
+            bookres = db.match(cmd, (bookid,))
+            if bookres:
+                pubyear = bookres['BookDate']
                 if not pubyear or pubyear == '0000':
                     pubyear = ''
                 pubyear = pubyear[:4]  # googlebooks sometimes has month or full date
+                lang = bookres['BookLang']
             else:
                 pubyear = ''
+                lang = ''
 
         # might be "Book 3.5" or similar, just get the numeric part
         while serieslist:
@@ -801,6 +806,7 @@ def name_vars(bookid, abridged=''):
             fmtname = CONFIG['FMT_SERNAME'].replace('$SerName', seriesname).replace(
                                                                   '$PubYear', pubyear).replace(
                                                                   '$SerYear', seryear).replace(
+                                                                  '$Language', lang).replace(
                                                                   '$$', ' ')
         else:
             fmtname = ''
@@ -825,6 +831,7 @@ def name_vars(bookid, abridged=''):
                                                                  '$PadNum', padnum).replace(
                                                                  '$PubYear', pubyear).replace(
                                                                  '$SerYear', seryear).replace(
+                                                                 '$Language', lang).replace(
                                                                  '$FmtName', fmtname).replace(
                                                                  '$FmtNum', fmtnum).replace('$$', ' ')
         else:
@@ -842,6 +849,7 @@ def name_vars(bookid, abridged=''):
         mydict['PubYear'] = pubyear
         mydict['SerYear'] = seryear
         mydict['Abridged'] = abridged
+        mydict['Language'] = lang
 
         if bookid != 'test':
             cmd = "select AuthorName,BookName from books,authors where books.AuthorID = authors.AuthorID and bookid=?"
@@ -879,28 +887,3 @@ def name_vars(bookid, abridged=''):
         loggermatching.debug(str(mydict))
     return mydict
 
-
-def replacevars(base, mydict):
-    if not base:
-        return ''
-    loggermatching = logging.getLogger('special.matching')
-    loggermatching.debug(base)
-    vardict = ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum',
-               '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total', '$Abridged']
-
-    # first strip any braced expressions where the var is empty
-    while '{' in base and '}' in base and base.index('{') < base.index('}'):
-        left, rest = base.split('{', 1)
-        middle, right = rest.split('}', 1)
-        for item in vardict:
-            if item in middle and item[1:] in mydict and mydict[item[1:]] == '':
-                middle = ''
-                break
-        base = f"{left}{middle}{right}"
-
-    for item in vardict:
-        if item[1:] in mydict:
-            base = base.replace(item, mydict[item[1:]].replace(os.path.sep, '_'))
-    base = base.replace('$$', ' ')
-    loggermatching.debug(base)
-    return base
