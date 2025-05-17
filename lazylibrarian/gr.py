@@ -1179,7 +1179,6 @@ class GoodReads:
             db.close()
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
-        self.logger.debug(f"bookstatus={bookstatus}, audiostatus={audiostatus}")
         url = '/'.join([CONFIG['GR_URL'], f"book/show/{bookid}?{urlencode(self.params)}"])
         try:
             self.loggersearching.debug(url)
