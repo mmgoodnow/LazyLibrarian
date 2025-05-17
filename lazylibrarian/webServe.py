@@ -54,7 +54,8 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
     irc_dl_method
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
-    md5_utf8, date_format, check_year, replace_quotes_with, format_author_name, check_float, thread_name, sanitize
+    md5_utf8, date_format, check_year, replace_quotes_with, format_author_name, check_float, \
+    thread_name, sanitize
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
@@ -63,6 +64,7 @@ from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, upda
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
+from lazylibrarian.magazinescan import format_issue_name
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
@@ -110,6 +112,13 @@ def clear_mako_cache(userid=0):
         os.makedirs(makocache, exist_ok=True)
     except Exception as e:
         logger.error(f"Error clearing mako cache: {str(e)}")
+
+
+def clear_our_cookies():
+    cherrypy.response.cookie['ll_uid'] = ''
+    cherrypy.response.cookie['ll_uid']['expires'] = 0
+    cherrypy.response.cookie['ll_prefs'] = '0'
+    cherrypy.response.cookie['ll_prefs']['expires'] = 0
 
 
 def serve_template(templatename, **kwargs):
@@ -168,10 +177,7 @@ def serve_template(templatename, **kwargs):
                                   (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                     else:
                         logger.debug(f"Auto-login failed for userid {lazylibrarian.LOGINUSER}")
-                        cherrypy.response.cookie['ll_uid'] = ''
-                        cherrypy.response.cookie['ll_uid']['expires'] = 0
-                        cherrypy.response.cookie['ll_prefs'] = '0'
-                        cherrypy.response.cookie['ll_prefs']['expires'] = 0
+                        clear_our_cookies()
                     lazylibrarian.LOGINUSER = None
 
                 else:
@@ -391,16 +397,21 @@ class WebInterface:
 
     @staticmethod
     def check_permitted(required_perm):
+        loggeradmin = logging.getLogger('special.admin')
         userid = ''
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
+            cookie_userid = cookie['ll_uid'].value
             perm = 0
             db = database.DBConnection()
             try:
-                res = db.match('SELECT * from users where UserID=?', (cookie['ll_uid'].value,))
+                res = db.match('SELECT * from users where UserID=?', (cookie_userid,))
                 if res:
                     perm = check_int(res['Perms'], 0)
                     userid = res['UserID']
+                else:
+                    loggeradmin.debug(f"No match for userid [{cookie_userid}]")
+                    clear_our_cookies()
             finally:
                 db.close()
         else:
@@ -679,10 +690,7 @@ class WebInterface:
                 db.action('UPDATE users SET prefs=? where UserID=?', (userprefs, cookie['ll_uid'].value))
             finally:
                 db.close()
-        cherrypy.response.cookie['ll_uid'] = ''
-        cherrypy.response.cookie['ll_uid']['expires'] = 0
-        cherrypy.response.cookie['ll_prefs'] = '0'
-        cherrypy.response.cookie['ll_prefs']['expires'] = 0
+        clear_our_cookies()
         # cherrypy.lib.sessions.expire()
         raise cherrypy.HTTPRedirect("home")
 
@@ -797,8 +805,7 @@ class WebInterface:
         # is it a retry login (failed user/pass)
         cookie = cherrypy.request.cookie
         if not cookie or 'll_uid' not in list(cookie.keys()):
-            cherrypy.response.cookie['ll_uid'] = ''
-            cherrypy.response.cookie['ll_prefs'] = ''
+            clear_our_cookies()
         username = ''
         password = ''
         res = {}
@@ -1304,9 +1311,12 @@ class WebInterface:
 
     @cherrypy.expose
     def refresh_series(self, seriesid):
+        logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_force)
         threadname = f'SERIESMEMBERS_{seriesid}'
-        if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
+        if threadname in [n.name for n in [t for t in threading.enumerate()]]:
+            logger.warning(f"{threadname} is already running")
+        else:
             threading.Thread(target=add_series_members, name=threadname, args=[seriesid, True]).start()
         raise cherrypy.HTTPRedirect(f"series_members?seriesid={seriesid}&ignored=False")
 
@@ -5316,9 +5326,7 @@ class WebInterface:
                     if calibre_id:
                         logger.debug(f"Found calibre ID {calibre_id} for {old_title} {issue['IssueDate']}")
 
-                dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
-                    '$IssueDate', issue['IssueDate']).replace(
-                    '$Title', new_title)
+                dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], new_title, issue['IssueDate'])
 
                 if CONFIG.get_bool('MAG_RELATIVE'):
                     dest_dir = get_directory('eBook')
@@ -5329,12 +5337,7 @@ class WebInterface:
                     break
 
                 ext = os.path.splitext(issue['IssueFile'])[1]
-                if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-                    global_name = CONFIG['MAG_DEST_FILE'].replace(
-                        '$IssueDate', issue['IssueDate']).replace(
-                        '$Title', new_title)
-                else:
-                    global_name = f"{new_title} {issue['IssueDate']}"
+                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], new_title, issue['IssueDate'])
 
                 global_name = unaccented(global_name, only_ascii=False)
                 global_name = sanitize(global_name)
@@ -5595,9 +5598,7 @@ class WebInterface:
                     db.action("UPDATE issues SET Title=? WHERE IssueID=?", (magtitle, issue['IssueID']))
                 db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
 
-                dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
-                    '$IssueDate', issuenum).replace(
-                    '$Title', magtitle)
+                dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], magtitle, issuenum)
 
                 if CONFIG.get_bool('MAG_RELATIVE'):
                     dest_dir = get_directory('eBook')
@@ -5607,13 +5608,7 @@ class WebInterface:
                     logger.error(f'Unable to create destination directory {dest_path}')
                 else:
                     ext = os.path.splitext(issue['IssueFile'])[1]
-                    if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-                        global_name = CONFIG['MAG_DEST_FILE'].replace(
-                            '$IssueDate', issuenum).replace(
-                            '$Title', magtitle)
-                    else:
-                        global_name = f"{magtitle} {issuenum}"
-
+                    global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], magtitle, issuenum)
                     global_name = unaccented(global_name, only_ascii=False)
                     global_name = sanitize(global_name)
 

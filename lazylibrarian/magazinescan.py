@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -25,7 +25,8 @@ from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory
-from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year
+from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, unaccented, sanitize, \
+    replacevars
 from lazylibrarian.images import create_mag_cover
 
 
@@ -125,23 +126,29 @@ def magazine_scan(title=None):
                     # maybe not all magazines will be pdf?
                     if CONFIG.is_valid_booktype(fname, booktype='mag'):
                         issuedate = ''
+                        issuefile = os.path.join(rootdir, fname)  # full path to issue.pdf
                         # noinspection PyBroadException
                         try:
-                            match = pattern.match(fname)
+                            match = db.match('SELECT Title,IssueDate from issues WHERE IssueFile=?', (issuefile,))
                             if match:
-                                title = match.group("title").strip()
-                                issuedate = match.group("issuedate").strip()
-                                loggermatching.debug(f"Title pattern [{title}][{issuedate}] {fname}")
-                                if title.isdigit():
-                                    match = False
-                                else:
-                                    parent = os.path.basename(rootdir).strip()
-                                    if parent.lower() == title.lower():
-                                        # assume folder name is in users preferred case
-                                        title = parent
-                                    match = True
+                                title = match['Title']
+                                issuedate = match['IssueDate']
                             if not match:
-                                logger.debug(f"Title pattern match failed for [{fname}]")
+                                match = pattern.match(fname)
+                                if match:
+                                    title = match.group("title").strip()
+                                    issuedate = match.group("issuedate").strip()
+                                    loggermatching.debug(f"Title pattern [{title}][{issuedate}] {fname}")
+                                    if title.isdigit():
+                                        match = False
+                                    else:
+                                        parent = os.path.basename(rootdir).strip()
+                                        if parent.lower() == title.lower():
+                                            # assume folder name is in users preferred case
+                                            title = parent
+                                        match = True
+                                if not match:
+                                    logger.debug(f"Title pattern match failed for [{fname}]")
                         except Exception:
                             match = False
 
@@ -192,7 +199,6 @@ def magazine_scan(title=None):
                             logger.warning(f"Invalid name format for [{fname}]")
                             continue
 
-                        issuefile = os.path.join(rootdir, fname)  # full path to issue.pdf
                         mtime = os.path.getmtime(syspath(issuefile))
                         iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
@@ -241,16 +247,8 @@ def magazine_scan(title=None):
                                     filedate = str(issuedate).zfill(4)
 
                             extn = os.path.splitext(fname)[1]
-                            # suppress the "-01" day on monthly magazines
-                            # if re.match(r'\d+-\d\d-01', str(filedate)):
-                            #    filedate = filedate[:-3]
-
-                            newfname = CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
-                                '$IssueDate', filedate)
-                            newfname = newfname + extn
-
-                            new_path = CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
-                                '$IssueDate', filedate)
+                            newfname = f"{format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)}{extn}"
+                            new_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], title, filedate)
                             if CONFIG.get_bool('MAG_RELATIVE'):
                                 new_path = os.path.join(get_directory('eBook'), new_path)
 
@@ -376,3 +374,62 @@ def magazine_scan(title=None):
         if 'MAGAZINE_SCAN' in threading.current_thread().name:
             threading.current_thread().name = 'WEBSERVER'
         db.close()
+
+
+def format_issue_name(base, mag_title, issue_date):
+    logger = logging.getLogger(__name__)
+    mydict = {'Title': mag_title, 'IssueDate': issue_date, 'IssueYear': '', 'IssueMonth': '',
+              'IssueVol': '', 'IssueNum': '', 'IssueDay': ''}
+    # issue_date is yyyy-mm-dd
+    # or yyyyiiii or vvvviiii or yyyyvvvviiii or iiii
+    if issue_date.isdigit():
+        if len(issue_date) == 8:
+            if check_year(issue_date[:4]):
+                mydict['IssueYear'] = issue_date[:4]
+                mydict['IssueNum'] = issue_date[4:]
+            else:
+                mydict['IssueVol'] = issue_date[:4]
+                mydict['IssueNum'] = issue_date[4:]
+        elif len(issue_date) == 12:
+            mydict['IssueYear'] = issue_date[:4]
+            mydict['IssueVol'] = issue_date[4:8]
+            mydict['IssueNum'] = issue_date[8:]
+        else:
+            mydict['IssueNum'] = issue_date.zfill(4)
+    elif ' ' not in issue_date:  # check it's not preformatted eg "Vol xxxx Issue yyyy"
+        mydict['IssueYear'] = issue_date[:4]
+        mydict['IssueNum'] = issue_date[5:7]
+        mydict['IssueDay'] = issue_date[8:]
+    if mydict['IssueNum'] and mydict['IssueNum'].isdigit():
+        if 0 < int(mydict['IssueNum']) < 13:
+            monthname = lazylibrarian.MONTHNAMES[int(mydict['IssueNum'])]
+            mydict['IssueMonth'] = monthname[1].title()
+
+    if base == CONFIG['MAG_DEST_FOLDER']:
+        valid_format = True
+    else:
+        valid_format = False
+        if '$IssueDate' in base:
+            valid_format = True
+        if '$IssueYear' in base and '$IssueNum' in base:
+            if mydict['IssueYear'] and mydict['IssueNum']:
+                valid_format = True
+                if mydict['IssueDay'] and mydict['IssueDay'] != '01' and '$IssueDay' not in base:
+                    valid_format = False
+        if '$IssueVol' in base and '$IssueNum' in base:
+            if mydict['IssueVol'] and mydict['IssueNum']:
+                valid_format = True
+        if '$IssueYear' in base and '$IssueMonth' in base:
+            if mydict['IssueYear'] and mydict['IssueMonth']:
+                valid_format = True
+                if mydict['IssueDay'] and mydict['IssueDay'] != '01' and '$IssueDay' not in base:
+                    valid_format = False
+
+    if valid_format:
+        issue_name = replacevars(base, mydict)
+    else:
+        logger.debug(f"Invalid format {base}:{mag_title}:{issue_date}")
+        issue_name = f"{mag_title} - {issue_date}"
+    issue_name = unaccented(issue_name, only_ascii=False)
+    issue_name = sanitize(issue_name)
+    return issue_name

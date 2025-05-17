@@ -41,7 +41,8 @@ from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
-from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
+from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, \
+    thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
@@ -51,7 +52,7 @@ from lazylibrarian.images import get_author_image, get_author_images, get_book_c
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
-from lazylibrarian.magazinescan import magazine_scan
+from lazylibrarian.magazinescan import magazine_scan, format_issue_name
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
@@ -1565,12 +1566,8 @@ class Api(object):
                     issuedate = issuedate.zfill(4)  # pad with leading zeros
             if dirname:
                 title = os.path.basename(dirname)
-                if '$Title' in CONFIG.get_str('MAG_DEST_FILE'):
-                    fname = CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate).replace(
-                        '$Title', title)
-                else:
-                    fname = CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate)
-                self.data = os.path.join(dirname, f"{fname}.{name_exploded[-1]}")
+                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)
+                self.data = os.path.join(dirname, f"{global_name}.{name_exploded[-1]}")
             else:
                 self.data = f"Regex {issuenum_type} [{issuedate}] {year}"
         else:

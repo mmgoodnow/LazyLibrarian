@@ -51,7 +51,7 @@ from lazylibrarian.images import create_mag_cover
 from lazylibrarian.images import createthumbs
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
-from lazylibrarian.magazinescan import create_id
+from lazylibrarian.magazinescan import create_id, format_issue_name
 from lazylibrarian.mailinglist import mailing_list
 from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
@@ -108,8 +108,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         # update magazine lastissue/cover as required
         entry = db.match('SELECT * FROM magazines where Title=?', (title,))
         mostrecentissue = entry['IssueDate']
-        dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
-            '$IssueDate', issuenum).replace('$Title', title)
+        dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], title, issuenum)
 
         if CONFIG.get_bool('MAG_RELATIVE'):
             dest_dir = get_directory('eBook')
@@ -122,13 +121,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             logger.error(f'Unable to create destination directory {dest_path}')
             return False
 
-        if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-            global_name = CONFIG['MAG_DEST_FILE'].replace(
-                '$IssueDate', issuenum).replace('$Title', title)
-        else:
-            global_name = f"{title} {issuenum}"
-        global_name = unaccented(global_name, only_ascii=False)
-        global_name = sanitize(global_name)
+        global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuenum)
         tempdir = tempfile.mkdtemp()
         try:
             _ = safe_copy(source_file, os.path.join(tempdir, os.path.basename(source_file)))
@@ -233,16 +226,16 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
                 logger.warning(f"Bookid [{bookid}] not found in database, trying to add...")
                 if CONFIG['BOOK_API'] == "GoodReads":
                     gr_id = GoodReads(bookid)
-                    gr_id.find_book(bookid, None, None, f"Added by import_book {source_dir}")
+                    gr_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
                 elif CONFIG['BOOK_API'] == "GoogleBooks":
                     gb_id = GoogleBooks(bookid)
-                    gb_id.find_book(bookid, None, None, f"Added by import_book {source_dir}")
+                    gb_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
                 elif CONFIG['BOOK_API'] == "OpenLibrary":
                     ol_id = OpenLibrary(bookid)
-                    ol_id.find_book(bookid, None, None, f"Added by import_book {source_dir}")
+                    ol_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
                 elif CONFIG['BOOK_API'] == "HardCover":
                     hc_id = HardCover(bookid)
-                    hc_id.find_book(bookid, None, None, f"Added by import_book {source_dir}")
+                    hc_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
                 # see if it's there now...
                 book = db.match('SELECT * from books where BookID=?', (bookid,))
             if not book:
@@ -250,10 +243,10 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
                 return False
             return process_book(source_dir, bookid, library)
         else:
-            logger.error(f"import_book not implemented for {library}")
+            logger.error(f"book_from_dir not implemented for {library}")
             return False
     except Exception:
-        logger.error(f'Unhandled exception in import_book: {traceback.format_exc()}')
+        logger.error(f'Unhandled exception in book_from_dir: {traceback.format_exc()}')
         return False
     finally:
         db.close()
@@ -1304,9 +1297,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 # if re.match(r'\d+-\d\d-01', str(iss_date)):
                                 #    iss_date = iss_date[:-3]
                                 book['AuxInfo'] = iss_date
-                                dest_path = CONFIG['MAG_DEST_FOLDER'].replace(
-                                    '$IssueDate', iss_date).replace('$Title', mag_name)
-
+                                dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], mag_name, iss_date)
                                 if CONFIG.get_bool('MAG_RELATIVE'):
                                     dest_dir = get_directory('eBook')
                                     dest_path = stripspaces(os.path.join(dest_dir, dest_path))
@@ -1317,13 +1308,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 if not dest_path or not make_dirs(dest_path):
                                     logger.warning(f'Unable to create directory {dest_path}')
 
-                                if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-                                    global_name = CONFIG['MAG_DEST_FILE'].replace(
-                                        '$IssueDate', iss_date).replace('$Title', mag_name)
-                                else:
-                                    global_name = f"{mag_name} {iss_date}"
-                                global_name = unaccented(global_name, only_ascii=False)
-                                global_name = sanitize(global_name)
+                                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], mag_name, iss_date)
                                 data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
                             else:
                                 if book['BookID'] and '_' in book['BookID']:
@@ -2757,11 +2742,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                 global_name = issuedate
             else:
                 authors = 'magazines'
-                if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-                    global_name = CONFIG['MAG_DEST_FILE'].replace(
-                        '$IssueDate', issuedate).replace('$Title', title)
-                else:
-                    global_name = f"{title} - {issuedate}"
+                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)
 
             params = [magfile, '--duplicates', '--authors', authors, '--series', title,
                       '--title', global_name, '--tags', 'Magazine']
@@ -2890,12 +2871,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                     global_name = issuedate
                 else:
                     authorname = 'magazines'
-                    if '$IssueDate' in CONFIG['MAG_DEST_FILE']:
-                        global_name = CONFIG['MAG_DEST_FILE'].replace(
-                            '$IssueDate', issuedate).replace('$Title', title)
-                    else:
-                        global_name = f"{title} - {issuedate}"
-
+                    global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)
                 _, _, rc = calibredb('set_metadata', ['--field', f'pubdate:{issuedate}'], [calibre_id])
                 if rc:
                     logger.warning("calibredb unable to set pubdate")
