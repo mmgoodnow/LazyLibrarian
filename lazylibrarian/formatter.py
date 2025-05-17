@@ -538,29 +538,6 @@ def make_utf8bytes(txt):
     return name, ''
 
 
-"""
-def make_utf8bytes(txt):
-    name = make_bytestr(txt)
-    result = chardet.detect(name)
-    detected_encoding = result['encoding']
-    if not detected_encoding:
-        detected_encoding = ""
-    elif detected_encoding.lower() != 'utf-8':
-        try:
-            name = name.decode(detected_encoding).encode('utf-8')
-        except UnicodeDecodeError;
-            logger = logging.getLogger(__name__)
-            logger.debug(f"{detected_encoding} failed to decode {repr(name)}")
-            if '1252' not in detected_encoding:
-                logger.debug(f"Retry as cp1252")
-                try:
-                    name = name.decode('cp1252').encode('utf-8')
-                except UnicodeDecodeError;
-                    logger.debug(f"Unable to decode name [{repr(name)}]")
-                    detected_encoding = 'unknown'
-    return name, detected_encoding
-"""
-
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
@@ -927,3 +904,31 @@ quotes = [
     u'\uff62',  # halfwidth left corner bracket
     u'\uff63',  # halfwidth right corner bracket
 ]
+
+
+def replacevars(base, mydict):
+    if not base:
+        return ''
+    loggermatching = logging.getLogger('special.matching')
+    loggermatching.debug(base)
+    vardict = ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum', '$Language',
+               '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total', '$Abridged',
+               '$IssueDate', '$IssueNum', '$IssueVol', '$IssueMonth', '$IssueYear', '$IssueDay']
+
+    # first strip any braced expressions where any var in the expression is empty
+    # eg {$SerName - $SerNum} becomes '' if either var is empty
+    while '{' in base and '}' in base and base.index('{') < base.index('}'):
+        left, rest = base.split('{', 1)
+        middle, right = rest.split('}', 1)
+        for item in vardict:
+            if item in middle and item[1:] in mydict and mydict[item[1:]] == '':
+                middle = ''
+                break
+        base = f"{left}{middle}{right}"
+
+    for item in vardict:
+        if item[1:] in mydict:
+            base = base.replace(item, mydict[item[1:]].replace(os.path.sep, '_'))
+    base = base.replace('$$', ' ')
+    loggermatching.debug(base)
+    return base
