@@ -154,6 +154,9 @@ def search_book(books=None, library=None):
         if CONFIG.use_irc():
             modelist.append('irc')
 
+        if not library:
+            library = 'item'
+
         logger.info(
             f"Searching {nprov} {plural(nprov, 'provider')} {str(modelist)} for {len(searchbooks)} "
             f"{plural(len(searchbooks), library)}")
