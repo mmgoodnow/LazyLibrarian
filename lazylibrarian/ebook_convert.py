@@ -28,6 +28,11 @@ def convert(input_file, output_format):
 
     if CONFIG.get_bool('CALIBRE_USE_SERVER'):
         ebook_directory = CONFIG['CALIBRE_SERVER']
+        if not ebook_directory.startswith('http'):
+            if CONFIG.get_bool('HTTPS_ENABLED'):
+                ebook_directory = f'https://{ebook_directory}'
+            else:
+                ebook_directory = f'http://{ebook_directory}'
     else:
         ebook_directory = get_directory('eBook')
 
