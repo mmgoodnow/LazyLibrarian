@@ -40,7 +40,7 @@ from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
 from lazylibrarian.directparser import bok_login, session_get, bok_grabs
 from lazylibrarian.soulseek import SLSKD
-from lazylibrarian.annas import annas_download
+from lazylibrarian.annas import annas_download, block_annas
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
@@ -306,9 +306,14 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         return False, ''
 
     if provider == 'annas':
+        count = TIMERS['ANNA_REMAINING']
+        dl_limit = CONFIG.get_int('ANNA_DLLIMIT')
+        if dl_limit and count <= 0:
+            block_annas(dl_limit)
+            return False, f"Download limit {dl_limit} reached"
+
         title, extn = os.path.splitext(dl_title)
         db = database.DBConnection()
-        folder = ''
         try:
             res = db.match('SELECT bookname from books WHERE bookid=?', (bookid,))
             if res and res['bookname']:

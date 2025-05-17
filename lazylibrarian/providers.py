@@ -884,9 +884,13 @@ def iterate_over_direct_sites(book=None, search_type=None):
             logger.debug(f'Querying {provider}')
             results, error = anna_search(book)
             if error:
-                # use a short delay for site unavailable etc
-                delay = CONFIG.get_int('BLOCKLIST_TIMER')
-                BLOCKHANDLER.block_provider(provider, error, delay=delay)
+                dl_limit = CONFIG.get_int('ANNA_DLLIMIT')
+                count = lazylibrarian.TIMERS['ANNA_REMAINING']
+                if dl_limit and count <= 0:
+                    block_annas(dl_limit)
+                else:
+                    # use a short delay for site unavailable etc
+                    BLOCKHANDLER.block_provider(provider, error, delay=CONFIG.get_int('BLOCKLIST_TIMER'))
             else:
                 resultslist += results
                 providers += 1

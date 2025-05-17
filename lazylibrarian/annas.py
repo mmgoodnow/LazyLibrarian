@@ -25,6 +25,7 @@ from bs4 import Tag, BeautifulSoup
 from requests import get
 
 import lazylibrarian
+from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
@@ -281,22 +282,29 @@ def annas_download(md5, folder, title, extn):
     response = get(url, params=params)
     if str(response.status_code).startswith('2'):
         res = response.json()
+        counters = res['account_fast_download_info']
+        CONFIG.set_int('ANNA_DLLIMIT', counters['downloads_per_day'])
+        lazylibrarian.TIMERS['ANNA_REMAINING'] = counters['downloads_left']
+        if counters['downloads_left'] == 0:
+            msg = f"Download limit ({counters['downloads_per_day']}) reached"
+            block_annas(counters['downloads_per_day'])
+            return False, msg
         url = res['download_url']
         if url and url.startswith('http'):
             r = get(url)
             if not str(r.status_code).startswith('2'):
-                res = f"Got a {r.status_code} response for {url}"
-                logger.warning(res)
-                return False, res
+                msg = f"Got a {r.status_code} response for {url}"
+                logger.warning(msg)
+                return False, msg
             filedata = r.content
             if not len(filedata):
-                res = f"Got empty response for {url}"
-                logger.warning(res)
-                return False, res
+                msg = f"Got empty response for {url}"
+                logger.warning(msg)
+                return False, msg
             if len(filedata) < 100:
-                res = f"Only got {len(filedata)} bytes for {url}"
-                logger.warning(res)
-                return False, res
+                msg = f"Only got {len(filedata)} bytes for {url}"
+                logger.warning(msg)
+                return False, msg
             logger.debug(f"Got {len(filedata)} bytes for {url}")
             download_dir = get_list(CONFIG['DOWNLOAD_DIR'])[0]
             if folder:
@@ -307,6 +315,13 @@ def annas_download(md5, folder, title, extn):
             with open(dest_filename, 'wb') as f:
                 f.write(filedata)
             logger.debug(f"Data written to file {dest_filename}")
+            if counters['downloads_left'] == 1:
+                # just used the last download
+                block_annas(counters['downloads_per_day'])
+            else:
+                lazylibrarian.TIMERS['ANNA_REMAINING'] = counters['downloads_left'] - 1
+                logger.info(f"Anna {lazylibrarian.TIMERS['ANNA_REMAINING']} remaining "
+                            f"of {counters['downloads_per_day']}")
             return True, dest_filename
         else:
             errmsg = f"Invalid url: {url} {res['error']}"
@@ -404,3 +419,25 @@ def anna_search(book=None, test=False):
 
     logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {book['searchterm']}")
     return results, ''
+
+
+def block_annas(dl_limit=0):
+    grabs, oldest = anna_grabs()
+    # rolling 18hr delay if limit reached
+    delay = oldest + 18 * 60 * 60 - time.time()
+    res = f"Reached Daily download limit ({grabs}/{dl_limit})"
+    BLOCKHANDLER.block_provider("annas", res, delay=delay)
+
+
+def anna_grabs() -> (int, int):
+    # we might be out of sync with download counter, eg we might not be the only downloader
+    # so although we can count how many we downloaded, normally we ask anna and use their counter
+    # If we are over limit we try to use our datestamp to find out when the counter will reset
+    db = database.DBConnection()
+    eighteen_hours_ago = time.time() - 18 * 60 * 60
+    grabs = db.select("SELECT completed from wanted WHERE nzbprov='annas' and completed > ? order by completed",
+                      (eighteen_hours_ago,))
+    db.close()
+    if grabs:
+        return len(grabs), grabs[0]['completed']
+    return 0, 0
