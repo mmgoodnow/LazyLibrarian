@@ -34,7 +34,12 @@
           <div class="input-group">
             <input type="text" placeholder="Magazine Title" name="title" class="form-control input-sm col-xs-12">
             <span class="input-group-btn">
-              <button type="submit" value="Magazine" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search and add Magazine"><i class="fa fa-search-plus"></i><span> Magazine</span></button>
+
+              %if CONFIG['IMP_AUTOSEARCH']:
+              <button type="submit" value="Magazine" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search for Magazine"><i class="fa fa-search-plus"></i><span> Magazine</span></button>
+              %else:
+              <button type="submit" value="Magazine" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Add Magazine"><i class="fa fa-plus"></i><span> Magazine</span></button>
+              %endif
             </span>
           </div>
         </div>

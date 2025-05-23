@@ -33,7 +33,11 @@
           <div class="input-group">
             <input type="text" placeholder="Comic Title" name="title" class="form-control input-sm col-xs-12">
             <span class="input-group-btn">
+              %if CONFIG['IMP_AUTOSEARCH']:
               <button type="submit" value="Comic" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search for comic"><i class="fa fa-search-plus"></i><span> Comic</span></button>
+              %else:
+              <button type="submit" value="Comic" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Add comic"><i class="fa fa-plus"></i><span> Comic</span></button>
+              %endif
             </span>
           </div>
         </div>
