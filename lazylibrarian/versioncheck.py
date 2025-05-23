@@ -332,8 +332,6 @@ def get_latest_version_from_git():
             age = ''
             if timestamp:
                 # timestring for 'If-Modified-Since' needs to be english short day/month names and in gmt
-                # we already have english month names stored in MONTHNAMES[] but need capitalising
-                # so use hard coded versions here instead
                 daynames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
                 monnames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
                 tm = time.gmtime(timestamp)
