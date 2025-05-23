@@ -430,12 +430,15 @@ class StartupLazyLibrarian:
 
         # list of all ascii and non-ascii quotes/apostrophes
         # quote list: https://en.wikipedia.org/wiki/Quotation_mark
+        # https://hexdocs.pm/ex_unicode/Unicode.Category.QuoteMarks.html
 
         quotes = {
             u'\u0022': "'",  # quotation mark (")
             u'\u0027': "'",  # apostrophe (')
             u'\u0060': "'",  # grave-accent
+            u'\u00a8': '"',  # DIAERESIS
             u'\u00ab': '"',  # left-pointing double-angle quotation mark
+            u'\u00b4': "'",  # acute accent
             u'\u00bb': '"',  # right-pointing double-angle quotation mark
             u'\u2018': "'",  # left single quotation mark
             u'\u2019': "'",  # right single quotation mark
@@ -463,8 +466,7 @@ class StartupLazyLibrarian:
             u'\uff62': "'",  # halfwidth left corner bracket
             u'\uff63': "'",  # halfwidth right corner bracket
         }
-        for json_file in [os.path.join(DIRS.DATADIR, 'dicts.json'),
-                          os.path.join(DIRS.PROG_DIR, 'example.dicts.json')]:
+        for json_file in [os.path.join(DIRS.DATADIR, 'dicts.json')]:
             if path_isfile(json_file):
                 try:
                     with open(syspath(json_file), 'r', encoding='utf-8') as json_data:

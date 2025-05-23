@@ -836,12 +836,13 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])
     # replace all non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-    dic = lazylibrarian.DICTS.get('apostrophe_dict', {})
+    stripped = replace_all(stripped, lazylibrarian.DICTS.get('apostrophe_dict', {}))
     # Other characters not converted by unicodedata.combining
     # c6 Ae, d0 Eth, d7 multiply, d8 Ostroke, de Thorn, df sharpS
-    dic.update({u'\xc6': 'A', u'\xd0': 'D', u'\xd7': '*', u'\xd8': 'O', u'\xde': 'P', u'\xdf': 's'})
+    dic = {u'\xc6': 'A', u'\xd0': 'D', u'\xd7': '*', u'\xd8': 'O', u'\xde': 'P', u'\xdf': 's'}
+    stripped = replace_all(stripped, dic)
     # e6 ae, f0 eth, f7 divide, f8 ostroke, fe thorn
-    dic.update({u'\xe6': 'a', u'\xf0': 'o', u'\xf7': '/', u'\xf8': 'o', u'\xfe': 'p'})
+    dic = {u'\xe6': 'a', u'\xf0': 'o', u'\xf7': '/', u'\xf8': 'o', u'\xfe': 'p'}
     stripped = replace_all(stripped, dic)
     if only_ascii is not False:
         # now get rid of any other non-ascii
