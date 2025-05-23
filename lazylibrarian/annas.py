@@ -29,7 +29,7 @@ from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
-from lazylibrarian.formatter import md5_utf8, plural, check_int, size_in_bytes, get_list
+from lazylibrarian.formatter import md5_utf8, plural, check_int, size_in_bytes, get_list, sanitize
 
 
 @dataclass(slots=True)
@@ -311,7 +311,7 @@ def annas_download(md5, folder, title, extn):
                 parent = os.path.join(download_dir, folder)
                 if not os.path.isdir(parent):
                     os.mkdir(parent)
-            dest_filename = os.path.join(download_dir, folder, f"{title}{extn}")
+            dest_filename = os.path.join(download_dir, folder, sanitize(f"{title}{extn}"))
             with open(dest_filename, 'wb') as f:
                 f.write(filedata)
             logger.debug(f"Data written to file {dest_filename}")
@@ -328,7 +328,8 @@ def annas_download(md5, folder, title, extn):
             logger.error(errmsg)
             return False, errmsg
     else:
-        errmsg = f"Error Status: {response.status_code}"
+        errmsg = (f"Error Status: {response.status_code} Check your ANNAS key, "
+                  f"and make sure you have a PAID subscription")
         logger.error(errmsg)
         return False, errmsg
 
