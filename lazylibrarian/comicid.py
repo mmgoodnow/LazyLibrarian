@@ -25,7 +25,7 @@ import lazylibrarian
 from lazylibrarian.cache import html_request, json_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import path_isfile
-from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, quotes
+from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, strip_quotes
 
 
 def get_issue_num(words, skipped):
@@ -63,8 +63,7 @@ def name_words(name):
 
     name = punct.sub(' ', name)
     # strip all ascii and non-ascii quotes/apostrophes
-    strip = re.compile(f"[{re.escape(''.join(quotes))}]")
-    name = strip.sub('', name)
+    name = strip_quotes(name)
     # special cases, probably need a configurable translation table like we do for genres
     name = name.replace('40 000', '40,000').replace("X Men", "X-Men").replace("X Factor", "X-Factor")
     tempwords = name.lower().split()

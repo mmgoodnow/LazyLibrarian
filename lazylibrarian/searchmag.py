@@ -321,18 +321,18 @@ def search_magazines(mags=None, reset=False, backissues=False):
                                     nouns.extend(get_list(CONFIG['MAG_NOUNS']))
                                     nouns.extend(get_list(CONFIG['MAG_TYPE']))
                                     for word in lower_title:
-                                        if word.islower():  # contains ANY lowercase letters
-                                            if word not in lower_bookid and word not in nouns:
-                                                valid = False
-                                                for f in range(1, 13):
-                                                    if word in lazylibrarian.MONTHNAMES[f]:
-                                                        valid = True
-                                                        break
-                                                if not valid:
-                                                    rejected = True
-                                                    logger.debug(
-                                                        f"Rejecting {nzbtitle_formatted}, strict, contains {word}")
+                                        if word not in lower_bookid and word not in nouns:
+                                            valid = False
+                                            for f in range(1, 13):
+                                                if (word in lazylibrarian.MONTHNAMES[0][f] or
+                                                        unaccented(word).lower() in lazylibrarian.MONTHNAMES[1][f]):
+                                                    valid = True
                                                     break
+                                            if not valid:
+                                                rejected = True
+                                                logger.debug(
+                                                    f"Rejecting {nzbtitle_formatted}, strict, contains {word}")
+                                                break
                         if rejected:
                             rejects += 1
                         else:
@@ -350,18 +350,16 @@ def search_magazines(mags=None, reset=False, backissues=False):
 
                                     if 'M' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 12]:
                                         datetype_ok = False
-                                    elif 'D' in datetype and issuenum_type not in [3, 5, 6]:
+                                    if 'D' in datetype and issuenum_type not in [3, 5, 6]:
                                         datetype_ok = False
-                                    elif 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
+                                    if 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
                                         datetype_ok = False
-                                    elif 'V' in datetype and 'I' in datetype and issuenum_type not in [8, 9, 17, 18]:
+                                    if 'V' in datetype and issuenum_type not in [2, 8, 9, 10, 11, 12, 13, 14, 17, 18]:
                                         datetype_ok = False
-                                    elif 'V' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 17, 18]:
+                                    if 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
                                         datetype_ok = False
-                                    elif 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
-                                        datetype_ok = False
-                                    elif 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
-                                                                                   12, 13, 15, 16, 18]:
+                                    if 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
+                                                                                 12, 13, 15, 16, 18]:
                                         datetype_ok = False
                             else:
                                 datetype_ok = False
@@ -624,26 +622,14 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     else:
                         day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos - 2]), 0)
                         if pos > 2 and nzbtitle_exploded[pos - 3].lower().strip('.') in nouns:
-                            # definitely an issue number
-                            if 'Y' in datetype:
+                            # definitely an issue or volume number
+                            issuedate = str(day)
+                            issuenum_type = 10
+                            break
+                        elif day > 31:  # probably issue/volume number nn
+                            if 'I' in datetype or 'V' in datetype:
                                 issuedate = str(day)
                                 issuenum_type = 10
-                                break
-                            elif 'I' in datetype:
-                                issuedate = str(day)
-                                issuenum_type = 11
-                                break
-                            else:
-                                issuenum_type = 4
-                                day = 1
-                        elif day > 31:  # probably issue number nn
-                            if 'Y' in datetype:
-                                issuedate = str(day)
-                                issuenum_type = 10
-                                break
-                            elif 'I' in datetype:
-                                issuedate = str(day)
-                                issuenum_type = 11
                                 break
                             else:
                                 issuenum_type = 4

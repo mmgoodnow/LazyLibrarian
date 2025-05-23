@@ -30,7 +30,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, \
-    split_title, quotes
+    split_title
 from lazylibrarian.processcontrol import get_info_on_caller
 
 
@@ -833,7 +833,7 @@ def get_series_authors(seriesid):
                 # pubmonth = member[6]
                 # pubday = member[7]
                 # bookid = member[8]
-                bookname = replace_all(bookname, quotes)
+                bookname = replace_all(bookname, lazylibrarian.DICTS.get('apostrophe_dict', {}))
                 if not authorid:
                     # goodreads gives us all the info we need, librarything/google doesn't
                     base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
@@ -852,7 +852,7 @@ def get_series_authors(seriesid):
                             for item in resultxml:
                                 try:
                                     booktitle = item.find('./best_book/title').text
-                                    booktitle = replace_all(booktitle, quotes)
+                                    booktitle = replace_all(booktitle, lazylibrarian.DICTS.get('apostrophe_dict', {}))
                                 except (KeyError, AttributeError):
                                     booktitle = ""
                                 book_fuzz = fuzz.token_set_ratio(booktitle, bookname)
@@ -886,7 +886,7 @@ def get_series_authors(seriesid):
                                 resultxml = rootxml.iter('work')
                                 for item in resultxml:
                                     booktitle = item.find('./best_book/title').text
-                                    booktitle = replace_all(booktitle, quotes)
+                                    booktitle = replace_all(booktitle, lazylibrarian.DICTS.get('apostrophe_dict', {}))
                                     book_fuzz = fuzz.token_set_ratio(booktitle, bookname)
                                     if book_fuzz >= 98:
                                         try:

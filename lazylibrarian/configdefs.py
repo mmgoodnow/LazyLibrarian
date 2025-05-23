@@ -81,6 +81,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigCSV('General', 'IMP_PREFLANG', 'en, eng, en-US, en-GB, English', onchange=ImportPrefs.lang_changed),
     ConfigStr('General', 'ISS_FORMAT', '$Y-$m-$d'),
     ConfigStr('General', 'DATE_FORMAT', '$Y-$m-$d'),
+    ConfigStr('General', 'DATE_LANG', 'en_EN.utf8'),
     ConfigStr('General', 'AUTHOR_DATE_FORMAT', '$d-$m-$Y'),
     ConfigCSV('General', 'ISSUE_NOUNS', 'issue, iss, no, nr, #, n', force_lower=True),
     ConfigCSV('General', 'VOLUME_NOUNS', "vol, volume", force_lower=True),

@@ -32,7 +32,7 @@ from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file,
                                       opf_file, get_directory)
-from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented, replace_all, replace_quotes_with,
+from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented, replace_all, strip_quotes,
                                      split_title, now, make_unicode)
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -357,7 +357,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         prefix_type = ''
 
         book_lower = unaccented(book.lower(), only_ascii=False)
-        book_lower = replace_quotes_with(book_lower, '')
+        book_lower = strip_quotes(book_lower)
         book_partname, book_sub, _ = split_title(author, book_lower)
 
         # We want to match a book on disk with a subtitle to a shorter book in the DB
@@ -380,7 +380,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             # tidy up everything to raise fuzziness scores
             # still need to lowercase for matching against partial_name later on
             a_book_lower = unaccented(a_bookname.lower(), only_ascii=False)
-            a_book_lower = replace_quotes_with(a_book_lower, '')
+            a_book_lower = strip_quotes(a_book_lower)
 
             for entry in title_translates:
                 if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
@@ -869,7 +869,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # some books might be stored under a different author name
                                 # eg books by multiple authors, books where author is "writing as"
                                 # or books we moved to "merge" authors
-                                book = replace_quotes_with(book, '')
+                                book = strip_quotes(book)
 
                                 # If we have a valid ID, use that
                                 bookid = ''

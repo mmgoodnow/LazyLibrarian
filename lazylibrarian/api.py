@@ -1042,7 +1042,7 @@ class Api(object):
 
     def _showmonths(self):
         TELEMETRY.record_usage_data()
-        self.data = lazylibrarian.MONTHNAMES
+        self.data = lazylibrarian.MONTHNAMES[0]
 
     def _renameaudio(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1195,7 +1195,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
         with open(syspath(json_file), 'w') as f:
-            json.dump(lazylibrarian.MONTHNAMES, f)
+            json.dump(lazylibrarian.MONTHNAMES[0], f)
 
     def _getwanted(self):
         TELEMETRY.record_usage_data()

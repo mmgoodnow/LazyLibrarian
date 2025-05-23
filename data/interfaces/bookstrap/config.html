@@ -925,6 +925,15 @@
                     <label for="iss_format" class="control=label">Issue Dates:</label>
                     <input type="text" id="iss_format" name="iss_format" value="${CONFIG['ISS_FORMAT']}" class="form-control" placeholder="Format for issue dates">
                   </div>
+                   <div class="col-md-6">
+                    <label for="date_lang" class="control=label">Date Language:</label>
+                    <select id="date_lang" name="date_lang" class="form-control">
+                      %for date_lang in list(dict.fromkeys(lazylibrarian.MONTHNAMES[0][0])):
+                        <% selected = 'selected="selected"' if date_lang == CONFIG['DATE_LANG'] else '' %>
+                        <option value="${date_lang}" ${selected}>${date_lang}</option>
+                      %endfor
+                    </select>
+                  </div>
                   </div>
                   <span class="help-block">$d Day of the month as a number<br>$b Month as abbreviated name<br>$B Month as full name<br>$m Month as a number<br>$y	Year without century<br>$Y	Year with century<br>eg $Y-$m-$d</span>
                 </fieldset>
@@ -1829,8 +1838,8 @@
                       </div>
                       <div class="input-group">
                         <span class="input-group-addon">Member Key</span>
-                        <input type="text" placeholder="member key" id="anna_key" name="anna_key" value="${CONFIG['ANNA_KEY']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Member key to access fast downloads">
+                        <input type="text" placeholder="Key for paid accounts only" id="anna_key" name="anna_key" value="${CONFIG['ANNA_KEY']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Member key for API access (paid members only)">
                         </span>
                       </div>
                       <div class="input-group">
@@ -3635,6 +3644,8 @@
                     <input type="text" id="datetype[${mag['Title']}]" name="datetype[${mag['Title']}]" value="${mag['DateType']}" class="form-control" placeholder="auto">
                     <label for="coverpage[${mag['Title']}]" class="input-group-addon">Cover Page</label>
                     <input type="number" id="coverpage[${mag['Title']}]" name="coverpage[${mag['Title']}]" value="${mag['CoverPage']}" min=1 class="form-control" placeholder="1">
+                    <label for="coverpage[${mag['Title']}]" class="input-group-addon">Language</label>
+                    <input type="text" id="language[${mag['Title']}]" name="language[${mag['Title']}]" value="${mag['Language']}" class="form-control">
                   </div>
                 </div>
                 %endfor

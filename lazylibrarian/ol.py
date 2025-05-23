@@ -569,7 +569,8 @@ class OpenLibrary:
                     if not publish_date and first_publish_year:
                         publish_date = [str(first_publish_year)]
                     if publish_date:
-                        publish_date = date_format(publish_date[0], context=f"{auth_name}/{title}")
+                        publish_date = date_format(publish_date[0], context=f"{auth_name}/{title}",
+                                                   datelang=CONFIG['DATE_LANG'])
 
                     rejected = []
                     wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
@@ -1043,7 +1044,8 @@ class OpenLibrary:
                                                                 cover = 'images/nocover.png'
                                                             publish_date = date_format(workinfo.get('publish_date',
                                                                                                     ''),
-                                                                                       context=title)
+                                                                                       context=title,
+                                                                                       datelang=CONFIG['DATE_LANG'])
                                                             rating, genrelist, _ = self.lt_workinfo(member[4])
                                                             genrenames = []
                                                             for item in genrelist:
@@ -1300,7 +1302,7 @@ class OpenLibrary:
                 cover += f'{covers}-M.jpg'
             else:
                 cover = 'images/nocover.png'
-            publish_date = date_format(workinfo.get('publish_date', ''), context=title)
+            publish_date = date_format(workinfo.get('publish_date', ''), context=title, datelang=CONFIG['DATE_LANG'])
             lang = "Unknown"
             #
             # user has said they want this book, don't block for unwanted language etc

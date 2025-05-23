@@ -427,6 +427,42 @@ class StartupLazyLibrarian:
         return {"genreLimit": 4, "genreUsers": 10, "genreExclude": [], "genreExcludeParts": [], "genreReplace": {}}
 
     def build_dicts(self):
+
+        # list of all ascii and non-ascii quotes/apostrophes
+        # quote list: https://en.wikipedia.org/wiki/Quotation_mark
+
+        quotes = {
+            u'\u0022': "'",  # quotation mark (")
+            u'\u0027': "'",  # apostrophe (')
+            u'\u0060': "'",  # grave-accent
+            u'\u00ab': '"',  # left-pointing double-angle quotation mark
+            u'\u00bb': '"',  # right-pointing double-angle quotation mark
+            u'\u2018': "'",  # left single quotation mark
+            u'\u2019': "'",  # right single quotation mark
+            u'\u201a': "'",  # single low-9 quotation mark
+            u'\u201b': "'",  # single high-reversed-9 quotation mark
+            u'\u201c': '"',  # left double quotation mark
+            u'\u201d': '"',  # right double quotation mark
+            u'\u201e': '"',  # double low-9 quotation mark
+            u'\u201f': '"',  # double high-reversed-9 quotation mark
+            u'\u2039': "'",  # single left-pointing angle quotation mark
+            u'\u203a': "'",  # single right-pointing angle quotation mark
+            u'\u300c': "'",  # left corner bracket
+            u'\u300d': "'",  # right corner bracket
+            u'\u300e': "'",  # left white corner bracket
+            u'\u300f': "'",  # right white corner bracket
+            u'\u301d': '"',  # reversed double prime quotation mark
+            u'\u301e': '"',  # double prime quotation mark
+            u'\u301f': '"',  # low double prime quotation mark
+            u'\ufe41': "'",  # presentation form for vertical left corner bracket
+            u'\ufe42': "'",  # presentation form for vertical right corner bracket
+            u'\ufe43': "'",  # presentation form for vertical left corner white bracket
+            u'\ufe44': "'",  # presentation form for vertical right corner white bracket
+            u'\uff02': "'",  # fullwidth quotation mark
+            u'\uff07': "'",  # fullwidth apostrophe
+            u'\uff62': "'",  # halfwidth left corner bracket
+            u'\uff63': "'",  # halfwidth right corner bracket
+        }
         for json_file in [os.path.join(DIRS.DATADIR, 'dicts.json'),
                           os.path.join(DIRS.PROG_DIR, 'example.dicts.json')]:
             if path_isfile(json_file):
@@ -443,7 +479,7 @@ class StartupLazyLibrarian:
                                   '\\\\': '\\'},
                 "umlaut_dict": {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe',
                                 u'\xdc': 'Ue', u'\xdf': 'ss'},
-                "apostrophe_dict": {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+                "apostrophe_dict": quotes
                 }
 
     def build_monthtable(self, config: ConfigDict):
@@ -466,88 +502,94 @@ class StartupLazyLibrarian:
             # which we can match against magazine issues
             table = [
                 ['en_GB.UTF-8', 'en_GB.UTF-8'],
-                ['january', 'jan'],
-                ['february', 'feb'],
-                ['march', 'mar'],
-                ['april', 'apr'],
-                ['may', 'may'],
-                ['june', 'jun'],
-                ['july', 'jul'],
-                ['august', 'aug'],
-                ['september', 'sep'],
-                ['october', 'oct'],
-                ['november', 'nov'],
-                ['december', 'dec']
+                ['January', 'Jan'],
+                ['February', 'Feb'],
+                ['March', 'Mar'],
+                ['April', 'Apr'],
+                ['May', 'May'],
+                ['June', 'Jun'],
+                ['July', 'Jul'],
+                ['August', 'Aug'],
+                ['September', 'Sep'],
+                ['October', 'Oct'],
+                ['November', 'Nov'],
+                ['December', 'Dec']
             ]
 
-        if len(get_list(config['IMP_MONTHLANG'])) == 0:  # any extra languages wanted?
-            return table
-        try:
-            current_locale = locale.setlocale(locale.LC_ALL, '')  # read current state.
-            if 'LC_CTYPE' in current_locale:
-                current_locale = locale.setlocale(locale.LC_CTYPE, '')
-            # getdefaultlocale() doesnt seem to work as expected on windows, returns 'None'
-            self.logger.debug(f'Current locale is {current_locale}')
-        except locale.Error as e:
-            self.logger.debug(f"Error getting current locale : {str(e)}")
-            return table
-
-        lang = str(current_locale)
-        # check not already loaded, also all english variants and 'C' use the same month names
-        if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
-            self.logger.debug(f'Month names for {lang} already loaded')
-        else:
-            self.logger.debug(f'Loading month names for {lang}')
-            table[0].append(lang)
-            for f in range(1, 13):
-                table[f].append(unaccented(calendar.month_name[f]).lower())
-            table[0].append(lang)
-            for f in range(1, 13):
-                table[f].append(unaccented(calendar.month_abbr[f]).lower().strip('.'))
-            self.logger.info(
-                f"Added month names for locale [{lang}], {table[1][len(table[1]) - 2]}, "
-                f"{table[1][len(table[1]) - 1]} ...")
-
-        for lang in get_list(config['IMP_MONTHLANG']):
+        if len(get_list(config['IMP_MONTHLANG'])) > 0:  # any extra languages wanted?
             try:
-                if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
-                    self.logger.debug(f'Month names for {lang} already loaded')
-                else:
-                    locale.setlocale(locale.LC_ALL, lang)
-                    self.logger.debug(f'Loading month names for {lang}')
-                    table[0].append(lang)
-                    for f in range(1, 13):
-                        table[f].append(unaccented(calendar.month_name[f]).lower())
-                    table[0].append(lang)
-                    for f in range(1, 13):
-                        table[f].append(unaccented(calendar.month_abbr[f]).lower().strip('.'))
-                    locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
-                    self.logger.info(
-                        f"Added month names for locale [{lang}], {table[1][len(table[1]) - 2]}, "
-                        f"{table[1][len(table[1]) - 1]} ...")
-            except Exception as e:
-                locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
-                self.logger.warning(f"Unable to load requested locale [{lang}] {type(e).__name__} {str(e)}")
-                try:
-                    wanted_lang = lang.split('_')[0]
-                    params = ['locale', '-a']
-                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    all_locales = make_unicode(res).split()
-                    locale_list = []
-                    for a_locale in all_locales:
-                        if a_locale.startswith(wanted_lang):
-                            locale_list.append(a_locale)
-                    if locale_list:
-                        self.logger.warning(f"Found these alternatives: {str(locale_list)}")
-                    else:
-                        self.logger.warning("Unable to find an alternative")
-                except Exception as e:
-                    self.logger.warning(f"Unable to get a list of alternatives, {type(e).__name__} {str(e)}")
-                self.logger.debug(f"Set locale back to entry state {current_locale}")
+                current_locale = locale.setlocale(locale.LC_ALL, '')  # read current state.
+                if 'LC_CTYPE' in current_locale:
+                    current_locale = locale.setlocale(locale.LC_CTYPE, '')
+                # getdefaultlocale() doesnt seem to work as expected on windows, returns 'None'
+                self.logger.debug(f'Current locale is {current_locale}')
+            except locale.Error as e:
+                self.logger.debug(f"Error getting current locale : {str(e)}")
+                return [table, table]
 
-        # with open(json_file, 'w') as f:
-        #    json.dump(table, f)
-        return table
+            lang = str(current_locale)
+            # check not already loaded, also all english variants and 'C' use the same month names
+            if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
+                self.logger.debug(f'Month names for {lang} already loaded')
+            else:
+                self.logger.debug(f'Loading month names for {lang}')
+                table[0].append(lang)
+                for f in range(1, 13):
+                    table[f].append(calendar.month_name[f])
+                table[0].append(lang)
+                for f in range(1, 13):
+                    table[f].append(calendar.month_abbr[f])
+                self.logger.info(
+                    f"Added month names for locale [{lang}], {table[1][len(table[1]) - 2]}, "
+                    f"{table[1][len(table[1]) - 1]} ...")
+
+            for lang in get_list(config['IMP_MONTHLANG']):
+                try:
+                    if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
+                        self.logger.debug(f'Month names for {lang} already loaded')
+                    else:
+                        locale.setlocale(locale.LC_ALL, lang)
+                        self.logger.debug(f'Loading month names for {lang}')
+                        table[0].append(lang)
+                        for f in range(1, 13):
+                            table[f].append(calendar.month_name[f])
+                        table[0].append(lang)
+                        for f in range(1, 13):
+                            table[f].append(calendar.month_abbr[f])
+                        locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
+                        self.logger.info(
+                            f"Added month names for locale [{lang}], {table[1][len(table[1]) - 2]}, "
+                            f"{table[1][len(table[1]) - 1]} ...")
+                except Exception as e:
+                    locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
+                    self.logger.warning(f"Unable to load requested locale [{lang}] {type(e).__name__} {str(e)}")
+                    try:
+                        wanted_lang = lang.split('_')[0]
+                        params = ['locale', '-a']
+                        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                        all_locales = make_unicode(res).split()
+                        locale_list = []
+                        for a_locale in all_locales:
+                            if a_locale.startswith(wanted_lang):
+                                locale_list.append(a_locale)
+                        if locale_list:
+                            self.logger.warning(f"Found these alternatives: {str(locale_list)}")
+                        else:
+                            self.logger.warning("Unable to find an alternative")
+                    except Exception as e:
+                        self.logger.warning(f"Unable to get a list of alternatives, {type(e).__name__} {str(e)}")
+                    self.logger.debug(f"Set locale back to entry state {current_locale}")
+
+        # Create a second copy of the monthnames without accents and lowercased to speed up matching
+        cleantable = []
+        for lyne in table:
+            cleanlyne = []
+            for item in lyne:
+                cleanlyne.append(unaccented(item).lower().strip('.'))
+            cleantable.append(cleanlyne)
+
+        monthnames = [table, cleantable]
+        return monthnames
 
     def create_version_file(self, filename):
         # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR

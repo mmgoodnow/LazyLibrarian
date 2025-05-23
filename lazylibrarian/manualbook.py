@@ -130,7 +130,7 @@ def search_item(item=None, bookid=None, cat=None):
             if not size:
                 size = '1000'
             if date:
-                date = date_format(date, context=title)
+                date = date_format(date, context=title, datelang=CONFIG['DATE_LANG'])
             url = url.encode('utf-8')
             if mode == 'torznab':
                 # noinspection PyTypeChecker

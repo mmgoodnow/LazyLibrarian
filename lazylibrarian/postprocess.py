@@ -323,16 +323,17 @@ def process_issues(source_dir=None, title=''):
                     nouns.extend(get_list(CONFIG['MAG_TYPE']))
                     valid = True
                     for word in filename_words:
-                        if word.islower():  # contains ANY lowercase letters
-                            if word not in title_words and word not in nouns:
-                                valid = False
-                                for month in range(1, 13):
-                                    if word in lazylibrarian.MONTHNAMES[month]:
-                                        valid = True
-                                        break
-                                if not valid:
-                                    logger.debug(f"Rejecting {f}, strict, contains {word}")
+                        if word not in title_words and word not in nouns:
+                            cleanword = unaccented(word).lower()
+                            valid = False
+                            for month in range(1, 13):
+                                if (word in lazylibrarian.MONTHNAMES[0][month] or
+                                        cleanword in lazylibrarian.MONTHNAMES[1][month]):
+                                    valid = True
                                     break
+                            if not valid:
+                                logger.debug(f"Rejecting {f}, strict, contains {word}")
+                                break
                     if not valid:
                         found_title = False
 
@@ -3392,12 +3393,12 @@ def create_comic_opf(pp_path, data, global_name, overwrite=False):
     return create_opf(pp_path, data, global_name, overwrite=overwrite)
 
 
-def create_mag_opf(issuefile, authors, title, issue, issue_id, overwrite=False):
+def create_mag_opf(issuefile, authors, title, issue, issue_id, language='en', overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
     logger = logging.getLogger(__name__)
     logger.debug(
-        f"Creating opf with file:{issuefile} authors:{authors} title:{title} issue:{issue} issueid:{issue_id} "
-        f"overwrite:{overwrite}")
+        f"Creating opf with file:{issuefile} authors:{authors} title:{title} issue:{issue} "
+        f"issueid:{issue_id} language:{language} overwrite:{overwrite}")
     dest_path, global_name = os.path.split(issuefile)
     global_name = os.path.splitext(global_name)[0]
 
@@ -3406,8 +3407,10 @@ def create_mag_opf(issuefile, authors, title, issue, issue_id, overwrite=False):
     elif issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
         yr = issue[0:4]
         mn = issue[5:7]
-        month = lazylibrarian.MONTHNAMES[int(mn)][0]
-        iname = f"{title} - {month[0].upper()}{month[1:]} {yr}"  # The Magpi - January 2017
+        # monthnames for this month, eg ["January", "Jan", "enero", "ene"]
+        # we can change language using CONFIG['DISP_LANG'] and replace the final [0] with language column
+        month = lazylibrarian.MONTHNAMES[0][int(mn)][0]
+        iname = f"{title} - {month} {yr}"  # The Magpi - January 2017
     elif title in issue:
         iname = issue  # 0063 - Android Magazine -> 0063
     else:
@@ -3424,7 +3427,7 @@ def create_mag_opf(issuefile, authors, title, issue, issue_id, overwrite=False):
         'BookDesc': '',
         'BookIsbn': '',
         'BookDate': iss_acquired,
-        'BookLang': 'eng',
+        'BookLang': language,
         'BookImg': f"{global_name}.jpg",
         'BookPub': '',
         'Series': title,

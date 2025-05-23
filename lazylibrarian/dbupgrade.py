@@ -122,8 +122,9 @@ from lazylibrarian.scheduling import restart_jobs, SchedulerCommand
 # 83 Add hc_id to author and book tables
 # 84 merge into readinglists table, remove individual tables
 # 85 change seriesid to include source, to avoid collisions
+# 86 add language to magazine table
 
-db_current_version = 85
+db_current_version = 86
 
 
 def upgrade_needed():
@@ -1408,6 +1409,12 @@ def update_schema(db, upgradelog):
                 db.action(cmd, (seriesid, seriesid[2:]))
         db.action('PRAGMA foreign_keys = ON')
         db.action('vacuum')
+
+    if not has_column(db, "magazines", "Language"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding language to magazines tables'
+        upgradelog.write(f"{time.ctime()} v86: {lazylibrarian.UPDATE_MSG}\n")
+        db.action("ALTER TABLE magazines ADD COLUMN Language TEXT default 'en'")
 
     if changes:
         upgradelog.write(f"{time.ctime()} Changed: {changes}\n")

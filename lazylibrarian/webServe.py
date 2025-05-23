@@ -54,7 +54,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
     irc_dl_method
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
-    md5_utf8, date_format, check_year, replace_quotes_with, format_author_name, check_float, \
+    md5_utf8, date_format, check_year, strip_quotes, format_author_name, check_float, \
     thread_name, sanitize
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -185,6 +185,8 @@ def serve_template(templatename, **kwargs):
                     authorization = cherrypy.request.headers.get('Authorization')
                     if cookie and 'll_uid' in list(cookie.keys()):
                         res = db.match('SELECT * from users where UserID=?', (cookie['ll_uid'].value,))
+                        if not res:
+                            clear_our_cookies()
                     elif authorization and authorization.startswith('Basic '):
                         auth_bytes = authorization.split('Basic ')[1].encode('ascii')
                         value_bytes = base64.b64decode(auth_bytes)
@@ -193,7 +195,6 @@ def serve_template(templatename, **kwargs):
                         if ':' in values:
                             user, pwd = values.split(':', 1)
                             res = db.match('SELECT * from users where UserName=? and Password=?', (user, pwd))
-
                     if not res and CONFIG.get_bool('PROXY_AUTH'):
                         logger.debug('Proxy Auth enabled')
                         user = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_USER'))
@@ -571,7 +572,7 @@ class WebInterface:
                         arow[1] = surname_first(arow[1], postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     if CONFIG.get_bool('SORT_DEFINITE'):
                         arow[2] = sort_definite(arow[2], articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
-                    arow[3] = date_format(arow[3], '', f'{arow[1]}/{arow[2]}')
+                    arow[3] = date_format(arow[3], '', f'{arow[1]}/{arow[2]}', datelang=CONFIG['DATE_LANG'])
                     nrow = arow[:4]
                     havebooks = check_int(arow[7], 0)
                     totalbooks = check_int(arow[8], 0)
@@ -591,7 +592,7 @@ class WebInterface:
                     else:
                         css = 'success'
 
-                    arow[12] = replace_quotes_with(arow[12], '')
+                    arow[12] = strip_quotes(arow[12])
                     nrow.append(percent)
                     nrow.extend(arow[4:-2])
                     bar = ''
@@ -802,10 +803,6 @@ class WebInterface:
             logger.warning(msg)
             return msg
 
-        # is it a retry login (failed user/pass)
-        cookie = cherrypy.request.cookie
-        if not cookie or 'll_uid' not in list(cookie.keys()):
-            clear_our_cookies()
         username = ''
         password = ''
         res = {}
@@ -837,7 +834,7 @@ class WebInterface:
             finally:
                 db.close()
             lazylibrarian.SHOWLOGOUT = 1
-            return ''
+            msg = ''
         elif res:
             # anti-phishing. Block user if 3 failed passwords in a row.
             cnt = 0
@@ -1741,6 +1738,9 @@ class WebInterface:
                 datetype = mag['DateType']
                 if not datetype:
                     datetype = ""
+                language = mag['Language']
+                if not language:
+                    language = "en"
                 coverpage = check_int(mag['CoverPage'], 1)
                 mags_list.append({
                     'Title': title,
@@ -1748,7 +1748,8 @@ class WebInterface:
                     'Regex': regex,
                     'Genre': genre,
                     'DateType': datetype,
-                    'CoverPage': coverpage
+                    'CoverPage': coverpage,
+                    'Language': language
                 })
 
         BLOCKHANDLER.check_day()
@@ -1903,6 +1904,7 @@ class WebInterface:
                     genres = mag['Genre']
                     datetype = mag['DateType']
                     coverpage = check_int(mag['CoverPage'], 1)
+                    language = mag['Language']
                     # seems kwargs parameters from cherrypy are sometimes passed as latin-1,
                     # can't see how to configure it, so we need to correct it on accented magazine names
                     # eg "Elle Quebec" where we might have e-acute stored as unicode
@@ -1935,6 +1937,9 @@ class WebInterface:
                     new_coverpage = check_int(kwargs.get(f"coverpage[{title}]", None), 1)
                     if not new_coverpage == coverpage:
                         new_value_dict['CoverPage'] = new_coverpage
+                    new_language = kwargs.get(f'language[{title}]', None)
+                    if not new_language == language:
+                        new_value_dict['Language'] = new_language
                     if new_value_dict:
                         count += 1
                         db.upsert("magazines", new_value_dict, {'Title': title})
@@ -2160,8 +2165,10 @@ class WebInterface:
         if not authorname:  # still loading?
             raise cherrypy.HTTPRedirect("authors")
 
-        author['AuthorBorn'] = date_format(author['AuthorBorn'], CONFIG['AUTHOR_DATE_FORMAT'], context=authorname)
-        author['AuthorDeath'] = date_format(author['AuthorDeath'], CONFIG['AUTHOR_DATE_FORMAT'], context=authorname)
+        author['AuthorBorn'] = date_format(author['AuthorBorn'], CONFIG['AUTHOR_DATE_FORMAT'],
+                                           context=authorname, datelang=CONFIG['DATE_LANG'])
+        author['AuthorDeath'] = date_format(author['AuthorDeath'], CONFIG['AUTHOR_DATE_FORMAT'],
+                                            context=authorname, datelang=CONFIG['DATE_LANG'])
 
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]), author=author,
@@ -2900,9 +2907,11 @@ class WebInterface:
                         row[13] = row[15]
 
                     # Need to pass bookid and status twice for legacy as datatables modifies first one
-                    thisrow = [row[6], row[0], row[1], title, row[12], bookrate, date_format(row[4], context=row[6]),
+                    thisrow = [row[6], row[0], row[1], title, row[12], bookrate,
+                               date_format(row[4], context=row[6], datelang=CONFIG['DATE_LANG']),
                                row[5], row[11], row[6],
-                               date_format(row[13], CONFIG['DATE_FORMAT'], context=row[6]),
+                               date_format(row[13], CONFIG['DATE_FORMAT'], context=row[6],
+                                           datelang=CONFIG['DATE_LANG']),
                                row[5], row[16], flag]
 
                     if kwargs['source'] == "Manage":
@@ -2919,7 +2928,8 @@ class WebInterface:
                             thisrow.append('')
                     elif kwargs['source'] == 'Author':
                         thisrow.append(row[14])
-                        thisrow.append(date_format(row[15], CONFIG['DATE_FORMAT'], context=row[6]))
+                        thisrow.append(date_format(row[15], CONFIG['DATE_FORMAT'], context=row[6],
+                                                   datelang=CONFIG['DATE_LANG']))
 
                     thisrow.append(row[18])
                     thisrow.append(row[19])
@@ -3597,7 +3607,7 @@ class WebInterface:
                     # use None to clear date
                     # Leave unchanged if fails datecheck
                     if authorborn is not None:
-                        ab = date_format(authorborn, context=authorname)
+                        ab = date_format(authorborn, context=authorname, datelang=CONFIG['DATE_LANG'])
                         if len(ab) == 10:
                             authorborn = ab
                         else:
@@ -3606,7 +3616,7 @@ class WebInterface:
                             edited = edited.replace('Born ', '')
 
                     if authordeath is not None:
-                        ab = date_format(authordeath, context=authorname)
+                        ab = date_format(authordeath, context=authorname, datelang=CONFIG['DATE_LANG'])
                         if len(ab) == 10:
                             authordeath = ab
                         else:
@@ -4656,7 +4666,7 @@ class WebInterface:
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
                                 row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
-                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
                             if check_year(row[5][:4]):
@@ -4666,7 +4676,7 @@ class WebInterface:
                         elif len(row[5]) == 12:
                             row[5] = f'Vol {int(row[5][4:8])} #{int(row[5][8:])} {row[5][:4]}'
                     else:
-                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'], context=row[0])
+                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
 
             loggerserverside.debug(f"get_comics returning {displaystart} to {displaystart + displaylength}")
             loggerserverside.debug(f"get_comics filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
@@ -4864,8 +4874,8 @@ class WebInterface:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
-                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0])
-                row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0])
+                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
+                row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
 
             loggerserverside.debug(f"get_comic_issues returning {displaystart} to {displaystart + displaylength}")
             loggerserverside.debug(f"get_comic_issues filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
@@ -4894,7 +4904,7 @@ class WebInterface:
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("comics")
         else:
-            title = replace_quotes_with(title, '')
+            title = strip_quotes(title)
             db = database.DBConnection()
             try:
                 exists = db.match('SELECT Title from comics WHERE Title=?', (title,))
@@ -4947,12 +4957,12 @@ class WebInterface:
 
         self.validate_param("comicid", comicid, ['<', '&', '>', '=', '"', "'", '+', '(', ')'], 404)
         db = database.DBConnection()
+        match = False
         try:
             exists = db.match('SELECT Title from comics WHERE ComicID=?', (comicid,))
             if exists:
                 logger.debug(f"Comic {exists['Title']} already exists ({exists['comicid']})")
             else:
-                match = False
                 try:
                     for item in comicresults:
                         if item['seriesid'] == comicid:
@@ -4977,6 +4987,8 @@ class WebInterface:
                     logger.warning(msg)
                     raise cherrypy.HTTPError(404, msg)
         finally:
+            if match and CONFIG.get_bool('IMP_AUTOSEARCH'):
+                self.start_comic_search(comicid)
             db.close()
         if kwargs.get('comicfilter'):
             raise cherrypy.HTTPRedirect("comics?comic_filter=" + kwargs.get('comicfilter'))
@@ -5205,7 +5217,7 @@ class WebInterface:
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
                 for row in rows:
-                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
                             if check_year(row[5][:4]):
@@ -5215,7 +5227,7 @@ class WebInterface:
                         elif len(row[5]) == 12:
                             row[5] = f'Vol {int(row[5][4:8])} #{int(row[5][8:])} {row[5][:4]}'
                     else:
-                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'], context=row[0])
+                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
 
                     if not row[1] or not row[1].startswith('cache/'):
                         row[1] = 'images/nocover.jpg'
@@ -5459,7 +5471,7 @@ class WebInterface:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
-                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0])
+                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
                 if row[2] and row[2].isdigit():
                     if len(row[2]) == 8:
                         # Year/Issue or Volume/Issue with no year
@@ -5470,7 +5482,7 @@ class WebInterface:
                     elif len(row[2]) == 12:
                         row[2] = f'Vol {int(row[2][4:8])} #{int(row[2][8:])} {row[2][:4]}'
                 else:
-                    row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0])
+                    row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
                 if perm & lazylibrarian.perm_edit:
                     row[2] = row[2] + '<br><a href="edit_issue?issueid=' + row[4] + '"><small><i>Edit</i></a>'
 
@@ -5520,16 +5532,19 @@ class WebInterface:
         magtitle = kwargs.get('magtitle')
         issuenum = kwargs.get('issuenum')
         db = database.DBConnection()
-        magazine = db.match("SELECT * from magazines WHERE Title=? COLLATE NOCASE", (magtitle,))
-        issue = db.match("SELECT Title,IssueDate,ISsueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
-        db.close()
-        redirect = issue['Title']
+        magazine = db.match("SELECT DateType,IssueDate from magazines WHERE Title=? COLLATE NOCASE", (magtitle,))
         datetype = magazine['DateType']
+        mostrecentissue = magazine['IssueDate']
+        issue = db.match("SELECT Title,IssueDate,ISsueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
+        redirect = issue['Title']
+
         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
         issuenum_exploded = replace_all(issuenum, dic).split()
         issuenum_type, issuedate, year = get_issue_date(issuenum_exploded, datetype=datetype)
 
-        if issuenum_type:
+        if not issuenum_type:
+            issuenum = ''
+        else:
             logger.debug(f'Issue {issuedate} (regex {issuenum_type}) for {issuenum}, {datetype}')
             datetype_ok = True
 
@@ -5539,25 +5554,22 @@ class WebInterface:
 
                 if 'M' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 12]:
                     datetype_ok = False
-                elif 'D' in datetype and issuenum_type not in [3, 5, 6]:
+                if 'D' in datetype and issuenum_type not in [3, 5, 6]:
                     datetype_ok = False
-                elif 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
+                if 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
                     datetype_ok = False
-                elif 'V' in datetype and 'I' in datetype and issuenum_type not in [8, 9, 17, 18]:
+                if 'V' in datetype and issuenum_type not in [2, 8, 9, 10, 11, 12, 13, 14, 17, 18]:
                     datetype_ok = False
-                elif 'V' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 17, 18]:
+                if 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
                     datetype_ok = False
-                elif 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
-                    datetype_ok = False
-                elif 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
-                                                               12, 13, 15, 16, 18]:
-                    datetype_ok = False
-                else:
+                if 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
+                                                             12, 13, 15, 16, 18]:
                     datetype_ok = False
 
             if not datetype_ok:
                 response = f'Date {issuenum} not in a recognised date format [{datetype}]'
                 logger.debug(response)
+                db.close()
                 raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
 
             if issuedate.isdigit() and 'I' in datetype:
@@ -5565,15 +5577,17 @@ class WebInterface:
                 if 'Y' in datetype:
                     issuedate = year + issuedate
 
-            issuenum = date_format(issuedate, "$Y-$m-$d", context=f"{kwargs.get('magtitle')}/{kwargs.get('issuenum')}")
+            issuenum = date_format(issuedate, "$Y-$m-$d",
+                                   context=f"{kwargs.get('magtitle')}/{kwargs.get('issuenum')}",
+                                   datelang=CONFIG['DATE_LANG'])
 
         if not magtitle and issuenum:
             response = (f"Issue {issue['IssueDate']} of {issue['Title']} is unchanged. "
                         f"Insufficient information, need Title and valid IssueNum/Date")
             logger.debug(response)
+            db.close()
             raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
 
-        db = database.DBConnection()
         try:
             edited = ''
             if issue["Title"] != magtitle:
@@ -5658,7 +5672,6 @@ class WebInterface:
                         logger.debug(f"Removing empty directory {old_path}")
                         os.rmdir(old_path)
 
-                    mostrecentissue = magazine['IssueDate']
                     if mostrecentissue:
                         if mostrecentissue.isdigit() and str(issuenum).isdigit():
                             older = (int(mostrecentissue) > int(issuenum))  # issuenumber
@@ -6263,7 +6276,7 @@ class WebInterface:
                 title = title.split('~', 1)[0].strip()
 
             # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-            title = replace_quotes_with(title, "'")
+            title = replace_all(title, lazylibrarian.DICTS.get('apostrophe_dict', {}))
             title_exploded = title.split()
             # replace symbols by words
             new_title = []
@@ -6800,7 +6813,7 @@ class WebInterface:
                         row.append(-1)
                     row.append(rowid)
                     row.append(row[4])  # keep full datetime for tooltip
-                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
 
                     if row[1] in ['eBook', 'AudioBook']:
                         btn = '<button onclick="bookinfo(\'' + row[2]

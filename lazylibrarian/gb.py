@@ -28,7 +28,7 @@ from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_
 from lazylibrarian.cache import json_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
-    get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, thread_name
+    get_list, clean_name, make_unicode, make_utf8bytes, strip_quotes, thread_name
 from lazylibrarian.hc import HardCover
 from lazylibrarian.images import cache_bookimg
 from lazylibrarian.images import get_book_cover
@@ -86,7 +86,7 @@ class GoogleBooks:
                         title = title.split(' (')[0]  # without any series info
                         searchterm = title
                     # strip all ascii and non-ascii quotes/apostrophes
-                    searchterm = replace_quotes_with(searchterm, '')
+                    searchterm = strip_quotes(searchterm)
                     set_url += quote(make_utf8bytes(f"{api_value}\"{searchterm}\"")[0])
                 elif api_value == 'inauthor:':
                     searchterm = fullterm

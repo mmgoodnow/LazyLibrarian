@@ -65,7 +65,9 @@ def get_current_userid():
     if 'll_uid' in list(cookie.keys()):
         userid = cookie['ll_uid'].value
     else:
-        msg = 'No current userid'
+        msg = 'No current lazylibrarian userid'
+        if not CONFIG.get_bool('USER_ACCOUNTS'):
+            msg += ', you need to enable user accounts in LazyLibrarian for this feature'
     return userid, msg
 
 
@@ -997,7 +999,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
             bookdict['publish_date'] = ''
         else:
             bookdict['publish_date'] = date_format(bookdict['publish_date'],
-                                                   context=f"{bookdict['auth_name']}/{bookdict['title']}")
+                                                   context=f"{bookdict['auth_name']}/{bookdict['title']}",
+                                                   datelang=CONFIG['DATE_LANG'])
         bookdict['first_publish_year'] = book_data.get('release_year', '')
         bookgenre = ''
         genres = []
@@ -1070,7 +1073,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
             bookdict['publish_date'] = ''
         else:
             bookdict['publish_date'] = date_format(bookdict['publish_date'],
-                                                   context=f"{bookdict['auth_name']}/{bookdict['title']}")
+                                                   context=f"{bookdict['auth_name']}/{bookdict['title']}",
+                                                   datelang=CONFIG['DATE_LANG'])
         bookdict['first_publish_year'] = book_data.get('release_year', '')
         bookgenre = ''
         genres = []

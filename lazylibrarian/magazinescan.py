@@ -161,8 +161,8 @@ def magazine_scan(title=None):
                         datetype = ''
 
                         # is this magazine already in the database?
-                        cmd = ("SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage,DateType from magazines "
-                               "WHERE Title=? COLLATE NOCASE")
+                        cmd = ("SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage,DateType,Language "
+                               "from magazines WHERE Title=? COLLATE NOCASE")
                         mag_entry = db.match(cmd, (title,))
                         if mag_entry:
                             datetype = mag_entry['DateType']
@@ -217,7 +217,8 @@ def magazine_scan(title=None):
                                 "IssueDate": None,
                                 "IssueStatus": "Skipped",
                                 "Regex": None,
-                                "CoverPage": 1
+                                "CoverPage": 1,
+                                "Language": "en",
                             }
                             logger.debug(f"Adding magazine {title}")
                             db.upsert("magazines", new_value_dict, control_value_dict)
@@ -225,6 +226,7 @@ def magazine_scan(title=None):
                             magazineadded = None
                             maglastacquired = None
                             magcoverpage = 1
+                            maglanguage = "en"
                         else:
                             title = mag_entry['Title']
                             maglastacquired = mag_entry['LastAcquired']
@@ -232,6 +234,7 @@ def magazine_scan(title=None):
                             magazineadded = mag_entry['MagazineAdded']
                             magissuedate = str(magissuedate).zfill(4)
                             magcoverpage = mag_entry['CoverPage']
+                            maglanguage = mag_entry['Language']
 
                         if CONFIG.get_bool('MAG_RENAME'):
                             filedate = issuedate
@@ -326,7 +329,7 @@ def magazine_scan(title=None):
                             else:
                                 authors = 'magazines'
                             lazylibrarian.postprocess.create_mag_opf(issuefile, authors, title, issuedate,
-                                                                     issue_id, overwrite=new_entry)
+                                                                     issue_id, maglanguage, overwrite=new_entry)
 
                         # see if this issues date values are useful
                         control_value_dict = {"Title": title}
@@ -402,8 +405,9 @@ def format_issue_name(base, mag_title, issue_date):
         mydict['IssueDay'] = issue_date[8:]
     if mydict['IssueNum'] and mydict['IssueNum'].isdigit():
         if 0 < int(mydict['IssueNum']) < 13:
-            monthname = lazylibrarian.MONTHNAMES[int(mydict['IssueNum'])]
-            mydict['IssueMonth'] = monthname[1].title()
+            # monthnames for this month, eg ["January", "Jan", "enero", "ene"]
+            # could change language here to match CONFIG['Date_Lang'] by changing the final [1]
+            mydict['IssueMonth'] = lazylibrarian.MONTHNAMES[0][int(mydict['IssueNum'])][1]
 
     if base == CONFIG['MAG_DEST_FOLDER']:
         valid_format = True

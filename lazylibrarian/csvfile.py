@@ -120,7 +120,8 @@ def restore_table(table, savedir=None, status=None):
                                       "Status": item['Status'],
                                       "MagazineAdded": item['MagazineAdded'],
                                       "IssueStatus": item['IssueStatus'],
-                                      "CoverPage": item['CoverPage']}
+                                      "CoverPage": item['CoverPage'],
+                                      "Language": item['Language']}
                     db.upsert("magazines", new_value_dict, control_value_dict)
                     count += 1
 

@@ -240,7 +240,7 @@ def nzbdate2format(nzbdate):
         return "1970-01-01"
 
 
-def date_format(datestr, formatstr="$Y-$m-$d", context=''):
+def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
     # return date formatted in requested style
     # $d	Day of the month as a zero-padded decimal number
     # $b	Month as abbreviated name
@@ -351,8 +351,15 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
         '$d', d)
     try:
         if '$B' in formatstr or '$b' in formatstr:
-            monthname = lazylibrarian.MONTHNAMES[int(m)]
-            formattedstr = formattedstr.replace('$B', monthname[0].title()).replace('$b', monthname[1].title())
+            lang = 0
+            cnt = 0
+            while cnt < len(lazylibrarian.MONTHNAMES[0][0]):
+                if lazylibrarian.MONTHNAMES[0][0][cnt] == datelang:
+                    lang = cnt
+                    break
+                cnt += 1
+            monthname = lazylibrarian.MONTHNAMES[0][int(m)]
+            formattedstr = formattedstr.replace('$B', monthname[lang]).replace('$b', monthname[lang + 1])
         return formattedstr
     except (NameError, IndexError):
         logger.error(f"Invalid datestr [{datestr}] for {formatstr}")
@@ -366,20 +373,20 @@ def month2num(month):
      - or given a season name (only in English)
     """
 
-    month = unaccented(month).lower()
+    cleanmonth = unaccented(month).lower()
     for f in range(1, 13):
-        if month in lazylibrarian.MONTHNAMES[f]:
+        if month in lazylibrarian.MONTHNAMES[0][f] or cleanmonth in lazylibrarian.MONTHNAMES[1][f]:
             return f
 
-    if month == "winter":
+    if cleanmonth == "winter":
         return 1
-    elif month == "spring":
+    elif cleanmonth == "spring":
         return 4
-    elif month == "summer":
+    elif cleanmonth == "summer":
         return 7
-    elif month in ["fall", "autumn"]:
+    elif cleanmonth in ["fall", "autumn"]:
         return 10
-    elif month == "christmas":
+    elif cleanmonth == "christmas":
         return 12
     else:
         return 0
@@ -858,52 +865,15 @@ def replace_all(text, dic):
     return text
 
 
-def replace_quotes_with(text, char):
+def strip_quotes(text):
     """
-    Replaces every occurrence of quote characters in "text"
-    with char - which can be blank to remove them
+    Strips every occurrence of quote characters in "text"
     """
     if not text:
         return ''
-    replaces = re.compile(f"[{re.escape(''.join(quotes))}]")
-    return replaces.sub(char, text)
-
-
-# list of all ascii and non-ascii quotes/apostrophes
-# quote list: https://en.wikipedia.org/wiki/Quotation_mark
-
-quotes = [
-    u'\u0022',  # quotation mark (")
-    u'\u0027',  # apostrophe (')
-    u'\u0060',  # grave-accent
-    u'\u00ab',  # left-pointing double-angle quotation mark
-    u'\u00bb',  # right-pointing double-angle quotation mark
-    u'\u2018',  # left single quotation mark
-    u'\u2019',  # right single quotation mark
-    u'\u201a',  # single low-9 quotation mark
-    u'\u201b',  # single high-reversed-9 quotation mark
-    u'\u201c',  # left double quotation mark
-    u'\u201d',  # right double quotation mark
-    u'\u201e',  # double low-9 quotation mark
-    u'\u201f',  # double high-reversed-9 quotation mark
-    u'\u2039',  # single left-pointing angle quotation mark
-    u'\u203a',  # single right-pointing angle quotation mark
-    u'\u300c',  # left corner bracket
-    u'\u300d',  # right corner bracket
-    u'\u300e',  # left white corner bracket
-    u'\u300f',  # right white corner bracket
-    u'\u301d',  # reversed double prime quotation mark
-    u'\u301e',  # double prime quotation mark
-    u'\u301f',  # low double prime quotation mark
-    u'\ufe41',  # presentation form for vertical left corner bracket
-    u'\ufe42',  # presentation form for vertical right corner bracket
-    u'\ufe43',  # presentation form for vertical left corner white bracket
-    u'\ufe44',  # presentation form for vertical right corner white bracket
-    u'\uff02',  # fullwidth quotation mark
-    u'\uff07',  # fullwidth apostrophe
-    u'\uff62',  # halfwidth left corner bracket
-    u'\uff63',  # halfwidth right corner bracket
-]
+    for item in lazylibrarian.DICTS.get('apostrophe_dict', {}):
+        text = text.replace(item, '')
+    return text
 
 
 def replacevars(base, mydict):
@@ -928,7 +898,7 @@ def replacevars(base, mydict):
 
     for item in vardict:
         if item[1:] in mydict:
-            base = base.replace(item, mydict[item[1:]].replace(os.path.sep, '_'))
+            base = base.replace(item, mydict[item[1:]])
     base = base.replace('$$', ' ')
     loggermatching.debug(base)
     return base
