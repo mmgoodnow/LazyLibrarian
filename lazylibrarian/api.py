@@ -148,7 +148,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
-            'getAllBooks': (0, '[&sort=] [&limit=] list all books in the database'),
+            'getAllBooks': (0, '[&sort=] [&limit=] [&status=] [&audiostatus=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
             'listNoISBN': (0, 'list all books in the database with no isbn'),
@@ -1505,10 +1505,16 @@ class Api(object):
         TELEMETRY.record_usage_data()
         self.limit = kwargs.get('limit')
         self.sort = kwargs.get('sort')
+        self.status = kwargs.get('status')
+        self.audiostatus = kwargs.get('audiostatus')
         q = '''SELECT authors.AuthorID,AuthorName,AuthorLink,BookName,BookSub,BookGenre,BookIsbn,BookPub,
                 BookRate,BookImg,BookPages,BookLink,BookID,BookDate,BookLang,BookAdded,books.Status,
                 audiostatus,booklibrary,audiolibrary from books,authors where books.AuthorID = authors.AuthorID'''
 
+        if self.status:
+            q += f" and books.Status='{self.status}'"
+        if self.audiostatus:
+            q += f" and books.AudioStatus='{self.audiostatus}'"
         if self.sort:
             q += f' order by {self.sort}'
         if self.limit and self.limit.isnumeric():
