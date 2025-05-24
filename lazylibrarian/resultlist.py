@@ -95,11 +95,10 @@ def find_best_result(resultlist, book, searchtype, source):
 
         if source == 'nzb':
             prefix = 'nzb'
-        else:  # rss and libgen return same names as torrents
+        else:  # rss and direct providers return same names as torrents
             prefix = 'tor_'
 
         logger.debug(f'Searching {len(resultlist)} {source} results for best {auxinfo} match')
-
         matches = []
         ignored_messages = []
         for res in resultlist:
@@ -188,10 +187,12 @@ def find_best_result(resultlist, book, searchtype, source):
                         logger.debug(ignore_msg)
 
             if not rejected:
-                if source == 'irc' and not url.startswith('!'):
-                    rejected = True
-                elif res[prefix + 'prov'] in ['zlibrary', 'soulseek'] and '^' not in url:
-                    rejected = True
+                if source == 'irc':
+                    if not url.startswith('!'):
+                        rejected = True
+                elif res[prefix + 'prov'] in ['zlibrary', 'soulseek']:
+                    if '^' not in url:
+                        rejected = True
                 elif res[prefix + 'prov'] == 'annas':
                     # annas gives us an id in hex, verify we got hex digits
                     try:
