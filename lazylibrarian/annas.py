@@ -10,11 +10,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-# Heavily modified from code found at https://pypi.org/project/annas-py/annas_py-0.1.0
+# Heavily modified from code found at https://pypi.org/project/annas-py
 
 import json
 import logging
 import os
+import sys
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -32,22 +33,25 @@ from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
 from lazylibrarian.formatter import md5_utf8, plural, check_int, size_in_bytes, get_list, sanitize
 
 
-@dataclass(slots=True)
+py310 = sys.version_info >= (3, 10)
+
+
+@dataclass(**({"slots": True} if py310 else {}))
 class FileInfo:
     extension: str
     size: str
-    language: str | None
+    language: str
 
 
-@dataclass(slots=True)
+@dataclass(**({"slots": True} if py310 else {}))
 class SearchResult:
     id: str
     title: str
     authors: str
     file_info: FileInfo
-    thumbnail: str | None
-    publisher: str | None
-    publish_date: str | None
+    thumbnail: str
+    publisher: str
+    publish_date: str
 
 
 class OrderBy(Enum):
@@ -145,7 +149,7 @@ def extract_file_info(raw: str) -> FileInfo:
     # English [en], .pdf, 🚀/ia, 14.9MB, 📗 Book (unknown), ia/londonrules0000herr_q7j9.pdf
 
     info_list = raw.split(", ")
-    language = None
+    language = ''
     if "[" in info_list[0]:
         language = info_list.pop(0)
     extension = info_list.pop(0)
@@ -155,7 +159,7 @@ def extract_file_info(raw: str) -> FileInfo:
     return FileInfo(extension, size, language)
 
 
-def extract_publish_info(raw: str) -> tuple[str | None, str | None]:
+def extract_publish_info(raw: str) -> tuple[str, str]:
     # Sample data:
     #  John Wiley and Sons; Wiley (Blackwell Publishing); Blackwell Publishing Inc.;
     #  Wiley; JSTOR (ISSN 0020-6598), International Economic Review, #2, 45, pages 327-350, 2004 may
@@ -166,10 +170,10 @@ def extract_publish_info(raw: str) -> tuple[str | None, str | None]:
     #  2008
 
     if raw.strip() == "":
-        return None, None
+        return '', ''
     info = [i for i in raw.split(", ") if i.strip()]
     last_info = info[-1].split()
-    date = None
+    date = ''
     if last_info[0].isdecimal() and last_info[0] != "0":
         info.pop()
         date = last_info.pop(0)
@@ -177,7 +181,7 @@ def extract_publish_info(raw: str) -> tuple[str | None, str | None]:
             date = " ".join(last_info) + " of " + date
         elif info and info[-1].isdecimal():
             date = info.pop() + ", " + date
-    publisher = ", ".join(info) or None
+    publisher = ", ".join(info) or ''
     return publisher, date
 
 
@@ -231,7 +235,7 @@ def annas_search(
     return hashfilename
 
 
-def parse_result(raw_content: Tag) -> SearchResult | None:
+def parse_result(raw_content: Tag) -> SearchResult:
     try:
         title = raw_content.find("h3").text.strip()
     except AttributeError:
@@ -248,9 +252,9 @@ def parse_result(raw_content: Tag) -> SearchResult | None:
         publish_date = ''
         publisher = ''
     try:
-        thumbnail = raw_content.find("img").get("src") or None
+        thumbnail = raw_content.find("img").get("src") or ''
     except AttributeError:
-        thumbnail = None
+        thumbnail = ''
     hashid = raw_content.get("href").split("md5/")[-1]
 
     raw_file_info = raw_content.find(
@@ -268,7 +272,7 @@ def parse_result(raw_content: Tag) -> SearchResult | None:
         authors=html_unescape(authors),
         file_info=file_info,
         thumbnail=thumbnail,
-        publisher=html_unescape(publisher) if publisher else None,
+        publisher=html_unescape(publisher) if publisher else '',
         publish_date=publish_date,
     )
     return res
