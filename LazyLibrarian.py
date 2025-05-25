@@ -26,7 +26,7 @@ from lazylibrarian import startup, webStart
 from lazylibrarian.formatter import thread_name
 from lazylibrarian.cleanup import UNBUNDLER
 
-MIN_PYTHON_VERSION = (3, 7)
+MIN_PYTHON_VERSION = (3, 8)
 
 if sys.version_info < MIN_PYTHON_VERSION:
     sys.stderr.write("This version of Lazylibrarian requires Python %d.%d or later.\n" % MIN_PYTHON_VERSION)
