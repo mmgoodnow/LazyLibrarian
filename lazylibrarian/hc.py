@@ -1603,6 +1603,52 @@ query FindAuthor { authors_by_pk(id: [authorid])
                      bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
                      bookdict['book_status'], '', bookdict['audio_status'], reason,
                      bookdict['first_publish_year'], bookdict['bookid']))
+                
+                # Handle series data if present
+                if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):
+                    for item in bookdict['series']:
+                        ser_name = item[0].strip()
+                        ser_id = f"HC{str(item[1])}"
+                        exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
+                        if not exists:
+                            exists = db.match("SELECT * from series WHERE seriesname=? "
+                                              "and instr(seriesid, 'HC') = 1", (ser_name,))
+                            if exists:
+                                ser_id = exists['SeriesID']
+                        if not exists:
+                            self.logger.debug(f"New series: {ser_id}:{ser_name}: {CONFIG['NEWSERIES_STATUS']}")
+                            db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
+                                      'Updated, Reason) VALUES (?,?,?,?,?)',
+                                      (ser_id, ser_name, CONFIG['NEWSERIES_STATUS'], time.time(), ser_name))
+                            db.commit()
+
+                        # Add author to series
+                        authmatch = db.match(f"SELECT * from seriesauthors WHERE "
+                                             f"SeriesID=? and AuthorID=?", (ser_id, auth_id))
+                        if not authmatch:
+                            self.logger.debug(f"Adding {auth_name} as series author for {ser_name}")
+                            db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
+                                      (ser_id, auth_id), suppress='UNIQUE')
+
+                        # Add book to series
+                        match = db.match(f"SELECT * from member WHERE SeriesID=? AND BookID=?",
+                                         (ser_id, bookdict['bookid']))
+                        if not match:
+                            self.logger.debug(f"Inserting new member [{item[2]}] for {ser_id}")
+                            db.action(
+                                f"INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
+                                (ser_id, bookdict['bookid'], '', item[2]), suppress='UNIQUE')
+                        
+                        # Update series total
+                        ser = db.match(
+                            f"select count(*) as counter from member where seriesid=?",
+                            (ser_id,))
+                        if ser:
+                            counter = check_int(ser['counter'], 0)
+                            db.action("UPDATE series SET Total=? WHERE SeriesID=?",
+                                      (counter, ser_id))
+                
+                self.logger.info(f"{bookdict['title']} by {auth_name} added to the books database, {bookdict['book_status']}/{bookdict['audio_status']}")
             db.close()
 
         return
