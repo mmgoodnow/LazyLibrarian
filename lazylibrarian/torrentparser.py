@@ -351,7 +351,7 @@ def torrent_kat(book=None, test=False):
                     except IndexError:
                         title = td[0].text
                     title = re.sub('<[^<]+?>', '', title).strip()  # remove embedded html tags
-                    title = unaccented(title, only_ascii=False, umlauts=False)
+                    title = unaccented(title, only_ascii=False)
                     try:
                         prov_page = host + \
                                     str(td[0]).split('class="torrentname"')[1].split('href="', 1)[1].split('"')[0]
@@ -461,7 +461,7 @@ def torrent_lime(book=None, test=False):
         if len(d.entries):
             for item in d.entries:
                 try:
-                    title = unaccented(item['title'], only_ascii=False, umlauts=False)
+                    title = unaccented(item['title'], only_ascii=False)
                     try:
                         seeders = item['description']
                         seeders = int(seeders.split('Seeds:')[1].split(' ,')[0].replace(',', '').strip())

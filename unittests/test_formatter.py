@@ -513,24 +513,6 @@ class FormatterTest(LLTestCaseWithStartup):
                 authorname = formatter.format_author_name(name[0], postfix=postfix)
                 self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
-    def test_no_umlauts(self):
-        teststrings = [
-            ('Test ' + u'\xe4', 'Test ae'),
-            ('Test ' + u'\xf6', 'Test oe'),
-            ('Test ' + u'\xfc', 'Test ue'),
-            ('Test ' + u'\xc4', 'Test Ae'),
-            ('Test ' + u'\xd6', 'Test Oe'),
-            ('Test ' + u'\xdc', 'Test Ue'),
-            ('Test ' + u'\xdf', 'Test ss'),
-        ]
-        # no_umlauts only does something if German is a language used
-        # First test that nothing changes without German
-        formatter.ImportPrefs.lang_changed('en, da,languageX')
-        for s in teststrings:
-            self.assertEqual(formatter.no_umlauts(s[0]), s[0])
-        formatter.ImportPrefs.lang_changed('en, de, fr')
-        for s in teststrings:
-            self.assertEqual(formatter.no_umlauts(s[0]), s[1])
 
     def test_disp_name(self):
         # Add some dummy data to test on

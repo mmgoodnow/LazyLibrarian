@@ -36,7 +36,7 @@ def search_item(item=None, bookid=None, cat=None):
 
     logger = logging.getLogger(__name__)
     book = {}
-    searchterm = unaccented(item, only_ascii=False, umlauts=False)
+    searchterm = unaccented(item, only_ascii=False)
 
     book['searchterm'] = searchterm
     if bookid:

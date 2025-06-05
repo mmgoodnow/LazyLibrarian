@@ -33,7 +33,7 @@ from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.directparser import direct_gen, direct_bok, bok_grabs
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
-    make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num, md5_utf8
+    make_unicode, seconds_to_midnight, make_utf8bytes, month2num, md5_utf8
 from lazylibrarian.ircbot import irc_query, irc_results
 from lazylibrarian.soulseek import slsk_search
 from lazylibrarian.annas import anna_search
@@ -699,7 +699,6 @@ def iterate_over_torrent_sites(book=None, search_type=None):
             book['searchterm'] = bookname
         else:
             book['searchterm'] = f"{authorname} {bookname}"
-        book['searchterm'] = no_umlauts(book['searchterm'])
 
     for prov in ['KAT', 'TPB', 'TDL', 'LIME', 'ABB']:
         iterateproviderslogger.debug(f"DLTYPES: {prov}: {CONFIG[prov]} {CONFIG[prov + '_DLTYPES']}")
@@ -2208,7 +2207,7 @@ def return_search_structure(provider: ConfigDict, api_key, book, search_type, se
     params = None
     if search_type in ["book", "shortbook", 'titlebook']:
         authorname, bookname = get_searchterm(book, search_type)
-        bookname = no_umlauts(bookname)
+
         if provider['BOOKSEARCH'] and provider['BOOKCAT']:  # if specific booksearch, use it
             if provider['BOOKSEARCH'] == 'bibliotik':
                 params = {
@@ -2234,7 +2233,7 @@ def return_search_structure(provider: ConfigDict, api_key, book, search_type, se
             }
     elif search_type in ["audio", "shortaudio"]:
         authorname, bookname = get_searchterm(book, search_type)
-        bookname = no_umlauts(bookname)
+
         if provider['AUDIOSEARCH'] and provider['AUDIOCAT']:  # if specific audiosearch, use it
             params = {
                 "t": provider['AUDIOSEARCH'],
@@ -2268,13 +2267,13 @@ def return_search_structure(provider: ConfigDict, api_key, book, search_type, se
     else:
         if provider['GENERALSEARCH']:
             if "shortgeneral" in search_type:
-                searchterm = unaccented(book['searchterm'].split('(')[0], only_ascii=False, umlauts=False)
+                searchterm = unaccented(book['searchterm'].split('(')[0], only_ascii=False)
                 searchterm = searchterm.replace('/', '_').replace('#', '_').replace(':', '')
             elif 'title' in search_type:
                 _, searchterm = get_searchterm(book, search_type)
-                searchterm = unaccented(searchterm.replace(':', ''), only_ascii=False, umlauts=False)
+                searchterm = unaccented(searchterm.replace(':', ''), only_ascii=False)
             else:
-                searchterm = unaccented(book['searchterm'], only_ascii=False, umlauts=False)
+                searchterm = unaccented(book['searchterm'], only_ascii=False)
                 searchterm = searchterm.replace('/', '_').replace('#', '_').replace(':', '')
             params = {
                 "t": provider['GENERALSEARCH'],

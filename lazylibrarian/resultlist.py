@@ -76,7 +76,7 @@ def find_best_result(resultlist, book, searchtype, source):
             author, title = get_searchterm(book, searchtype)
         else:
             author = unaccented(replace_all(book['authorName'], dic), only_ascii=False)
-            title = unaccented(replace_all(book['bookName'], dic), only_ascii=False, umlauts=False)
+            title = unaccented(replace_all(book['bookName'], dic), only_ascii=False)
 
         if 'short' in searchtype and '(' in title:
             title = title.split('(')[0].strip()
@@ -103,7 +103,7 @@ def find_best_result(resultlist, book, searchtype, source):
         ignored_messages = []
         for res in resultlist:
             result_title = unaccented(replace_all(res[f"{prefix}title"], dictrepl),
-                                      only_ascii=False, umlauts=False).strip()
+                                      only_ascii=False).strip()
             result_title = ' '.join(result_title.split())  # remove extra whitespace
             only_title = result_title.replace(author, '')
             if not only_title or only_punctuation(only_title):

@@ -479,8 +479,6 @@ class StartupLazyLibrarian:
         return {"filename_dict": {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
                                   ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
                                   '\\\\': '\\'},
-                "umlaut_dict": {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe',
-                                u'\xdc': 'Ue', u'\xdf': 'ss'},
                 "apostrophe_dict": quotes
                 }
 

@@ -796,32 +796,13 @@ def clean_name(name, extras=None):
     return name
 
 
-def no_umlauts(s: str) -> str:
-    """ Replace umlauts from the string, unless German is a preferred language """
-    if 'de' not in ImportPrefs.LANG_LIST:
-        return s
-
-    s = replace_all(s, lazylibrarian.DICTS.get('umlaut_dict', {}))
-    res = ''
-    # long form to split out the accents
-    s = unicodedata.normalize('NFKD', s)
-    # replace any diacritic 0x308 (umlaut) with 'e' so 'ü': 'ue', 'Ä': 'Ae'
-    for c in s:
-        if unicodedata.combining(c) and ord(c) == 0x308:
-            res += 'e'
-        else:
-            res += c
-    # back to short form for consistency
-    return unicodedata.normalize('NFC', res)
-
-
-def unaccented(str_or_unicode, only_ascii=True, umlauts=True):
+def unaccented(str_or_unicode, only_ascii=True):
     if not str_or_unicode:
         return u''
-    return make_unicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii, umlauts=umlauts))
+    return make_unicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii))
 
 
-def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
+def unaccented_bytes(str_or_unicode, only_ascii=True):
     if not str_or_unicode:
         return ''.encode('ASCII')  # ensure bytestring for python3
     # use long form to separate out the accents into combining type
@@ -829,9 +810,6 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
         cleaned = unicodedata.normalize('NFKD', str_or_unicode)
     except TypeError:
         cleaned = unicodedata.normalize('NFKD', str_or_unicode.decode('utf-8', 'replace'))
-
-    if not umlauts:
-        cleaned = no_umlauts(cleaned)
 
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])
