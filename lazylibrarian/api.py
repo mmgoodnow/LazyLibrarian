@@ -251,6 +251,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'sendMagIssuetoCalibre': (1, "&id= Send a magazine issue already in LazyLibrarian database to calibre"),
             'sendComicIssuetoCalibre': (1, "&id= Send a comic issue already in LazyLibrarian database to calibre"),
             'ignoredStats': (0, 'show count of reasons books were ignored'),
+            'updateBook': (1, "&id= [&BookName=] update book parameters (bookname, booklang, bookdate etc)")
             }
 
 
@@ -2726,7 +2727,7 @@ class Api(object):
             return
 
         db = database.DBConnection()
-        dbentry = db.match("SELECT * from books WHERE IssueID=?", (kwargs['id'],))
+        dbentry = db.match("SELECT * from books WHERE BookID=?", (kwargs['id'],))
         db.close()
         if not dbentry:
             self.data = f"IssueID {kwargs['id']} not found in database"
@@ -2740,3 +2741,27 @@ class Api(object):
         res, filename, pp_path = send_ebook_to_calibre(data)
         self.data = f"{res}: {filename}: {pp_path}"
         return res is not False
+
+    def _updatebook(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+
+        updated = []
+        missed = []
+        db = database.DBConnection()
+        dbentry = db.match("SELECT * from books WHERE BookID=?", (kwargs['id'],))
+        if not dbentry:
+            self.data = f"BookID {kwargs['id']} not found in database"
+            db.close()
+            return
+        for item in ['BookName', 'BookSub', 'BookAdded', 'BookDate', 'BookLang', 'BookISBN',
+                     'BookDesc', 'BookPub', 'OriginalPubDate', 'hc_id', 'ol_id', 'gr_id', 'gb_id']:
+            if item in kwargs:
+                db.action(f"UPDATE Books SET {item}=? WHERE BookID=?", (kwargs[item], kwargs['id']))
+                updated.append(item)
+            else:
+                missed.append(item)
+        db.close()
+        self.data = f"Updated: {','.join(updated)} Missed: {','.join(missed)}"
