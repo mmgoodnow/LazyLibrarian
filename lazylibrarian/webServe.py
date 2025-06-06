@@ -4060,6 +4060,8 @@ class WebInterface:
         reading = []
         abandoned = []
         userid = ''
+        wantedbooks = []
+        wantedaudio = []
 
         db = database.DBConnection()
         try:
@@ -4111,12 +4113,14 @@ class WebInterface:
                                 else:
                                     db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
                                     logger.debug(f'Status set to "Wanted" for "{bookname}"')
+                                    wantedbooks.append({"bookid": bookid})
                             if (action == "Wanted" and library == "AudioBook") or action in ["WantAudio", "WantBoth"]:
                                 if bookdata['AudioStatus'] in ["Open", "Have"]:
                                     logger.debug(f'AudioBook "{bookname}" is already marked Open')
                                 else:
                                     db.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
                                     logger.debug(f'AudioStatus set to "Wanted" for "{bookname}"')
+                                    wantedaudio.append({"bookid": bookid})
                             if (action == "Ignored" and library == 'eBook') or action == "IgnoreBoth":
                                 db.upsert("books", {'Status': "Ignored", 'ScanResult': f'User {action}'},
                                           {'BookID': bookid})
@@ -4206,20 +4210,15 @@ class WebInterface:
                 update_totals(author)
 
         # start searchthreads
-        if action in ['Wanted', 'WantBoth']:
-            books = []
-            for arg in args:
-                books.append({"bookid": arg})
-
-            if CONFIG.use_any():
-                if check_int(CONFIG['SEARCH_BOOKINTERVAL'], 0):
-                    logger.debug(f"Starting search threads, library={library}, action={action}")
-                    if action == 'WantBoth' or (action == 'Wanted' and 'eBook' in library):
-                        threading.Thread(target=search_book, name='SEARCHBOOK',
-                                         args=[books, 'eBook']).start()
-                    if action == 'WantBoth' or (action == 'Wanted' and 'Audio' in library):
-                        threading.Thread(target=search_book, name='SEARCHBOOK',
-                                         args=[books, 'AudioBook']).start()
+        if CONFIG.use_any() and check_int(CONFIG['SEARCH_BOOKINTERVAL'], 0):
+            if wantedbooks:
+                logger.debug(f"Starting ebook search thread, library={library}, action={action}")
+                threading.Thread(target=search_book, name='SEARCHBOOK',
+                                 args=[wantedbooks, 'eBook']).start()
+            if wantedaudio:
+                logger.debug(f"Starting audio search thread, library={library}, action={action}")
+                threading.Thread(target=search_book, name='SEARCHBOOK',
+                                 args=[wantedaudio, 'AudioBook']).start()
 
         if redirect == "author":
             if 'eBook' in library:
