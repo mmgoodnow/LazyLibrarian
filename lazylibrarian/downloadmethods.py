@@ -766,6 +766,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             directory = CONFIG['TRANSMISSION_DIR']
             if label and not directory.endswith(label):
                 directory = os.path.join(directory, label)
+            directory = os.path.join(directory, tor_title)
             if torrent:
                 logger.debug(f"Sending {tor_title} data to Transmission:{directory}")
                 # transmission needs b64encoded metainfo to be unicode, not bytes
@@ -781,7 +782,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 download_id = hashid
                 if label:
                     transmission.set_label(download_id, label)
-                tor_title = transmission.get_torrent_folder(download_id)
+                tor_title = transmission.get_torrent_name(download_id)
 
         if CONFIG.get_bool('TOR_DOWNLOADER_SYNOLOGY') and CONFIG.get_bool('USE_SYNOLOGY') and \
                 CONFIG['SYNOLOGY_HOST']:
@@ -811,7 +812,9 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                         label = use_label(source, library)
                     if label:
                         deluge.set_torrent_label(download_id, label)
-                    tor_title = deluge.get_torrent_folder(download_id)
+                    result = deluge.get_torrent_status(download_id, {})
+                    if 'name' in result:
+                        tor_title = result['name']
                 else:
                     return False, res
             else:
