@@ -57,6 +57,15 @@
                         </select>
               </div>
               <div class="form-group">
+                <label for="hc_token">HardCover Token</label>
+                <div class="input-group">
+                  <input type="text" id="hc_token" name="hc_token" value="${user['hc_token'] if 'hc_token' in user else ''}" class="form-control" placeholder="Bearer token">
+                  <span class="input-group-btn">
+                    <button class="btn btn-default" type="button" id="test_hc_token">Test</button>
+                  </span>
+                </div>
+              </div>
+              <div class="form-group">
                 <label class="ptop15" for="password">Password</label>
                 <div class="">
                   <input id="password" type="password" class="form-control" name="password" placeholder="Leave empty to keep existing password">
@@ -97,7 +106,8 @@
           var booktype = $.trim($("#booktype").val());
           var lltheme = $.trim($("#lltheme").val());
           var fullname = $.trim($("#fullname").val());
-          $.get("user_update", {'username': username, 'fullname': fullname, 'password': password, 'password2': password2, 'email': email, 'sendto': sendto, 'booktype': booktype, 'theme': lltheme},
+          var hc_token = $.trim($("#hc_token").val());
+          $.get("user_update", {'username': username, 'fullname': fullname, 'password': password, 'password2': password2, 'email': email, 'sendto': sendto, 'booktype': booktype, 'theme': lltheme, 'hc_token': hc_token},
                 function (data) {
                 bootbox.dialog({
                     title: 'Update User',
@@ -107,6 +117,24 @@
                             label: "Close",
                             className: 'btn-primary',
                             callback: function(result){ window.location.reload(true) }
+                        }
+                    }
+                });
+          });
+      });
+      
+      $('#test_hc_token').click(function() {
+          var hc_token = $.trim($("#hc_token").val());
+          var userid = $.trim($("#userid").val());
+          $.get("test_hcauth", {'hc_token': hc_token, 'userid': userid},
+                function (data) {
+                bootbox.dialog({
+                    title: 'Test HardCover Token',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary'
                         }
                     }
                 });

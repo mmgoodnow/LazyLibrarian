@@ -275,7 +275,7 @@ def get_all_author_details(authorid=None, authorname=None):
             authorname = match['authorname']
 
     if CONFIG['OL_API'] and (CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks'] or CONFIG.get_bool('MULTI_SOURCE')):
-        if not ol_id and not authorname and authorid.startswith('OL'):
+        if not ol_id and authorid.startswith('OL'):
             ol_id = authorid
         if not ol_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
             searchterm = authorname
@@ -293,7 +293,7 @@ def get_all_author_details(authorid=None, authorname=None):
                 authorname = ol_author['authorname']
 
     if CONFIG['HC_API'] and (CONFIG['BOOK_API'] in ['HardCover', 'GoogleBooks'] or CONFIG.get_bool('MULTI_SOURCE')):
-        if not hc_id and not authorname and authorid.isnumeric():
+        if not hc_id and authorid.isnumeric():
             hc_id = authorid
         if not hc_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
             searchterm = authorname
@@ -315,7 +315,7 @@ def get_all_author_details(authorid=None, authorname=None):
 
     if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'HardCover'] or
                              CONFIG.get_bool('MULTI_SOURCE')):
-        if not gr_id and not authorname and authorid.isnumeric():
+        if not gr_id and authorid.isnumeric():
             gr_id = authorid
         if (not gr_id and CONFIG['GR_API'] and authorname and 'unknown' not in authorname and
                 'anonymous' not in authorname):

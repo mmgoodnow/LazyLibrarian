@@ -25,18 +25,21 @@ import time
 import traceback
 import uuid
 from shutil import copyfile, rmtree
+from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 
 import cherrypy
 from cherrypy.lib.static import serve_file
-from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
+from deluge_client import DelugeRPCClient
+from mako import exceptions
+from mako.lookup import TemplateLookup
+from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian import database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync, hc
-from lazylibrarian.configtypes import ConfigBool
 from lazylibrarian.auth import AuthController
-from lazylibrarian.bookrename import name_vars, stripspaces
+from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb, get_calibre_id
@@ -44,18 +47,18 @@ from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_wo
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import create_support_zip, log_header, pwd_generator, pwd_check, \
     is_valid_email, mime_type, zip_audio, run_script, get_readinglist, set_readinglist
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
-    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, make_dirs
-from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
-    ensure_running, all_author_update, show_stats, SchedulerCommand
+from lazylibrarian.config2 import CONFIG, wishlist_type
+from lazylibrarian.configtypes import ConfigBool
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
     irc_dl_method
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
+    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
     md5_utf8, date_format, check_year, strip_quotes, format_author_name, check_float, \
-    thread_name, sanitize
+    thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
@@ -64,7 +67,7 @@ from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, upda
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
-from lazylibrarian.magazinescan import format_issue_name
+from lazylibrarian.magazinescan import get_dateparts
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
@@ -75,16 +78,12 @@ from lazylibrarian.postprocess import process_alternate, process_dir, delete_tas
 from lazylibrarian.processcontrol import get_info_on_caller
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
+from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
+    ensure_running, all_author_update, show_stats, SchedulerCommand
 from lazylibrarian.searchbook import search_book
-from lazylibrarian.searchmag import search_magazines, download_maglist, get_issue_date
+from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
 from lazylibrarian.telemetry import TELEMETRY
-from lazylibrarian.blockhandler import BLOCKHANDLER
-from deluge_client import DelugeRPCClient
-from mako import exceptions
-from mako.lookup import TemplateLookup
-from rapidfuzz import fuzz
-
 
 lastauthor = ''
 lastmagazine = ''
@@ -474,8 +473,8 @@ class WebInterface:
         if cookie and 'll_uid' in list(cookie.keys()):
             db = database.DBConnection()
             try:
-                user = db.match('SELECT UserName,UserID,Name,Email,SendTo,BookType,Theme from users where UserID=?',
-                                (cookie['ll_uid'].value,))
+                user = db.match('SELECT UserName,UserID,Name,Email,SendTo,BookType,Theme,hc_id,hc_token '
+                                'from users where UserID=?', (cookie['ll_uid'].value,))
                 if user:
                     subs = db.select('SELECT Type,WantID from subscribers WHERE UserID=?', (cookie['ll_uid'].value,))
                     subscriptions = ''
@@ -715,25 +714,33 @@ class WebInterface:
             userid = cookie['ll_uid'].value
             db = database.DBConnection()
             try:
-                user = db.match('SELECT UserName,Name,Email,Password,BookType,SendTo,Theme from users where UserID=?',
-                                (userid,))
+                user = db.match('SELECT UserName,Name,Email,Password,BookType,SendTo,Theme,hc_token '
+                                'from users where UserID=?', (userid,))
                 if user:
                     if kwargs['username'] and user['UserName'] != kwargs['username']:
                         # if username changed, must not have same username as another user
                         match = db.match('SELECT UserName from users where UserName=?', (kwargs['username'],))
                         if match:
                             return "Unable to change username: already exists"
-                        else:
+                        if self.validate_param("username", kwargs['username'], ['<', '>', '='], None):
                             changes += ' username'
                             db.action('UPDATE users SET UserName=? WHERE UserID=?', (kwargs['username'], userid))
+                        else:
+                            logger.warning("Invalid username")
 
                     if kwargs['fullname'] and user['Name'] != kwargs['fullname']:
-                        changes += ' name'
-                        db.action('UPDATE users SET Name=? WHERE UserID=?', (kwargs['fullname'], userid))
+                        if self.validate_param("fullname", kwargs['fullname'], ['<', '>', '='], None):
+                            changes += ' name'
+                            db.action('UPDATE users SET Name=? WHERE UserID=?', (kwargs['fullname'], userid))
+                        else:
+                            logger.warning("Invalid fullname")
 
                     if kwargs['email'] and user['Email'] != kwargs['email']:
-                        changes += ' email'
-                        db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
+                        if not is_valid_email(kwargs['email']):
+                            logger.warning("Invalid email")
+                        else:
+                            changes += ' email'
+                            db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
 
                     if user['Theme'] != kwargs['theme']:
                         valid = False
@@ -756,12 +763,22 @@ class WebInterface:
                             logger.warning(f"Invalid user theme [{theme}]")
 
                     if user['SendTo'] != kwargs['sendto']:
-                        changes += ' sendto'
-                        db.action('UPDATE users SET sendto=? WHERE UserID=?', (kwargs['sendto'], userid))
+                        if not is_valid_email(kwargs['sendto']):
+                            logger.warning("Invalid email")
+                        else:
+                            changes += ' sendto'
+                            db.action('UPDATE users SET sendto=? WHERE UserID=?', (kwargs['sendto'], userid))
 
                     if user['BookType'] != kwargs['booktype']:
                         changes += ' BookType'
                         db.action('UPDATE users SET BookType=? WHERE UserID=?', (kwargs['booktype'], userid))
+                    
+                    if user['hc_token'] != kwargs['hc_token']:
+                        if self.validate_param("hardcopy token", kwargs['hc_token'], ['<', '>', '='], None):
+                            changes += ' hc_token'
+                            db.action('UPDATE users SET hc_token=? WHERE UserID=?', (kwargs['hc_token'], userid))
+                        else:
+                            logger.warning("Invalid hardcopy token")
 
                     if kwargs['password']:
                         pwd = md5_utf8(kwargs['password'])
@@ -1005,11 +1022,11 @@ class WebInterface:
                                   'lastlogin': datetime.datetime.fromtimestamp(last_login).ctime()
                                   if last_login else '',
                                   'logins': match['Login_Count'], 'downloads': cnt['counter'], 'subs': subscriptions,
-                                  'theme': match['Theme'], 'hc_id': match['hc_id']})
+                                  'theme': match['Theme'], 'hc_id': match['hc_id'], 'hc_token': match['hc_token']})
             else:
                 res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '', 'sendto': '',
                                   'booktype': '', 'userid': '', 'lastlogin': '', 'logins': '0', 'subs': '',
-                                  'theme': ''})
+                                  'theme': '', 'hc_id': '', 'hc_token': ''})
         finally:
             db.close()
         return res
@@ -1066,10 +1083,11 @@ class WebInterface:
                 result = notifiers.email_notifier.notify_message('LazyLibrarian New Account', msg, kwargs['email'])
 
                 if result:
-                    cmd = ("INSERT into users (UserID, UserName, Name, Password, Email, SendTo, Perms) VALUES "
-                           "(?, ?, ?, ?, ?, ?, ?)")
+                    cmd = ("INSERT into users (UserID, UserName, Name, Password, Email, SendTo, Perms, hc_token) "
+                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
                     db.action(cmd, (pwd_generator(), kwargs['username'], kwargs['fullname'],
-                                    md5_utf8(kwargs['password']), kwargs['email'], kwargs['sendto'], perms))
+                                    md5_utf8(kwargs['password']), kwargs['email'], kwargs['sendto'], perms,
+                                    kwargs.get('hc_token', '')))
                     msg = f"New user added: {kwargs['username']}: {perm_msg}"
                     msg += f"<br>Email sent to {kwargs['email']}"
                     cnt = db.match("select count(*) as counter from users")
@@ -1088,8 +1106,8 @@ class WebInterface:
                         return "Username already exists"
 
                 changes = ''
-                cmd = ("SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType,Theme "
-                       "from users where UserName=?")
+                cmd = ("SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType,Theme,"
+                       "hc_token from users where UserName=?")
                 details = db.match(cmd, (user,))
 
                 if details:
@@ -1148,6 +1166,10 @@ class WebInterface:
                     if details['BookType'] != kwargs['booktype']:
                         changes += ' BookType'
                         db.action('UPDATE users SET BookType=? WHERE UserID=?', (kwargs['booktype'], userid))
+
+                    if details['hc_token'] != kwargs['hc_token']:
+                        changes += ' hc_token'
+                        db.action('UPDATE users SET hc_token=? WHERE UserID=?', (kwargs['hc_token'], userid))
 
                     if details['Perms'] != kwargs['perms']:
                         oldperm = check_int(details['Perms'], 0)
@@ -5337,47 +5359,11 @@ class WebInterface:
                     if calibre_id:
                         logger.debug(f"Found calibre ID {calibre_id} for {old_title} {issue['IssueDate']}")
 
-                dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], new_title, issue['IssueDate'])
-
-                if CONFIG.get_bool('MAG_RELATIVE'):
-                    dest_dir = get_directory('eBook')
-                    dest_path = stripspaces(os.path.join(dest_dir, dest_path))
-
-                if not make_dirs(dest_path):
-                    logger.error(f'Unable to create destination directory {dest_path}')
-                    break
-
-                ext = os.path.splitext(issue['IssueFile'])[1]
-                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], new_title, issue['IssueDate'])
-
-                global_name = unaccented(global_name, only_ascii=False)
-                global_name = sanitize(global_name)
-
-                new_file = os.path.join(dest_path, global_name + ext)
-                if not path_isfile(issue['IssueFile']):
-                    logger.warning(f"Issue file {issue['IssueFile']} not found")
-                    raise cherrypy.HTTPError(404, f"Magazine IssueFile missing")
-
-                logger.debug(f"Moving {issue['IssueFile']} to {new_file}")
-                try:
-                    _ = safe_move(issue['IssueFile'], new_file)
-                except Exception as e:
-                    logger.warning(f"Failed to move file: {str(e)}")
+                _, err = rename_issue(issue['IssueID'])
+                if err:
+                    logger.warning(f"Failed to move file {issue['IssueFile']}: {err}")
                     raise cherrypy.HTTPError(404, f"Magazine IssueFile move failed")
 
-                db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_file, issue['IssueID']))
-                db.commit()
-                old_path = os.path.dirname(issue['IssueFile'])
-                old_file = os.path.splitext(issue['IssueFile'])[0]
-                for extn in ['.opf', '.jpg']:
-                    if path_isfile(old_file + extn):
-                        new_file = os.path.join(dest_path, global_name)
-                        logger.debug(f"Moving {old_file + extn} to {new_file + extn}")
-                        try:
-                            _ = safe_move(old_file + extn, new_file + extn)
-                        except Exception as e:
-                            logger.warning(f"Failed to move file: {str(e)}")
-                            raise cherrypy.HTTPError(404, f"Magazine {extn} move failed")
                 if calibre_id:
                     res, err, rc = calibredb('remove', [calibre_id])
                     logger.debug(f"Remove result: {res} [{err}] {rc}")
@@ -5386,6 +5372,7 @@ class WebInterface:
                     res, filename, pp_path = send_mag_issue_to_calibre(data)
                     logger.debug(f"Add result: {res}")
                     if res and filename:
+                        # calibre may have renamed it
                         db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
 
                 if len(os.listdir(old_path)) == 0:
@@ -5534,35 +5521,30 @@ class WebInterface:
         magazine = db.match("SELECT DateType,IssueDate from magazines WHERE Title=? COLLATE NOCASE", (magtitle,))
         datetype = magazine['DateType']
         mostrecentissue = magazine['IssueDate']
-        issue = db.match("SELECT Title,IssueDate,ISsueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
+        issue = db.match("SELECT Title,IssueDate,IssueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
         redirect = issue['Title']
+        dateparts = get_dateparts(issuenum, datetype=datetype)
 
-        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
-        issuenum_exploded = replace_all(issuenum, dic).split()
-        issuenum_type, issuedate, year = get_issue_date(issuenum_exploded, datetype=datetype)
-
-        if not issuenum_type:
+        if not dateparts['style']:
             issuenum = ''
         else:
-            logger.debug(f'Issue {issuedate} (regex {issuenum_type}) for {issuenum}, {datetype}')
             datetype_ok = True
-
             if datetype:
                 # check all wanted parts are in the regex result
                 # Day Month Year Vol Iss (MM needs two months)
 
-                if 'M' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 12]:
+                if 'M' in datetype and dateparts['style'] not in [1, 2, 3, 4, 5, 6, 7, 12]:
                     datetype_ok = False
-                if 'D' in datetype and issuenum_type not in [3, 5, 6]:
+                if 'D' in datetype and dateparts['style'] not in [3, 5, 6]:
                     datetype_ok = False
-                if 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
+                if 'MM' in datetype and dateparts['style'] not in [1]:  # bi monthly
                     datetype_ok = False
-                if 'V' in datetype and issuenum_type not in [2, 8, 9, 10, 11, 12, 13, 14, 17, 18]:
+                if 'V' in datetype and dateparts['style'] not in [2, 8, 9, 10, 11, 12, 13, 14, 17, 18]:
                     datetype_ok = False
-                if 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
+                if 'I' in datetype and dateparts['style'] not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
                     datetype_ok = False
-                if 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
-                                                             12, 13, 15, 16, 18]:
+                if 'Y' in datetype and dateparts['style'] not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
+                                                                  12, 13, 15, 16, 18]:
                     datetype_ok = False
 
             if not datetype_ok:
@@ -5571,14 +5553,12 @@ class WebInterface:
                 db.close()
                 raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
 
-            if issuedate.isdigit() and 'I' in datetype:
-                issuedate = issuedate.zfill(4)
+            if dateparts['issue'] and 'I' in datetype:
+                issuenum = str(dateparts['issue']).zfill(4)
                 if 'Y' in datetype:
-                    issuedate = year + issuedate
-
-            issuenum = date_format(issuedate, "$Y-$m-$d",
-                                   context=f"{kwargs.get('magtitle')}/{kwargs.get('issuenum')}",
-                                   datelang=CONFIG['DATE_LANG'])
+                    issuenum = f"{dateparts['year']}{issuenum}"
+            else:
+                issuenum = f"{dateparts['year']}-{str(dateparts['month']).zfill(2)}-{str(dateparts['day']).zfill(2)}"
 
         if not magtitle and issuenum:
             response = (f"Issue {issue['IssueDate']} of {issue['Title']} is unchanged. "
@@ -5611,53 +5591,14 @@ class WebInterface:
                     db.action("UPDATE issues SET Title=? WHERE IssueID=?", (magtitle, issue['IssueID']))
                 db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
 
-                dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], magtitle, issuenum)
+                _, err = rename_issue(issue['IssueID'])
+                if err:
+                    raise cherrypy.HTTPError(404, f"Magazine IssueFile {issue['IssueFile']} move failed: {err}")
 
-                if CONFIG.get_bool('MAG_RELATIVE'):
-                    dest_dir = get_directory('eBook')
-                    dest_path = stripspaces(os.path.join(dest_dir, dest_path))
-
-                if not make_dirs(dest_path):
-                    logger.error(f'Unable to create destination directory {dest_path}')
-                else:
-                    ext = os.path.splitext(issue['IssueFile'])[1]
-                    global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], magtitle, issuenum)
-                    global_name = unaccented(global_name, only_ascii=False)
-                    global_name = sanitize(global_name)
-
-                    new_file = os.path.join(dest_path, global_name + ext)
-                    if not path_isfile(issue['IssueFile']):
-                        logger.debug(f"Missing file: {issue['IssueFile']}")
-                        raise cherrypy.HTTPError(404, f"Magazine IssueFile missing")
-
-                    logger.debug(f"Moving {issue['IssueFile']} to {new_file}")
-                    try:
-                        _ = safe_move(issue['IssueFile'], new_file)
-                    except Exception as e:
-                        logger.error(str(e))
-                        raise cherrypy.HTTPError(404, f"Magazine IssueFile move failed")
-
-                    calibre_id = None
-                    if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                        calibre_id = get_calibre_id(issue, try_filename=False)
-                        if calibre_id:
-                            logger.debug(f"Found calibre ID {calibre_id} for {issue['Title']} {issue['IssueDate']}")
-
-                    db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_file, issue['IssueID']))
-                    db.commit()
-
-                    old_path = os.path.dirname(issue['IssueFile'])
-                    old_file = os.path.splitext(issue['IssueFile'])[0]
-                    for extn in ['.opf', '.jpg']:
-                        if path_isfile(old_file + extn):
-                            new_file = os.path.join(dest_path, global_name)
-                            logger.debug(f"Moving {old_file + extn} to {new_file + extn}")
-                            try:
-                                _ = safe_move(old_file + extn, new_file + extn)
-                            except Exception as e:
-                                logger.error(str(e))
-                                raise cherrypy.HTTPError(404, f"Magazine {extn} move failed")
+                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                    calibre_id = get_calibre_id(issue, try_filename=False)
                     if calibre_id:
+                        logger.debug(f"Found calibre ID {calibre_id} for {issue['Title']} {issue['IssueDate']}")
                         res, err, rc = calibredb('remove', [calibre_id])
                         logger.debug(f"Remove result: {res} [{err}] {rc}")
                         dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
@@ -5667,34 +5608,34 @@ class WebInterface:
                         if res and filename:
                             db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
 
-                    if len(os.listdir(old_path)) == 0:
-                        logger.debug(f"Removing empty directory {old_path}")
-                        os.rmdir(old_path)
+                if len(os.listdir(old_path)) == 0:
+                    logger.debug(f"Removing empty directory {old_path}")
+                    os.rmdir(old_path)
 
-                    if mostrecentissue:
-                        if mostrecentissue.isdigit() and str(issuenum).isdigit():
-                            older = (int(mostrecentissue) > int(issuenum))  # issuenumber
-                        else:
-                            older = (mostrecentissue > issuenum)  # YYYY-MM-DD
+                if mostrecentissue:
+                    if mostrecentissue.isdigit() and str(issuenum).isdigit():
+                        older = (int(mostrecentissue) > int(issuenum))  # issuenumber
                     else:
-                        older = False
+                        older = (mostrecentissue > issuenum)  # YYYY-MM-DD
+                else:
+                    older = False
 
-                    control_value_dict = {"Title": magtitle}
-                    if older:
-                        new_value_dict = {"LastAcquired": today(),
-                                          "IssueStatus": CONFIG['FOUND_STATUS']}
-                    else:
-                        new_value_dict = {"LastAcquired": today(),
-                                          "IssueStatus": CONFIG['FOUND_STATUS'],
-                                          "IssueDate": issuenum,
-                                          "LatestCover": issue['Cover']}
-                    db.upsert("magazines", new_value_dict, control_value_dict)
-                    if self.mag_set_latest(issue['Title']):
-                        # update latest issue of old mag title, if any issues left, redirect to there
-                        redirect = issue['Title']
-                    else:
-                        # no issues under old title, redirect to new title
-                        redirect = magtitle
+                control_value_dict = {"Title": magtitle}
+                if older:
+                    new_value_dict = {"LastAcquired": today(),
+                                      "IssueStatus": CONFIG['FOUND_STATUS']}
+                else:
+                    new_value_dict = {"LastAcquired": today(),
+                                      "IssueStatus": CONFIG['FOUND_STATUS'],
+                                      "IssueDate": issuenum,
+                                      "LatestCover": issue['Cover']}
+                db.upsert("magazines", new_value_dict, control_value_dict)
+                if self.mag_set_latest(issue['Title']):
+                    # update latest issue of old mag title, if any issues left, redirect to there
+                    redirect = issue['Title']
+                else:
+                    # no issues under old title, redirect to new title
+                    redirect = magtitle
             else:
                 response = f'Issue {issue["IssueDate"]} of {issue["Title"]} is unchanged'
                 logger.debug(response)
@@ -7047,25 +6988,28 @@ class WebInterface:
             CONFIG.set_bool('OL_API', True)
         else:
             CONFIG.set_bool('OL_API', False)
-        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['status']
 
     @cherrypy.expose
     def hc_api_changed(self, **kwargs):
-        self.validate_param("hardcopy api", kwargs['hc_api'], ['<', '>', '='], 404)
-        CONFIG.set_str('HC_API', kwargs['hc_api'])
-        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+        # hc_api is true/false, not an api key
+        if kwargs['status']:
+            CONFIG.set_bool('HC_API', True)
+        else:
+            CONFIG.set_bool('HC_API', False)
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
-        return kwargs['hc_api']
+        return kwargs['status']
 
     @cherrypy.expose
     def gr_api_changed(self, **kwargs):
         self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GR_API', kwargs['gr_api'])
-        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gr_api']
@@ -7074,7 +7018,7 @@ class WebInterface:
     def gb_api_changed(self, **kwargs):
         self.validate_param("googlebooks api", kwargs['gb_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GB_API', kwargs['gb_api'])
-        if not CONFIG.get_str('HC_API') and not CONFIG.get_str('GR_API') and not CONFIG.get_str('GB_API'):
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gb_api']
@@ -7240,10 +7184,14 @@ class WebInterface:
     def test_hcauth(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
-        if 'userid' in kwargs:
-            res = hc.test_auth(kwargs['userid'])
+        if 'userid' in kwargs and 'hc_token' in kwargs:
+            res = hc.test_auth(userid=kwargs['userid'], token=kwargs['hc_token'])
+        elif 'userid' in kwargs:
+            res = hc.test_auth(userid=kwargs['userid'], token=None)
+        elif 'hc_token' in kwargs:
+            res = hc.test_auth(userid=None, token=kwargs['hc_token'])
         else:
-            res = hc.test_auth()
+            res = hc.test_auth(userid=None, token=None)
         if str(res).isnumeric():
             res = f"Pass: whoami={res}"
         return res

@@ -24,9 +24,9 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
-    safe_move, get_directory
-from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, unaccented, sanitize, \
-    replacevars
+    safe_move, get_directory, remove_dir, listdir
+from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
+    replacevars, month2num, check_int
 from lazylibrarian.images import create_mag_cover
 
 
@@ -87,7 +87,6 @@ def magazine_scan(title=None):
                         db.action('DELETE from magazines WHERE Title=?', (title,))
 
         logger.info(f" Checking [{mag_path}] for {CONFIG['MAG_TYPE']}")
-
         booktypes = ''
         count = -1
         booktype_list = get_list(CONFIG['MAG_TYPE'])
@@ -151,15 +150,11 @@ def magazine_scan(title=None):
                                     logger.debug(f"Title pattern match failed for [{fname}]")
                         except Exception:
                             match = False
-
                         if not match:
                             title = os.path.basename(rootdir).strip()
                             issuedate = ''
 
-                        dic = {'.': ' ', '-': ' ', '/': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
-                               '#': '# '}
                         datetype = ''
-
                         # is this magazine already in the database?
                         cmd = ("SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage,DateType,Language "
                                "from magazines WHERE Title=? COLLATE NOCASE")
@@ -170,30 +165,16 @@ def magazine_scan(title=None):
                             datetype = ''
 
                         if issuedate:
-                            exploded = replace_all(issuedate, dic).split()
-                            issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
-                                                                                                    datetype=datetype)
-                            loggermatching.debug(f"Date style [{issuenum_type}][{issuedate}][{year}]")
-                            if issuenum_type:
-                                if issuedate.isdigit() and 'I' in datetype:
-                                    issuedate = issuedate.zfill(4)
-                                    if 'Y' in datetype:
-                                        issuedate = year + issuedate
-                            else:
-                                issuedate = ''
+                            dateparts = get_dateparts(issuedate, datetype=datetype)
+                            issuenum_type = dateparts['style']
+                            issuedate = dateparts['dbdate']
+                            loggermatching.debug(f"Date style [{issuenum_type}][{issuedate}]")
 
                         if not issuedate:
-                            exploded = replace_all(fname, dic).split()
-                            issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
-                                                                                                    datetype=datetype)
-                            loggermatching.debug(f"Filename date style [{issuenum_type}][{issuedate}][{year}]")
-                            if issuenum_type:
-                                if issuedate.isdigit() and 'I' in datetype:
-                                    issuedate = issuedate.zfill(4)
-                                    if 'Y' in datetype:
-                                        issuedate = year + issuedate
-                            else:
-                                issuedate = ''
+                            dateparts = get_dateparts(fname, datetype=datetype)
+                            issuenum_type = dateparts['style']
+                            issuedate = dateparts['dbdate']
+                            loggermatching.debug(f"Filename date style [{issuenum_type}][{issuedate}]")
 
                         if not issuedate:
                             logger.warning(f"Invalid name format for [{fname}]")
@@ -236,55 +217,11 @@ def magazine_scan(title=None):
                             magcoverpage = mag_entry['CoverPage']
                             maglanguage = mag_entry['Language']
 
-                        if CONFIG.get_bool('MAG_RENAME'):
-                            filedate = issuedate
-                            if issuedate and issuedate.isdigit():
-                                if len(issuedate) == 8:
-                                    if check_year(issuedate[:4]):
-                                        filedate = f'Issue {int(issuedate[4:])} {issuedate[:4]}'
-                                    else:
-                                        filedate = f'Vol {int(issuedate[:4])} Iss {int(issuedate[4:])}'
-                                elif len(issuedate) == 12:
-                                    filedate = f'Vol {int(issuedate[4:8])} Iss {int(issuedate[8:])} {issuedate[:4]}'
-                                else:
-                                    filedate = str(issuedate).zfill(4)
-
-                            extn = os.path.splitext(fname)[1]
-                            newfname = f"{format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)}{extn}"
-                            new_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], title, filedate)
-                            if CONFIG.get_bool('MAG_RELATIVE'):
-                                new_path = os.path.join(get_directory('eBook'), new_path)
-
-                            newissuefile = os.path.join(new_path, newfname)
-                            # check for windows case-insensitive
-                            if os.name == 'nt' and newissuefile.lower() == issuefile.lower():
-                                newissuefile = issuefile
-                            if newissuefile != issuefile:
-                                if not path_isdir(new_path):
-                                    make_dirs(new_path)
-                                logger.debug(f"Rename {repr(issuefile)} -> {repr(newissuefile)}")
-                                try:
-                                    newissuefile = safe_move(issuefile, newissuefile)
-                                except Exception as e:
-                                    logger.error(str(e))
-
-                                for e in ['.jpg', '.opf']:
-                                    if path_exists(issuefile.replace(extn, e)):
-                                        safe_move(issuefile.replace(extn, e), newissuefile.replace(extn, e))
-
-                                # check for any empty directories
-                                try:
-                                    os.rmdir(os.path.dirname(issuefile))
-                                except OSError:
-                                    pass
-                                issuefile = newissuefile
-
                         issuedate = str(issuedate).zfill(4)  # for sorting issue numbers
 
                         # is this issue already in the database?
                         issue_id = create_id(f"{title} {issuedate}")
-                        iss_entry = db.match('SELECT Title,IssueFile,Cover from issues WHERE Title=? and IssueDate=?',
-                                             (title, issuedate))
+                        iss_entry = db.match('SELECT IssueFile,Cover from issues WHERE IssueID=?', (issue_id, ))
 
                         new_entry = False
                         myhash = uuid.uuid4().hex
@@ -329,7 +266,10 @@ def magazine_scan(title=None):
                             else:
                                 authors = 'magazines'
                             lazylibrarian.postprocess.create_mag_opf(issuefile, authors, title, issuedate,
-                                                                     issue_id, maglanguage, overwrite=new_entry)
+                                                                     issue_id, language=maglanguage,
+                                                                     overwrite=new_entry)
+                        # if CONFIG.get_bool('MAG_RENAME'):
+                        #     _ = rename_issue(issue_id)
 
                         # see if this issues date values are useful
                         control_value_dict = {"Title": title}
@@ -379,39 +319,44 @@ def magazine_scan(title=None):
         db.close()
 
 
-def format_issue_name(base, mag_title, issue_date):
+def format_issue_filename(base, mag_title, dateparts):
     logger = logging.getLogger(__name__)
-    mydict = {'Title': mag_title, 'IssueDate': issue_date, 'IssueYear': '', 'IssueMonth': '',
-              'IssueVol': '', 'IssueNum': '', 'IssueDay': ''}
-    # issue_date is yyyy-mm-dd
-    # or yyyyiiii or vvvviiii or yyyyvvvviiii or iiii
-    if issue_date.isdigit():
-        if len(issue_date) == 8:
-            if check_year(issue_date[:4]):
-                mydict['IssueYear'] = issue_date[:4]
-                mydict['IssueNum'] = issue_date[4:]
-            else:
-                mydict['IssueVol'] = issue_date[:4]
-                mydict['IssueNum'] = issue_date[4:]
-        elif len(issue_date) == 12:
-            mydict['IssueYear'] = issue_date[:4]
-            mydict['IssueVol'] = issue_date[4:8]
-            mydict['IssueNum'] = issue_date[8:]
-        else:
-            mydict['IssueNum'] = issue_date.zfill(4)
-    elif ' ' not in issue_date:  # check it's not preformatted eg "Vol xxxx Issue yyyy"
-        mydict['IssueYear'] = issue_date[:4]
-        mydict['IssueNum'] = issue_date[5:7]
-        mydict['IssueDay'] = issue_date[8:]
-    if mydict['IssueNum'] and mydict['IssueNum'].isdigit():
-        if 0 < int(mydict['IssueNum']) < 13:
-            # monthnames for this month, eg ["January", "Jan", "enero", "ene"]
-            # could change language here to match CONFIG['Date_Lang'] by changing the final [1]
-            mydict['IssueMonth'] = lazylibrarian.MONTHNAMES[0][int(mydict['IssueNum'])][1]
+    lang = 0
+    cnt = 0
+    while cnt < len(lazylibrarian.MONTHNAMES[0][0]):
+        if lazylibrarian.MONTHNAMES[0][0][cnt] == CONFIG['DATE_LANG']:
+            lang = cnt
+            break
+        cnt += 1
+
+    if dateparts['months']:
+        # month might be single or range
+        startmonth = dateparts['months'][0]
+        issuemonth = lazylibrarian.MONTHNAMES[0][startmonth][lang]
+        if len(dateparts['months']) > 1:
+            endmonth = dateparts['months'][-1]
+            issuemonth = f"{issuemonth}-{lazylibrarian.MONTHNAMES[0][endmonth][lang]}"
+    else:
+        issuemonth = ''
+    mydict = {"Title": mag_title,
+              "IssueYear": str(dateparts['year']),
+              "IssueNum": str(dateparts['issue']).zfill(4),
+              "IssueDay": str(dateparts['day']).zfill(2),
+              "IssueVol": str(dateparts['volume']).zfill(4),
+              "IssueDate": str(dateparts['dbdate']),
+              "IssueMonth": issuemonth}
 
     if base == CONFIG['MAG_DEST_FOLDER']:
+        # No special requirements on folder name
         valid_format = True
     else:
+        # We need to be able to identify the issue after renaming, so...
+        # filename must contain minimum of
+        # IssueDate
+        # or year and issuenum
+        # or year and month
+        # or volume and issuenum
+        # or title and issuenum
         valid_format = False
         if '$IssueDate' in base:
             valid_format = True
@@ -420,6 +365,9 @@ def format_issue_name(base, mag_title, issue_date):
                 valid_format = True
                 if mydict['IssueDay'] and mydict['IssueDay'] != '01' and '$IssueDay' not in base:
                     valid_format = False
+        if '$Title' in base and '$IssueNum' in base:
+            if mydict['Title'] and mydict['IssueNum']:
+                valid_format = True
         if '$IssueVol' in base and '$IssueNum' in base:
             if mydict['IssueVol'] and mydict['IssueNum']:
                 valid_format = True
@@ -432,8 +380,387 @@ def format_issue_name(base, mag_title, issue_date):
     if valid_format:
         issue_name = replacevars(base, mydict)
     else:
-        logger.debug(f"Invalid format {base}:{mag_title}:{issue_date}")
-        issue_name = f"{mag_title} - {issue_date}"
-    issue_name = unaccented(issue_name, only_ascii=False)
+        logger.debug(f"Invalid format {base}:{mag_title}:{dateparts}")
+        issue_name = f"{mag_title} - {dateparts['dbdate']}"
+    # issue_name = unaccented(issue_name, only_ascii=False)
     issue_name = sanitize(issue_name)
     return issue_name
+
+
+def get_dateparts(title_or_issue, datetype=''):
+    # Magazine names have many different styles of date
+    # These are the ones we can currently match...
+    # 1 MonthName MonthName YYYY (bi-monthly just use first month as date)
+    # 2 nn, MonthName YYYY  where nn is an assumed issue number (use issue OR month with/without year)
+    # 3 DD MonthName YYYY (daily, weekly, bi-weekly, monthly)
+    # 4 MonthName YYYY (monthly)
+    # 5 MonthName DD YYYY or MonthName DD, YYYY (daily, weekly, bi-weekly, monthly)
+    # 6 YYYY MM DD or YYYY MonthName DD (daily, weekly, bi-weekly, monthly)
+    # 7 YYYY MM or YYYY MonthName (monthly)
+    # 8 Volume x Issue y in either order, with year
+    # 9 Volume x Issue y in either order, without year
+    # 10 Issue/No/Nr/Vol/# nn, YYYY (prepend year to zero filled issue number)
+    # 11 Issue/No/Nr/Vol/# nn (no year found, hopefully rolls on year on year)
+    # 12 nn YYYY issue number without Issue/No/Nr/Vol/# in front, or YYYY nn (nn could be issue or month number)
+    # 13 issue and year as a single 6 digit string eg 222015 (some uploaders use this, reverse it to YYYYIIII)
+    # 14 3 or more digit zero padded issue number eg 0063 (issue with no year)
+    # 15 just a year (annual)
+    # 16 to 18 internal issuedates used for filenames, YYYYIIII, VVVVIIII, YYYYVVVVIIII
+    #
+    dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
+    words = replace_all(title_or_issue, dic).split()
+    issuenouns = get_list(CONFIG['ISSUE_NOUNS'])
+    volumenouns = get_list(CONFIG['VOLUME_NOUNS'])
+    nouns = issuenouns + volumenouns
+
+    year = 0
+    months = []
+    day = 0
+    issue = 0
+    volume = 0
+    style = 0
+    month = 0
+    mname = ''
+    inoun = ''
+    vnoun = ''
+
+    # First, collect the parts we're sure of
+    pos = 0
+    while pos < len(words):
+        if not year:
+            year = check_year(words[pos])
+        month = month2num(words[pos])
+        if month:
+            mname = words[pos]
+            months.append(month)
+        if words[pos].lower().strip('.') in issuenouns:
+            if pos + 1 < len(words):
+                inoun = words[pos]
+                pos += 1
+                issue = check_int(words[pos], 0)
+        elif words[pos].lower().strip('.') in volumenouns:
+            if pos + 1 < len(words):
+                vnoun = words[pos]
+                pos += 1
+                volume = check_int(words[pos], 0)
+        pos += 1
+
+    months = sorted(set(months))
+    if len(months) > 1:
+        style = 1
+    if months:
+        month = months[0]
+
+    if volume and issue:
+        if year:
+            style = 8
+        else:
+            style = 9
+
+    # now check the single string compound dates
+    if len(words) == 1:
+        data = words[0]
+        if data.isdigit():
+            if len(data) == 4 and check_year(data):  # YYYY
+                year = int(data)
+                style = 15
+            elif len(data) == 6:
+                if check_year(data[:4]):  # YYYYMM
+                    year = int(data[:4])
+                    months.append(int(data[4:]))
+                    issue = int(data[4:])
+                    style = 13
+                elif check_year(data[2:]):  # MMYYYY
+                    year = int(data[2:])
+                    months.append(int(data[:2]))
+                    issue = int(data[:2])
+                    style = 13
+            elif len(data) == 8:
+                if check_year(data[:4]):  # YYYYIIII
+                    year = int(data[:4])
+                    issue = int(data[4:])
+                    style = 16
+                else:
+                    volume = int(data[:4])  # VVVVIIII
+                    issue = int(data[4:])
+                    style = 17
+            elif len(data) == 12:  # YYYYVVVVIIII
+                year = int(data[:4])
+                volume = int(data[4:8])
+                issue = int(data[8:])
+                style = 18
+            elif len(data) > 2:
+                issue = int(data)
+                style = 14
+
+    dateparts = {"year": year, "months": months, "day": day, "issue": issue, "volume": volume,
+                 "month": month, "mname": mname, "inoun": inoun, "vnoun": vnoun, "style": style}
+
+    if not dateparts['style']:
+        # now the more complicated positional styles
+        # 2 nn, MonthName YYYY  where nn is an assumed issue number (use issue OR month with/without year)
+        # 3 DD MonthName YYYY (daily, weekly, bi-weekly, monthly)
+        # 4 MonthName YYYY (monthly)
+        # 5 MonthName DD YYYY or MonthName DD, YYYY (daily, weekly, bi-weekly, monthly)
+        # 6 YYYY MM DD or YYYY MonthName DD (daily, weekly, bi-weekly, monthly)
+        # 7 YYYY MM or YYYY MonthName (monthly)
+        # 10 Issue/No/Nr/Vol/# nn, YYYY  or YYYY nn
+        # 11 Issue/No/Nr/Vol/# nn (no year found, hopefully rolls on year on year)
+        # 12 nn YYYY issue number without Issue/No/Nr/Vol/# in front, or YYYY nn (nn could be issue or month number)
+        pos = 0
+        while pos < len(words):
+            year = check_year(words[pos])
+            if year and pos:
+                month = month2num(words[pos - 1])
+                if month:
+                    if pos > 1:
+                        day = check_int(re.sub(r"\D", "", words[pos - 2]), 0)
+                        if pos > 2 and words[pos - 3].lower().strip('.') in issuenouns:
+                            dateparts['issue'] = day
+                            dateparts['inoun'] = words[pos - 3]
+                            dateparts['style'] = 10
+                            break
+                        elif pos > 2 and words[pos - 3].lower().strip('.') in volumenouns:
+                            dateparts['volume'] = day
+                            dateparts['vnoun'] = words[pos - 3]
+                            dateparts['style'] = 10
+                            break
+                        elif day > 31:  # probably issue/volume number nn
+                            if 'I' in datetype:
+                                dateparts['issue'] = day
+                                dateparts['style'] = 10
+                                break
+                            elif 'V' in datetype:
+                                dateparts['volume'] = day
+                                dateparts['style'] = 10
+                                break
+                            else:
+                                dateparts['issue'] = day
+                                dateparts['style'] = 2
+                                break
+                        elif day:
+                            dateparts['style'] = 3
+                            dateparts['day'] = day
+                            break
+                        else:
+                            dateparts['style'] = 4
+                            dateparts['day'] = 1
+                            break
+                    else:
+                        dateparts['style'] = 4
+                        dateparts['day'] = 1
+                        break
+            pos += 1
+
+        # MonthName DD YYYY or MonthName DD, YYYY
+        if not dateparts['style']:
+            pos = 0
+            while pos < len(words):
+                year = check_year(words[pos])
+                if year and (pos > 1):
+                    month = month2num(words[pos - 2])
+                    if month:
+                        day = check_int(re.sub(r"\D", "", words[pos - 1]), 0)
+                        try:
+                            _ = datetime.date(year, month, day)
+                            dateparts['year'] = year
+                            dateparts['month'] = month
+                            dateparts['day'] = day
+                            dateparts['style'] = 5
+                            break
+                        except (ValueError, OverflowError):
+                            pass
+                pos += 1
+
+        # YYYY MM_or_MonthName or YYYY MM_or_MonthName DD
+        if not dateparts['style']:
+            pos = 0
+            while pos < len(words):
+                year = check_year(words[pos])
+                if year and pos + 1 < len(words):
+                    month = month2num(words[pos + 1])
+                    if not month:
+                        month = check_int(words[pos + 1], 0)
+                    if month:
+                        if pos + 2 < len(words):
+                            day = check_int(re.sub(r"\D", "", words[pos + 2]), 0)
+                            if day:
+                                style = 6
+                            else:
+                                day = 1
+                                style = 7
+                        else:
+                            day = 1
+                            style = 7
+                        try:
+                            _ = datetime.date(year, month, day)
+                            dateparts['year'] = year
+                            dateparts['month'] = month
+                            if not dateparts['months']:
+                                dateparts['months'].append(month)
+                            dateparts['day'] = day
+                            dateparts['style'] = style
+                        except (ValueError, OverflowError):
+                            dateparts['style'] = 0
+                pos += 1
+        # Issue/No/Nr/Vol/# nn with/without year in any position
+        if not dateparts['style']:
+            pos = 0
+            while pos < len(words):
+                # might be "Vol.3" or "#12" with no space between noun and number
+                splitted = re.split(r'(\d+)', words[pos].lower())
+                if splitted[0].strip('.') in nouns:
+                    if len(splitted) > 1:
+                        issue = check_int(splitted[1], 0)
+                        if issue:
+                            dateparts['issue'] = issue
+                            if dateparts['year']:
+                                dateparts['style'] = 10  # Issue/No/Nr/Vol nn, YYYY
+                            else:
+                                dateparts['style'] = 11  # Issue/No/Nr/Vol nn
+                            break
+                    if pos + 1 < len(words):
+                        issue = check_int(words[pos + 1], 0)
+                        if issue:
+                            dateparts['issue'] = issue
+                            if dateparts['year']:
+                                dateparts['style'] = 10  # Issue/No/Nr/Vol nn, YYYY
+                            else:
+                                dateparts['style'] = 11  # Issue/No/Nr/Vol nn
+                            break
+                        # No. 19.2 -> 2019 02 but 02 might be a number, not a month
+                        issue = words[pos + 1]
+                        if issue.count('.') == 1 and issue.replace('.', '').isdigit():
+                            year, issue = issue.split('.')
+                            if len(year) == 2:
+                                year = f'20{year}'
+                            if len(issue) == 1:
+                                issue = f'0{issue}'
+                            if len(year) == 4 and len(issue) == 2:
+                                dateparts['year'] = int(year)
+                                dateparts['issue'] = int(issue)
+                                dateparts['style'] = 10
+                                break
+                pos += 1
+
+        # nn YYYY issue number without "Nr" before it, or YYYY nn
+        if not dateparts['style'] and dateparts['year']:
+            pos = 1
+            while pos < len(words):
+                if check_year(words[pos]):
+                    if words[pos - 1].isdigit():
+                        dateparts['issue'] = int(words[pos - 1])
+                        dateparts['style'] = 12
+                        break
+                    elif pos + 1 < len(words) and words[pos + 1].isdigit():
+                        dateparts['issue'] = int(words[pos + 1])
+                        dateparts['style'] = 12
+                        break
+                pos += 1
+
+    if dateparts['months']:
+        dateparts['month'] = dateparts['months'][0]
+    else:
+        dateparts['month'] = 0
+
+    datetype_ok = True
+    if datetype and dateparts['style']:
+        # check all wanted parts are in the result
+        if 'M' in datetype and (dateparts['style'] not in [1, 2, 3, 4, 5, 6, 7, 12] or not dateparts['month']):
+            datetype_ok = False
+        if 'D' in datetype and (dateparts['style'] not in [3, 5, 6] or not dateparts['day']):
+            datetype_ok = False
+        if 'MM' in datetype and (dateparts['style'] not in [1] or len(dateparts['months']) < 2):
+            datetype_ok = False
+        if 'V' in datetype and (dateparts['style'] not in [2, 8, 9, 10, 11, 12, 13, 14, 17, 18]
+                                or not dateparts['volume']):
+            datetype_ok = False
+        if 'I' in datetype and (dateparts['style'] not in [2, 10, 11, 12, 13, 14, 16, 17, 18]
+                                or not dateparts['issue']):
+            datetype_ok = False
+        if 'Y' in datetype and (dateparts['style'] not in [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 15, 16, 18]
+                                or not dateparts['year']):
+            datetype_ok = False
+    if not datetype_ok:
+        dateparts['style'] = 0
+    else:
+        if dateparts['issue'] and ('I' in datetype or dateparts['inoun']):
+            issuenum = str(dateparts['issue']).zfill(4)
+            if dateparts['year']:
+                issuenum = f"{dateparts['year']}{issuenum}"
+        else:
+            if not dateparts['day']:
+                dateparts['day'] = 1
+            if dateparts['style'] == 14:
+                issuenum = f"{dateparts['issue']:04d}"
+            elif dateparts['style'] == 15:
+                issuenum = f"{dateparts['year']}"
+            elif dateparts['style'] == 16:
+                issuenum = f"{dateparts['year']}{dateparts['issue']:04d}"
+            elif dateparts['style'] == 17:
+                issuenum = f"{dateparts['volume']:04d}{dateparts['issue']:04d}"
+            elif dateparts['style'] == 18:
+                issuenum = f"{dateparts['year']}{dateparts['volume']:04d}{dateparts['issue']:04d}"
+            else:
+                issuenum = f"{dateparts['year']}-{dateparts['month']:02d}-{dateparts['day']:02d}"
+        dateparts['dbdate'] = issuenum
+
+    return dateparts
+
+
+def rename_issue(issueid):
+    logger = logging.getLogger(__name__)
+    db = database.DBConnection()
+    if not issueid:
+        msg = "No issueID provided"
+        logger.warning(msg)
+        db.close()
+        return '', msg
+    match = db.match('select Title,IssueDate,IssueFile from issues where issueid=?', (issueid,))
+    if not match:
+        msg = f"Invalid issueID {issueid}"
+        logger.warning(msg)
+        db.close()
+        return '', msg
+
+    parts = get_dateparts(match['IssueDate'])
+    new_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], match['Title'], parts)
+    old_name, extn = os.path.splitext(os.path.basename(match['IssueFile']))
+    old_folder = os.path.dirname(match['IssueFile'])
+    new_folder = format_issue_filename(CONFIG['MAG_DEST_FOLDER'], match['Title'], parts)
+    if CONFIG.get_bool('MAG_RELATIVE'):
+        dest_dir = get_directory('eBook')
+        new_folder = stripspaces(os.path.join(dest_dir, new_folder))
+
+    # create dest folder if required
+    if old_folder != new_folder:
+        if not path_isdir(new_folder):
+            if not make_dirs(new_folder):
+                msg = f"Unable to create target folder {new_folder}"
+                logger.error(msg)
+                db.close()
+                return '', msg
+    # rename opf, jpg, then issue
+    for extension in ['.jpg', '.opf', extn]:
+        src = os.path.join(old_folder, old_name + extension)
+        dst = os.path.join(new_folder, new_name + extension)
+        # check for windows case-insensitive
+        if ((os.name == 'nt' and src.lower() != dst.lower()) or
+                (os.name != 'nt' and src != dst)):
+            if path_exists(src):
+                _ = safe_move(src, dst)
+            else:
+                msg = f"File not found: {src}"
+                logger.warning(msg)
+                if extension == extn:
+                    db.close()
+                    return '', msg
+    # delete old folder if empty
+    if len(listdir(old_folder)) == 0:
+        remove_dir(old_folder)
+    # update issuefile in database
+    new_filename = os.path.join(new_folder, new_name + extn)
+    db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_filename, issueid))
+    db.close()
+    return new_filename, ''
+

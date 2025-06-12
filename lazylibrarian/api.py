@@ -41,7 +41,7 @@ from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
-from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, \
+from lazylibrarian.formatter import today, format_author_name, check_int, plural, get_list, \
     thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -52,7 +52,7 @@ from lazylibrarian.images import get_author_image, get_author_images, get_book_c
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
-from lazylibrarian.magazinescan import magazine_scan, format_issue_name
+from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
@@ -65,7 +65,7 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
     author_update, series_update, show_stats, SchedulerCommand
 from lazylibrarian.searchbook import search_book
-from lazylibrarian.searchmag import search_magazines, get_issue_date
+from lazylibrarian.searchmag import search_magazines
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
 from lazylibrarian.telemetry import TELEMETRY, telemetry_send
 
@@ -102,7 +102,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'clearLogs': (1, 'clear current log'),
             'getMagazines': (0, 'list magazines'),
             'getIssues': (0, '[&name=] [&sort=] [&limit=] list issues of named magazine'),
-            'getIssueName': (0, '&name= get name of issue from path/filename'),
+            'getIssueName': (0, '&name= [&datestyle=] get name of issue from path/filename'),
             'createMagCovers': (1, '[&wait] [&refresh] create covers for magazines, optionally refresh existing ones'),
             'createMagCover': (1, '&file= [&refresh] [&page=] create cover for magazine issue, optional page number'),
             'forceMagSearch': (1, '[&title=] [&backissues] [&wait] search for wanted magazines'),
@@ -251,7 +251,9 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'sendMagIssuetoCalibre': (1, "&id= Send a magazine issue already in LazyLibrarian database to calibre"),
             'sendComicIssuetoCalibre': (1, "&id= Send a comic issue already in LazyLibrarian database to calibre"),
             'ignoredStats': (0, 'show count of reasons books were ignored'),
-            'updateBook': (1, "&id= [&BookName=] update book parameters (bookname, booklang, bookdate etc)")
+            'updateBook': (1, "&id= [&BookName=] update book parameters (bookname, booklang, bookdate etc)"),
+            'renameissue': (1, '&id= Rename a magazine issue to match configured pattern'),
+            'renameissues': (1, '&title= Rename all issues of a magazine to match configured pattern'),
             }
 
 
@@ -387,6 +389,47 @@ class Api(object):
         else:
             fname, err = book_rename(kwargs['id'])
             self.data = {'Success': fname != '', 'Data': fname, 'Error': {'Code': 200, 'Message': err}}
+        return
+
+    def _renameissue(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: id'}}
+        else:
+            fname, err = rename_issue(kwargs['id'])
+            self.data = {'Success': fname != '', 'Data': fname, 'Error': {'Code': 200, 'Message': err}}
+        return
+
+    def _renameissues(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'title' not in kwargs:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: title'}}
+            return
+        db = database.DBConnection()
+        cmd = f"SELECT issueid,issuefile from issues WHERE title=\'{kwargs['title']}\'"
+        issues = db.select(cmd)
+        db.close()
+        if not issues:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 200,
+                                                                 'Message': f"No Issues for {kwargs['title']}"}}
+        else:
+            hit = 0
+            miss = 0
+            for item in issues:
+                if not path_isfile(item['issuefile']):
+                    self.logger.debug(f"Missing file {item['issuefile']}")
+                    miss += 1
+                else:
+                    fname, err = rename_issue(item['issueid'])
+                    if err:
+                        self.logger.debug(f"Failed to rename {item['issuefile']} {err}")
+                        miss += 1
+                    else:
+                        hit += 1
+            self.data = {'Success': miss == 0, 'Data': f"Renamed {hit}: Failed {miss}",
+                         'Error': {'Code': 200, 'Message': ''}}
         return
 
     def _newauthorid(self, **kwargs):
@@ -1105,7 +1148,15 @@ class Api(object):
             if item not in kwargs:
                 self.data = f'Missing parameter: {item}'
                 return
-        preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0))
+        if 'tag' in kwargs:
+            for item in ['title', 'issue']:
+                if item not in kwargs:
+                    self.data = f'Missing parameter: {item}'
+                    return
+            preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0), tag=True,
+                                title=kwargs['title'], issue=kwargs['issue'])
+        else:
+            preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0))
         self.data = 'OK'
 
     def _importbook(self, **kwargs):
@@ -1560,25 +1611,21 @@ class Api(object):
             return
         self.data = ''
 
-        dirname = os.path.dirname(kwargs['name'])
+        if os.path.isfile(kwargs['name']):
+            dirname = os.path.dirname(kwargs['name'])
+        else:
+            dirname = ''
 
-        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
-        name_exploded = replace_all(kwargs['name'], dic).split()
+        dateparts = get_dateparts(kwargs['name'])
+        issuedate = dateparts.get('dbdate', '')
 
-        issuenum_type, issuedate, year = get_issue_date(name_exploded)
-
-        if issuenum_type:
-            if int(issuenum_type) > 9:  # we think it's an issue number
-                if issuedate.isdigit():
-                    issuedate = issuedate.zfill(4)  # pad with leading zeros
+        if dateparts['style']:
             if dirname:
                 title = os.path.basename(dirname)
-                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)
-                self.data = os.path.join(dirname, f"{global_name}.{name_exploded[-1]}")
-            else:
-                self.data = f"Regex {issuenum_type} [{issuedate}] {year}"
-        else:
-            self.data = f"Regex {issuenum_type} [{issuedate}] {year}"
+                global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, dateparts)
+                self.data = os.path.join(dirname, f"{global_name}.{os.path.splitext(kwargs['name'])[1]} {dateparts}")
+                return
+        self.data = f"Regex {dateparts['style']} [{issuedate}] {dateparts}"
 
     def _createmagcovers(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2255,10 +2302,21 @@ class Api(object):
         TELEMETRY.record_usage_data()
         library = kwargs.get('library', '')
         userid = kwargs.get('user', None)
-        try:
-            self.data = lazylibrarian.hc.hc_sync(library=library, userid=userid)
-        except Exception as e:
-            self.data = f"{type(e).__name__} {str(e)}"
+        
+        # If no user specified and HC_SYNC is enabled, sync all users with tokens
+        if not userid and CONFIG.get_bool('HC_SYNC'):
+            try:
+                self.data = lazylibrarian.hc.hc_sync(library=library)  # This will sync all users
+            except Exception as e:
+                self.data = f"{type(e).__name__} {str(e)}"
+        # If specific user requested, sync just that user
+        elif userid:
+            try:
+                self.data = lazylibrarian.hc.hc_sync(library=library, userid=userid)
+            except Exception as e:
+                self.data = f"{type(e).__name__} {str(e)}"
+        else:
+            self.data = "HC_SYNC is disabled and no specific user requested"
 
     def _grsync(self, **kwargs):
         TELEMETRY.record_usage_data()

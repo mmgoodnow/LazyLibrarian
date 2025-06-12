@@ -61,6 +61,7 @@
             toggleElement("#opds_authentication", "#opdscredentials");
 
             // Importing
+            toggleElement("#hc_api", "#hc_options");
             toggleElement("#hc_sync", "#hcsync_options");
             toggleElement("#gr_sync", "#grsync_options");
             toggleElement("#gr_syncuser", "#gruser_options");
@@ -512,24 +513,6 @@
                     }
                 });
             });
-        });
-
-
-        $('#test_hcauth').click(function () {
-            let hc_api = $.trim($("#hc_api").val());
-            $.get("test_hcauth", {},
-                function (data) {
-                    bootbox.dialog({
-                        title: 'HardCover Auth',
-                        message: '<pre>'+data+'</pre>',
-                        buttons: {
-                            primary: {
-                                label: "Close",
-                                className: 'btn-primary'
-                            }
-                        }
-                    });
-                });
         });
 
         $('#test_grauth').click(function () {
@@ -1020,8 +1003,8 @@
         });
 
         $('#hc_api').on('change', function() {
-            let apikey = $.trim($("#hc_api").val());
-            $.get('hc_api_changed', {'hc_api': apikey},
+            let status = $("#hc_api").prop("checked") ? 'True' : ''
+            $.get('hc_api_changed', {'status': status},
             function(data) {
                 location.reload();
             });

@@ -85,6 +85,15 @@
                 <input id="hc_id" name="hc_id" class="form-control" value="" readonly>
               </div>
               <div class="form-group col-md-6">
+                <label for="hc_token">HardCover Token</label>
+                <div class="input-group">
+                  <input type="text" id="hc_token" name="hc_token" class="form-control" value="" placeholder="Bearer token">
+                  <span class="input-group-btn">
+                    <button class="btn btn-default" type="button" id="test_hc_token" disabled>Test</button>
+                  </span>
+                </div>
+              </div>
+              <div class="form-group col-md-6">
                 <label for="lastlogin">Last Login</label>
                 <input id="lastlogin" name="lastlogin" class="form-control" value="" readonly>
               </div>
@@ -121,13 +130,13 @@
     $(document).ready(function()
     {
       $('#admin').click(function() {
-        $("#perms").val(${lazylibrarian.perm_admin});
+        $("#perms").val("${lazylibrarian.perm_admin}");
       });
       $('#friend').click(function() {
-        $("#perms").val(${lazylibrarian.perm_friend});
+        $("#perms").val("${lazylibrarian.perm_friend}");
       });
       $('#guest').click(function() {
-        $("#perms").val(${lazylibrarian.perm_guest});
+        $("#perms").val("${lazylibrarian.perm_guest}");
       });
 
       $('#generatepwd').click(function () {
@@ -156,6 +165,37 @@
             $("#summernote").val(obj['subs']);
             $("#password").val("");
             $("#hc_id").val(obj['hc_id']);
+            $("#hc_token").val(obj['hc_token']);
+            // Enable or disable the Test button based on UserID
+            if (obj['userid']) {
+              $('#test_hc_token').prop('disabled', false);
+            } else {
+              $('#test_hc_token').prop('disabled', true);
+            }
+          });
+      });
+      // Also check on page load
+      if (!$('#userid').val()) {
+        $('#test_hc_token').prop('disabled', true);
+      } else {
+        $('#test_hc_token').prop('disabled', false);
+      }
+
+        $('#test_hc_token').click(function() {
+          var hc_token = $.trim($("#hc_token").val());
+          var userid = $.trim($("#userid").val());
+          $.get("test_hcauth", {'hc_token': hc_token, 'userid': userid},
+                function (data) {
+                bootbox.dialog({
+                    title: 'Test HardCover Token',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary'
+                        }
+                    }
+                });
             });
         });
 
@@ -269,9 +309,10 @@
           var booktype = $.trim($("#booktype").val());
           var password = $.trim($("#password").val());
           var lltheme = $.trim($("#lltheme").val());
+          var hc_token = $.trim($("#hc_token").val());
           $.get("admin_users", {'user': user, 'username': username, 'fullname': fullname, 'email': email,
                 'sendto': sendto, 'perms': perms, 'password': password, 'calread': calread, 'caltoread': caltoread,
-                'booktype': booktype, 'theme': lltheme},
+                'booktype': booktype, 'theme': lltheme, 'hc_token': hc_token},
                 function (data) {
                 bootbox.dialog({
                     title: 'Update User',

@@ -123,8 +123,9 @@ from lazylibrarian.scheduling import restart_jobs, SchedulerCommand
 # 84 merge into readinglists table, remove individual tables
 # 85 change seriesid to include source, to avoid collisions
 # 86 add language to magazine table
+# 87 add hc_token to users table
 
-db_current_version = 86
+db_current_version = 87
 
 
 def upgrade_needed():
@@ -1415,6 +1416,15 @@ def update_schema(db, upgradelog):
         lazylibrarian.UPDATE_MSG = 'Adding language to magazines tables'
         upgradelog.write(f"{time.ctime()} v86: {lazylibrarian.UPDATE_MSG}\n")
         db.action("ALTER TABLE magazines ADD COLUMN Language TEXT default 'en'")
+
+    if not has_column(db, "users", "hc_token"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding hc_token column to users table'
+        upgradelog.write(f"{time.ctime()} v87: {lazylibrarian.UPDATE_MSG}\n")
+        db.action('ALTER TABLE users ADD COLUMN hc_token TEXT')
+        if CONFIG.get_str('HC_KEY'):
+            db.action("UPDATE users SET hc_token=? WHERE perms=65535 and username='admin'",
+                      (CONFIG.get_str('HC_KEY'), ))
 
     if changes:
         upgradelog.write(f"{time.ctime()} Changed: {changes}\n")

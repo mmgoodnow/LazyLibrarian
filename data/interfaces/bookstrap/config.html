@@ -666,15 +666,16 @@
                     </label>
                   </div>
                   </fieldset>
-                  <fieldset id="hc_options">
-                  <div class="form-group">
-                    <label for="hc_api" class="control-label">HardCover API:</label>
-                    <input type="text" id="hc_api" name="hc_api" value="${CONFIG['HC_API']}" class="form-control">
+                  <label class="control-label">HardCover API:</label>
+                  <div class="checkbox">
+                    <% checked = 'checked="checked"' if CONFIG['HC_API'] else '' %>
+                    <label for="hc_api">
+                      <input type="checkbox" id="hc_api" name="hc_api" value="1" ${checked} />
+                      Enable HardCover api for book/author information
+                    </label>
                   </div>
+                  <fieldset id="hc_options">
                   <div class row>
-                    <div class="form-group">
-                      <input type="button" value="Test Authorization" id="test_hcauth" class="btn btn-default" />
-                    </div>
                     <div class="checkbox">
                       <% checked = 'checked="checked"' if CONFIG['HC_SYNC'] else '' %>
                       <label for="hc_sync" class="control-label">
@@ -690,6 +691,12 @@
                         <input type="number" id="hardcover_interval" name="hardcover_interval" value="${CONFIG['HARDCOVER_INTERVAL']}" class="form-control" placeholder="HardCover Sync interval (hours)" >
                         <span class="input-group-addon">Hours</span>
                       </div>
+                    </div>
+                    <div class="checkbox">
+                      <% checked = 'checked="checked"' if CONFIG['HC_SYNCREADONLY'] else '' %>
+                      <label for="hc_syncreadonly" class="control-label">
+                        <input type="checkbox" id="hc_syncreadonly" name="hc_syncreadonly" value="1" ${checked} />
+                        Use HardCover lists as read-only</label>
                     </div>
                   </fieldset>
                   <fieldset id="gb_options">
@@ -911,7 +918,7 @@
                       e.g: fr_FR.utf8, es_ES.utf8<br/>
                       English month names are preloaded<br/>Changes to this setting require a restart</span>
                   </div>
-                  <legend>Date Formats</legend>
+                  <legend>Display Date Formats</legend>
                     <div class="row">
                    <div class="col-md-6">
                     <label for="date_format" class="control=label">Author Dates:</label>
@@ -2384,7 +2391,7 @@
                   <div class="form-group">
                     <label for="mag_dest_folder">Magazine Foldername Pattern:</label>
                     <input type="text" id="mag_dest_folder" name="mag_dest_folder" value="${CONFIG['MAG_DEST_FOLDER']}" class="form-control" placeholder="Magazines Destination Folder">
-                    <span class="help-block">Absolute path, or inside book folder. Options: $Title, $IssueDate, $IssueYear, $IssueVol, $IssueNum, $IssueMonth, any string
+                    <span class="help-block">Absolute path, or inside book folder. Options: $Title, $IssueDate, $IssueYear, $IssueVol, $IssueNum, $IssueMonth, $IssueDay, any string
                       <BR><strong>All options are discretionary but Title is recommended unless included in Filename to prevent issue name collisions</strong></span>
                   </div>
                   <div class="checkbox">
@@ -2402,7 +2409,7 @@
                   <div class="form-group">
                     <label for="mag_dest_file">Magazine Filename Pattern:</label>
                     <input type="text" id="mag_dest_file" name="mag_dest_file" value="${CONFIG['MAG_DEST_FILE']}" class="form-control" placeholder="Magazine Issue Filename">
-                    <span class="help-block">Options: $Title, $IssueDate, $IssueYear, $IssueVol, $IssueNum, $IssueMonth, any string
+                    <span class="help-block">Options: $Title, $IssueDate, $IssueYear, $IssueVol, $IssueNum, $IssueMonth, $IssueDay, any string
                       <BR><strong>Current limitation: Filename must contain IssueDate, or IssueYear and one of IssueNum/IssueMonth</strong></span>
                   </div>
                   %endif
@@ -2695,6 +2702,12 @@
                   <div class="form-group">
                     <label for="shrink_mag">Resolution (dpi):</label>
                     <input type="number" id="shrink_mag" name="shrink_mag" value="${CONFIG['SHRINK_MAG']}" class="form-control" placeholder="0 for no change">
+                  </div>
+                  <div class="checkbox">
+                    <% checked = 'checked="checked"' if CONFIG['TAG_PDF'] else '' %>
+                    <label for="tag_pdf" class="control-label">
+                      <input type="checkbox" id="tag_pdf" name="tag_pdf" value="1" ${checked} />
+                      Tag PDF file</label>
                   </div>
                  </fieldset>
               </div>
@@ -3644,8 +3657,9 @@
                     <input type="text" id="datetype[${mag['Title']}]" name="datetype[${mag['Title']}]" value="${mag['DateType']}" class="form-control" placeholder="auto">
                     <label for="coverpage[${mag['Title']}]" class="input-group-addon">Cover Page</label>
                     <input type="number" id="coverpage[${mag['Title']}]" name="coverpage[${mag['Title']}]" value="${mag['CoverPage']}" min=1 class="form-control" placeholder="1">
-                    <label for="coverpage[${mag['Title']}]" class="input-group-addon">Language</label>
-                    <input type="text" id="language[${mag['Title']}]" name="language[${mag['Title']}]" value="${mag['Language']}" class="form-control">
+                    <label for="mag_lang[${mag['Title']}]" class="input-group-addon">Language</label>
+                    <input type="text" id="mag_lang[${mag['Title']}]" name="mag_lang[${mag['Title']}]" value="${mag['Language']}" class="form-control">
+                    <span class="help-block">Used for opf/pdf files<br/></span>
                   </div>
                 </div>
                 %endfor

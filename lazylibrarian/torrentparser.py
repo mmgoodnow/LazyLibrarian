@@ -62,7 +62,9 @@ def torrent_abb(book=None, test=False):
         soup = BeautifulSoup(result, 'html5lib')
         for post in soup.select('.post'):
             try:
-                title = post.select_one('.postTitle > h2 > a').text.strip()
+                title = post.select_one('.postTitle > h2 > a')
+                if title:
+                    title = title.text.strip()
                 link = f"{host}/{post.select_one('.postTitle > h2 > a')['href']}"
                 try:
                     size = str(post).split('File Size:')[1].split('</p>')[0]
@@ -73,7 +75,7 @@ def torrent_abb(book=None, test=False):
                     size = 0
 
                 magnet = extract_magnet_link(link)
-                if magnet:
+                if magnet and title:
                     results.append({
                         'bookid': book['bookid'],
                         'tor_prov': provider,
@@ -90,10 +92,10 @@ def torrent_abb(book=None, test=False):
                 TELEMETRY.record_usage_data("abbParserError")
                 continue
 
-        if test:
-            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from "
-                         f"{provider} for {book['searchterm']}")
-            return len(results)
+    if test:
+        logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from "
+                     f"{provider} for {book['searchterm']}")
+        return len(results)
 
     return results, errmsg
 

@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -11,7 +11,6 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import datetime
 import logging
 import re
 import threading
@@ -23,7 +22,8 @@ from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
-    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, thread_name
+    nzbdate2format, get_list, datecompare, check_int, age, thread_name
+from lazylibrarian.magazinescan import get_dateparts
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_znab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
@@ -337,49 +337,21 @@ def search_magazines(mags=None, reset=False, backissues=False):
                             rejects += 1
                         else:
                             datetype = book['datetype']
-                            issuenum_type, issuedate, year = get_issue_date(nzbtitle_exploded, datetype=datetype)
-                            if issuenum_type:
-                                logger.debug(
-                                    f'Issue {issuedate} (datestyle {issuenum_type}) for {nzbtitle_formatted},'
-                                    f' {datetype}')
-                                datetype_ok = True
-
-                                if datetype:
-                                    # check all wanted parts are in the result
-                                    # Day Month Year Vol Iss (MM needs two months)
-
-                                    if 'M' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 12]:
-                                        datetype_ok = False
-                                    if 'D' in datetype and issuenum_type not in [3, 5, 6]:
-                                        datetype_ok = False
-                                    if 'MM' in datetype and issuenum_type not in [1]:  # bi monthly
-                                        datetype_ok = False
-                                    if 'V' in datetype and issuenum_type not in [2, 8, 9, 10, 11, 12, 13, 14, 17, 18]:
-                                        datetype_ok = False
-                                    if 'I' in datetype and issuenum_type not in [2, 10, 11, 12, 13, 14, 16, 17, 18]:
-                                        datetype_ok = False
-                                    if 'Y' in datetype and issuenum_type not in [1, 2, 3, 4, 5, 6, 7, 8, 10,
-                                                                                 12, 13, 15, 16, 18]:
-                                        datetype_ok = False
+                            dateparts = get_dateparts(nzbtitle_formatted, datetype=datetype)
+                            if dateparts['style']:
+                                logger.debug(f"Match {dateparts['dbdate']} (datestyle {dateparts['style']}) "
+                                             f"for {nzbtitle_formatted}, {datetype}")
                             else:
-                                datetype_ok = False
                                 logger.debug(
                                     f'Magazine {nzbtitle_formatted} not in a recognised date format [{datetype}]')
                                 bad_date += 1
-                                # allow issues with good name but bad date to be included
-                                # so user can manually select them, incl those with issue numbers
-                                issuedate = "1970-01-01"  # provide a fake date for bad-date issues
-
                             # wanted issues go into wanted table marked "Wanted"
                             #  the rest into pastissues table marked "Skipped" or "Have"
                             insert_table = "pastissues"
                             comp_date = 0
-                            if datetype_ok:
-                                if issuedate.isdigit() and 'I' in datetype:
-                                    issuedate = issuedate.zfill(4)
-                                    if 'Y' in datetype:
-                                        issuedate = year + issuedate
-
+                            issuedate = "1970-01-01"  # provide a fake date for bad-date issues
+                            if dateparts['dbdate']:
+                                issuedate = dateparts['dbdate']
                                 control_date = results['IssueDate']
                                 logger.debug(f"Control date: [{control_date}]")
                                 if not control_date:  # we haven't got any copies of this magazine yet
@@ -418,10 +390,10 @@ def search_magazines(mags=None, reset=False, backissues=False):
                                     # invalid comparison of date and issue number
                                     comp_date = 0
                                     if re.match(r'\d+-\d\d-\d\d', str(control_date)):
-                                        if issuenum_type > 9 and year:
+                                        if dateparts['style'] > 9 and dateparts['year']:
                                             # we assumed it was an issue number, but it could be a date
-                                            year = check_int(year, 0)
-                                            if issuenum_type in [10, 12, 13]:
+                                            year = check_int(dateparts['year'], 0)
+                                            if dateparts['style'] in [10, 12, 13]:
                                                 issuedate = int(issuedate[:4])
                                             issuenum = check_int(issuedate, 0)
                                             if year and 1 <= issuenum <= 12:
@@ -437,7 +409,7 @@ def search_magazines(mags=None, reset=False, backissues=False):
 
                             if issuedate == "1970-01-01":
                                 logger.debug(f'This issue of {nzbtitle_formatted} is unknown age; skipping.')
-                            elif not datetype_ok:
+                            elif not dateparts['style']:
                                 logger.debug(f'This issue of {nzbtitle_formatted} not in a wanted date format.')
                             elif comp_date > 0:
                                 # keep track of what we're going to download, so we don't download dupes
@@ -575,274 +547,102 @@ def download_maglist(maglist, table='wanted'):
             schedule_job(action=SchedulerCommand.START, target='PostProcessor')
 
 
-def get_issue_date(nzbtitle_exploded, datetype=''):
-    logger = logging.getLogger(__name__)
-    issuenum_type = 0
-    issuedate = ''
-    year = 0
-    if not datetype:
-        datetype = ''
-    # Magazine names have many different styles of date
-    # These are the ones we can currently match...
-    # 1 MonthName MonthName YYYY (bi-monthly just use first month as date)
-    # 2 nn, MonthName YYYY  where nn is an assumed issue number (use issue OR month with/without year)
-    # 3 DD MonthName YYYY (daily, weekly, bi-weekly, monthly)
-    # 4 MonthName YYYY (monthly)
-    # 5 MonthName DD YYYY or MonthName DD, YYYY (daily, weekly, bi-weekly, monthly)
-    # 6 YYYY MM DD or YYYY MonthName DD (daily, weekly, bi-weekly, monthly)
-    # 7 YYYY MM or YYYY MonthName (monthly)
-    # 8 Volume x Issue y in either order, with year
-    # 9 Volume x Issue y in either order, without year
-    # 10 Issue/No/Nr/Vol/# nn, YYYY (prepend year to zero filled issue number)
-    # 11 Issue/No/Nr/Vol/# nn (no year found, hopefully rolls on year on year)
-    # 12 nn YYYY issue number without Issue/No/Nr/Vol/# in front (unsure, nn could be issue or month number)
-    # 13 issue and year as a single 6 digit string eg 222015 (some uploaders use this, reverse it to YYYYIIII)
-    # 14 3 or more digit zero padded issue number eg 0063 (issue with no year)
-    # 15 just a year (annual)
-    # 16 to 18 internal issuedates used for filenames, YYYYIIII, VVVVIIII, YYYYVVVVIIII
-    #
-    issuenouns = get_list(CONFIG['ISSUE_NOUNS'])
-    volumenouns = get_list(CONFIG['VOLUME_NOUNS'])
-    nouns = issuenouns
-    nouns.extend(volumenouns)
+def get_default_date(dateparts):
+    # $V = Volume, zero filled, 4 digit
+    # $v = Volume, no padding
+    # $I = Issue, zero filled, 4 digit
+    # $i = Issue, no padding
+    # $Y = Year, 4 digit
+    # $M = Month number, 2 digit
+    # $m = Month name
+    # $D = Day number, 2 digit
+    layout = {
+                1: "$m - $m $Y",
+                2: "#$I, $m",
+                3: "$D $m $Y",
+                4: "$m $Y",
+                5: "$m $D $Y",
+                6: "$Y $M $D",
+                7: "$Y $M",
+                8: "Volume $v Issue $i $Y",
+                9: "Volume $v Issue $i",
+                10: "#$I $Y",
+                11: "#$I",
+                12: "#$I $Y",
+                13: "$Y$I",
+                14: "$I",
+                15: "$Y",
+                16: "$Y$I",
+                17: "$V$I",
+                18: "$Y$V$I"
+            }
 
-    pos = 0
-    while pos < len(nzbtitle_exploded):
-        year = check_year(nzbtitle_exploded[pos])
-        if year and pos:
-            month = month2num(nzbtitle_exploded[pos - 1])
-            if month:
-                if pos > 1:
-                    month2 = month2num(nzbtitle_exploded[pos - 2])
-                    if month2:
-                        # bimonthly, for now just use first month
-                        month = min(month, month2)
-                        day = 1
-                        issuenum_type = 1
-                    else:
-                        day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos - 2]), 0)
-                        if pos > 2 and nzbtitle_exploded[pos - 3].lower().strip('.') in nouns:
-                            # definitely an issue or volume number
-                            issuedate = str(day)
-                            issuenum_type = 10
-                            break
-                        elif day > 31:  # probably issue/volume number nn
-                            if 'I' in datetype or 'V' in datetype:
-                                issuedate = str(day)
-                                issuenum_type = 10
-                                break
-                            else:
-                                issuenum_type = 4
-                                day = 1
-                        elif day:
-                            issuenum_type = 3
-                        else:
-                            issuenum_type = 4
-                            day = 1
-                else:
-                    issuenum_type = 4
-                    day = 1
+    if dateparts['style'] not in layout:
+        return f"Invalid layout style {dateparts['style']}"
 
-                if not issuedate:
-                    issuedate = "%04d-%02d-%02d" % (year, month, day)
-                try:
-                    _ = datetime.date(year, month, day)
-                    break
-                except ValueError:
-                    issuenum_type = 0
-                except OverflowError:
-                    logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
-                    issuenum_type = 0
-        pos += 1
+    preformat = layout[dateparts['style']]
+    if dateparts['style'] in [2] and dateparts["year"]:
+        preformat += ' $Y'
+    if dateparts['style'] in [10, 11, 13] and not dateparts["issue"]:
+        # we guessed issue, could be volume
+        dateparts['issue'] = dateparts['volume']
+    if dateparts['style'] in [12] and not dateparts["month"]:
+        # we guessed issue, could be month
+        if dateparts['issue'] < 13:
+            dateparts['month'] = dateparts['issue']
 
-    # MonthName DD YYYY or MonthName DD, YYYY
-    if not issuenum_type:
-        pos = 0
-        while pos < len(nzbtitle_exploded):
-            year = check_year(nzbtitle_exploded[pos])
-            if year and (pos > 1):
-                month = month2num(nzbtitle_exploded[pos - 2])
-                if month:
-                    day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos - 1]), 0)
-                    try:
-                        _ = datetime.date(year, month, day)
-                        issuedate = "%04d-%02d-%02d" % (year, month, day)
-                        issuenum_type = 5
-                        break
-                    except ValueError:
-                        issuenum_type = 0
-                    except OverflowError:
-                        logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
-                        issuenum_type = 0
+    if preformat.count('$m') == 2:
+        # change string to start-end
+        preformat = preformat.replace('$m', '$s', 1)
+        preformat = preformat.replace('$m', '$e', 1)
 
-            pos += 1
+    if preformat.count('$M') == 2:
+        # change two months to start-end
+        preformat = reformat.replace('$M', '$S', 1)
+        preformat = preformat.replace('$M', '$E', 1)
 
-    # YYYY MM_or_MonthName or YYYY MM_or_MonthName DD
-    if not issuenum_type:
-        pos = 0
-        while pos < len(nzbtitle_exploded):
-            year = check_year(nzbtitle_exploded[pos])
-            if year and pos + 1 < len(nzbtitle_exploded):
-                month = month2num(nzbtitle_exploded[pos + 1])
-                if not month:
-                    month = check_int(nzbtitle_exploded[pos + 1], 0)
-                if month:
-                    if pos + 2 < len(nzbtitle_exploded):
-                        day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos + 2]), 0)
-                        if day:
-                            issuenum_type = 6
-                        else:
-                            issuenum_type = 7
-                            day = 1
-                    else:
-                        issuenum_type = 7
-                        day = 1
-                    try:
-                        _ = datetime.date(year, month, day)
-                        issuedate = "%04d-%02d-%02d" % (year, month, day)
-                        break
-                    except ValueError:
-                        issuenum_type = 0
-                    except OverflowError:
-                        logger.debug(f"Overflow [{str(nzbtitle_exploded)}]")
-                        issuenum_type = 0
-            pos += 1
+    lang = 0
+    cnt = 0
+    while cnt < len(lazylibrarian.MONTHNAMES[0][0]):
+        if lazylibrarian.MONTHNAMES[0][0][cnt] == CONFIG['DATE_LANG']:
+            lang = cnt
+            break
+        cnt += 1
 
-    # scan for a year in the name
-    if not issuenum_type:
-        pos = 0
-        while pos < len(nzbtitle_exploded):
-            year = check_year(nzbtitle_exploded[pos])
-            if year:
-                break
-            pos += 1
+    if dateparts['month'] and int(dateparts['month']) < 13:
+        monthname = lazylibrarian.MONTHNAMES[0][int(dateparts['month'])]
+        month_name = monthname[lang]
+        month_num = dateparts['month']
+    else:
+        month_name = ''
+        month_num = 1
+    if dateparts['months'] and dateparts['months'][0]:
+        startname = lazylibrarian.MONTHNAMES[0][dateparts['months'][0]]
+        start_name = startname[lang]
+        start_month = dateparts['months'][0]
+    else:
+        start_name = ''
+        start_month = 1
+    if dateparts['months'] and dateparts['months'][-1]:
+        endname = lazylibrarian.MONTHNAMES[0][dateparts['months'][-1]]
+        end_name = endname[lang]
+        end_month = dateparts['months'][-1]
+    else:
+        end_name = ''
+        end_month = 1
 
-        # Volume x Issue y in either order, with/without year in any position
-        vol = 0
-        iss = 0
-        pos = 0
-        while pos + 1 < len(nzbtitle_exploded):
-            res = check_int(nzbtitle_exploded[pos + 1], 0)
-            if res:
-                if nzbtitle_exploded[pos] in issuenouns:
-                    iss = res
-                if nzbtitle_exploded[pos] in volumenouns:
-                    vol = res
-            if vol and iss:
-                if year:
-                    issuedate = "%s%04d%04d" % (year, vol, iss)
-                    issuenum_type = 8
-                else:
-                    issuedate = "%04d%04d" % (vol, iss)
-                    issuenum_type = 9
-                break
-            pos += 1
+    return preformat.replace(
+        '$V', str(dateparts['volume']).zfill(4)).replace(
+        '$v', str(dateparts['volume'])).replace(
+        '$I', str(dateparts['issue']).zfill(4)).replace(
+        '$i', str(dateparts['issue'])).replace(
+        '$Y', str(dateparts['year'])).replace(
+        '$D', str(dateparts['day']).zfill(2)).replace(
+        '$M', str(month_num).zfill(2)).replace(
+        '$m', month_name).replace(
+        '$S', str(start_month).zfill(2)).replace(
+        '$s', start_name).replace(
+        '$E', str(end_month).zfill(2)).replace(
+        '$e', end_name)
 
-    # Issue/No/Nr/Vol/# nn with/without year in any position
-    if not issuenum_type:
-        pos = 0
-        while pos < len(nzbtitle_exploded):
-            # might be "Vol.3" or "#12" with no space between noun and number
-            splitted = re.split(r'(\d+)', nzbtitle_exploded[pos].lower())
-            if splitted[0].strip('.') in nouns:
-                if len(splitted) > 1:
-                    issue = check_int(splitted[1], 0)
-                    if issue:
-                        issuedate = str(issue)
-                        # we searched for year prior to datestyle 8/9
-                        if year:
-                            issuenum_type = 10  # Issue/No/Nr/Vol nn, YYYY
-                        else:
-                            issuenum_type = 11  # Issue/No/Nr/Vol nn
-                        break
-                if pos + 1 < len(nzbtitle_exploded):
-                    issue = check_int(nzbtitle_exploded[pos + 1], 0)
-                    if issue:
-                        issuedate = str(issue)
-                        # we searched for year prior to datestyle 8/9
-                        if year:
-                            issuenum_type = 10  # Issue/No/Nr/Vol nn, YYYY
-                        else:
-                            issuenum_type = 11  # Issue/No/Nr/Vol nn
-                        break
-                    # No. 19.2 -> 2019 02 but 02 might be a number, not a month
-                    issue = nzbtitle_exploded[pos + 1]
-                    if issue.count('.') == 1 and issue.replace('.', '').isdigit():
-                        year, issuedate = issue.split('.')
-                        if len(year) == 2:
-                            year = f'20{year}'
-                        if len(issuedate) == 1:
-                            issuedate = f'0{issuedate}'
-                        if len(year) == 4 and len(issuedate) == 2:
-                            issuenum_type = 10
-                            break
-            pos += 1
 
-    # nn YYYY issue number without "Nr" before it
-    if not issuenum_type and year:
-        pos = 1
-        while pos < len(nzbtitle_exploded):
-            year = check_year(nzbtitle_exploded[pos])
-            if year:
-                issue = check_int(nzbtitle_exploded[pos - 1], 0)
-                if issue:
-                    issuedate = str(issue)
-                    issuenum_type = 12
-                    break
-            pos += 1
-
-    # issue and year as a single 6 digit string e.g. 222015
-    if not issuenum_type:
-        pos = 0
-        while pos < len(nzbtitle_exploded):
-            issue = nzbtitle_exploded[pos]
-            if issue.isdigit() and len(issue) == 6:
-                year = check_year(int(issue[2:]))
-                if year:
-                    issue = int(issue[:2])
-                    issuedate = str(issue).zfill(4)
-                    issuenum_type = 13
-                    break
-            pos += 1
-
-    # issue as a 3 or more digit string with leading zero e.g. 0063
-    if not issuenum_type:
-        pos = 0
-        while pos < len(nzbtitle_exploded):
-            issue = nzbtitle_exploded[pos]
-            if issue.isdigit():
-                if (len(issue) > 2 and issue[0] == '0') or (datetype and 'I' in datetype):
-                    issuedate = issue
-                    year = 0
-                    issuenum_type = 14
-                    break
-            pos += 1
-
-    # Annual - only a year found, year was found prior to datestyle 8/9
-    if not issuenum_type and year:
-        issuedate = f"{year}-01-01"
-        issuenum_type = 15
-
-    # YYYYIIII internal issuedates for filenames
-    if not issuenum_type:
-        pos = 0
-        while pos < len(nzbtitle_exploded):
-            issue = nzbtitle_exploded[pos]
-            if issue.isdigit():
-                if len(issue) == 8:
-                    if check_year(issue[:4]):  # YYYYIIII
-                        year = issue[:4]
-                        issuedate = issue
-                        issuenum_type = 16
-                        break
-                    else:
-                        issuedate = issue  # VVVVIIII
-                        issuenum_type = 17
-                        break
-                elif len(issuedate) == 12:  # YYYYVVVVIIII
-                    year = issue[:4]
-                    issuedate = issue
-                    issuenum_type = 18
-                    break
-            pos += 1
-    return issuenum_type, issuedate, year

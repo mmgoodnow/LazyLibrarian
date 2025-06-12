@@ -1,6 +1,6 @@
 #  This file is part of Lazylibrarian.
 #
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -51,7 +51,7 @@ from lazylibrarian.images import create_mag_cover
 from lazylibrarian.images import createthumbs
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
-from lazylibrarian.magazinescan import create_id, format_issue_name
+from lazylibrarian.magazinescan import create_id, format_issue_filename, get_dateparts
 from lazylibrarian.mailinglist import mailing_list
 from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
@@ -108,7 +108,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         # update magazine lastissue/cover as required
         entry = db.match('SELECT * FROM magazines where Title=?', (title,))
         mostrecentissue = entry['IssueDate']
-        dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], title, issuenum)
+        dest_path = format_issue_filename(CONFIG['MAG_DEST_FOLDER'], title, get_dateparts(issuenum))
 
         if CONFIG.get_bool('MAG_RELATIVE'):
             dest_dir = get_directory('eBook')
@@ -121,7 +121,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             logger.error(f'Unable to create destination directory {dest_path}')
             return False
 
-        global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuenum)
+        global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, get_dateparts(issuenum))
         tempdir = tempfile.mkdtemp()
         try:
             _ = safe_copy(source_file, os.path.join(tempdir, os.path.basename(source_file)))
@@ -185,7 +185,8 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
                 authors = title
             else:
                 authors = 'magazines'
-            _ = create_mag_opf(dest_file, authors, title, issuenum, issueid, overwrite=True)
+            _ = create_mag_opf(dest_file, authors, title, issuenum, issueid,
+                               language=entry['Language'], overwrite=True)
         if CONFIG['IMP_AUTOADDMAG']:
             dest_path = os.path.dirname(dest_file)
             process_auto_add(dest_path, booktype='mag')
@@ -338,12 +339,10 @@ def process_issues(source_dir=None, title=''):
                         found_title = False
 
             if found_title:
-                issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(filename_words, res['DateType'])
+                dateparts = get_dateparts(f, res['DateType'])
+                issuenum_type = dateparts['style']
+                issuedate = lazylibrarian.searchmag.get_default_date(dateparts)
                 if issuenum_type:
-                    # suppress the "-01" day on monthly magazines
-                    # if re.match(r'\d+-\d\d-01', str(issuedate)):
-                    #    issuedate = issuedate[:-3]
-
                     if process_mag_from_file(os.path.join(source_dir, f), title, issuedate):
                         logger.debug(f'Processed {title} issue {issuedate}')
                     else:
@@ -1281,24 +1280,18 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 mag_name = unaccented(sanitize(book['BookID']), only_ascii=False)
                                 # book auxinfo is a cleaned date, e.g. 2015-01-01
                                 iss_date = book['AuxInfo']
+                                dateparts = get_dateparts(iss_date)
                                 if iss_date == '1970-01-01':
                                     logger.debug(f"Looks like an invalid or missing date, retrying {book['NZBtitle']}")
-                                    dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
-                                           '[': ' ', ']': ' ', '#': '# '}
-                                    issuenum_type, issuedate, year = lazylibrarian.searchmag.get_issue_date(
-                                        replace_all(book['NZBtitle'].lower(), dic).split(), data['DateType'])
-                                    if issuenum_type:
-                                        if issuenum_type in [10, 12, 13] and year:
-                                            iss_date = "%s%04d" % (year, int(issuedate))
-                                        elif str(issuedate).isdigit():
-                                            iss_date = str(issuedate).zfill(4)
-                                        else:
-                                            iss_date = issuedate
-                                # suppress the "-01" day on monthly magazines
-                                # if re.match(r'\d+-\d\d-01', str(iss_date)):
-                                #    iss_date = iss_date[:-3]
-                                book['AuxInfo'] = iss_date
-                                dest_path = format_issue_name(CONFIG['MAG_DEST_FOLDER'], mag_name, iss_date)
+                                    dateparts = get_dateparts(book['NZBtitle'], data['DateType'])
+                                    iss_date = dateparts['dbdate']
+                                    # suppress the "-01" day on monthly magazines
+                                    # if re.match(r'\d+-\d\d-01', str(iss_date)):
+                                    #    iss_date = iss_date[:-3]
+                                    book['AuxInfo'] = iss_date
+                                logger.debug(iss_date)
+                                logger.debug(str(dateparts))
+                                dest_path = format_issue_filename(CONFIG['MAG_DEST_FOLDER'], mag_name, dateparts)
                                 if CONFIG.get_bool('MAG_RELATIVE'):
                                     dest_dir = get_directory('eBook')
                                     dest_path = stripspaces(os.path.join(dest_dir, dest_path))
@@ -1309,7 +1302,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 if not dest_path or not make_dirs(dest_path):
                                     logger.warning(f'Unable to create directory {dest_path}')
 
-                                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], mag_name, iss_date)
+                                global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], mag_name, dateparts)
                                 data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
                             else:
                                 if book['BookID'] and '_' in book['BookID']:
@@ -1416,7 +1409,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             else:
                                 older = False
 
-                            maginfo = db.match("SELECT CoverPage from magazines WHERE Title=?", (book['BookID'],))
+                            maginfo = db.match("SELECT CoverPage,Language from magazines WHERE Title=?",
+                                               (book['BookID'],))
                             # create a thumbnail cover for the new issue
                             if CONFIG.get_bool('SWAP_COVERPAGE'):
                                 coverpage = 1
@@ -1460,7 +1454,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 else:
                                     authors = 'magazines'
                                 _ = create_mag_opf(dest_file, authors, book['BookID'], book['AuxInfo'], issueid,
-                                                   overwrite=True)
+                                                   language=maginfo['Language'], overwrite=True)
                             if CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 process_auto_add(dest_path, booktype='mag')
@@ -2743,7 +2737,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                 global_name = issuedate
             else:
                 authors = 'magazines'
-                global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)
+                global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, get_dateparts(issuedate))
 
             params = [magfile, '--duplicates', '--authors', authors, '--series', title,
                       '--title', global_name, '--tags', 'Magazine']
@@ -2799,6 +2793,8 @@ def send_to_calibre(booktype, global_name, folder, data):
                            "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
                     data = db.match(cmd, (issueid, bookid))
                     bookid = f"{bookid}_{issueid}"
+                else:
+                    data = db.match("SELECT Language from magazines WHERE Title=? COLLATE NOCASE", (title,))
             finally:
                 db.close()
 
@@ -2826,15 +2822,15 @@ def send_to_calibre(booktype, global_name, folder, data):
                         else:
                             authors = 'magazines'
                         opfpath, our_opf = create_mag_opf(folder, authors, title, issuedate, issueid,
-                                                          overwrite=True)
-                        # calibre likes "metadata.opf"
-                        opffile = os.path.basename(opfpath)
-                        if opffile != 'metadata.opf':
-                            try:
-                                opfpath = safe_copy(opfpath, opfpath.replace(opffile, 'metadata.opf'))
-                            except Exception as e:
-                                logger.warning(f"Failed to copy opf file: {str(e)}")
-                                opfpath = ''
+                                                          language=data['Language'], overwrite=True)
+                # calibre likes "metadata.opf"
+                opffile = os.path.basename(opfpath)
+                if opffile != 'metadata.opf':
+                    try:
+                        opfpath = safe_copy(opfpath, opfpath.replace(opffile, 'metadata.opf'))
+                    except Exception as e:
+                        logger.warning(f"Failed to copy opf file: {str(e)}")
+                        opfpath = ''
                 if opfpath:
                     _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
                     if rc:
@@ -2872,7 +2868,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                     global_name = issuedate
                 else:
                     authorname = 'magazines'
-                    global_name = format_issue_name(CONFIG['MAG_DEST_FILE'], title, issuedate)
+                    global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, get_dateparts(issuedate))
                 _, _, rc = calibredb('set_metadata', ['--field', f'pubdate:{issuedate}'], [calibre_id])
                 if rc:
                     logger.warning("calibredb unable to set pubdate")
@@ -3063,7 +3059,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             cover = 0
             if res:
                 cover = check_int(res['CoverPage'], 0)
-            success, msg = preprocess_magazine(pp_path, cover=cover)
+            success, msg = preprocess_magazine(pp_path, cover=cover, tag=CONFIG.get_bool('TAG_PDF'),
+                                               title=bookid, issue=issuedate)
             if not success:
                 return False, msg, pp_path
 
@@ -3221,10 +3218,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                    "Publisher,Contributors from comics,comicissues WHERE "
                    "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
             db = database.DBConnection()
-            try:
-                data = db.match(cmd, (issueid, bookid))
-            finally:
-                db.close()
+            data = db.match(cmd, (issueid, bookid))
+            db.close()
             bookid = f"{bookid}_{issueid}"
             if data:
                 process_img(pp_path, bookid, data['Cover'], global_name, ImageType.COMIC)
@@ -3242,7 +3237,11 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     authors = title
                 else:
                     authors = 'magazines'
-                _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid, overwrite=True)
+                db = database.DBConnection()
+                entry = db.match('SELECT * FROM magazines where Title=?', (title,))
+                _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid,
+                                      language=entry["Language"], overwrite=True)
+                db.close()
 
     if firstfile:
         newbookfile = firstfile
@@ -3407,9 +3406,16 @@ def create_mag_opf(issuefile, authors, title, issue, issue_id, language='en', ov
     elif issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
         yr = issue[0:4]
         mn = issue[5:7]
+        lang = 0
+        cnt = 0
+        while cnt < len(lazylibrarian.MONTHNAMES[0][0]):
+            if lazylibrarian.MONTHNAMES[0][0][cnt] == CONFIG['DATE_LANG']:
+                lang = cnt
+                break
+            cnt += 1
         # monthnames for this month, eg ["January", "Jan", "enero", "ene"]
-        # we can change language using CONFIG['DISP_LANG'] and replace the final [0] with language column
-        month = lazylibrarian.MONTHNAMES[0][int(mn)][0]
+        monthname = lazylibrarian.MONTHNAMES[0][int(mn)]
+        month = monthname[lang]  # lang = full name, lang+1 = short name
         iname = f"{title} - {month} {yr}"  # The Magpi - January 2017
     elif title in issue:
         iname = issue  # 0063 - Android Magazine -> 0063

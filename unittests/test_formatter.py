@@ -513,7 +513,6 @@ class FormatterTest(LLTestCaseWithStartup):
                 authorname = formatter.format_author_name(name[0], postfix=postfix)
                 self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
-
     def test_disp_name(self):
         # Add some dummy data to test on
         rss = self.cfg().providers('RSS')

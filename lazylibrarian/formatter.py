@@ -241,14 +241,14 @@ def nzbdate2format(nzbdate):
 
 
 def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
-    # return date formatted in requested style
+    # return date formatted for display in requested style
     # $d	Day of the month as a zero-padded decimal number
     # $b	Month as abbreviated name
     # $B	Month as full name
     # $m	Month as a zero-padded decimal number
     # $y	Year without century as a zero-padded decimal number
     # $Y	Year with century as a decimal number
-    # datestr are stored in lazylibrarian as YYYY-MM-DD or YYYY-MM-DD HH:MM:SS or nnnn for issue number
+    # datestr are stored in lazylibrarian database as YYYY-MM-DD or IIII for issue number, VVVVIIII etc
     # If context is provided as a parameter, it will be used to provide more informative error messages.
 
     # Dates from providers are in various formats, need to consolidate them so we can sort...
@@ -881,3 +881,5 @@ def replacevars(base, mydict):
     base = base.replace('$$', ' ')
     loggermatching.debug(base)
     return base
+
+

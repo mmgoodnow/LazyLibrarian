@@ -197,6 +197,7 @@ class StartupLazyLibrarian:
     def load_config(configfile: str):
         """ Load the config file, perform post-load fixups to ensure consistent states """
         config = lazylibrarian.config2.CONFIG  # Don't create a new instance
+        config.pre_load_fixup(configfile=configfile)
         config.load_configfile(configfile=configfile)
         config.post_load_fixup()
         DIRS.ensure_log_dir()

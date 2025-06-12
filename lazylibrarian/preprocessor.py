@@ -16,13 +16,16 @@ import subprocess
 import logging
 from urllib.parse import unquote_plus
 
+from pypdf import PdfWriter, PdfReader
+
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import calibre_prg, zip_audio
-from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float, plural
+from lazylibrarian.formatter import (get_list, make_unicode, check_int, human_size, now, check_float, plural,
+                                     sort_definite)
 from lazylibrarian.images import shrink_mag, coverswap, valid_pdf
 
 
@@ -541,7 +544,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     return True
 
 
-def preprocess_magazine(bookfolder, cover=0):
+def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue=''):
     logger = logging.getLogger(__name__)
     logger.debug(f"Preprocess magazine {bookfolder} cover={cover}")
     try:
@@ -557,16 +560,16 @@ def preprocess_magazine(bookfolder, cover=0):
             logger.error(msg)
             return False, msg
 
-        if not valid_pdf(os.path.join(bookfolder, sourcefile)):
-            msg = f"Invalid pdf {sourcefile} in {bookfolder}"
-            return False, msg
-
         dpi = CONFIG.get_int('SHRINK_MAG')
         cover = check_int(cover, 0)
 
-        if not dpi and not (CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1):
+        if not dpi and not (CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1) and not tag:
             logger.debug("No preprocessing required")
             return True, ''
+
+        if not valid_pdf(os.path.join(bookfolder, sourcefile)):
+            msg = f"Invalid pdf {sourcefile} in {bookfolder}"
+            return False, msg
 
         # reordering or shrinking pages is quite slow if the source is on a networked drive
         # so work on a local copy, then move it over.
@@ -580,19 +583,80 @@ def preprocess_magazine(bookfolder, cover=0):
             logger.debug(f"Resizing {srcfile} to {dpi} dpi")
             shrunkfile = shrink_mag(srcfile, dpi)
             old_size = os.stat(srcfile).st_size
-            if shrunkfile:
+            try:
                 new_size = os.stat(shrunkfile).st_size
-            else:
+            except OSError as e:
+                logger.error(str(e))
                 new_size = 0
             logger.debug(f"New size {human_size(new_size)}, was {human_size(old_size)}")
-            if new_size and new_size < old_size:
-                safe_move(shrunkfile, srcfile)
-                _ = setperm(srcfile)
-            elif shrunkfile:
-                remove_file(shrunkfile)
+            if new_size:
+                if new_size < old_size:
+                    safe_move(shrunkfile, srcfile)
+                    _ = setperm(srcfile)
+                else:
+                    remove_file(shrunkfile)
 
         if CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1:
             coverswap(srcfile, cover)
+
+        if tag:
+            if not title or not issue:
+                logger.error('Unable to tag, need title and issue')
+            else:
+                src_pdf = PdfReader(srcfile)
+                dst_pdf = PdfWriter(clone_from=src_pdf)
+                metadata = dict(src_pdf.metadata)
+
+                sorted_title = sort_definite(title, articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
+                if CONFIG.get_bool('IMP_CALIBRE_MAGISSUE'):
+                    iname = issue
+                    sorted_iname = iname
+                    series = f"{title} #{issue}"
+                elif issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':
+                    yr = issue[0:4]
+                    mn = issue[5:7]
+                    lang = 0
+                    cnt = 0
+                    while cnt < len(lazylibrarian.MONTHNAMES[0][0]):
+                        if lazylibrarian.MONTHNAMES[0][0][cnt] == datelang:
+                            lang = cnt
+                            break
+                        cnt += 1
+                    # monthnames for this month, eg ["January", "Jan", "enero", "ene"]
+                    monthname = lazylibrarian.MONTHNAMES[0][int(mn)]
+                    month = monthname[lang]  # lang = full name, lang+1 = short name
+
+                    iname = f"{title} - {month} {yr}"  # The Magpi - January 2017
+                    sorted_iname = f"{sorted_title} - {month} {yr}"  # Magpi, The - January 2017
+                    series = f"{title} #{yr[:2]}.{mn}"
+                elif title in issue:
+                    iname = issue  # 0063 - Android Magazine -> 0063
+                    sorted_iname = iname
+                    series = f"{title} #{issue}"
+                else:
+                    iname = f"{title} - {issue}"  # Android Magazine - 0063
+                    sorted_iname = f"{sorted_title} - {issue}"  # Android Magazine - 0063
+                    series = f"{title} #{issue}"
+
+                db = database.DBConnection()
+                match = db.match('SELECT Language from magazines WHERE title=? COLLATE NOCASE', (title,))
+                language = ''
+                if match:
+                    language = match['Language']
+                db.close()
+
+                metadata['/Title'] = iname
+                metadata['/Title sort'] = sorted_iname
+                metadata['/Author'] = title
+                metadata['/Series'] = series
+                # Write original filename into file so we can recover it if needed
+                metadata['/Source Filename'] = sourcefile
+                if language:
+                    metadata['/Languages'] = language
+                dst_pdf.metadata = metadata
+
+                dst_pdf.write(srcfile + '.tag')
+                safe_move(srcfile + '.tag', srcfile)
 
         safe_move(srcfile, original)
         _ = setperm(original)
