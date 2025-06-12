@@ -34,19 +34,29 @@ class ReadStatus(enum.Enum):
     ignored = 6
 
 
-def test_auth(userid=None):
+def test_auth(userid=None, token=None):
+    """Test HardCover authentication for a user."""
+    logger = logging.getLogger(__name__)
     msg = ''
     if not userid:
         userid, msg = get_current_userid()
+    
+    # Still no userid, return error. Fail early.
+    if not userid:
+        logger.error(f"No userid found for test_auth: {msg}")
+        return msg
+    
+    logger.info(f"Testing auth for userid: {userid}")
     if userid:
-        h_c = HardCover(userid)
+        h_c = HardCover(userid=userid)
         if BLOCKHANDLER.is_blocked('HardCover'):
             BLOCKHANDLER.remove_provider_entry('HardCover')
-        msg = h_c.hc_whoami()
+        msg = h_c.hc_whoami(userid=userid, token=token) 
     return msg
 
 
 def hc_api_sleep(limit=1.1):  # official limit is 60 requests per minute. limit=1.1 gives us about 55
+    """Sleep to respect HardCover API rate limits."""
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_HC']
     if delay < limit:
@@ -59,6 +69,7 @@ def hc_api_sleep(limit=1.1):  # official limit is 60 requests per minute. limit=
 
 
 def get_current_userid():
+    """Get the current user's ID from cookies."""
     userid = ''
     msg = ''
     cookie = cherrypy.request.cookie
@@ -72,16 +83,59 @@ def get_current_userid():
 
 
 def hc_sync(library='', userid=None):
-    msg = ''
+    """Sync reading lists between LazyLibrarian and HardCover."""
+    logger = logging.getLogger(__name__)
     if not userid:
-        userid, msg = get_current_userid()
-    if userid:
-        hc = HardCover(userid)
+        # If no specific userid is provided, sync all users with HC tokens
+        logger.info("No specific userid provided, syncing all users with HC tokens")
+        db = database.DBConnection()
+        try:
+            # Get all users with HC tokens
+            users = db.select("SELECT UserID, hc_token FROM users WHERE hc_token IS NOT NULL AND hc_token != ''")
+            if not users:
+                msg = "No users with HC tokens found"
+                logger.info(msg)
+                return msg
+                
+            logger.info(f"Starting HardCover sync for {len(users)} {plural(len(users), 'user')}")
+            user_results = []
+            for user in users:
+                user_id = user['UserID']
+                logger.info(f"Starting HC sync for user: {user_id}")
+                # Create a HardCover instance with this user's token
+                hc = HardCover(userid=user_id)
+                
+                # Check if user has a hc_id, if not try to get one
+                user_hc_id = db.match("SELECT hc_id FROM users WHERE UserID=?", (user_id,))
+                if not user_hc_id or not user_hc_id['hc_id']:
+                    logger.info(f"User {user_id} has no hc_id, attempting to get one")
+                    whoami_result = hc.hc_whoami(userid=user_id)
+                    if not str(whoami_result).isdigit():
+                        logger.warning(f"Failed to get hc_id for user {user_id}: {whoami_result}")
+                        user_results.append(f"User {user_id}: Failed to get hc_id")
+                        continue
+                
+                # Now sync this user
+                user_msg = hc.sync(library, user_id)
+                logger.info(f"Completed HC sync for user: {user_id}")
+                user_results.append(f"User {user_id}: {user_msg}")
+                
+            msg = "\n".join(user_results)
+            logger.info(f"Completed HardCover sync for {len(users)} {plural(len(users), 'user')}")
+        finally:
+            db.close()
+    else:
+        # If a specific userid is provided, just sync that one
+        logger.info(f"Starting hc_sync for userid: {userid}")
+        hc = HardCover(userid=userid)
         msg = hc.sync(library, userid)
+        logger.info(f"Completed hc_sync for userid: {userid}")
+    
     return msg
 
 
 def validate_bookdict(bookdict):
+    """Validate a book dictionary for required fields and rules."""
     logger = logging.getLogger(__name__)
     rejected = []
 
@@ -117,22 +171,26 @@ def validate_bookdict(bookdict):
                 if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
                     rejected.append(['publisher', bookpub])
                     break
-
-        cmd = ("SELECT BookID,books.hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
-               "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
-               "and AudioStatus != 'Ignored'")
-        exists = db.match(cmd, (bookdict['title'], bookdict['auth_name']))
+        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
+        cmd = (
+            "SELECT BookID,books.hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
+            "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
+            "and AudioStatus != 'Ignored'"
+        )
+        if exists:  # If author exists, let's check if the title does too
+            exists = db.match(cmd, (bookdict['title'], auth_name))
         if not exists:
-            in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
-                                                              source='hc_id', ignored=False, library='eBook',
-                                                              reason=f"hc_get_author_books {bookdict['auth_id']},"
-                                                                     f"{bookdict['title']}")
+            in_db = lazylibrarian.librarysync.find_book_in_db(
+                auth_name, bookdict['title'],
+                source='hc_id', ignored=False, library='eBook',
+                reason=f"hc_get_author_books {bookdict['auth_id']},{bookdict['title']}"
+            )
             if not in_db:
-                in_db = lazylibrarian.librarysync.find_book_in_db(bookdict['auth_name'], bookdict['title'],
-                                                                  source='bookid', ignored=False, library='eBook',
-                                                                  reason=f"hc_get_author_books "
-                                                                         f"{bookdict['auth_id']},"
-                                                                         f"{bookdict['title']}")
+                in_db = lazylibrarian.librarysync.find_book_in_db(
+                    auth_name, bookdict['title'],
+                    source='bookid', ignored=False, library='eBook',
+                    reason=f"hc_get_author_books {bookdict['auth_id']},{bookdict['title']}"
+                )
             if in_db and in_db[0]:
                 cmd = "SELECT BookID,hc_id FROM books WHERE BookID=?"
                 exists = db.match(cmd, (in_db[0],))
@@ -148,8 +206,10 @@ def validate_bookdict(bookdict):
             if bookdict['bookid'] != exists['BookID']:
                 rejected.append(['dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"])
                 if not exists['hc_id']:
-                    db.action("UPDATE books SET hc_id=? WHERE BookID=?", (bookdict['bookid'],
-                                                                          exists['BookID']))
+                    db.action(
+                        "UPDATE books SET hc_id=? WHERE BookID=?",
+                        (bookdict['bookid'], exists['BookID'])
+                    )
 
         if not bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
             # try isbn lookup by name
@@ -158,7 +218,8 @@ def validate_bookdict(bookdict):
                 try:
                     res = isbn_from_words(
                         f"{unaccented(title, only_ascii=False)} "
-                        f"{unaccented(bookdict['auth_name'], only_ascii=False)}")
+                        f"{unaccented(bookdict['auth_name'], only_ascii=False)}"
+                    )
                 except Exception as e:
                     res = None
                     logger.warning(f"Error from isbn: {e}")
@@ -170,8 +231,10 @@ def validate_bookdict(bookdict):
         if not bookdict['isbn'] and CONFIG.get_bool('NO_ISBN'):
             rejected.append(['isbn', 'No ISBN'])
 
-        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
-               '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
+        dic = {
+            '.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
+            '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '
+        }
         name = replace_all(bookdict['title'], dic).strip()
         name = name.lower()
         # remove extra spaces if they're in a row
@@ -210,15 +273,44 @@ def validate_bookdict(bookdict):
 
 
 class HardCover:
-    def __init__(self, name=''):
-
+    def __init__(self, name='', userid=None):
+        """Initialize HardCover API handler."""
         self.hc_url = 'https://api.hardcover.app/'
         self.graphql_url = f"{self.hc_url}v1/graphql"
         self.book_url = f"{self.hc_url.replace('api.', '')}books/"
         self.auth_url = f"{self.hc_url.replace('api.', '')}authors/"
         self.HC_WHOAMI = 'query whoami { me { id } }'
-        # this will need changing when we get access to other users book lists
-        self.apikey = CONFIG.get_str('HC_API')
+        self.apikey = None
+        self.logger = logging.getLogger(__name__)
+
+        # If a userid is provided, try to fetch the user's hc_token from the database
+        if not userid:
+            userid, _ = get_current_userid()
+        if userid:
+            db = database.DBConnection()
+            res = db.match("SELECT hc_token FROM users WHERE UserID=?", (userid,))
+            try:
+                if res and res['hc_token']:
+                    self.apikey = res['hc_token']
+                    self.logger.debug(f"Using database token for user: {userid}")
+                else:
+                    self.logger.debug(f"No token found for user: {userid}, trying admin")
+                    res = db.match("SELECT hc_token FROM users WHERE username='admin'")
+                    if res and res['hc_token']:
+                        self.apikey = res['hc_token']
+                        self.logger.debug(f"Using database token for admin")
+            finally:
+                db.close()
+        else:
+            db = database.DBConnection()
+            try:
+                # No userid provided, could be an api call? use admin token
+                res = db.match("SELECT hc_token FROM users WHERE username='admin'")
+                if res and res['hc_token']:
+                    self.apikey = res['hc_token']
+                    self.logger.debug(f"Using database token for admin")
+            finally:
+                db.close()
 
         #       user_id = result of whoami/userid
         self.HC_USERBOOKS = '''
@@ -248,12 +340,7 @@ query FindBook { books([order] where: [where])
     release_date
     release_year
     cached_tags
-    contributions(order_by: {author: {contributions_aggregate: {count: desc_nulls_last}}}) {
-      author {
-        name
-        id
-      }
-    }
+    contributions:cached_contributors
     editions {
       isbn_10
       isbn_13
@@ -287,14 +374,14 @@ query FindAuthorID {
 '''
         self.HC_FINDAUTHORBYNAME = '''
 query FindAuthorByName {
-    search(query: "[authorname]", query_type: "author") {
+    search(query: "[authorname]", query_type: "author", sort:"_text_match:desc,books_count:desc") {
     results
   }
 }
 '''
         self.HC_FINDBOOKBYNAME = '''
 query FindBookByName {
-    search(query: "[title]", query_type: "book") {
+    search(query: "[title]", query_type: "book", sort:"_text_match:desc,users_count:desc") {
     results
   }
 }
@@ -322,12 +409,7 @@ query EditionByPk {
     }
     title
     book_id
-    contributions {
-      author {
-        id
-        name
-      }
-    }
+    contributions:cached_contributors
   }
 }
 '''
@@ -344,12 +426,7 @@ query FindSeries { book_series(where: {series_id: {_eq: [seriesid]}})
         title
         release_date
         release_year
-        contributions {
-          author {
-            id
-            name
-          }
-        }
+        contributions:cached_contributors
         editions {
           language {
             language
@@ -385,12 +462,7 @@ query SeriesByPK {
             language
           }
         }
-        contributions {
-          author {
-            id
-            name
-          }
-        }
+        contributions:cached_contributors
         compilation
       }
     }
@@ -439,7 +511,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
         if '<ll>' in self.name:
             self.name, self.title = self.name.split('<ll>')
         self.lt_cache = False
-        self.logger = logging.getLogger(__name__)
         self.searchinglogger = logging.getLogger('special.searching')
         self.syncinglogger = logging.getLogger('special.grsync')
         self.matchinglogger = logging.getLogger('special.matching')
@@ -453,6 +524,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         self.user_agent += ')'
 
     def is_in_cache(self, expiry: int, hashfilename: str, myhash: str) -> bool:
+        """Check if a cache file is valid."""
         if path_isfile(hashfilename):
             cache_modified_time = os.stat(hashfilename).st_mtime
             time_now = time.time()
@@ -468,17 +540,20 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
     @staticmethod
     def read_from_cache(hashfilename: str) -> (str, bool):
+        """Read a cached API response from disk."""
         with open(syspath(hashfilename), "rb") as cachefile:
             source = cachefile.read()
         return source, True
 
     @staticmethod
     def get_hashed_filename(cache_location: str, url: str) -> (str, str):
+        """Generate a hashed filename for caching."""
         myhash = md5_utf8(url)
         hashfilename = os.path.join(cache_location, myhash[0], myhash[1], f"{myhash}.json")
         return hashfilename, myhash
 
     def result_from_cache(self, searchcmd: str, refresh=False) -> (str, bool):
+        """Get API result from cache or fetch if needed."""
         headers = {'Content-Type': 'application/json',
                    'User-Agent': self.user_agent,
                    'authorization': self.apikey
@@ -565,6 +640,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return res, valid_cache
 
     def get_series_members(self, series_ident=None, series_title='', queue=None, refresh=False):
+        """Get all books in a series from HardCover."""
         resultlist = []
         resultdict = {}
         author_name = ''
@@ -647,6 +723,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return resultlist
 
     def find_results(self, searchterm=None, queue=None, refresh=False):
+        """Search for books or authors in HardCover."""
         # noinspection PyBroadException
         try:
             resultlist = []
@@ -795,6 +872,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             self.logger.error(f'Unhandled exception in HC.find_results: {traceback.format_exc()}')
 
     def find_author_id(self, refresh=False):
+        """Find HardCover author ID for a name or title."""
         api_hits = 0
         authorname = self.name.replace('#', '').replace('/', '_')
         authorname = format_author_name(authorname, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
@@ -848,7 +926,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 url = None
                 try:
                     for item in results['data']['search']['results']['hits']:
-                        if 'cachedImage' in item['contributions'][0]['author']:
+                        # Check contributions for cached image
+                        if item['contributions'] and 'cachedImage' in item['contributions'][0]['author']:
                             url = item['contributions'][0]['author']['cachedImage']['url']
                             break
                 except (IndexError, KeyError):
@@ -872,10 +951,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 api_hits += not in_cache
                 if results and 'data' in results:
                     book_data = results['data'].get('books_by_pk', {})
-                    for author in book_data['contributions']:
+                    # Check all contributions for author match
+                    for contrib in book_data.get('contributions', []):
                         # might be more than one author listed
-                        author_name = author['author']['name']
-                        authorid = str(author['author']['id'])
+                        author_name = contrib['author']['name']
+                        authorid = str(contrib['author']['id'])
                         res = None
                         match = fuzz.ratio(author_name.lower(), authorname.lower())
                         if match >= CONFIG.get_int('NAME_RATIO'):
@@ -894,6 +974,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return {}
 
     def get_author_info(self, authorid=None, refresh=False):
+        """Get detailed info for a HardCover author."""
         author_name = ''
         author_born = ''
         author_died = ''
@@ -960,12 +1041,29 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return author_dict
 
     def build_bookdict(self, book_data):
+        """Convert HardCover book data to a standard dict."""
         bookdict = {'languages': '', 'publishers': '', 'auth_name': '', 'auth_id': '0',
                     'cover': '', 'isbn': '', 'series': []}
+        
+        # Filter and select primary author from contributions
         if 'contributions' in book_data and len(book_data['contributions']):
-            author = book_data['contributions'][0]
+            contributions = book_data['contributions']
+            # Filter for only null or "Author" contributions
+            author_contributions = [c for c in contributions if c.get('contribution') is None
+                                    or c.get('contribution') == "Author"]
+            if not author_contributions:
+                # If no author contributions found, fall back to the original list
+                author_contributions = contributions
+            
+            # Sort contributions by author ID in descending order (highest ID first)
+            sorted_contributions = sorted(author_contributions, 
+                                          key=lambda x: int(x['author']['id']) if x['author']['id'] else 0,
+                                          reverse=True)
+            
+            author = sorted_contributions[0]
             bookdict['auth_name'] = " ".join(author['author']['name'].split())
             bookdict['auth_id'] = str(author['author']['id'])
+        
         bookdict['title'] = book_data.get('title', '')
         bookdict['subtitle'] = book_data.get('subtitle', '')
         if 'cached_image' in book_data and book_data['cached_image'].get('url'):
@@ -1039,9 +1137,25 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return bookdict
 
     def get_searchdict(self, book_data):
+        """Convert HardCover search result to a book dict."""
         bookdict = {'auth_id': '0', 'auth_name': 'Unknown'}
+        
+        # Filter and select primary author from contributions
         if 'contributions' in book_data and len(book_data['contributions']):
-            author = book_data['contributions'][0]
+            contributions = book_data['contributions']
+            # Filter for only null or "Author" contributions
+            author_contributions = [c for c in contributions if c.get('contribution') is None
+                                    or c.get('contribution') == "Author"]
+            if not author_contributions:
+                # If no author contributions found, fall back to the original list
+                author_contributions = contributions
+            
+            # Sort contributions by author ID in descending order (highest ID first)
+            sorted_contributions = sorted(author_contributions, 
+                                          key=lambda x: int(x['author']['id']) if x['author']['id'] else 0,
+                                          reverse=True)
+            
+            author = sorted_contributions[0]
             bookdict['auth_name'] = " ".join(author['author']['name'].split())
             bookdict['auth_id'] = str(author['author']['id'])
 
@@ -1100,7 +1214,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
                          entrystatus='Active', refresh=False, reason='hc.get_author_books'):
-
+        """Import all books for an author from HardCover."""
         cache_hits = 0
         api_hits = 0
         lt_lang_hits = 0
@@ -1153,12 +1267,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 bookdict = self.build_bookdict(book_data)
                 if bookdict['auth_name'] != entry_name:
                     # not our author, might be a contributor to an anthology?
+                    # Check all contributions (already filtered in build_bookdict) for name match
                     if 'contributions' in book_data and len(book_data['contributions']):
-                        for author in book_data['contributions']:
-                            if (fuzz.token_set_ratio(author['author']['name'], entry_name) >=
+                        for contrib in book_data['contributions']:
+                            if (fuzz.token_set_ratio(contrib['author']['name'], entry_name) >=
                                     CONFIG.get_int('NAME_RATIO')):
-                                bookdict['auth_name'] = " ".join(author['author']['name'].split())
-                                bookdict['auth_id'] = str(author['author']['id'])
+                                bookdict['auth_name'] = " ".join(contrib['author']['name'].split())
+                                bookdict['auth_id'] = str(contrib['author']['id'])
                                 break
 
                 bookdict['book_status'] = bookstatus
@@ -1367,14 +1482,25 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                     auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
                                     if not exists:
                                         reason = f"Series contributing author {ser_name}:{member[1]}"
-                                        lazylibrarian.importer.add_author_name_to_db(author=member[2],
-                                                                                     refresh=False,
-                                                                                     addbooks=False,
-                                                                                     reason=reason
-                                                                                     )
+                                        # Use add_author_to_db with the author ID we already have from the series data
+                                        # This avoids the author search that can return the wrong author
+                                        if CONFIG.get_bool('ADD_AUTHOR'):
+                                            # Only add series author if the global config is set
+                                            lazylibrarian.importer.add_author_to_db(authorname=auth_name,
+                                                                                    authorid=member[3],
+                                                                                    refresh=False,
+                                                                                    addbooks=False,
+                                                                                    reason=reason
+                                                                                    )
+                                        else:
+                                            self.logger.debug(f"Skipping adding {member[2]}({member[3]}) "
+                                                              f"for series {ser_name}, "
+                                                              f"author not in database and ADD_AUTHOR is disabled")
+                                            continue
                                         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
                                         if not exists:
-                                            self.logger.debug(f"Unable to add {member[2]} for {member[1]}, "
+                                            self.logger.debug(f"Unable to add {member[2]}({member[3]}) "
+                                                              f"for series {ser_name}, "
                                                               f"author not in database")
                                             continue
 
@@ -1514,6 +1640,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             db.close()
 
     def get_bookdict(self, bookid=None):
+        """Get a book's details from HardCover by ID."""
         bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
         bookdict = {}
@@ -1524,6 +1651,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         return bookdict, in_cache
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.find_book'):
+        """Import a single book from HardCover by ID."""
         bookdict, _ = self.get_bookdict(bookid)
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
@@ -1574,8 +1702,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
         if not exists:
             reason = f"{reason}:{bookdict['bookid']}"
-            lazylibrarian.importer.add_author_name_to_db(author=bookdict['auth_name'], refresh=False,
-                                                         addbooks=False, reason=reason)
+            # Use add_author_to_db with the author ID we already have from the book data
+            # This avoids the author search that can return the wrong author
+            lazylibrarian.importer.add_author_to_db(authorname=auth_name, 
+                                                    authorid=bookdict['auth_id'],
+                                                    refresh=False, addbooks=False, reason=reason)
         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
         if not exists:
             self.logger.debug(f"Unable to add {bookdict['auth_name']} for {bookdict['bookid']}, author not found")
@@ -1595,15 +1726,20 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     cover_link = cache_bookimg(cover_link, bookdict['bookid'], 'hc')
                 if not cover_link:  # no results on search or failed to cache it
                     cover_link = 'images/nocover.png'
-                db.action(
-                    f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, BookDate, BookLang, "
-                    f"BookAdded, Status, WorkPage, AudioStatus, ScanResult, OriginalPubDate, hc_id) "
-                    f"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (auth_id, bookdict['title'], cover_link, bookdict['link'],
-                     bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
-                     bookdict['book_status'], '', bookdict['audio_status'], reason,
-                     bookdict['first_publish_year'], bookdict['bookid']))
-                
+
+                exists = db.match("SELECT BookID FROM books WHERE BookID=?", (bookdict['bookid'],))
+                if not exists:
+                    db.action(
+                        f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, BookDate, BookLang, "
+                        f"BookAdded, Status, WorkPage, AudioStatus, ScanResult, OriginalPubDate, hc_id) "
+                        f"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (auth_id, bookdict['title'], cover_link, bookdict['link'],
+                         bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
+                         bookdict['book_status'], '', bookdict['audio_status'], reason,
+                         bookdict['first_publish_year'], bookdict['bookid']))
+                else:
+                    self.logger.debug(f"Book {bookdict['bookid']} already exists, skipping insert")
+
                 # Handle series data if present
                 if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):
                     for item in bookdict['series']:
@@ -1648,36 +1784,71 @@ query FindAuthor { authors_by_pk(id: [authorid])
                             db.action("UPDATE series SET Total=? WHERE SeriesID=?",
                                       (counter, ser_id))
                 
-                self.logger.info(f"{bookdict['title']} by {auth_name} added to the books database, {bookdict['book_status']}/{bookdict['audio_status']}")
+                self.logger.info(f"{bookdict['title']} by {auth_name} added to the books database, "
+                                 f"{bookdict['book_status']}/{bookdict['audio_status']}")
             db.close()
 
         return
 
-    def hc_whoami(self, userid=None):
+    def hc_whoami(self, userid=None, token=None):
+        """Get the HardCover user ID for the current token."""
+        logger = logging.getLogger(__name__)
         msg = ''
+        if token:
+            logger.debug(f"Sending whoami with token: {token}")
+        
+        if userid:
+            logger.debug(f"Sending whoami with userid: {userid}")
+        
         if not userid:
             userid, msg = get_current_userid()
+        
         if not userid:
+            logger.error(f"No userid found for whoami: {msg}")
             return msg
+        
+        if token:  # We're doing an update of the user's hc_id
+            self.apikey = token
+            logger.debug(f"Using supplied token for userid {userid}")
 
-        #   Read the users bearer token here and pass to self.apikey
-
+        # Make sure we're using the right token for this user, if one wasn't directly supplied
+        # This theoretically shouldn't get hit since we fetch the token at initialization
+        if userid and not token:
+            db = database.DBConnection()
+            try:
+                res = db.match("SELECT hc_token FROM users WHERE UserID=?", (userid,))
+                if res and res['hc_token']:
+                    if self.apikey != res['hc_token']:
+                        logger.debug(f"Incorrect token fetched. Updating token for whoami request for user: {userid}")
+                        self.apikey = res['hc_token']
+            finally:
+                db.close()
+        
         searchcmd = self.HC_WHOAMI
         results, _ = self.result_from_cache(searchcmd, refresh=True)
+        logger.debug(f"whoami results for user {userid}: {results}")
+        
         if 'error' in results:
-            self.logger.error(str(results['error']))
+            logger.error(f"Error in whoami for user {userid}: {str(results['error'])}")
             return str(results['error'])
+        
         if 'data' in results and 'me' in results['data']:
-            # this is the hc_id tied to the api bearer token
             res = results['data']['me']
             whoami = res[0]['id']
             if whoami:
                 db = database.DBConnection()
-                db.upsert("users", {'hc_id': whoami}, {'UserID': userid})
-                return whoami
+                try:
+                    db.upsert("users", {'hc_id': whoami}, {'UserID': userid})
+                    logger.info(f"whoami success: {whoami} for userid {userid}")
+                    return whoami
+                finally:
+                    db.close()
+                
+        logger.warning(f"whoami fallback result for user {userid}: {results}")
         return str(results)
 
     def sync(self, library='', userid=None):
+        """Sync reading lists between LazyLibrarian and HardCover for a user."""
         # hc status_id maps to ll tables 'ToRead', 'Reading', 'HaveRead', 'Abandoned'
         # library = eBook, AudioBook or leave empty for both
         msg = ''
@@ -1698,25 +1869,29 @@ query FindAuthor { authors_by_pk(id: [authorid])
         thread_name('HCSync')
         db = database.DBConnection()
         miss = []
+        ll_userid_context = userid  # Store the LazyLibrarian UserID for context in logs and operations
+        
         try:
-            # we currently don't use local hc_id as the apikey is linked to the hc_id
-            # which is requested using a "whoami" command
-            # but this will need to change so we can sync lists from multiple users
-            res = db.match("SELECT hc_id from users where userid=?", (userid,))
+            # Log which user we're syncing
+            self.logger.info(f"HCsync starting for user: {ll_userid_context}")
+            
+            # Get the HC ID for this user
+            res = db.match("SELECT hc_id from users where userid=?", (ll_userid_context,))
             if res and not res['hc_id']:
-                msg = f"No hc_id for user {userid}, first sync?"
+                msg = f"No hc_id for user {ll_userid_context}, first sync?"
                 self.logger.warning(msg)
 
-            self.logger.debug(f"HCsync starting for {userid}")
             db.upsert("jobs", {"Start": time.time()}, {"Name": "HCSYNC"})
-            ll_haveread = get_readinglist('haveread', userid)
-            self.syncinglogger.debug(f"ll have read contains {len(ll_haveread)}")
-            ll_toread = get_readinglist('toread', userid)
-            self.syncinglogger.debug(f"ll to read contains {len(ll_toread)}")
-            ll_reading = get_readinglist('reading', userid)
-            self.syncinglogger.debug(f"ll reading contains {len(ll_reading)}")
-            ll_dnf = get_readinglist('dnf', userid)
-            self.syncinglogger.debug(f"ll have dnf contains {len(ll_dnf)}")
+            
+            # Get all the user's reading lists
+            ll_haveread = get_readinglist('haveread', ll_userid_context)
+            self.syncinglogger.debug(f"ll have read contains {len(ll_haveread)} for user {ll_userid_context}")
+            ll_toread = get_readinglist('toread', ll_userid_context)
+            self.syncinglogger.debug(f"ll to read contains {len(ll_toread)} for user {ll_userid_context}")
+            ll_reading = get_readinglist('reading', ll_userid_context)
+            self.syncinglogger.debug(f"ll reading contains {len(ll_reading)} for user {ll_userid_context}")
+            ll_dnf = get_readinglist('dnf', ll_userid_context)
+            self.syncinglogger.debug(f"ll have dnf contains {len(ll_dnf)} for user {ll_userid_context}")
             ll_owned = []
             if library == 'eBook':
                 for item in db.select("SELECT bookid from books where status in ('Open', 'Have')"):
@@ -1733,18 +1908,18 @@ query FindAuthor { authors_by_pk(id: [authorid])
             results, _ = self.result_from_cache(searchcmd, refresh=True)
             whoami = 0
             if 'error' in results:
-                self.logger.error(str(results['error']))
-                return msg
+                self.logger.error(f"Error for user {ll_userid_context}: {str(results['error'])}")
+                return f"Error for user {ll_userid_context}: {str(results['error'])}"
             if 'data' in results and 'me' in results['data']:
                 # this is the hc_id tied to the api bearer token
                 res = results['data']['me']
                 whoami = res[0]['id']
-                db.upsert("users", {'hc_id': whoami}, {'UserID': userid})
+                db.upsert("users", {'hc_id': whoami}, {'UserID': ll_userid_context})
                 if not whoami:
-                    self.logger.error(f"No hc_id for user {userid}")
-                    return msg
+                    self.logger.error(f"No hc_id for user {ll_userid_context}")
+                    return f"No hc_id for user {ll_userid_context}"
 
-            self.syncinglogger.debug(f"whoami = {whoami}")
+            self.syncinglogger.debug(f"whoami = {whoami} for user {ll_userid_context}")
             hc_toread = []
             hc_reading = []
             hc_read = []
@@ -1770,11 +1945,16 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         res = db.match("SELECT bookid from books WHERE hc_id=?", (hc_id,))
                         if res and res['bookid']:
                             if res['bookid'] in remapped:
-                                self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} for {res['bookid']}")
-                                delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
-                                results, _ = self.result_from_cache(delcmd, refresh=True)
-                                if 'error' in results:
-                                    self.logger.error(str(results['error']))
+                                if not CONFIG.get_bool('HC_SYNCREADONLY'):
+                                    self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
+                                                             f"for {res['bookid']}")
+                                    delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
+                                    results, _ = self.result_from_cache(delcmd, refresh=True)
+                                    if 'error' in results:
+                                        self.logger.error(str(results['error']))
+                                else:
+                                    self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
+                                                             f"for {res['bookid']}, but two-way sync is disabled")
                             else:
                                 remapped.append(res['bookid'])
                                 mapp[0].append(res['bookid'])
@@ -1783,58 +1963,88 @@ query FindAuthor { authors_by_pk(id: [authorid])
                             self.syncinglogger.warning(f"{mapp[2]} {hc_id} not found in database")
                             newbookdict, in_cache = self.get_bookdict(str(hc_id))
                             if newbookdict:
-                                in_db = lazylibrarian.librarysync.find_book_in_db(newbookdict['auth_name'],
-                                                                                  newbookdict['title'],
-                                                                                  source='',
-                                                                                  ignored=False,
-                                                                                  library='eBook',
-                                                                                  reason=f'hc_sync {hc_id}')
-                                if in_db and in_db[0]:
-                                    cmd = "SELECT BookID,hc_id,bookname FROM books WHERE BookID=?"
-                                    exists = db.match(cmd, (in_db[0],))
-                                    # hc_id in database doesn't match the one in hardcover user list,
-                                    # assume new hardcover id is correct and amend book table to match
-                                    self.syncinglogger.debug(f"Found {mapp[2]} {hc_id} for bookid {exists['BookID']}, "
-                                                             f"current hc_id {exists['hc_id']}")
-                                    if exists['BookID'] in remapped:
-                                        self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
-                                                                 f"for {exists['BookID']}")
-                                        delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
-                                        results, _ = self.result_from_cache(delcmd, refresh=True)
-                                        if 'error' in results:
-                                            self.logger.error(str(results['error']))
+                                auth_name, exists = lazylibrarian.importer.get_preferred_author_name(
+                                    newbookdict['auth_name'])
+                                # During HC sync, we have a direct HC book ID, so we should be very conservative 
+                                # about matching existing books. Only try exact matches to avoid false positives.
+                                # Check for exact title and author match first
+                                exact_match = None
+                                if newbookdict.get('isbn'):
+                                    # First try ISBN match - most reliable
+                                    exact_match = db.match("SELECT BookID,hc_id,bookname FROM books WHERE "
+                                                           "BookISBN=? AND AuthorID=(SELECT AuthorID FROM authors "
+                                                           "WHERE AuthorName=?)",
+                                                           (newbookdict['isbn'], auth_name))
+                                
+                                if not exact_match:
+                                    # Try exact title and author match
+                                    exact_match = db.match("SELECT books.BookID,books.hc_id,books.bookname "
+                                                           "FROM books,authors WHERE books.AuthorID=authors.AuthorID"
+                                                           " AND books.BookName=? AND authors.AuthorName=?",
+                                                           (newbookdict['title'], auth_name))
+                                
+                                if exact_match:
+                                    # Found exact match - update hc_id
+                                    self.syncinglogger.debug(f"Found exact match {mapp[2]} {hc_id} "
+                                                             f"for bookid {exact_match['BookID']}, "
+                                                             f"current hc_id {exact_match['hc_id']}")
+                                    if exact_match['BookID'] in remapped:
+                                        if not CONFIG.get_bool('HC_SYNCREADONLY'):
+                                            self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
+                                                                     f"for {exact_match['BookID']}")
+                                            delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(item['id']))
+                                            results, _ = self.result_from_cache(delcmd, refresh=True)
+                                            if 'error' in results:
+                                                self.logger.error(str(results['error']))
+                                        else:
+                                            self.syncinglogger.debug(f"Duplicated entry {hc_id} in {mapp[2]} "
+                                                                     f"for {exact_match['BookID']}, "
+                                                                     f"but two-way sync is disabled")
                                     else:
-                                        remapped.append(exists['BookID'])
-                                        mapp[0].append(exists['BookID'])
-                                        sync_dict[exists['BookID']] = item['id']
+                                        remapped.append(exact_match['BookID'])
+                                        mapp[0].append(exact_match['BookID'])
+                                        sync_dict[exact_match['BookID']] = item['id']
                                         db.action("UPDATE books SET hc_id=? WHERE bookid=?",
-                                                  (str(hc_id), exists['BookID']))
+                                                  (str(hc_id), exact_match['BookID']))
                                 else:
-                                    self.syncinglogger.debug(f"Adding to library {hc_id} {newbookdict['auth_name']} "
-                                                             f"{newbookdict['title']}")
+                                    # No exact match found - add as new book (skip fuzzy matching for HC sync)
+                                    self.syncinglogger.debug(f"No exact match found for {hc_id} {auth_name} "
+                                                             f"'{newbookdict['title']}' - adding as new book")
                                     self.find_book(str(hc_id))
+
+                                    # After adding the book, we need to update our tracking structures
+                                    # so the "wanted" logic will work correctly on this first sync
+                                    added_book = db.match("SELECT bookid FROM books WHERE hc_id=?", (str(hc_id),))
+                                    if added_book and added_book['bookid']:
+                                        book_id = added_book['bookid']
+                                        if book_id not in remapped:
+                                            remapped.append(book_id)
+                                            mapp[0].append(book_id)
+                                            sync_dict[book_id] = item['id']
+                                            self.syncinglogger.debug(f"Added newly created book {book_id} to "
+                                                                     f"{mapp[2]} tracking for wanted status processing")
                             else:
                                 self.syncinglogger.debug(f"No bookdict found for {hc_id}")
             last_toread = []
             last_reading = []
             last_read = []
             last_dnf = []
-            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_toread"))
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (ll_userid_context, "hc_toread"))
             if res:
                 last_toread = get_list(res['SyncList'])
-                self.syncinglogger.debug(f"last to_read contains {len(last_toread)}")
-            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_reading"))
+                self.syncinglogger.debug(f"last to_read contains {len(last_toread)} for user {ll_userid_context}")
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (ll_userid_context, "hc_reading"))
             if res:
                 last_reading = get_list(res['SyncList'])
-                self.syncinglogger.debug(f"last reading contains {len(last_reading)}")
-            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_read"))
+                self.syncinglogger.debug(f"last reading contains {len(last_reading)} for user {ll_userid_context}")
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (ll_userid_context, "hc_read"))
             if res:
                 last_read = get_list(res['SyncList'])
-                self.syncinglogger.debug(f"last read contains {len(last_read)}")
-            res = db.match("select SyncList from sync where UserID=? and Label=?", (userid, "hc_dnf"))
+                self.syncinglogger.debug(f"last read contains {len(last_read)} for user {ll_userid_context}")
+            res = db.match("select SyncList from sync where UserID=? and Label=?", (ll_userid_context, "hc_dnf"))
             if res:
                 last_dnf = get_list(res['SyncList'])
-                self.syncinglogger.debug(f"last dnf contains {len(last_dnf)}")
+                self.syncinglogger.debug(f"last dnf contains {len(last_dnf)} for user {ll_userid_context}")
 
             mapping = [[hc_toread, last_toread, ll_toread, 'toread'], [hc_read, last_read, ll_haveread, 'read'],
                        [hc_reading, last_reading, ll_reading, 'reading'], [hc_dnf, last_dnf, ll_dnf, 'dnf']]
@@ -1912,74 +2122,89 @@ query FindAuthor { authors_by_pk(id: [authorid])
             # but we need the regular id for adding new books to user lists
 
             cmd = f"SELECT books.bookid from readinglists,books WHERE books.bookid=readinglists.bookid and userid=?"
-            res = db.select(cmd, (userid,))
+            res = db.select(cmd, (ll_userid_context,))
             new_set = set()
             for item in res:
                 new_set.add(item[0])
             old_set = set(hc_toread + hc_reading + hc_read + hc_dnf)
-            deleted_items = old_set - new_set
-            self.syncinglogger.debug(f"Deleting {len(deleted_items)} from HardCover")
-            for item in deleted_items:
-                book = db.match("SELECT hc_id from books WHERE bookid=?", (item,))
-                if book and book[0] and item in sync_dict:
-                    delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(sync_dict[item]))
-                    results, _ = self.result_from_cache(delcmd, refresh=True)
-                    if 'error' in results:
-                        self.logger.error(str(results['error']))
-
-            cmd = (f"SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
-                   f"books.bookid=readinglists.bookid and userid=? and books.bookid=?")
-
-            for item in new_set:
-                res = db.match(cmd, (userid, item))
-                if res and res[0]:
-                    old_status = ReadStatus.unknown
-                    if item in hc_toread:
-                        old_status = ReadStatus.wanttoread
-                    if item in hc_reading:
-                        old_status = ReadStatus.reading
-                    elif item in hc_read:
-                        old_status = ReadStatus.read
-                    elif item in hc_dnf:
-                        old_status = ReadStatus.dnf
-                    if res[1] != old_status.value:
-                        if old_status.value:
-                            self.syncinglogger.debug(f"Setting status of HardCover {res[0]} "
-                                                     f"to {ReadStatus(res[1]).name}, (was {old_status.name})")
-                            sync_id = sync_dict[item]
-                        else:
-                            self.syncinglogger.debug(f"Adding new entry {res[0]} {res[2]} to HardCover, "
-                                                     f"status {ReadStatus(res[1]).name}")
-                            sync_id = res[0]
-                        addcmd = self.HC_ADDUSERBOOK.replace('[bookid]',
-                                                             str(sync_id)).replace('[status]', str(res[1]))
-                        results, _ = self.result_from_cache(addcmd, refresh=True)
+            
+            # Only send changes to HardCover if two-way sync is enabled
+            if not CONFIG.get_bool('HC_SYNCREADONLY'):
+                deleted_items = old_set - new_set
+                self.logger.info(f"Sending {len(deleted_items)} deletions to HardCover")
+                for item in deleted_items:
+                    book = db.match("SELECT hc_id from books WHERE bookid=?", (item,))
+                    if book and book[0] and item in sync_dict:
+                        delcmd = self.HC_DELUSERBOOK.replace('[bookid]', str(sync_dict[item]))
+                        results, _ = self.result_from_cache(delcmd, refresh=True)
                         if 'error' in results:
                             self.logger.error(str(results['error']))
-                else:
-                    miss.append((item, res[2]))
-                    for mapp in mapping:
-                        if item in mapp[2]:
-                            mapp[2].remove(item)
-            if len(miss):
-                msg += f"Unable to update {len(miss)} items at HardCover as no hc_id\n"
+
+                cmd = (f"SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
+                       f"books.bookid=readinglists.bookid and userid=? and books.bookid=?")
+
+                for item in new_set:
+                    res = db.match(cmd, (ll_userid_context, item))
+                    if res and res[0]:
+                        old_status = ReadStatus.unknown
+                        if item in hc_toread:
+                            old_status = ReadStatus.wanttoread
+                        if item in hc_reading:
+                            old_status = ReadStatus.reading
+                        elif item in hc_read:
+                            old_status = ReadStatus.read
+                        elif item in hc_dnf:
+                            old_status = ReadStatus.dnf
+                        if res[1] != old_status.value:
+                            if old_status.value:
+                                self.syncinglogger.debug(f"Setting status of HardCover {res[0]} "
+                                                         f"to {ReadStatus(res[1]).name}, (was {old_status.name})")
+                                sync_id = sync_dict[item]
+                            else:
+                                self.syncinglogger.debug(f"Adding new entry {res[0]} {res[2]} to HardCover, "
+                                                         f"status {ReadStatus(res[1]).name}")
+                                sync_id = res[0]
+                            addcmd = self.HC_ADDUSERBOOK.replace('[bookid]',
+                                                                 str(sync_id)).replace('[status]', str(res[1]))
+                            results, _ = self.result_from_cache(addcmd, refresh=True)
+                            if 'error' in results:
+                                self.logger.error(str(results['error']))
+                    else:
+                        miss.append((item, res[2]))
+                        for mapp in mapping:
+                            if item in mapp[2]:
+                                mapp[2].remove(item)
+                if len(miss):
+                    msg += f"Unable to update {len(miss)} items at HardCover as no hc_id\n"
+            else:
+                self.logger.info("Two-way sync disabled, not sending changes to HardCover")
+                if old_set != new_set:
+                    self.logger.debug(f"Would have sent {len(old_set - new_set)} deletions "
+                                      f"and processed {len(new_set)} items")
 
             for mapp in mapping:
                 # mapp[2] is now the definitive list to store as last sync for status mapp[3]
                 listmsg = f"HardCover {mapp[3]} contains {len(mapp[2])}"
                 self.syncinglogger.debug(listmsg)
                 msg += f"{listmsg}\n"
-                set_readinglist(mapp[3], userid, mapp[2])
+                set_readinglist(mapp[3], ll_userid_context, mapp[2])
                 label = f"hc_{mapp[3]}"
                 booklist = ','.join(mapp[2])
-                db.upsert("sync", {'SyncList': booklist}, {'UserID': userid, 'Label': label})
+                db.upsert("sync", {'SyncList': booklist}, {'UserID': ll_userid_context, 'Label': label})
 
             # maybe sync ll_owned to hc_owned, but only add/delete to ll using status HAVE, not OPEN
             # and use hc_id for admin user, not ll userid and not current user
+            db.action("DELETE from sync WHERE UserID=? AND Label LIKE 'hc_%'", (ll_userid_context,))
+            db.action("INSERT INTO sync VALUES (?, ?, ?)", (ll_userid_context, 'hc_toread', list_to_str(ll_toread)))
+            db.action("INSERT INTO sync VALUES (?, ?, ?)", (ll_userid_context, 'hc_reading', list_to_str(ll_reading)))
+            db.action("INSERT INTO sync VALUES (?, ?, ?)", (ll_userid_context, 'hc_read', list_to_str(ll_haveread)))
+            db.action("INSERT INTO sync VALUES (?, ?, ?)", (ll_userid_context, 'hc_dnf', list_to_str(ll_dnf)))
+            
+            msg = f"User {ll_userid_context} HardCover sync complete\n" + msg
         finally:
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "HCSYNC"})
             db.close()
-            self.logger.debug(f"HCsync completed for {userid}")
+            self.logger.info(f"HCsync completed for {ll_userid_context}")
             for missed in miss:
                 self.syncinglogger.warning(f"Unable to add bookid {missed[0]} ({missed[1]}) at HardCover, no hc_id")
             thread_name('WEBSERVER')

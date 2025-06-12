@@ -806,11 +806,11 @@ def shrink_mag(issuefile, dpi=0):
                   f"-dMonoImageResolution={dpi}",
                   "-dUseCropBox", f"-sOutputFile={outfile}", issuefile]
         try:
+            logger.debug(str(params))
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
             res = make_unicode(res).strip()
-            if not path_isfile(outfile):
-                logger.debug(f"Failed to shrink file: {res}")
-                return ''
+            if res:
+                logger.debug(f"shrink_mag reports: {res}")
             logger.debug(f"Resized file: {outfile}")
             return outfile
         except Exception as e:

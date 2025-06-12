@@ -484,8 +484,9 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('API', 'LT_DEVKEY', ''),
     ConfigBool('API', 'CV_WEBSEARCH', 0),
     ConfigBool('API', 'OL_API', 0),
-    ConfigStr('API', 'HC_API', ''),
+    ConfigBool('API', 'HC_API', 0),
     ConfigBool('API', 'HC_SYNC', 0),
+    ConfigBool('API', 'HC_SYNCREADONLY', 0),
     ConfigStr('API', 'GR_API', 'ckvsiSDsuqh7omh74ZZ6Q'),
     ConfigBool('API', 'GR_SYNC', 0),
     ConfigBool('API', 'GR_SYNCUSER', 0),
@@ -532,6 +533,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('Preprocess', 'WRITE_AUDIOTAGS', 0),
     ConfigBool('Preprocess', 'ZIP_AUDIOPARTS', 0),
     ConfigBool('Preprocess', 'SWAP_COVERPAGE', 0),
+    ConfigBool('Preprocess', 'TAG_PDF', 0),
     ConfigInt('Preprocess', 'SHRINK_MAG', 0),
     ConfigInt('Testing', 'Unpersisted_test', 2, persist=False)
 ]

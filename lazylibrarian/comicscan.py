@@ -24,7 +24,7 @@ from lazylibrarian import database
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
-from lazylibrarian.formatter import plural, check_int, now, get_list, unaccented, sanitize
+from lazylibrarian.formatter import plural, check_int, now, get_list, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
 
@@ -42,7 +42,7 @@ def comic_scan(comicid=None):
                 title = mags['Title']
         mag_path = CONFIG['COMIC_DEST_FOLDER']
         if title and '$Title' in mag_path:
-            comic_name = unaccented(sanitize(title), only_ascii=False)
+            comic_name = sanitize(title)
             mag_path = mag_path.replace('$Title', comic_name)
             onetitle = comic_name
         else:

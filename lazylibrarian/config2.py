@@ -383,6 +383,37 @@ class LLConfigHandler(ConfigDict):
             clear: bool = False if section and section != '' else True
             self.post_save_actions(restart_jobs=restart_jobs, clear_counters=clear)
 
+    def pre_load_fixup(self, configfile: Optional[str] = None) -> int:
+        """
+        Perform pre-load operations specific to LL.
+        Returns 0 if ok, otherwise number of warnings
+        Rename hc_api = Bearer...  as hc_api is now BOOL, store old key in hc_key
+        """
+        if not configfile:
+            self.logger.warning("No configfile")
+            return 1
+        try:
+            with open(configfile, 'r') as i:
+                with open(f"{configfile}.new", 'w') as o:
+                    for lyne in i.readlines():
+                        if lyne.startswith('hc_api') and 'Bearer' in lyne:
+                            lyne = lyne.replace('hc_api', 'hc_key')
+                            o.write(lyne)
+                            o.write('hc_api = True\n')
+                        else:
+                            o.write(lyne)
+            try:
+                os.remove(configfile)
+                os.rename(f"{configfile}.new", configfile)
+            except OSError as e:
+                msg = f'Unable to rename new config file: {configfile} {type(e).__name__} {e.strerror}'
+                self.logger.warning(msg)
+                return 1
+            return 0
+        except Exception:
+            self.logger.warning(f"Unable to pre_load_fixup {configfile}")
+            return 1
+
     def post_load_fixup(self) -> int:
         """
         Perform post-load operations specific to LL.
