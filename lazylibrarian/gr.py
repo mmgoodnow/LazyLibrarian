@@ -310,6 +310,10 @@ class GoodReads:
             match = fuzz.partial_ratio(author, authorname)
             if match >= CONFIG.get_int('NAME_PARTNAME'):
                 return self.get_author_info(authorid)
+
+            match = fuzz.token_sort_ratio(author, authorname)
+            if match >= CONFIG.get_int('NAME_RATIO'):
+                return self.get_author_info(authorid)
             self.logger.debug(f"Fuzz failed: {round(match, 2)} [{author}][{authorname}]")
         return {}
 
