@@ -1156,8 +1156,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             # find the best match
                                             for f in listdir(pp_path):
                                                 if CONFIG.is_valid_booktype(f, booktype="book"):
-                                                    bookmatch = fuzz.token_set_ratio(matchtitle, f)
-                                                    loggerfuzz.debug(f"{round(bookmatch, 2)}% match {matchtitle} : {f}")
+                                                    # Process filename same as main matching logic
+                                                    processed_fname = unaccented(f, only_ascii=False)
+                                                    processed_fname = processed_fname.split(' LL.(')[0].replace('_', ' ')
+                                                    processed_fname = sanitize(processed_fname)
+                                                    bookmatch = fuzz.token_set_ratio(matchtitle, processed_fname)
+                                                    loggerfuzz.debug(f"{round(bookmatch, 2)}% match {matchtitle} : {processed_fname}")
                                                     if bookmatch > found_score:
                                                         found_file = f
                                                         found_score = bookmatch
