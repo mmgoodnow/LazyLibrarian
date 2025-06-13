@@ -3238,10 +3238,16 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 else:
                     authors = 'magazines'
                 db = database.DBConnection()
-                entry = db.match('SELECT * FROM magazines where Title=?', (title,))
-                _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid,
-                                      language=entry["Language"], overwrite=True)
-                db.close()
+                try:
+                    entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                    if entry:
+                        _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid,
+                                              language=entry["Language"], overwrite=True)
+                except Exception as e:
+                    logger.debug(f"Unable to create opf for {authors}:{title}:{issuedate}:{issueid}:{dict(entry)}")
+                    logger.debug(f"{e}")
+                finally:
+                    db.close()
 
     if firstfile:
         newbookfile = firstfile
