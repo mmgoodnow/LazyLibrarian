@@ -961,6 +961,10 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         if match >= CONFIG.get_int('NAME_RATIO'):
                             res = self.get_author_info(authorid)
                         if not res:
+                            match = fuzz.token_sort_ratio(author_name.lower(), authorname.lower())
+                            if match >= CONFIG.get_int('NAME_RATIO'):
+                                res = self.get_author_info(authorid)
+                        if not res:
                             match = fuzz.partial_ratio(author_name.lower(), authorname.lower())
                             if match >= CONFIG.get_int('NAME_PARTNAME'):
                                 res = self.get_author_info(authorid)

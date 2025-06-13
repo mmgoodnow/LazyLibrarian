@@ -5255,6 +5255,7 @@ class WebInterface:
                     else:
                         fname, extn = os.path.splitext(row[1])
                         imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
+                        fullsize = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}{extn}')
                         if path_isfile(imgfile):
                             row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                         else:
@@ -5262,6 +5263,7 @@ class WebInterface:
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
                                 row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                        row.append(f"cache/{fullsize[len(DIRS.CACHEDIR):].lstrip(os.sep)}")
                     row[0] = quote_plus(make_utf8bytes(row[0])[0])
 
             loggerserverside.debug(f"get_mags returning {displaystart} to {displaystart + displaylength}")
@@ -5450,6 +5452,7 @@ class WebInterface:
                 else:
                     fname, extn = os.path.splitext(row[1])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
+                    fullsize = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}{extn}')
                     if path_isfile(imgfile):
                         row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                     else:
@@ -5457,6 +5460,7 @@ class WebInterface:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                    row.append(f"cache/{fullsize[len(DIRS.CACHEDIR):].lstrip(os.sep)}")
                 row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
                 if row[2] and row[2].isdigit():
                     if len(row[2]) == 8:
