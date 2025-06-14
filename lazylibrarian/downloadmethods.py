@@ -766,7 +766,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             directory = CONFIG['TRANSMISSION_DIR']
             if label and not directory.endswith(label):
                 directory = os.path.join(directory, label)
-            directory = os.path.join(directory, tor_title)
+            directory = os.path.join(directory, sanitize(tor_title))
             if torrent:
                 logger.debug(f"Sending {tor_title} data to Transmission:{directory}")
                 # transmission needs b64encoded metainfo to be unicode, not bytes
