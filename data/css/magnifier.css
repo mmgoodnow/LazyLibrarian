@@ -1,0 +1,91 @@
+/* ──────────────────────────────────────────────
+   THUMBNAILS (table view)
+   ────────────────────────────────────────────── */
+.bookcover-sm{
+  transition:transform .2s ease,box-shadow .2s ease;
+  cursor:pointer;border-radius:4px;z-index:1
+}
+/* enlarge only when the <a> is NOT focused (i.e. no modal open) */
+.table-responsive td a:not(:focus-within) .bookcover-sm:hover{
+  transform:scale(2.2) translateY(-12px);
+  box-shadow:0 8px 24px rgba(0,0,0,.15);
+  position:relative;z-index:10
+}
+
+/* ──────────────────────────────────────────────
+   MODAL BACKDROP
+   ────────────────────────────────────────────── */
+a:focus::before,
+a:focus-visible::before{
+  content:"";
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.6);
+  z-index:10000;pointer-events:none
+}
+
+/* ──────────────────────────────────────────────
+   MODAL IMAGE (pseudo-element)
+   ────────────────────────────────────────────── */
+a:focus::after,
+a:focus-visible::after{
+  content:"";
+  position:fixed;top:50%;left:50%;
+  width:var(--modalW,80vw);height:var(--modalH,80vh);
+  max-width:90vw;max-height:90vh;
+  background:var(--img-src) center/contain no-repeat #fff;
+  padding:8px;border-radius:12px;
+  box-shadow:
+      0 0 0 1px rgba(0,0,0,.04),
+      0 8px 32px rgba(0,0,0,.4);
+  transform:translate(-50%,-50%) scale(.8);
+  opacity:0;
+  animation:modalIn .25s cubic-bezier(.4,0,.2,1) forwards;
+  z-index:10001;pointer-events:none
+}
+@keyframes modalIn{
+  to{transform:translate(-50%,-50%) scale(1);opacity:1}
+}
+
+/* ──────────────────────────────────────────────
+   NAVIGATION BUTTONS  (circular, glyph via ::before)
+   ────────────────────────────────────────────── */
+.modal-nav-btn{
+  position:fixed;
+
+  top:50%;transform:translateY(-50%);
+  width:48px;height:48px;border-radius:50%;
+  background:rgba(0,0,0,.4);
+  cursor:pointer;user-select:none;
+  transition:background .15s;
+  display:inline-block;              /* keeps geometry simple */
+  z-index:10002
+}
+.modal-nav-btn:hover{background:rgba(0,0,0,.55)}
+.modal-nav-btn.disabled{opacity:.25;pointer-events:none}
+.modal-nav-btn.left {left:2vw}
+.modal-nav-btn.right{right:2vw}
+
+/* glyphs centred in their circle */
+.modal-nav-btn::before{
+  content:"";
+  position:absolute;top:43%;left:50%;
+  transform:translate(-50%,-50%);
+  font-size:32px;line-height:1;font-weight:bold;color:#fff;
+  pointer-events:none
+}
+.modal-nav-btn.left::before {content:"‹"}
+.modal-nav-btn.right::before{content:"›"}
+
+/* ──────────────────────────────────────────────
+   GLASSY MAGNIFIER  (shared for thumbnails & modal)
+   ────────────────────────────────────────────── */
+.magnifier-lens{
+  position:fixed;display:none;width:160px;height:160px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;border:2px solid rgba(255,255,255,.8);
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+  background-repeat:no-repeat;background-size:200% 200%;
+  backdrop-filter:blur(2px);pointer-events:none;
+  z-index:10003
+}
+
