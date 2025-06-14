@@ -2153,7 +2153,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         old_status = ReadStatus.unknown
                         if item in hc_toread:
                             old_status = ReadStatus.wanttoread
-                        if item in hc_reading:
+                        elif item in hc_reading:
                             old_status = ReadStatus.reading
                         elif item in hc_read:
                             old_status = ReadStatus.read
