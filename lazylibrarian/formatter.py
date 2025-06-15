@@ -267,7 +267,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         return datestr
 
     logger = logging.getLogger(__name__)
-    dateparts = datestr.split(' +')[0].split(';')[0].replace(
+    dateparts = datestr.split(' +')[0].split(' -')[0].split(';')[0].replace(
         '-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
     if len(dateparts) == 1:  # one "word" might need splitting
         dateparts = []
