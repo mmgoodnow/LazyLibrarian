@@ -53,7 +53,7 @@ def thread_name(name=None) -> str:
         return threading.current_thread().name
 
 
-def sanitize(name, is_folder=False, no_subdir=False):
+def sanitize(name, is_folder=False):
     """
     Sanitizes a string so it can be used as a file name or foldername, normalized as Unicode
     Returns a sanitized string
@@ -67,8 +67,6 @@ def sanitize(name, is_folder=False, no_subdir=False):
     dic = lazylibrarian.DICTS.get('filename_dict', {}).copy()
     if is_folder and os.path.__name__ == 'ntpath':
         dic.pop(':')  # allow colon in windows foldernames, but not filenames
-    if no_subdir:
-        dic[os.sep] = ''
     filename = replace_all(filename, dic)
     # Remove all characters below code point 32
     filename = u"".join(c for c in filename if 31 < ord(c))
