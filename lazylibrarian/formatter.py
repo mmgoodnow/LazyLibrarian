@@ -53,9 +53,9 @@ def thread_name(name=None) -> str:
         return threading.current_thread().name
 
 
-def sanitize(name):
+def sanitize(name, is_folder=False, no_subdir=False):
     """
-    Sanitizes a string so it can be used as a file name, normalized as Unicode
+    Sanitizes a string so it can be used as a file name or foldername, normalized as Unicode
     Returns a sanitized string
     """
     if not name:
@@ -63,8 +63,13 @@ def sanitize(name):
     filename = make_unicode(name)
     # replace non-ascii quotes with regular ones
     filename = replace_all(filename, lazylibrarian.DICTS.get('apostrophe_dict', {}))
-    # strip characters we don't want in a filename
-    filename = replace_all(filename, lazylibrarian.DICTS.get('filename_dict', {}))
+    # strip characters we don't want in a filename/foldername
+    dic = lazylibrarian.DICTS.get('filename_dict', {}).copy()
+    if is_folder and os.path.__name__ == 'ntpath':
+        dic.pop(':')  # allow colon in windows foldernames, but not filenames
+    if no_subdir:
+        dic[os.sep] = ''
+    filename = replace_all(filename, dic)
     # Remove all characters below code point 32
     filename = u"".join(c for c in filename if 31 < ord(c))
     filename = unicodedata.normalize('NFC', filename)
@@ -267,7 +272,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         return datestr
 
     logger = logging.getLogger(__name__)
-    dateparts = datestr.split(' +')[0].split(' -')[0].split(';')[0].replace(
+    dateparts = datestr.split(' +')[0].split(';')[0].replace(
         '-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
     if len(dateparts) == 1:  # one "word" might need splitting
         dateparts = []
