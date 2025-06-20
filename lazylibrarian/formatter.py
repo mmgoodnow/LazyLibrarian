@@ -1,6 +1,6 @@
 #  This file is part of Lazylibrarian.
 # coding: utf-8
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -869,14 +869,23 @@ def replacevars(base, mydict):
 
     # first strip any braced expressions where any var in the expression is empty
     # eg {$SerName - $SerNum} becomes '' if either var is empty
+    # but the braced expression may have OR options, eg  a|b|c so stop on first expression to pass
     while '{' in base and '}' in base and base.index('{') < base.index('}'):
         left, rest = base.split('{', 1)
         middle, right = rest.split('}', 1)
-        for item in vardict:
-            if item in middle and item[1:] in mydict and mydict[item[1:]] == '':
-                middle = ''
+        expressions = middle.split('|')
+        valid = False
+        for expression in expressions:
+            for item in vardict:
+                if item in expression and item[1:] in mydict and mydict[item[1:]] == '':
+                    expression = ''
+                    break
+            if expression:
+                base = f"{left}{expression}{right}"
+                valid = True
                 break
-        base = f"{left}{middle}{right}"
+        if not valid:
+            base = f"{left}{right}"
 
     for item in vardict:
         if item[1:] in mydict:
