@@ -295,7 +295,7 @@ class HardCover:
                     self.logger.debug(f"Using database token for user: {userid}")
                 else:
                     self.logger.debug(f"No token found for user: {userid}, trying admin")
-                    res = db.match("SELECT hc_token FROM users WHERE username='admin'")
+                    res = db.match("select hc_token from users where perms=65535 and hc_token is not null")
                     if res and res['hc_token']:
                         self.apikey = res['hc_token']
                         self.logger.debug(f"Using database token for admin")
@@ -305,7 +305,7 @@ class HardCover:
             db = database.DBConnection()
             try:
                 # No userid provided, could be an api call? use admin token
-                res = db.match("SELECT hc_token FROM users WHERE username='admin'")
+                res = db.match("select hc_token from users where perms=65535 and hc_token is not null")
                 if res and res['hc_token']:
                     self.apikey = res['hc_token']
                     self.logger.debug(f"Using database token for admin")
