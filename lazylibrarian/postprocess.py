@@ -135,7 +135,14 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             logger.error(f"Unable to import {source_file}: {dest_file}")
             return False
 
+        old_folder = os.path.dirname(source_file)
+        basename, extn = os.path.splitext(source_file)
         remove_file(source_file)
+        remove_file(f"{basename}.opf")
+        remove_file(f"{basename}.jpg")
+        if len(listdir(old_folder)) == 0:
+            remove_dir(old_folder)
+
         if mostrecentissue:
             if mostrecentissue.isdigit() and str(issuenum).isdigit():
                 older = (int(mostrecentissue) > int(issuenum))  # issuenumber
