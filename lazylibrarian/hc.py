@@ -1877,10 +1877,10 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 lazylibrarian.importer.update_totals(auth_id)
 
                 for entry in bookdict['contributing_authors']:
-                    auth_name, auth_id, added = add_author_to_db(authorname=entry[1], refresh=False,
-                                                                 authorid=entry[0],
-                                                                 addbooks=False,
-                                                                 reason=f"Contributor to {bookdict['title']}")
+                    auth_id = add_author_to_db(authorname=entry[1], refresh=False,
+                                               authorid=entry[0],
+                                               addbooks=False,
+                                               reason=f"Contributor to {bookdict['title']}")
                     if auth_id:
                         # Add any others as contributing authors
                         db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',

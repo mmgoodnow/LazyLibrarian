@@ -715,9 +715,17 @@ class GoodReads:
                                         'pen name' in role.lower():
                                     amatch = True
                                 else:
-                                    self.logger.debug(f'Ignoring {anm} for {bookname}, role is {role}')
+                                    self.logger.debug(f'Got {anm} for {bookname}, role is {role}')
+                                    role = role.upper()
+                                    if role not in ROLE:
+                                        role = 'CONTRIBUTOR'
+                                    # ignore error if aid not in database
+                                    db.action('INSERT OR IGNORE into bookauthors (AuthorID, BookID, Role) '
+                                              'VALUES (?, ?, ?)',
+                                              (aid, bookid, ROLE[role]), suppress='UNIQUE')
+                                    lazylibrarian.importer.update_totals(auth_id)
                         if not amatch:
-                            rejected.append(['author', f'Wrong Author (got {alist},{role})'])
+                            rejected.append(['author', f'Wrong Author or role (got {alist},{role})'])
 
                         cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult FROM books,authors "
                                "WHERE authors.AuthorID = books.AuthorID AND BookID=?")
