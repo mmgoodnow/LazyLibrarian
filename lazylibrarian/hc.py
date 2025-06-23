@@ -1264,7 +1264,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 author_contributions = contributions
 
             # Sort contributions by author ID in descending order (highest ID first)
-            sorted_contributions = sorted(author_contributions, 
+            sorted_contributions = sorted(author_contributions,
                                           key=lambda x: int(x['author']['id']) if x['author']['id'] else 0,
                                           reverse=True)
 
@@ -1492,10 +1492,12 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         lazylibrarian.importer.update_totals(authorid)
 
                         for entry in bookdict['contributing_authors']:
-                            auth_name, auth_id, added = add_author_to_db(authorname=entry[1], refresh=False,
-                                                                         authorid=entry[0],
-                                                                         addbooks=False,
-                                                                         reason=f"Contributor to {bookdict['title']}")
+                            reason = f"Contributor to {bookdict['title']}"
+                            auth_name, auth_id, added = lazylibrarian.importer.add_author_to_db(authorname=entry[1],
+                                                                                                refresh=False,
+                                                                                                authorid=entry[0],
+                                                                                                addbooks=False,
+                                                                                                reason=reason)
                             if auth_id:
                                 # Add any others as contributing authors
                                 db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
@@ -1835,7 +1837,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             reason = f"{reason}:{bookdict['bookid']}"
             # Use add_author_to_db with the author ID we already have from the book data
             # This avoids the author search that can return the wrong author
-            lazylibrarian.importer.add_author_to_db(authorname=auth_name, 
+            lazylibrarian.importer.add_author_to_db(authorname=auth_name,
                                                     authorid=bookdict['auth_id'],
                                                     refresh=False, addbooks=False, reason=reason)
         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])

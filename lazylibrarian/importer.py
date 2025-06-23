@@ -629,6 +629,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
             return ret_id
 
     except Exception:
+        msg = f'Unhandled exception: {traceback.format_exc()}'
+        logger.debug(msg)
         ret_id = None
     finally:
         db.close()
