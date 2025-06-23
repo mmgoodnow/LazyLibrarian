@@ -431,13 +431,13 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
 
         if new_author and not authorname and current_author['authorname']:
             # maybe we only had authorid(s) to search for
-            dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
+            dbauthor = db.match("SELECT * from authors WHERE AuthorName=? COLLATE NOCASE", (current_author['authorname'],))
             if dbauthor:
                 new_author = False
                 current_author['authorid'] = dbauthor['AuthorID']
                 current_author['authorname'] = dbauthor['AuthorName']
             else:
-                dbauthor = db.match("SELECT * from authors WHERE instr(AKA, ?) > 0", (authorname,))
+                dbauthor = db.match("SELECT * from authors WHERE instr(AKA, ?) > 0", (current_author['authorname'],))
                 if dbauthor:
                     new_author = False
                     current_author['authorid'] = dbauthor['AuthorID']
@@ -454,8 +454,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
         if not current_author or not current_author.get('authorid'):
             # goodreads sometimes changes authorid
             # maybe change of provider or no reply from provider
-            logger.error(f"No author info for {authorid}:{authorname}")
-            db.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
+            logger.warning(f"No author info found for {authorid}:{authorname}:{reason}")
+            if authorid:
+                db.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
             return ret_id
 
         if authorname and current_author['authorname'] != authorname:
