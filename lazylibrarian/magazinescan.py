@@ -24,10 +24,10 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
-    safe_move, get_directory, remove_dir, listdir
+    safe_move, get_directory, remove_dir, listdir, book_file
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
     replacevars, month2num, check_int
-from lazylibrarian.images import create_mag_cover
+from lazylibrarian.images import create_mag_cover, tag_issue
 
 
 def create_id(issuename=None):
@@ -261,16 +261,9 @@ def magazine_scan(title=None):
                         if not CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')
                         else:
-                            if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                                authors = title
-                            else:
-                                authors = 'magazines'
-                            lazylibrarian.postprocess.create_mag_opf(issuefile, authors, title, issuedate,
+                            lazylibrarian.postprocess.create_mag_opf(issuefile, title, issuedate,
                                                                      issue_id, language=maglanguage,
                                                                      overwrite=new_entry)
-                        # if CONFIG.get_bool('MAG_RENAME'):
-                        #     _ = rename_issue(issue_id)
-
                         # see if this issues date values are useful
                         control_value_dict = {"Title": title}
                         if not mag_entry:  # new magazine, this is the only issue
@@ -349,7 +342,9 @@ def format_issue_filename(base, mag_title, dateparts):
     if base == CONFIG['MAG_DEST_FOLDER']:
         # No special requirements on folder name
         valid_format = True
+        is_folder = True
     else:
+        is_folder = False
         # We need to be able to identify the issue after renaming, so...
         # filename must contain minimum of
         # IssueDate
@@ -383,7 +378,7 @@ def format_issue_filename(base, mag_title, dateparts):
         logger.debug(f"Invalid format {base}:{mag_title}:{dateparts}")
         issue_name = f"{mag_title} - {dateparts['dbdate']}"
     # issue_name = unaccented(issue_name, only_ascii=False)
-    issue_name = sanitize(issue_name)
+    issue_name = sanitize(issue_name, is_folder)
     return issue_name
 
 
@@ -732,6 +727,12 @@ def rename_issue(issueid):
         dest_dir = get_directory('eBook')
         new_folder = stripspaces(os.path.join(dest_dir, new_folder))
 
+    new_filename = os.path.join(new_folder, new_name + extn)
+
+    if new_filename == match['IssueFile']:
+        logger.debug(f"Filename {match['IssueFile']} is unchanged")
+        return match['IssueFile'], ''
+
     # create dest folder if required
     if old_folder != new_folder:
         if not path_isdir(new_folder):
@@ -740,6 +741,14 @@ def rename_issue(issueid):
                 logger.error(msg)
                 db.close()
                 return '', msg
+
+            ignorefile = os.path.join(new_folder, '.ll_ignore')
+            try:
+                with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
+                    f.write(u"magazine")
+            except IOError as e:
+                logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
+
     # rename opf, jpg, then issue
     for extension in ['.jpg', '.opf', extn]:
         src = os.path.join(old_folder, old_name + extension)
@@ -755,12 +764,27 @@ def rename_issue(issueid):
                 if extension == extn:
                     db.close()
                     return '', msg
-    # delete old folder if empty
-    if len(listdir(old_folder)) == 0:
-        remove_dir(old_folder)
+
+    # if no magazine issues left in the folder, delete it
+    # (removes any trailing cover images, opf, ignorefile etc)
+    if not book_file(old_folder, booktype='mag', config=CONFIG, recurse=True):
+        logger.debug(f"Removing empty directory {old_folder}")
+        remove_dir(old_folder, remove_contents=True)
+
     # update issuefile in database
     new_filename = os.path.join(new_folder, new_name + extn)
     db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_filename, issueid))
+
+    if CONFIG.get_bool('TAG_PDF'):
+        logger.debug(f"Tagging {new_filename}")
+        tag_issue(new_filename, match['Title'], match['IssueDate'])
+
+    if CONFIG.get_bool('IMP_MAGOPF'):
+        logger.debug(f"Writing opf for {new_filename}")
+        entry = db.match('SELECT Language FROM magazines where Title=?', (match['Title'],))
+        _, _ = lazylibrarian.postprocess.create_mag_opf(new_filename, match['Title'],
+                                                        match['IssueDate'], issueid, language=entry[0],
+                                                        overwrite=True)
     db.close()
     return new_filename, ''
 

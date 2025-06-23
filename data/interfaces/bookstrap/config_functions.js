@@ -63,6 +63,7 @@
             // Importing
             toggleElement("#hc_api", "#hc_options");
             toggleElement("#hc_sync", "#hcsync_options");
+            toggleElement("#hc_syncreadonly", "#hc_sync_limit_group", true);
             toggleElement("#gr_sync", "#grsync_options");
             toggleElement("#gr_syncuser", "#gruser_options");
             toggleElement("#gr_syncuser", "#grlibrary_options");

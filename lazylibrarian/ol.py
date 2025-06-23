@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -19,15 +19,14 @@ from bs4 import BeautifulSoup
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database
+from lazylibrarian import database, ROLE
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
     isbnlang, is_set_or_part
 from lazylibrarian.cache import json_request, html_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
     get_list, make_utf8bytes, plural, unaccented, replace_all, today, date_format, thread_name
-from lazylibrarian.images import cache_bookimg
-from lazylibrarian.images import get_book_cover
+from lazylibrarian.images import cache_bookimg, get_book_cover
 
 
 class OpenLibrary:
@@ -1160,46 +1159,71 @@ class OpenLibrary:
                                                                             f"SeriesID=?", (counter, seriesid))
                     if rating == 0:
                         self.logger.debug("No additional librarything info")
-                        exists = db.match("SELECT * from books WHERE BookID=?", (key,))
-                        if not exists:
-                            self.logger.debug(f"Inserting new book for {authorid}")
-                            if 'author_update' in entryreason:
-                                reason = f'Author: {auth_name}'
+                    exists = db.match("SELECT * from books WHERE BookID=?", (key,))
+                    if not exists:
+                        self.logger.debug(f"Inserting new book for {authorid}")
+                        if 'author_update' in entryreason:
+                            reason = f'Author: {auth_name}'
+                        else:
+                            reason = entryreason
+                        reason = f"[{thread_name()}] {reason}"
+                        rejected = False
+                        if not lang:
+                            lang = 'Unknown'
+                        if wantedlanguages and 'All' not in wantedlanguages:
+                            if lang not in wantedlanguages:
+                                self.logger.debug(f"Invalid language {lang} {ignorable}")
+                                if 'lang' not in ignorable:
+                                    bad_lang += 1
+                                    rejected = True
+                                else:
+                                    book_status = 'Ignored'
+                                    audio_status = 'Ignored'
+                        if not rejected:
+                            added_count += 1
+                            if 'nocover' in cover or 'nophoto' in cover:
+                                start = time.time()
+                                cover, _ = get_book_cover(key, ignore='openlibrary')
+                                cover_time += (time.time() - start)
+                                cover_count += 1
+                            elif cover and cover.startswith('http'):
+                                cover = cache_bookimg(cover, key, 'ol')
+                            if not cover:  # no results on search or failed to cache it
+                                cover = 'images/nocover.png'
+
+                            db.action(
+                                f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, "
+                                f"BookDate, BookLang, BookAdded, Status, WorkPage, AudioStatus, ScanResult, "
+                                f"OriginalPubDate, ol_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                (authorid, title, cover, link, key, publish_date, lang, now(),
+                                 book_status, '', audio_status, reason, first_publish_year, key))
+
+                    if not rejected:
+                        db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                  (authorid, key, ROLE['PRIMARY']), suppress='UNIQUE')
+                        lazylibrarian.importer.update_totals(authorid)
+
+                        # add any additional contributing authors
+                        # ol gives us a list of names and a list of keys
+                        authornames = book.get('author_name')
+                        authorkeys = book.get('author_key')
+                        contributing_authors = []
+                        cnt = 1
+                        while cnt < len(authornames):
+                            contributing_authors.append([authorkeys[cnt], " ".join(authornames[cnt].split())])
+                            cnt += 1
+
+                        for entry in contributing_authors:
+                            auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
+                                                                              authorid=entry[0],
+                                                                              addbooks=False,
+                                                                              reason=f"Contributor to {title}")
+                            if auth_id:
+                                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                          (auth_id, key, ROLE['CONTRIBUTING']), suppress='UNIQUE')
+                                lazylibrarian.importer.update_totals(auth_id)
                             else:
-                                reason = entryreason
-                            reason = f"[{thread_name()}] {reason}"
-                            rejected = False
-                            if not lang:
-                                lang = 'Unknown'
-                            if wantedlanguages and 'All' not in wantedlanguages:
-                                if lang not in wantedlanguages:
-                                    self.logger.debug(f"Invalid language {lang} {ignorable}")
-                                    if 'lang' not in ignorable:
-                                        bad_lang += 1
-                                        rejected = True
-                                    else:
-                                        book_status = 'Ignored'
-                                        audio_status = 'Ignored'
-                            if not rejected:
-                                added_count += 1
-                                if 'nocover' in cover or 'nophoto' in cover:
-                                    start = time.time()
-                                    cover, _ = get_book_cover(key, ignore='openlibrary')
-                                    cover_time += (time.time() - start)
-                                    cover_count += 1
-                                elif cover and cover.startswith('http'):
-                                    cover = cache_bookimg(cover, key, 'ol')
-                                if not cover:  # no results on search or failed to cache it
-                                    cover = 'images/nocover.png'
-
-                                db.action(
-                                    f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, "
-                                    f"BookDate, BookLang, BookAdded, Status, WorkPage, AudioStatus, ScanResult, "
-                                    f"OriginalPubDate, ol_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                                    (authorid, title, cover, link, key, publish_date, lang, now(),
-                                     book_status, '', audio_status, reason, first_publish_year, key))
-
-                    added_count += 1
+                                self.logger.debug(f"Unable to add {auth_id}")
 
                 next_page = True
                 if authorbooks and authorbooks.get("docs"):
@@ -1439,6 +1463,11 @@ class OpenLibrary:
                 }
 
                 db.upsert("books", new_value_dict, control_value_dict)
+
+                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                          (authorid, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
+                # ol work page doesn't give us enough info on secondary authors
+                # we can get the data later when the primary author is refreshed using ol_search
             finally:
                 db.close()
             self.logger.info(f"{title} by {authorname} added to the books database, {bookstatus}/{audiostatus}")

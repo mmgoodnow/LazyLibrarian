@@ -472,21 +472,21 @@ def test_auth():
         return "Failed, check the debug log"
 
 
-def cron_sync_to_gr():
-    if 'GRSync' not in [n.name for n in [t for t in threading.enumerate()]]:
-        _ = sync_to_gr()
-    else:
-        logger = logging.getLogger(__name__)
-        logger.debug("GRSync is already running")
-
-
 def sync_to_gr():
+    """
+    Called from webserver with threadname 'WEB-GRSYNC'
+    or api with threadname 'API-GRSYNC'
+    or scheduled task with threadname 'GRSYNC' """
     logger = logging.getLogger(__name__)
+    if ','.join([n.name.upper() for n in [t for t in threading.enumerate()]]).count('GRSYNC') > 1:
+        msg = 'Another GoodReads Sync is already running'
+        logger.warning(msg)
+        return msg
+
     msg = ''
     new_books = []
     new_audio = []
 
-    thread_name('GRSync')
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -623,7 +623,7 @@ def grfollow(authorid, follow=True):
         return f"Unable to (un)follow {authorid}, invalid authorid"
 
 
-def grsync(status, shelf, library='eBook', reset=False, user=None):
+def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list):
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
     loggergrsync = logging.getLogger('special.grsync')

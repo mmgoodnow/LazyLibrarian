@@ -488,6 +488,8 @@ def is_overdue(which="author") -> (int, int, str, str, int):
                     name = res[0]['SeriesName']
                     ident = res[0]['SeriesID']
                     days, overdue = get_overdue_from_dbrows()
+        except Exception as e:
+            pass
         finally:
             db.close()
     return overdue, total, name, ident, days

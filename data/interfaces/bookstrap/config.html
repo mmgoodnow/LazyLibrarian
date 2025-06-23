@@ -675,7 +675,7 @@
                     </label>
                   </div>
                   <fieldset id="hc_options">
-                  <div class row>
+                  <div class="row">
                     <div class="checkbox">
                       <% checked = 'checked="checked"' if CONFIG['HC_SYNC'] else '' %>
                       <label for="hc_sync" class="control-label">
@@ -697,6 +697,11 @@
                       <label for="hc_syncreadonly" class="control-label">
                         <input type="checkbox" id="hc_syncreadonly" name="hc_syncreadonly" value="1" ${checked} />
                         Use HardCover lists as read-only</label>
+                    </div>
+                    <div class="form-group" id="hc_sync_limit_group">
+                      <label for="hc_sync_limit" class="control-label">HardCover Sync Safety Limit:</label>
+                      <input type="number" id="hc_sync_limit" name="hc_sync_limit" value="${CONFIG['HC_SYNC_LIMIT']}" class="form-control" placeholder="Maximum changes per sync (0 = no limit)">
+                      <span class="help-block">Maximum number of updates or deletions allowed per sync. Zero means no limit.</span>
                     </div>
                   </fieldset>
                   <fieldset id="gb_options">
@@ -942,7 +947,7 @@
                     </select>
                   </div>
                   </div>
-                  <span class="help-block">$d Day of the month as a number<br>$b Month as abbreviated name<br>$B Month as full name<br>$m Month as a number<br>$y	Year without century<br>$Y	Year with century<br>eg $Y-$m-$d</span>
+                  <span class="help-block">$d Day of the month as a number<br>$D Day of the month as a number if not 01<br>$b Month as abbreviated name<br>$B Month as full name<br>$m Month as a number<br>$y	Year without century<br>$Y	Year with century<br>eg $Y-$m-$d</span>
                 </fieldset>
               </div>
             </div>

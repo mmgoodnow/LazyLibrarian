@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -19,7 +19,7 @@ from urllib.parse import quote, quote_plus, urlencode
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database
+from lazylibrarian import database, ROLE
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, isbn_from_words, isbnlang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter, is_set_or_part
@@ -28,8 +28,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name
-from lazylibrarian.images import cache_bookimg
-from lazylibrarian.images import get_book_cover
+from lazylibrarian.images import cache_bookimg, get_book_cover
 
 
 class GoodReads:
@@ -309,10 +308,6 @@ class GoodReads:
 
             match = fuzz.partial_ratio(author, authorname)
             if match >= CONFIG.get_int('NAME_PARTNAME'):
-                return self.get_author_info(authorid)
-
-            match = fuzz.token_sort_ratio(author, authorname)
-            if match >= CONFIG.get_int('NAME_RATIO'):
                 return self.get_author_info(authorid)
             self.logger.debug(f"Fuzz failed: {round(match, 2)} [{author}][{authorname}]")
         return {}
@@ -1272,6 +1267,18 @@ class GoodReads:
         except (KeyError, AttributeError):
             bookimg = 'images/nocover.png'
 
+        #  multiauth info
+        # for each author in './book/authors'
+        # get author/id author/name author/role
+        contributors = []
+        authors = rootxml.find('./book/authors')
+        anames = authors.iter('author')
+        for aname in anames:
+            aid = aname.find('id').text
+            anm = aname.find('name').text
+            role = aname.find('role').text
+            contributors.append([aid, anm, role])
+
         authorname = rootxml.find('./book/authors/author/name').text
         authorid = rootxml.find('./book/authors/author/id').text
         bookdesc = rootxml.find('./book/description').text
@@ -1428,5 +1435,27 @@ class GoodReads:
                     control_value_dict = {"BookID": bookid}
                     new_value_dict = {"WorkPage": worklink}
                     db.upsert("books", new_value_dict, control_value_dict)
+
+                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                          (author_id, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
+                lazylibrarian.importer.update_totals(author_id)
+
+                contributors.pop(0)  # skip primary author
+                for entry in contributors:
+                    auth_name, auth_id, added = add_author_to_db(authorname=entry[1], refresh=False,
+                                                                 authorid=entry[0],
+                                                                 addbooks=False,
+                                                                 reason=f"Contributor to {bookname}")
+                    if auth_id:
+                        if entry[2].upper() in ROLE:
+                            role = ROLE[entry[2].upper()]
+                        else:
+                            role = ROLE['CONTRIBUTING']
+                        db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                  (auth_id, bookid, role), suppress='UNIQUE')
+                        lazylibrarian.importer.update_totals(auth_id)
+                    else:
+                        self.logger.debug(f"Unable to add {auth_id}")
+
         finally:
             db.close()

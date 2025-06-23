@@ -246,6 +246,7 @@ def nzbdate2format(nzbdate):
 def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
     # return date formatted for display in requested style
     # $d	Day of the month as a zero-padded decimal number
+    # $D    Day of month, zero padded, suppress if 01
     # $b	Month as abbreviated name
     # $B	Month as full name
     # $m	Month as a zero-padded decimal number
@@ -347,10 +348,15 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
             return datestr[:4]  # only year
         return datestr[:11]  # default yyyy-mm-dd
 
+    D = d
+    if d == '01':
+        D = ''
+
     formattedstr = formatstr.replace(
         '$Y', y).replace(
         '$y', y[2:]).replace(
         '$m', m).replace(
+        '$D', D).replace(
         '$d', d)
     try:
         if '$B' in formatstr or '$b' in formatstr:
@@ -363,6 +369,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
                 cnt += 1
             monthname = lazylibrarian.MONTHNAMES[0][int(m)]
             formattedstr = formattedstr.replace('$B', monthname[lang]).replace('$b', monthname[lang + 1])
+        formattedstr = ' '.join(formattedstr.split()).strip()
         return formattedstr
     except (NameError, IndexError):
         logger.error(f"Invalid datestr [{datestr}] for {formatstr}")

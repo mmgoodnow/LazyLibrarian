@@ -600,63 +600,7 @@ def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue=''):
             coverswap(srcfile, cover)
 
         if tag:
-            if not title or not issue:
-                logger.error('Unable to tag, need title and issue')
-            else:
-                src_pdf = PdfReader(srcfile)
-                dst_pdf = PdfWriter(clone_from=src_pdf)
-                metadata = dict(src_pdf.metadata)
-
-                sorted_title = sort_definite(title, articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
-                if CONFIG.get_bool('IMP_CALIBRE_MAGISSUE'):
-                    iname = issue
-                    sorted_iname = iname
-                    series = f"{title} #{issue}"
-                elif issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':
-                    yr = issue[0:4]
-                    mn = issue[5:7]
-                    lang = 0
-                    cnt = 0
-                    while cnt < len(lazylibrarian.MONTHNAMES[0][0]):
-                        if lazylibrarian.MONTHNAMES[0][0][cnt] == datelang:
-                            lang = cnt
-                            break
-                        cnt += 1
-                    # monthnames for this month, eg ["January", "Jan", "enero", "ene"]
-                    monthname = lazylibrarian.MONTHNAMES[0][int(mn)]
-                    month = monthname[lang]  # lang = full name, lang+1 = short name
-
-                    iname = f"{title} - {month} {yr}"  # The Magpi - January 2017
-                    sorted_iname = f"{sorted_title} - {month} {yr}"  # Magpi, The - January 2017
-                    series = f"{title} #{yr[:2]}.{mn}"
-                elif title in issue:
-                    iname = issue  # 0063 - Android Magazine -> 0063
-                    sorted_iname = iname
-                    series = f"{title} #{issue}"
-                else:
-                    iname = f"{title} - {issue}"  # Android Magazine - 0063
-                    sorted_iname = f"{sorted_title} - {issue}"  # Android Magazine - 0063
-                    series = f"{title} #{issue}"
-
-                db = database.DBConnection()
-                match = db.match('SELECT Language from magazines WHERE title=? COLLATE NOCASE', (title,))
-                language = ''
-                if match:
-                    language = match['Language']
-                db.close()
-
-                metadata['/Title'] = iname
-                metadata['/Title sort'] = sorted_iname
-                metadata['/Author'] = title
-                metadata['/Series'] = series
-                # Write original filename into file so we can recover it if needed
-                metadata['/Source Filename'] = sourcefile
-                if language:
-                    metadata['/Languages'] = language
-                dst_pdf.metadata = metadata
-
-                dst_pdf.write(srcfile + '.tag')
-                safe_move(srcfile + '.tag', srcfile)
+            tag_issue(srcfile, title, issue)
 
         safe_move(srcfile, original)
         _ = setperm(original)

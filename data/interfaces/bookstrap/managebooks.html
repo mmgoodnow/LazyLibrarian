@@ -238,18 +238,245 @@
             $("#myAlert").removeClass('hidden');
             $.get('sync_to_hardcover', function(data) {
                 $("#myAlert").addClass('hidden');
-                bootbox.dialog({
-                    title: 'HardCover Sync Result',
-                    message: '<pre>'+data+'</pre>',
-                    buttons: {
-                        primary: {
-                            label: "Close",
-                            className: 'btn-primary'
+                
+                // Always parse as JSON
+                var jsonData;
+                try {
+                    jsonData = JSON.parse(data);
+                } catch (e) {
+                    // If parsing fails, show error
+                    showSyncModal('HardCover Sync Error', 
+                        '<div class="alert alert-danger">Invalid response from server: ' + e.message + '</div>',
+                        { close: { label: "Close", className: 'btn-primary', callback: closeSyncModal } });
+                    return;
+                }
+                
+                // Check if confirmation is required
+                if (jsonData.confirmation_required) {
+                    var confirmTitle = jsonData.multi_user ? 
+                        'HardCover Multi-User Sync Confirmation Required' : 
+                        'HardCover Sync Confirmation Required';
+                    
+                    var confirmButtons = {
+                        cancel: {
+                            label: "Cancel",
+                            className: 'btn-default',
+                            callback: closeSyncModal
                         },
-                    }
-                });
+                        ignore: {
+                            label: "Ignore Updates",
+                            className: 'btn-info',
+                            callback: function() {
+                                // User wants to ignore pending updates and accept HardCover as master
+                                $("#myAlert").removeClass('hidden');
+                                showSyncModal('Processing...', '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing sync...</div>', {});
+                                $.get('sync_to_hardcover', { ignore: 'true' }, function(ignoreData) {
+                                    $("#myAlert").addClass('hidden');
+                                    displaySyncResults(ignoreData);
+                                });
+                            }
+                        },
+                        confirm: {
+                            label: jsonData.multi_user ? "Proceed with All Users" : "Proceed",
+                            className: 'btn-warning',
+                            callback: function() {
+                                // User confirmed, proceed with the sync
+                                $("#myAlert").removeClass('hidden');
+                                showSyncModal('Processing...', '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing sync...</div>', {});
+                                $.get('sync_to_hardcover', { confirmed: 'true' }, function(confirmData) {
+                                    $("#myAlert").addClass('hidden');
+                                    displaySyncResults(confirmData);
+                                });
+                            }
+                        }
+                    };
+                    
+                    showSyncModal(confirmTitle, 
+                        '<div class="alert alert-warning"><pre><strong>Warning:</strong> ' + jsonData.message + '</pre></div>',
+                        confirmButtons);
+                } else {
+                    // Display results
+                    displaySyncResults(data);
+                }
             });
         });
+        
+        // Global modal management variables
+        var syncModal = null;
+        var currentIndex = 0;
+        var syncResults = null;
+        
+        function initSyncModal() {
+            if ($('#syncProgressModal').length === 0) {
+                var modalHtml = '<div id="syncProgressModal" class="modal fade" tabindex="-1" role="dialog">' +
+                    '<div class="modal-dialog">' +
+                    '<div class="modal-content">' +
+                    '<div class="modal-header"><h4 class="modal-title"></h4></div>' +
+                    '<div class="modal-body"></div>' +
+                    '<div class="modal-footer"></div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+                $('body').append(modalHtml);
+            }
+            syncModal = $('#syncProgressModal');
+            
+            // Clean up any existing event handlers
+            syncModal.off('hidden.bs.modal');
+            syncModal.on('hidden.bs.modal', function() {
+                syncModal.find('.modal-dialog').removeClass('modal-lg');
+            });
+        }
+        
+        function showSyncModal(title, message, buttons) {
+            if (!syncModal) {
+                initSyncModal();
+            }
+            
+            syncModal.find('.modal-title').html(title);
+            syncModal.find('.modal-body').html(message);
+            
+            var $footer = syncModal.find('.modal-footer');
+            $footer.empty();
+            
+            $.each(buttons, function(key, button) {
+                var $btn = $('<button type="button" class="btn"></button>');
+                $btn.addClass(button.className);
+                $btn.text(button.label);
+                $btn.on('click', button.callback);
+                $footer.append($btn);
+            });
+            
+            syncModal.modal({
+                backdrop: 'static',
+                keyboard: false,
+                show: true
+            });
+        }
+        
+        function closeSyncModal() {
+            if (syncModal) {
+                syncModal.modal('hide');
+            }
+        }
+        
+        function displaySyncResults(data) {
+            // Parse JSON
+            var jsonData;
+            try {
+                jsonData = JSON.parse(data);
+            } catch (e) {
+                showSyncModal('HardCover Sync Error', 
+                    '<div class="alert alert-danger">Invalid response from server: ' + e.message + '</div>',
+                    { close: { label: "Close", className: 'btn-primary', callback: closeSyncModal } });
+                return;
+            }
+            
+            syncResults = jsonData.results;
+            currentIndex = 0;
+            
+            // Check for debug notice and store globally for multi-user summary
+            var debugNotice = '';
+            if (jsonData.debug_notice) {
+                debugNotice = '<div class="alert alert-info"><i class="fa fa-info-circle"></i> <strong>' + jsonData.debug_notice + '</strong></div>';
+                window.syncDebugNotice = jsonData.debug_notice;
+            } else {
+                window.syncDebugNotice = null;
+            }
+            
+            // Single user gets simpler display
+            if (!jsonData.multi_user && syncResults.length === 1) {
+                var result = syncResults[0];
+                var statusClass = result.status === 'success' ? 'success' : 'danger';
+                var statusIcon = result.status === 'success' ? 'check' : 'times';
+                var userId = result.userid || 'Current User';
+                
+                var message = debugNotice +
+                        '<div class="alert alert-' + statusClass + '">' +
+                        '<i class="fa fa-' + statusIcon + '"></i> ' +
+                        '<strong>' + result.status.charAt(0).toUpperCase() + result.status.slice(1) + '</strong>' +
+                        '</div>' +
+                        '<pre>' + result.message + '</pre>';
+                
+                showSyncModal('HardCover Sync Result - ' + userId, message,
+                    { close: { label: "Close", className: 'btn-primary', callback: closeSyncModal } });
+                return;
+            }
+            
+            // Multi-user gets the step-through interface
+            showNextResult();
+        }
+        
+        function showNextResult() {
+            if (currentIndex < syncResults.length) {
+                var result = syncResults[currentIndex];
+                var statusClass = result.status === 'success' ? 'success' : 'danger';
+                var statusIcon = result.status === 'success' ? 'check' : 'times';
+                
+                var title = 'HardCover Sync - User ' + result.userid + ' (' + (currentIndex + 1) + ' of ' + syncResults.length + ')';
+                var message = '<div class="alert alert-' + statusClass + '">' +
+                        '<i class="fa fa-' + statusIcon + '"></i> ' +
+                        '<strong>' + result.status.charAt(0).toUpperCase() + result.status.slice(1) + '</strong>' +
+                        '</div>' +
+                        '<pre>' + result.message + '</pre>';
+                
+                var buttons = {
+                    skip: {
+                        label: "Skip to Summary",
+                        className: 'btn-default',
+                        callback: showSummary
+                    },
+                    next: {
+                        label: currentIndex < syncResults.length - 1 ? "Next User" : "Show Summary",
+                        className: 'btn-primary',
+                        callback: function() {
+                            currentIndex++;
+                            if (currentIndex < syncResults.length) {
+                                showNextResult();
+                            } else {
+                                showSummary();
+                            }
+                        }
+                    }
+                };
+                
+                showSyncModal(title, message, buttons);
+            } else {
+                showSummary();
+            }
+        }
+        
+        function showSummary() {
+            var successCount = syncResults.filter(function(r) { return r.status === 'success'; }).length;
+            var errorCount = syncResults.filter(function(r) { return r.status === 'error'; }).length;
+            
+            // Add debug notice if it exists (stored from displaySyncResults)
+            var debugNotice = '';
+            if (window.syncDebugNotice) {
+                debugNotice = '<div class="alert alert-info"><i class="fa fa-info-circle"></i> <strong>' + window.syncDebugNotice + '</strong></div>';
+            }
+            
+            var summaryHtml = debugNotice +
+                '<h4>Sync Summary</h4>' +
+                '<p>Total users synced: <strong>' + syncResults.length + '</strong></p>' +
+                '<p class="text-success">Successful: <strong>' + successCount + '</strong></p>' +
+                '<p class="text-danger">Errors: <strong>' + errorCount + '</strong></p>';
+            
+            // Add modal-lg class for the summary
+            if (syncModal) {
+                syncModal.find('.modal-dialog').addClass('modal-lg');
+            }
+            
+            var buttons = {
+                close: {
+                    label: "Close",
+                    className: 'btn-primary',
+                    callback: closeSyncModal
+                }
+            };
+            
+            showSyncModal('HardCover Multi-User Sync Complete', summaryHtml, buttons);
+        }
 
         $('#synctocalibre').on('click', function(e) {
             $("#myAlert").removeClass('hidden');

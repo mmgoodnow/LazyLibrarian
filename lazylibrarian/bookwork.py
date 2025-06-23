@@ -1170,6 +1170,17 @@ def google_book_dict(item):
         except KeyError:
             mydict[val] = default
 
+    # grab any multiauthor details here
+    contributors = []
+    try:
+        cnt = 1
+        while cnt:
+            contrib = item['volumeInfo']['authors'][cnt]
+            contributors.append(contrib)
+            cnt += 1
+    except (KeyError, IndexError):
+        mydict['contributors'] = contributors
+
     try:
         if item['volumeInfo']['industryIdentifiers'][0]['type'] in ['ISBN_10', 'ISBN_13']:
             mydict['isbn'] = item['volumeInfo']['industryIdentifiers'][0]['identifier']

@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -54,12 +54,12 @@ def get_preferred_author_name(author: str) -> (str, bool):
     # Return possibly changed authorname and whether found in library
     logger = logging.getLogger(__name__)
     author = format_author_name(author, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-    match = False
+    match = ''
     db = database.DBConnection()
     try:
         check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
         if check_exist_author:
-            match = True
+            match = check_exist_author['AuthorID']
         else:  # If no exact match, look for a close fuzzy match to handle misspellings, accents or AKA
             match_name = author.lower().replace('.', '')
             res = db.action('select AuthorID,AuthorName,AKA from authors')
@@ -70,7 +70,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
                     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                         logger.debug(f"Fuzzy match [{item['AuthorName']}] {round(match_fuzz, 2)}% for [{author}]")
                         author = item['AuthorName']
-                        match = True
+                        match = item['AuthorID']
                         break
                 akas = get_list(item['AKA'], ',')
                 if akas:
@@ -79,7 +79,7 @@ def get_preferred_author_name(author: str) -> (str, bool):
                         if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                             logger.debug(f"Fuzzy AKA match [{aka}] {round(match_fuzz, 2)}% for [{author}]")
                             author = item['AuthorName']
-                            match = True
+                            match = item['AuthorID']
                             break
     finally:
         db.close()
@@ -250,7 +250,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     return check_exist_author['AuthorName'], check_exist_author['AuthorID'], new
 
 
-def get_all_author_details(authorid=None, authorname=None):
+def get_all_author_details(authorid='', authorname=None):
     # fetch as much data as you can on an author using all configured sources
     #
     logger = logging.getLogger(__name__)
@@ -379,7 +379,7 @@ def get_all_author_details(authorid=None, authorname=None):
     return author
 
 
-def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=True, reason=None):
+def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True, reason=None):
     """
     Add an author to the database by name or id, and optionally get a list of all their books
     If author already exists in database, refresh their details and optionally booklist
@@ -401,8 +401,11 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     # noinspection PyBroadException
     try:
         new_author = True
-        cmd = "SELECT * from authors WHERE AuthorID=? or ol_id=? or gr_id=? or hc_id=?"
-        dbauthor = db.match(cmd, (authorid, authorid, authorid, authorid))
+        if authorid:
+            cmd = "SELECT * from authors WHERE AuthorID=? or ol_id=? or gr_id=? or hc_id=?"
+            dbauthor = db.match(cmd, (authorid, authorid, authorid, authorid))
+        else:
+            dbauthor = []
         if dbauthor:
             new_author = False
             authorid = dbauthor['AuthorID']
@@ -425,6 +428,20 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             current_author = {}
             for item in dict(dbauthor):
                 current_author[item.lower()] = dbauthor[item]
+
+        if new_author and not authorname and current_author['authorname']:
+            # maybe we only had authorid(s) to search for
+            dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
+            if dbauthor:
+                new_author = False
+                current_author['authorid'] = dbauthor['AuthorID']
+                current_author['authorname'] = dbauthor['AuthorName']
+            else:
+                dbauthor = db.match("SELECT * from authors WHERE instr(AKA, ?) > 0", (authorname,))
+                if dbauthor:
+                    new_author = False
+                    current_author['authorid'] = dbauthor['AuthorID']
+                    current_author['authorname'] = dbauthor['AuthorName']
 
         current_author['manual'] = False
         if new_author:
@@ -452,6 +469,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 if aka and aka not in akas:
                     akas.append(aka)
                     db.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), dbauthor['authorid']))
+                return dbauthor['authorid']
             else:
                 logger.warning(
                     f"Updating authorname for {current_author['authorid']} (new:{current_author['authorname']} "
@@ -764,7 +782,8 @@ def update_totals(authorid):
             logger.debug(f'Update_totals - authorid [{authorid}] not found')
             return
 
-        cmd = ("SELECT BookName, BookLink, BookDate, BookID from books WHERE AuthorID=? and Status != 'Ignored' "
+        cmd = ("SELECT BookName, BookLink, BookDate, books.BookID from books,bookauthors WHERE "
+               "books.bookid=bookauthors.bookid and bookauthors.AuthorID=? and Status != 'Ignored' "
                "order by BookDate DESC")
         lastbook = db.match(cmd, (authorid,))
 
@@ -772,7 +791,8 @@ def update_totals(authorid):
                "then 1 when status == 'Open' then 1 else 0 end) as EHave, sum(case when audiostatus == 'Have' "
                "then 1 when audiostatus == 'Open' then 1 else 0 end) as AHave, sum(case when status == 'Have' "
                "then 1 when status == 'Open' then 1 when audiostatus == 'Have' then 1 when audiostatus == 'Open' "
-               "then 1 else 0 end) as Have, count(*) as total from books where authorid=?")
+               "then 1 else 0 end) as Have, count(*) as total from books,bookauthors where "
+               "books.bookid=bookauthors.bookid and bookauthors.authorid=?")
         totals = db.match(cmd, (authorid,))
 
         control_value_dict = {"AuthorID": authorid}

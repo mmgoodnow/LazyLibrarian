@@ -109,7 +109,6 @@ def get_book_info(fname):
     # only handles epub, mobi, azw3 and opf for now,
     # for pdf see notes below
     logger = logging.getLogger(__name__)
-    loggerlibsync = logging.getLogger('special.libsync')
     fname = make_unicode(fname)
     res = {}
     extn = os.path.splitext(fname)[1]
@@ -117,28 +116,15 @@ def get_book_info(fname):
         return res
 
     res['type'] = extn[1:].lower()
-    authors = []
     if res['type'] in ["mobi", "azw3"]:
         try:
             book = Mobi(fname)
             book.parse()
         except Exception as e:
-            loggerlibsync.error(f'Unable to parse mobi in {fname}, {type(e).__name__} {str(e)}')
+            logger.error(f'Unable to parse mobi in {fname}, {type(e).__name__} {str(e)}')
             return res
 
         res['creator'] = make_unicode(book.author())
-        if ';' in res['creator']:
-            res['creator'] = res['creator'].replace(';', ',')
-        if ',' in res['creator']:
-            lst = res['creator'].split(',')
-            for author in lst:
-                if len(author.split()) == 1:
-                    authors = []
-                    break
-                authors.append(author.strip())
-        if len(authors) > 1:
-            res['authors'] = authors
-            res['creator'] = authors[0]
         res['title'] = make_unicode(book.title())
         res['language'] = make_unicode(book.language())
         res['isbn'] = make_unicode(book.isbn())
@@ -168,7 +154,7 @@ def get_book_info(fname):
         try:
             zipdata = zipfile.ZipFile(fname)
         except Exception as e:
-            loggerlibsync.error(f'Unable to parse epub file {fname}, {type(e).__name__} {str(e)}')
+            logger.error(f'Unable to parse epub file {fname}, {type(e).__name__} {str(e)}')
             return res
 
         # find the contents metafile
@@ -176,7 +162,7 @@ def get_book_info(fname):
         try:
             tree = ElementTree.fromstring(txt)
         except Exception as e:
-            loggerlibsync.error(f"Error parsing metadata from epub zipfile: {type(e).__name__} {str(e)}")
+            logger.error(f"Error parsing metadata from epub zipfile: {type(e).__name__} {str(e)}")
             return res
         n = 0
         cfname = ""
@@ -211,7 +197,7 @@ def get_book_info(fname):
     try:
         tree = ElementTree.fromstring(txt)
     except Exception as e:
-        loggerlibsync.error(f"Error parsing metadata from {fname}, {type(e).__name__} {str(e)}")
+        logger.error(f"Error parsing metadata from {fname}, {type(e).__name__} {str(e)}")
         return res
 
     if not len(tree):
@@ -234,14 +220,8 @@ def get_book_info(fname):
                 res['publisher'] = txt
             elif 'narrator' in tag:
                 res['narrator'] = txt
-            elif 'creator' in tag:
-                if txt and ',' not in txt:
-                    authors.append(txt)
-                elif txt:
-                    lst = txt.split(',')
-                    for author in lst:
-                        if author and len(author.split()) > 1:
-                            authors.append(author.strip())
+            elif 'creator' in tag and txt:
+                authors.append(txt)
             elif 'identifier' in tag:
                 for k in attrib.keys():
                     if k.endswith('scheme'):  # can be "scheme" or "http://www.idpf.org/2007/opf:scheme"
@@ -256,10 +236,8 @@ def get_book_info(fname):
                         elif attrib[k] == 'GOOGLE':
                             res['gb_id'] = txt
         n += 1
-    # take the first author name if multiple authors
-    if authors:
+    if len(authors):
         res['creator'] = authors[0]
-    if len(authors) > 1 :
         res['authors'] = authors
     return res
 
@@ -1344,7 +1322,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
         if remove:
             # sometimes librarything tells us about a series contributor
-            # but openlibrary doesnt agree...
+            # but openlibrary doesn't agree...
             res = db.select("select * from authors where status='Paused' and totalbooks=0")
             if len(res):
                 logger.debug(f"Removed {len(res)} empty series authors")

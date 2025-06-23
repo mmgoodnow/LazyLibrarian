@@ -63,29 +63,31 @@ def torrent_abb(book=None, test=False):
         for post in soup.select('.post'):
             try:
                 title = post.select_one('.postTitle > h2 > a')
+                link = ''
                 if title:
                     title = title.text.strip()
-                link = f"{host}/{post.select_one('.postTitle > h2 > a')['href']}"
-                try:
-                    size = str(post).split('File Size:')[1].split('</p>')[0]
-                    unit = size.split('>')[2].split('<')[0]
-                    size = size.split('>')[1].split('<')[0]
-                    size = size_in_bytes(f"{size} {unit}")
-                except IndexError:
-                    size = 0
+                    link = f"{host}/{post.select_one('.postTitle > h2 > a')['href']}"
+                    try:
+                        size = str(post).split('File Size:')[1].split('</p>')[0]
+                        unit = size.split('>')[2].split('<')[0]
+                        size = size.split('>')[1].split('<')[0]
+                        size = size_in_bytes(f"{size} {unit}")
+                    except IndexError:
+                        size = 0
 
-                magnet = extract_magnet_link(link)
-                if magnet and title:
-                    results.append({
-                        'bookid': book['bookid'],
-                        'tor_prov': provider,
-                        'tor_title': title,
-                        'tor_url': magnet,
-                        'tor_size': size,
-                        'tor_type': 'magnet',
-                        'priority': CONFIG["ABB_DLPRIORITY"],
-                        'prov_page': ''
-                    })
+                if link:
+                    magnet = extract_magnet_link(link)
+                    if magnet:
+                        results.append({
+                            'bookid': book['bookid'],
+                            'tor_prov': provider,
+                            'tor_title': title,
+                            'tor_url': magnet,
+                            'tor_size': size,
+                            'tor_type': 'magnet',
+                            'priority': CONFIG["ABB_DLPRIORITY"],
+                            'prov_page': ''
+                        })
 
             except Exception as e:
                 logger.error(f"Skipping post due to error: {e}")

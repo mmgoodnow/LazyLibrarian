@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -20,10 +20,12 @@ import time
 import traceback
 import uuid
 from shutil import copyfile
+import threading
 
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookwork import set_genres
+from lazylibrarian.multiauth import get_authors_from_book_files
 from lazylibrarian.common import path_exists
 from lazylibrarian.common import pwd_generator
 from lazylibrarian.config2 import CONFIG
@@ -124,8 +126,9 @@ from lazylibrarian.scheduling import restart_jobs, SchedulerCommand
 # 85 change seriesid to include source, to avoid collisions
 # 86 add language to magazine table
 # 87 add hc_token to users table
+# 88 add bookauthors table
 
-db_current_version = 87
+db_current_version = 88
 
 
 def upgrade_needed():
@@ -201,7 +204,8 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
                     # sanity check for incomplete initialisations
                     res = db.select("select name from sqlite_master where type is 'table'")
                     for item in res:
-                        db.action(f"DROP TABLE IF EXISTS {item['name']}")
+                        if not item['name'].startswith('sqlite_'):
+                            db.action(f"DROP TABLE IF EXISTS {item['name']}")
 
                     # new v60 set of database tables
                     db.action('CREATE TABLE authors (AuthorID TEXT UNIQUE, AuthorName TEXT UNIQUE, ' +
@@ -1425,6 +1429,23 @@ def update_schema(db, upgradelog):
         if CONFIG.get_str('HC_KEY'):
             db.action("UPDATE users SET hc_token=? WHERE perms=65535 and username='admin'",
                       (CONFIG.get_str('HC_KEY'), ))
+
+    if not has_column(db, "bookauthors", "Role"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding bookauthors table'
+        upgradelog.write(f"{time.ctime()} v88: {lazylibrarian.UPDATE_MSG}\n")
+        db.action(f"CREATE TABLE bookauthors (BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, "
+                  f"AuthorID TEXT REFERENCES authors (AuthorID) ON DELETE CASCADE, Role INTEGER DEFAULT 0, "
+                  f"UNIQUE (BookID,AuthorID))")
+
+        selection = db.select("SELECT authors.AuthorID,BookID from books,authors WHERE books.authorid=authors.authorid")
+        upgradelog.write(f"{time.ctime()} v88: updating bookauthors from {len(selection)} book entries\n")
+        lazylibrarian.UPDATE_MSG = f"Updating bookauthors from {len(selection)} book entries"
+        for entry in selection:
+            # Add what we currently have as primary author
+            db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                      (entry['AuthorID'], entry['BookID'], 1), suppress='UNIQUE')
+        threading.Thread(target=get_authors_from_book_files, name='MULTIAUTH_BOOKFILES').start()
 
     if changes:
         upgradelog.write(f"{time.ctime()} Changed: {changes}\n")

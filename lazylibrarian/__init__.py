@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -11,7 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 # Purpose:
-#   Hold all of the global variables needed/used by LL
+#   Hold all the global variables needed/used by LL
 #   Hold a few basic routines used widely, until they can be moved out
 
 
@@ -29,7 +29,7 @@ DAEMON = False  # True if running as a daemon
 SIGNAL = None  # Signals global state of LL to threads/scheduler. 'restart', 'update', 'shutdown' or ''/None
 PIDFILE = ''  # If running as a daemon, the name of the file holding the PID
 SYS_ENCODING = ''  # A copy of CONFIG['SYS_ENCODING'] that can be overridden
-LOGINUSER = None  # UserID of currently logged in user, if any
+LOGINUSER = None  # UserID of currently logged-in user, if any
 COMMIT_LIST = ''  # List of git commits since last update. If it includes "**MANUAL**", don't update.
 SHOWLOGOUT = 1  # If 1, the Logout option is shown in the UI.
 REQUESTSLOG = 0  # If 1, sets http.client.HTTPConnection.debuglevel=1.
@@ -59,6 +59,7 @@ TIMERS = {
             'SLEEP_HC': 0.0,
         }
 IGNORED_AUTHORS = 0
+PRIMARY_AUTHORS = 1
 CACHE_HIT = 0
 CACHE_MISS = 0
 IRC_CACHE_EXPIRY = 2 * 3600
@@ -140,6 +141,17 @@ isbn_978_dict = {
     "89": "kor",
     "91": "swe",
     "93": "ind"
+}
+
+ROLE = {
+    "UNKNOWN": 0,
+    "PRIMARY": 1,
+    "WRITER": 1,
+    "CREATOR": 1,
+    "CONTRIBUTING": 2,
+    "ILLUSTRATOR": 3,
+    "NARRATOR": 4,
+    "EDITOR": 5,
 }
 
 

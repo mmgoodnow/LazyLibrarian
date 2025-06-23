@@ -46,13 +46,15 @@ from lazylibrarian.formatter import today, format_author_name, check_int, plural
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
-from lazylibrarian.hc import HardCover
+from lazylibrarian.hc import HardCover, hc_sync
 from lazylibrarian.images import get_author_image, get_author_images, get_book_cover, get_book_covers, \
     create_mag_covers, create_mag_cover, shrink_mag
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
+from lazylibrarian.multiauth import (split_author_names, get_authors_from_hc, get_authors_from_ol,
+                                     get_authors_from_book_files)
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
@@ -254,6 +256,10 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'updateBook': (1, "&id= [&BookName=] update book parameters (bookname, booklang, bookdate etc)"),
             'renameissue': (1, '&id= Rename a magazine issue to match configured pattern'),
             'renameissues': (1, '&title= Rename all issues of a magazine to match configured pattern'),
+            'splitauthornames': (0, '&names= Show how a list of author names would be split into individual authors'),
+            'getauthorsfrombookfiles': (1, 'Scan your book folder and get all secondary authors from epub,mobi,opf'),
+            'getauthorsfromhc': (1, 'Scan your database and get all secondary authors from HardCover'),
+            'getauthorsfromol': (1, 'Scan your database and get all secondary authors from OpenLibrary'),
             }
 
 
@@ -2306,13 +2312,14 @@ class Api(object):
         # If no user specified and HC_SYNC is enabled, sync all users with tokens
         if not userid and CONFIG.get_bool('HC_SYNC'):
             try:
-                self.data = lazylibrarian.hc.hc_sync(library=library)  # This will sync all users
+                # This will sync all users
+                threading.Thread(target=hc_sync, name='API-HCSYNC', args=[library, None]).start()
             except Exception as e:
                 self.data = f"{type(e).__name__} {str(e)}"
         # If specific user requested, sync just that user
         elif userid:
             try:
-                self.data = lazylibrarian.hc.hc_sync(library=library, userid=userid)
+                threading.Thread(target=hc_sync, name='API-HCSYNC', args=[library, userid]).start()
             except Exception as e:
                 self.data = f"{type(e).__name__} {str(e)}"
         else:
@@ -2327,7 +2334,8 @@ class Api(object):
         library = kwargs.get('library', 'eBook')
         reset = 'reset' in kwargs
         try:
-            self.data = grsync(kwargs['status'], kwargs['shelf'], library, reset)
+            threading.Thread(target=grsync, name='API-GRSYNC', args=[kwargs['status'],
+                                                                     kwargs['shelf'], library, reset]).start()
         except Exception as e:
             self.data = f"{type(e).__name__} {str(e)}"
 
@@ -2823,3 +2831,31 @@ class Api(object):
                 missed.append(item)
         db.close()
         self.data = f"Updated: {','.join(updated)} Missed: {','.join(missed)}"
+
+    def _splitauthornames(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'names' not in kwargs:
+            self.data = 'Missing parameter: names'
+            return
+        self.data = split_author_names(kwargs['names'])
+
+    def _getauthorsfrombookfiles(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'wait' in kwargs:
+            self.data = get_authors_from_book_files()
+        else:
+            threading.Thread(target=get_authors_from_book_files, name='API-AUTH_FROM_BOOK').start()
+
+    def _getauthorsfromhc(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'wait' in kwargs:
+            self.data = get_authors_from_hc()
+        else:
+            threading.Thread(target=get_authors_from_hc, name='API-AUTH_FROM_HC').start()
+
+    def _getauthorsfromol(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'wait' in kwargs:
+            self.data = get_authors_from_ol()
+        else:
+            threading.Thread(target=get_authors_from_ol, name='API-AUTH_FROM_OL').start()

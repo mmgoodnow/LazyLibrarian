@@ -385,6 +385,7 @@ def make_dirs(dest_path, new=False) -> bool:
         to_make.insert(0, dest_path)
         parent = os.path.dirname(dest_path)
         if parent == dest_path:
+            to_make.pop(0)
             break
         else:
             dest_path = parent

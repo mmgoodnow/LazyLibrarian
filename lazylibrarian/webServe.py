@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -25,7 +25,7 @@ import time
 import traceback
 import uuid
 from shutil import copyfile, rmtree
-from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
+from urllib.parse import unquote_plus, urlsplit, urlunsplit, quote
 
 import cherrypy
 from cherrypy.lib.static import serve_file
@@ -36,7 +36,8 @@ from rapidfuzz import fuzz
 
 import lazylibrarian
 from lazylibrarian import database, notifiers, versioncheck, magazinescan, comicscan, \
-    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync, hc
+    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, \
+    grsync, hc, ROLE
 from lazylibrarian.auth import AuthController
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import name_vars
@@ -54,7 +55,7 @@ from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
     irc_dl_method
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
-    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
+    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, remove_dir
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
     md5_utf8, date_format, check_year, strip_quotes, format_author_name, check_float, \
@@ -549,6 +550,14 @@ class WebInterface:
                 if CONFIG.get_bool('IGNORE_PAUSED'):
                     cmd += "and  Status != 'Paused' "
             cmd += "and AuthorName is not null "
+
+            if lazylibrarian.PRIMARY_AUTHORS:
+                # is the author a primary author for any book...
+                bookauthors = []
+                res = db.select(f"SELECT AuthorID from bookauthors WHERE role={ROLE['PRIMARY']}")
+                for author in res:
+                    bookauthors.append(author['AuthorID'])
+                cmd += " and AuthorID in (" + ", ".join(f"'{w}'" for w in bookauthors) + ")"
             myauthors = []
             if userid and userprefs & lazylibrarian.pref_myauthors:
                 res = db.select("SELECT WantID from subscribers WHERE Type='author' and UserID=?", (userid,))
@@ -2193,7 +2202,7 @@ class WebInterface:
                                             context=authorname, datelang=CONFIG['DATE_LANG'])
 
         return serve_template(
-            templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]), author=author,
+            templatename="author.html", title=authorname, author=author,
             languages=languages, booklang=book_lang, types=types, library=library, ignored=ignored,
             showseries=CONFIG.get_int('SERIES_TAB'), firstpage=firstpage, user=user, email=email,
             book_filter=book_filter)
@@ -2427,6 +2436,16 @@ class WebInterface:
         else:
             lazylibrarian.IGNORED_AUTHORS = True
         raise cherrypy.HTTPRedirect("authors")
+
+    @cherrypy.expose
+    def toggle_primary(self, authorid=None):
+        if lazylibrarian.PRIMARY_AUTHORS:  # show primary ones, or all
+            lazylibrarian.PRIMARY_AUTHORS = False
+        else:
+            lazylibrarian.PRIMARY_AUTHORS = True
+        if not authorid:
+            raise cherrypy.HTTPRedirect("authors")
+        raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
     def toggle_my_auth(self):
@@ -2670,13 +2689,14 @@ class WebInterface:
                             f"{len(reading)},{len(abandoned)}")
 
             cmd = ("SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang, "
-                   "booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary, "
+                   "booksub,booklink,workpage,bookauthors.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary, "
                    "group_concat(series.seriesid || '~' || series.seriesname || ' #' || member.seriesnum, '^') "
                    "as series, bookgenre,bookadded,scanresult,lt_workid, "
-                   "group_concat(series.seriesname || ' #' || member.seriesnum, '; ') as altsub FROM books, authors "
-                   "LEFT OUTER JOIN member ON (books.BookID = member.BookID) "
+                   "group_concat(series.seriesname || ' #' || member.seriesnum, '; ') as altsub "
+                   "FROM books,authors,bookauthors "
+                   "LEFT OUTER JOIN member ON (bookauthors.BookID = member.BookID and bookauthors.bookid=books.bookid) "
                    "LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID) "
-                   "WHERE books.AuthorID = authors.AuthorID")
+                   "WHERE bookauthors.authorid=authors.authorid and bookauthors.bookid=books.bookid ")
             loggerserverside.debug(
                 f"ToRead {len(to_read)} Read {len(have_read)} Reading {len(reading)} Abandoned {len(abandoned)}")
             types = []
@@ -2713,7 +2733,7 @@ class WebInterface:
             elif kwargs['source'] == "Audio":
                 cmd += " and AUDIOSTATUS !='Skipped' AND AUDIOSTATUS !='Ignored'"
             elif kwargs['source'] == "Author":
-                cmd += " and books.AuthorID=?"
+                cmd += " and bookauthors.AuthorID=?"
                 args.append(kwargs['AuthorID'])
                 if 'ignored' in kwargs and kwargs['ignored'] == "True":
                     cmd += f" and {status_type}='Ignored'"
@@ -2734,7 +2754,7 @@ class WebInterface:
                     res = db.select("SELECT WantID from subscribers WHERE Type='author' and UserID=?", (userid,))
                     loggerserverside.debug(f"User subscribes to {len(res)} authors")
                     for authorid in res:
-                        bookids = db.select('SELECT BookID from books WHERE AuthorID=?', (authorid['WantID'],))
+                        bookids = db.select('SELECT BookID from bookauthors WHERE AuthorID=?', (authorid['WantID'],))
                         for bookid in bookids:
                             mybooks.append(bookid['BookID'])
 
@@ -2760,9 +2780,19 @@ class WebInterface:
                     loggerserverside.debug(f"User booklist length {len(mybooks)}")
                     cmd += " and books.bookID in (" + ", ".join(f"'{w}'" for w in mybooks) + ")"
 
+            if kwargs['source'] in ["Author"]:
+                if lazylibrarian.PRIMARY_AUTHORS:
+                    # is the bookid in bookauthors with this author as primary
+                    bookauthors = []
+                    res = db.select(f"SELECT BookID from bookauthors WHERE authorid='{kwargs['AuthorID']}' and role={ROLE['PRIMARY']}")
+                    if res:
+                        for bk in res:
+                            bookauthors.append(bk['BookID'])
+                        cmd += " and books.BookID in (" + ", ".join(f"'{w}'" for w in bookauthors) + ")"
+
             cmd += (" GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid, "
-                    "booklang, booksub, booklink, workpage, books.authorid, booklibrary, audiostatus, audiolibrary, "
-                    "bookgenre, bookadded, scanresult, lt_workid")
+                    "booklang, booksub, booklink, workpage, bookauthors.authorid, booklibrary, audiostatus, "
+                    "audiolibrary, bookgenre, bookadded, scanresult, lt_workid")
 
             loggerserverside.debug(f"get_books {cmd}: {str(args)}")
             rowlist = db.select(cmd, tuple(args))
@@ -5264,7 +5294,6 @@ class WebInterface:
                             if imgthumb:
                                 row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                         row.append(f"cache/{fullsize[len(DIRS.CACHEDIR):].lstrip(os.sep)}")
-                    row[0] = quote_plus(make_utf8bytes(row[0])[0])
 
             loggerserverside.debug(f"get_mags returning {displaystart} to {displaystart + displaylength}")
             loggerserverside.debug(f"get_mags filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
@@ -5353,6 +5382,7 @@ class WebInterface:
 
             for issue in issues:
                 calibre_id = None
+                old_path = os.path.dirname(issue['IssueFile'])
                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                     dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
                     data = dict(dbentry)
@@ -5361,10 +5391,12 @@ class WebInterface:
                     if calibre_id:
                         logger.debug(f"Found calibre ID {calibre_id} for {old_title} {issue['IssueDate']}")
 
-                _, err = rename_issue(issue['IssueID'])
+                fname, err = rename_issue(issue['IssueID'])
                 if err:
                     logger.warning(f"Failed to move file {issue['IssueFile']}: {err}")
                     raise cherrypy.HTTPError(404, f"Magazine IssueFile move failed")
+                else:
+                    logger.debug(f"Renamed {issue['IssueDate']} to {os.path.basename(fname)}")
 
                 if calibre_id:
                     res, err, rc = calibredb('remove', [calibre_id])
@@ -5377,9 +5409,11 @@ class WebInterface:
                         # calibre may have renamed it
                         db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
 
-                if len(os.listdir(old_path)) == 0:
+                # if no magazine issues left in the folder, delete it
+                # (removes any trailing cover images, opf etc)
+                if path_isdir(old_path) and not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
                     logger.debug(f"Removing empty directory {old_path}")
-                    os.rmdir(old_path)
+                    remove_dir(old_path, remove_contents=True)
 
         except Exception:
             logger.error(f'Unhandled exception in magazine_update: {traceback.format_exc()}')
@@ -5528,9 +5562,8 @@ class WebInterface:
         issue = db.match("SELECT Title,IssueDate,IssueFile,Cover,IssueID from issues WHERE IssueID=?", (issueid,))
         redirect = issue['Title']
         dateparts = get_dateparts(issuenum, datetype=datetype)
-
         if not dateparts['style']:
-            issuenum = ''
+            datetype_ok = False
         else:
             datetype_ok = True
             if datetype:
@@ -5551,34 +5584,27 @@ class WebInterface:
                                                                   12, 13, 15, 16, 18]:
                     datetype_ok = False
 
-            if not datetype_ok:
-                response = f'Date {issuenum} not in a recognised date format [{datetype}]'
-                logger.debug(response)
-                db.close()
-                raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
-
-            if dateparts['issue'] and 'I' in datetype:
-                issuenum = str(dateparts['issue']).zfill(4)
-                if 'Y' in datetype:
-                    issuenum = f"{dateparts['year']}{issuenum}"
-            else:
-                issuenum = f"{dateparts['year']}-{str(dateparts['month']).zfill(2)}-{str(dateparts['day']).zfill(2)}"
+        if not datetype_ok:
+            response = f'Date {issuenum} not in a recognised date format [{datetype}]'
+            logger.debug(response)
+            db.close()
+            raise cherrypy.HTTPRedirect(f"issue_page?title={quote(redirect)}&response={response}")
 
         if not magtitle and issuenum:
             response = (f"Issue {issue['IssueDate']} of {issue['Title']} is unchanged. "
                         f"Insufficient information, need Title and valid IssueNum/Date")
             logger.debug(response)
             db.close()
-            raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
+            raise cherrypy.HTTPRedirect(f"issue_page?title={quote(redirect)}&response={response}")
 
         try:
+            old_path = os.path.dirname(issue['IssueFile'])
             edited = ''
             if issue["Title"] != magtitle:
                 edited = 'Title '
             if issue["IssueDate"] != issuenum:
                 edited += 'Date/Num'
             if edited:
-                response = f'Issue {issue["IssueDate"]} of {issue["Title"]}, changed {edited}'
                 if issue["Title"] != magtitle:
                     if not magazine:
                         if not magtitle:
@@ -5595,7 +5621,9 @@ class WebInterface:
                     db.action("UPDATE issues SET Title=? WHERE IssueID=?", (magtitle, issue['IssueID']))
                 db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
 
-                _, err = rename_issue(issue['IssueID'])
+                fname, err = rename_issue(issue['IssueID'])
+                response = (f'Issue {issue["IssueDate"]} of {issue["Title"]}, changed to '
+                            f'{os.path.basename(fname)} {edited}')
                 if err:
                     raise cherrypy.HTTPError(404, f"Magazine IssueFile {issue['IssueFile']} move failed: {err}")
 
@@ -5612,9 +5640,11 @@ class WebInterface:
                         if res and filename:
                             db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
 
-                if len(os.listdir(old_path)) == 0:
+                # if no magazine issues left in the folder, delete it
+                # (removes any trailing cover images, opf etc)
+                if not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
                     logger.debug(f"Removing empty directory {old_path}")
-                    os.rmdir(old_path)
+                    remove_dir(old_path, remove_contents=True)
 
                 if mostrecentissue:
                     if mostrecentissue.isdigit() and str(issuenum).isdigit():
@@ -5645,7 +5675,7 @@ class WebInterface:
                 logger.debug(response)
         finally:
             db.close()
-        raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(redirect)}&response={response}")
+        raise cherrypy.HTTPRedirect(f"issue_page?title={quote(redirect)}&response={response}")
 
     @cherrypy.expose
     def issue_page(self, title, response=''):
@@ -5655,7 +5685,8 @@ class WebInterface:
         db = database.DBConnection()
         try:
             res = db.match('SELECT Title from magazines where Title=? COLLATE NOCASE', (title,))
-            title = res['Title']
+            if res:
+                title = res['Title']
         finally:
             db.close()
         if not res:
@@ -5792,7 +5823,6 @@ class WebInterface:
     def open_mag(self, bookid=None, email=False):
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_download)
-        bookid = unquote_plus(bookid)
         db = database.DBConnection()
         try:
             # we may want to open an issue with a hashed bookid
@@ -5833,9 +5863,12 @@ class WebInterface:
             else:
                 logger.warning(f"No issue {issue_date} for magazine {bookid}")
                 raise cherrypy.HTTPRedirect("magazines")
+        elif len(mag_data) == 0:
+            logger.warning(f"No issues found for magazine {bookid}")
+            raise cherrypy.HTTPRedirect("magazines")
         else:  # multiple issues, show a list
             logger.debug(f"{bookid} has {len(mag_data)} {plural(len(mag_data), 'issue')}")
-            raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(make_utf8bytes(bookid)[0])}")
+            raise cherrypy.HTTPRedirect(f"issue_page?title={quote(bookid)}")
 
     @cherrypy.expose
     def mark_past_issues(self, action=None, **args):
@@ -6007,7 +6040,7 @@ class WebInterface:
         finally:
             db.close()
         if title:
-            raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(make_utf8bytes(title)[0])}")
+            raise cherrypy.HTTPRedirect(f"issue_page?title={quote(title)}")
         else:
             raise cherrypy.HTTPRedirect("magazines")
 
@@ -6099,7 +6132,7 @@ class WebInterface:
             args.pop('book_table_length', None)
 
             for item in args:
-                title = make_unicode(unquote_plus(item))
+                title = item
                 if action == "Paused" or action == "Active":
                     control_value_dict = {"Title": title}
                     new_value_dict = {"Status": action}
@@ -6176,7 +6209,6 @@ class WebInterface:
     def search_for_mag(self, bookid=None):
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
-        bookid = unquote_plus(bookid)
         db = database.DBConnection()
         try:
             bookdata = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
@@ -6363,7 +6395,7 @@ class WebInterface:
         else:
             logger.debug(f'{threadname} already running')
         if title:
-            raise cherrypy.HTTPRedirect(f"issue_page?title={quote_plus(make_utf8bytes(title)[0])}")
+            raise cherrypy.HTTPRedirect(f"issue_page?title={quote(title)}")
         else:
             raise cherrypy.HTTPRedirect("magazines")
 
@@ -6397,7 +6429,7 @@ class WebInterface:
                 logger.error(f'Unable to complete the import: {type(e).__name__} {str(e)}')
         else:
             logger.debug(f'{threadname} already running')
-        raise cherrypy.HTTPRedirect(f"issue_page?title={title}")
+        raise cherrypy.HTTPRedirect(f"issue_page?title={quote(title)}")
 
     @cherrypy.expose
     def import_alternate(self, library='eBook'):
@@ -6476,7 +6508,7 @@ class WebInterface:
         remote_ip = remote_ip.split(',')[0]
 
         if onetitle:
-            filename = f'LazyLibrarian_RSS_{unquote_plus(onetitle).replace("&amp;", "&")}.xml'
+            filename = f'LazyLibrarian_RSS_{onetitle.replace("&amp;", "&")}.xml'
         else:
             filename = f'LazyLibrarian_RSS_{ftype}.xml'
         logger.debug(f"rss Feed request {limit} {ftype}{plural(limit)}: {remote_ip} {userid}")
@@ -6781,8 +6813,7 @@ class WebInterface:
                         # noinspection PyBroadException
                         try:
                             if row[1] and re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
-                                safetitle = quote_plus(make_utf8bytes(row[2])[0])
-                                btn = '<a href=\'open_mag?bookid=' + safetitle + '\'">' + row[2] + '</a>'
+                                btn = '<a href=\'open_mag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
                                 row[2] = btn
                         except Exception:
                             logger.debug(f"Unexpected auxinfo [{row[1]}] {row[2]}")
@@ -7141,25 +7172,29 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
-    def sync_to_hardcover(self):
-        if 'HCSync' not in [n.name for n in [t for t in threading.enumerate()]]:
-            cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-            self.label_thread('HCSync')
-            msg = hc.hc_sync()
-            self.label_thread('WEBSERVER')
-        else:
-            msg = 'HardCover Sync is already running'
+    def sync_to_hardcover(self, confirmed=False, readonly=False, ignore=False):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.label_thread('WEB-HCSYNC')
+        # Convert string parameters to boolean
+        if isinstance(confirmed, str):
+            confirmed = confirmed.lower() in ('true', '1', 'yes')
+        if isinstance(readonly, str):
+            readonly = readonly.lower() in ('true', '1', 'yes')
+        if isinstance(ignore, str):
+            ignore = ignore.lower() in ('true', '1', 'yes')
+        # If ignore is True, set readonly to True to prevent sending updates to HC
+        if ignore:
+            readonly = True
+        msg = hc.hc_sync(library='', userid=None, confirmed=confirmed, readonly=readonly)
+        self.label_thread('WEBSERVER')
         return msg
 
     @cherrypy.expose
     def sync_to_goodreads(self):
-        if 'GRSync' not in [n.name for n in [t for t in threading.enumerate()]]:
-            cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-            self.label_thread('GRSync')
-            msg = grsync.sync_to_gr()
-            self.label_thread('WEBSERVER')
-        else:
-            msg = 'Goodreads Sync is already running'
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.label_thread('WEB-GRSYNC')
+        msg = grsync.sync_to_gr()
+        self.label_thread('WEBSERVER')
         return msg
 
     @cherrypy.expose

@@ -200,8 +200,7 @@ class SLSKD:
                                 else:
                                     directory = self.slskd.users.directory(username=username, directory=file_dir)
                             except Exception as e:
-                                self.logger.warning(f"{username}:{file_dir}:{e}")
-                                self.ignored_users.append(username)
+                                self.logger.warning(str(e))
                                 continue
                             # some users dump all their books in one folder so directory is huge
                             # we exclude these users as we don't want all their books

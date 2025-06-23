@@ -108,7 +108,8 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         # update magazine lastissue/cover as required
         entry = db.match('SELECT * FROM magazines where Title=?', (title,))
         mostrecentissue = entry['IssueDate']
-        dest_path = format_issue_filename(CONFIG['MAG_DEST_FOLDER'], title, get_dateparts(issuenum))
+        dateparts = get_dateparts(issuenum)
+        dest_path = format_issue_filename(CONFIG['MAG_DEST_FOLDER'], title, dateparts)
 
         if CONFIG.get_bool('MAG_RELATIVE'):
             dest_dir = get_directory('eBook')
@@ -121,10 +122,10 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             logger.error(f'Unable to create destination directory {dest_path}')
             return False
 
-        global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, get_dateparts(issuenum))
+        global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, dateparts)
         tempdir = tempfile.mkdtemp()
         try:
-            _ = safe_copy(source_file, os.path.join(tempdir, os.path.basename(source_file)))
+            _ = safe_copy(source_file, os.path.join(tempdir, global_name))
         except Exception as e:
             logger.warning(f"Failed to copy source file: {str(e)}")
             return False
@@ -188,11 +189,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             basename, extn = os.path.splitext(source_file)
             opffile = f"{basename}.opf"
             remove_file(opffile)
-            if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                authors = title
-            else:
-                authors = 'magazines'
-            _ = create_mag_opf(dest_file, authors, title, issuenum, issueid,
+            _ = create_mag_opf(dest_file, title, issuenum, issueid,
                                language=entry['Language'], overwrite=True)
         if CONFIG['IMP_AUTOADDMAG']:
             dest_path = os.path.dirname(dest_file)
@@ -1165,10 +1162,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                 if CONFIG.is_valid_booktype(f, booktype="book"):
                                                     # Process filename same as main matching logic
                                                     processed_fname = unaccented(f, only_ascii=False)
-                                                    processed_fname = processed_fname.split(' LL.(')[0].replace('_', ' ')
+                                                    processed_fname = processed_fname.split(' LL.(')[0].replace('_',
+                                                                                                                ' ')
                                                     processed_fname = sanitize(processed_fname)
                                                     bookmatch = fuzz.token_set_ratio(matchtitle, processed_fname)
-                                                    loggerfuzz.debug(f"{round(bookmatch, 2)}% match {matchtitle} : {processed_fname}")
+                                                    loggerfuzz.debug(f"{round(bookmatch, 2)}% match {matchtitle} : "
+                                                                     f"{processed_fname}")
                                                     if bookmatch > found_score:
                                                         found_file = f
                                                         found_score = bookmatch
@@ -1460,11 +1459,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             if not CONFIG.get_bool('IMP_MAGOPF'):
                                 logger.debug('create_mag_opf is disabled')
                             else:
-                                if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                                    authors = book['BookID']
-                                else:
-                                    authors = 'magazines'
-                                _ = create_mag_opf(dest_file, authors, book['BookID'], book['AuxInfo'], issueid,
+                                _ = create_mag_opf(dest_file, book['BookID'], book['AuxInfo'], issueid,
                                                    language=maginfo['Language'], overwrite=True)
                             if CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
@@ -2692,7 +2687,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                         _ = safe_move(srcfile, dstfile)
                     except Exception as e:
                         logger.warning(f"Failed to move file: {str(e)}")
-                        return False, str(e)
+                        return False, str(e), folder
             else:
                 logger.debug(f'Removing {fname} as not wanted')
                 if path_isfile(srcfile):
@@ -2731,7 +2726,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                         jpgfile = safe_copy(jpgfile, coverfile)
                     except Exception as e:
                         logger.warning(f"Failed to copy jpeg file: {str(e)}")
-                        return False, str(e)
+                        return False, str(e), folder
                 elif magfile:
                     if coverpage == 0:
                         coverpage = 1  # if not set, default to page 1
@@ -2741,7 +2736,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                             jpgfile = safe_copy(jpgfile, coverfile)
                         except Exception as e:
                             logger.warning(f"Failed to copy jpeg file: {str(e)}")
-                            return False, str(e)
+                            return False, str(e), folder
 
             if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                 authors = title
@@ -2828,11 +2823,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                     if not CONFIG.get_bool('IMP_MAGOPF'):
                         logger.debug('create_mag_opf is disabled')
                     else:
-                        if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                            authors = title
-                        else:
-                            authors = 'magazines'
-                        opfpath, our_opf = create_mag_opf(folder, authors, title, issuedate, issueid,
+                        opfpath, our_opf = create_mag_opf(folder, title, issuedate, issueid,
                                                           language=data['Language'], overwrite=True)
                 # calibre likes "metadata.opf"
                 opffile = os.path.basename(opfpath)
@@ -3244,21 +3235,11 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if not CONFIG.get_bool('IMP_MAGOPF'):
                 logger.debug('create_mag_opf is disabled')
             else:
-                if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
-                    authors = title
-                else:
-                    authors = 'magazines'
                 db = database.DBConnection()
-                try:
-                    entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
-                    if entry:
-                        _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid,
-                                              language=entry["Language"], overwrite=True)
-                except Exception as e:
-                    logger.debug(f"Unable to create opf for {authors}:{title}:{issuedate}:{issueid}:{dict(entry)}")
-                    logger.debug(f"{e}")
-                finally:
-                    db.close()
+                entry = db.match('SELECT * FROM magazines where Title=?', (title,))
+                _, _ = create_mag_opf(pp_path, title, issuedate, issueid,
+                                      language=entry["Language"], overwrite=True)
+                db.close()
 
     if firstfile:
         newbookfile = firstfile
@@ -3409,9 +3390,15 @@ def create_comic_opf(pp_path, data, global_name, overwrite=False):
     return create_opf(pp_path, data, global_name, overwrite=overwrite)
 
 
-def create_mag_opf(issuefile, authors, title, issue, issue_id, language='en', overwrite=False):
+def create_mag_opf(issuefile, title, issue, issue_id, language='en', overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
     logger = logging.getLogger(__name__)
+
+    if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
+        authors = title
+    else:
+        authors = 'magazines'
+
     logger.debug(
         f"Creating opf with file:{issuefile} authors:{authors} title:{title} issue:{issue} "
         f"issueid:{issue_id} language:{language} overwrite:{overwrite}")

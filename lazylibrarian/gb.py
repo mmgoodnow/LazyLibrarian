@@ -1,5 +1,5 @@
 #  This file is part of Lazylibrarian.
-#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -22,7 +22,7 @@ from urllib.parse import quote, quote_plus, urlencode
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database
+from lazylibrarian import database, ROLE
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, google_book_dict, isbnlang, is_set_or_part
 from lazylibrarian.cache import json_request
@@ -30,8 +30,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
     get_list, clean_name, make_unicode, make_utf8bytes, strip_quotes, thread_name
 from lazylibrarian.hc import HardCover
-from lazylibrarian.images import cache_bookimg
-from lazylibrarian.images import get_book_cover
+from lazylibrarian.images import cache_bookimg, get_book_cover
 from lazylibrarian.ol import OpenLibrary
 
 
@@ -246,7 +245,7 @@ class GoogleBooks:
         self.logger.debug(f'[{authorname}] Now processing books with Google Books API')
         db = database.DBConnection()
         try:
-            # google doesnt like accents in author names
+            # google doesn't like accents in author names
             set_url = self.url + quote(f'inauthor:"{unaccented(authorname, only_ascii=False)}"')
             entryreason = reason
             api_hits = 0
@@ -559,6 +558,23 @@ class GoogleBooks:
                                 db.upsert("books", new_value_dict, control_value_dict)
                                 self.logger.debug(f"Book found: {bookname} {book['date']}")
 
+                                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                          (authorid, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
+
+                                if 'contributors' in book:
+                                    for entry in book['contributors']:
+                                        reason = f"Contributor to {bookname}"
+                                        auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry,
+                                                                                          refresh=False,
+                                                                                          authorid='',
+                                                                                          addbooks=False,
+                                                                                          reason=reason)
+                                        if auth_id:
+                                            db.action('INSERT into bookauthors (AuthorID, BookID, Role)'
+                                                      ' VALUES (?, ?, ?)',
+                                                      (auth_id, bookid, ROLE['CONTRIBUTING']), suppress='UNIQUE')
+                                            lazylibrarian.importer.update_totals(auth_id)
+
                                 serieslist = []
                                 if book['series']:
                                     serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]
@@ -685,6 +701,7 @@ class GoogleBooks:
             audiostatus = CONFIG['NEWAUDIO_STATUS']
 
         book = google_book_dict(jsonresults)
+        # TODO multiauth details here
         dic = {':': '.', '"': ''}
         bookname = replace_all(book['name'], dic).strip()
 
