@@ -663,7 +663,7 @@ class GoogleBooks:
             self.logger.debug(f"Removed {removed_results} incorrect/incomplete {plural(removed_results, 'result')}")
             self.logger.debug(f"Removed {duplicates} duplicate {plural(duplicates, 'result')}")
             self.logger.debug(f"Ignored {book_ignore_count} {plural(book_ignore_count, 'book')}")
-            self.logger.debug(f"Imported/Updated {resultcount} {plural(resultcount, 'book')} for author")
+            self.logger.debug(f"Imported/Updated {resultcount} {plural(resultcount, 'book')} for {authorname}")
 
             db.action('insert into stats values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                       (authorname, api_hits, gr_lang_hits, lt_lang_hits, gb_lang_change,

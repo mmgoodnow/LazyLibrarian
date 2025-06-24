@@ -347,7 +347,15 @@ def get_all_author_details(authorid='', authorname=None):
                 author[item] = hc_author[item]
 
     if author:
-        author['authorid'] = authorid  # keep original entry authorid
+        if authorid:
+            author['authorid'] = authorid  # keep original entry authorid if we have one
+        if not author['authorid']:
+            if CONFIG['BOOK_API'] == ['HardCover'] and hc_author['authorid']:
+                author['authorid'] = hc_author['authorid']
+            elif CONFIG['BOOK_API'] == ['OpenLibrary'] and ol_author['authorid']:
+                author['authorid'] = ol_author['authorid']
+            elif CONFIG['BOOK_API'] == ['GoodReads'] and gr_author['authorid']:
+                author['authorid'] = gr_author['authorid']
         akas = []
         if author.get('AKA'):
             akas = get_list(author.get('AKA', ''), ',')
@@ -374,7 +382,6 @@ def get_all_author_details(authorid='', authorname=None):
                     f"[{hc_name}] setting AKA")
             akas.append(hc_name)
         author['AKA'] = ', '.join(akas)
-
     db.close()
     return author
 
@@ -424,6 +431,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
 
         if new_author or refresh:
             current_author = get_all_author_details(authorid, authorname)
+            current_author['authorid'] = authorid  # keep entry authorid
         else:
             current_author = {}
             for item in dict(dbauthor):
@@ -431,13 +439,15 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
 
         if new_author and not authorname and current_author['authorname']:
             # maybe we only had authorid(s) to search for
-            dbauthor = db.match("SELECT * from authors WHERE AuthorName=? COLLATE NOCASE", (current_author['authorname'],))
+            dbauthor = db.match("SELECT * from authors WHERE AuthorName=? COLLATE NOCASE",
+                                (current_author['authorname'],))
             if dbauthor:
                 new_author = False
                 current_author['authorid'] = dbauthor['AuthorID']
                 current_author['authorname'] = dbauthor['AuthorName']
             else:
-                dbauthor = db.match("SELECT * from authors WHERE instr(AKA, ?) > 0", (current_author['authorname'],))
+                dbauthor = db.match("SELECT * from authors WHERE instr(AKA, ?) > 0",
+                                    (current_author['authorname'],))
                 if dbauthor:
                     new_author = False
                     current_author['authorid'] = dbauthor['AuthorID']
@@ -691,6 +701,8 @@ def de_duplicate(authorid):
     db.connection.create_collation('fuzzy', collate_fuzzy)
     total = 0
     authorname = ''
+    if author:
+        authorname = author['AuthorName']
     # noinspection PyBroadException
     try:
         # check/delete any duplicate titles - with fuzz
@@ -698,12 +710,11 @@ def de_duplicate(authorid):
                "group by bookname COLLATE FUZZY having ( count(bookname) > 1 )")
         res = db.select(cmd, (authorid,))
         dupes = len(res)
-        if author:
-            authorname = author['AuthorName']
         if not dupes:
             logger.debug("No duplicates to merge")
         else:
-            logger.warning(f"There {plural(dupes, 'is')} {dupes} duplicate {plural(dupes, 'title')} for {authorname}")
+            logger.warning(f"There {plural(dupes, 'is')} {dupes} duplicate {plural(dupes, 'title')} "
+                           f"for {authorid}:{authorname}")
             for item in res:
                 logger.debug(f"{item[1]} has {item[0]} entries")
                 favourite = ''

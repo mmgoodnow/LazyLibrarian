@@ -586,7 +586,7 @@ def crawl_image(crawler_name, src, cachedir, bookid, safeparams, imgid=None):
     """
     logger = logging.getLogger(__name__)
     # for key in logging.Logger.manager.loggerDict:
-    #     print(key)
+    #      print(key)
     logging.getLogger('lib.icrawler').setLevel(logging.CRITICAL)
     logging.getLogger('feeder').setLevel(logging.CRITICAL)
     logging.getLogger('downloader').setLevel(logging.CRITICAL)
@@ -1017,6 +1017,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     except Exception as why:
         logger.error(f"Failed to copy nocover file, {type(why).__name__} {str(why)}")
     return ''
+
 
 def tag_issue(srcfile, title, issue):
     if not title or not issue:

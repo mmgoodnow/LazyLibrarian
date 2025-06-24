@@ -57,8 +57,8 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, remove_dir
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
-    safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
-    md5_utf8, date_format, check_year, strip_quotes, format_author_name, check_float, \
+    safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, md5_utf8, date_format, check_year, \
+    strip_quotes, format_author_name, check_float, \
     thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -354,7 +354,7 @@ def serve_template(templatename, **kwargs):
             except (AttributeError, KeyError):
                 clear_mako_cache(userid)
                 template = _hplookup.get_template(templatename)
-                
+
         theme = usertheme.split('_', 1)
         if len(theme) > 1:
             style = theme[1]
@@ -781,7 +781,7 @@ class WebInterface:
                     if user['BookType'] != kwargs['booktype']:
                         changes += ' BookType'
                         db.action('UPDATE users SET BookType=? WHERE UserID=?', (kwargs['booktype'], userid))
-                    
+
                     if user['hc_token'] != kwargs['hc_token']:
                         if self.validate_param("hardcopy token", kwargs['hc_token'], ['<', '>', '='], None):
                             changes += ' hc_token'
@@ -2022,7 +2022,7 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger('special.searching')
         logger.debug(f"Search {btnsearch}: {searchfor}")
-        
+
         self.label_thread('SEARCH')
         if not searchfor:
             raise cherrypy.HTTPRedirect("home")
@@ -2784,7 +2784,8 @@ class WebInterface:
                 if lazylibrarian.PRIMARY_AUTHORS:
                     # is the bookid in bookauthors with this author as primary
                     bookauthors = []
-                    res = db.select(f"SELECT BookID from bookauthors WHERE authorid='{kwargs['AuthorID']}' and role={ROLE['PRIMARY']}")
+                    res = db.select(f"SELECT BookID from bookauthors WHERE authorid='{kwargs['AuthorID']}' "
+                                    f"and role={ROLE['PRIMARY']}")
                     if res:
                         for bk in res:
                             bookauthors.append(bk['BookID'])
@@ -3739,7 +3740,7 @@ class WebInterface:
 
     @cherrypy.expose
     def edit_book(self, bookid=None, library='eBook', images=False):
-        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"        
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         logger = logging.getLogger(__name__)
         self.label_thread('EDIT_BOOK')
         TELEMETRY.record_usage_data()
@@ -5824,6 +5825,7 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_download)
         db = database.DBConnection()
+        print(bookid)
         try:
             # we may want to open an issue with a hashed bookid
             mag_data = db.match('SELECT * from issues WHERE IssueID=?', (bookid,))
@@ -5846,9 +5848,6 @@ class WebInterface:
             mag_data = db.select('SELECT * from issues WHERE Title=? COLLATE NOCASE', (bookid,))
         finally:
             db.close()
-        # if len(mag_data) == 0:
-        #    logger.warning("No issues for magazine %s" % bookid)
-        #    raise cherrypy.HTTPRedirect("magazines")
 
         if len(mag_data) == 1 and CONFIG.get_bool('MAG_SINGLE'):  # we only have one issue, get it
             issue_date = mag_data[0]["IssueDate"]
@@ -6381,7 +6380,7 @@ class WebInterface:
         else:
             title = ''
 
-        threadname = "MAGAZINE_SCAN" 
+        threadname = "MAGAZINE_SCAN"
         if title:
             threadname = f'{threadname}_{title}'
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:

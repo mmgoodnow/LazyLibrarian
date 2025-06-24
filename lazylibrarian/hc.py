@@ -1581,7 +1581,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
                             match = db.match(f"SELECT * from member WHERE SeriesID=? AND BookID=?",
                                              (ser_id, bookdict['bookid']))
-                            if not match:
+                            if item[2] and not match:
                                 self.logger.debug(f"Inserting new member [{item[2]}] for {ser_id}")
                                 db.action(
                                     f"INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",

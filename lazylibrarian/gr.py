@@ -718,8 +718,16 @@ class GoodReads:
                                     self.logger.debug(f'Got {anm} for {bookname}, role is {role}')
                                     role = role.upper()
                                     if role not in ROLE:
-                                        role = 'CONTRIBUTOR'
-                                    # ignore error if aid not in database
+                                        role = 'CONTRIBUTING'
+                                    auth_id = add_author_to_db(authorname=anm, refresh=False, authorid=aid,
+                                                               addbooks=False, reason=f"Contributor to {bookname}")
+                                    if auth_id:
+                                        db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                                  (auth_id, bookid, ROLE[role]), suppress='UNIQUE')
+                                        lazylibrarian.importer.update_totals(auth_id)
+                                    else:
+                                        self.logger.debug(f"Unable to add {auth_id}")
+
                                     db.action('INSERT OR IGNORE into bookauthors (AuthorID, BookID, Role) '
                                               'VALUES (?, ?, ?)',
                                               (aid, bookid, ROLE[role]), suppress='UNIQUE')
@@ -1450,10 +1458,8 @@ class GoodReads:
 
                 contributors.pop(0)  # skip primary author
                 for entry in contributors:
-                    auth_name, auth_id, added = add_author_to_db(authorname=entry[1], refresh=False,
-                                                                 authorid=entry[0],
-                                                                 addbooks=False,
-                                                                 reason=f"Contributor to {bookname}")
+                    auth_id = add_author_to_db(authorname=entry[1], refresh=False, authorid=entry[0],
+                                               addbooks=False, reason=f"Contributor to {bookname}")
                     if auth_id:
                         if entry[2].upper() in ROLE:
                             role = ROLE[entry[2].upper()]
