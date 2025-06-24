@@ -348,15 +348,15 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
             return datestr[:4]  # only year
         return datestr[:11]  # default yyyy-mm-dd
 
-    D = d
+    dd = d
     if d == '01':
-        D = ''
+        dd = ''
 
     formattedstr = formatstr.replace(
         '$Y', y).replace(
         '$y', y[2:]).replace(
         '$m', m).replace(
-        '$D', D).replace(
+        '$D', dd).replace(
         '$d', d)
     try:
         if '$B' in formatstr or '$b' in formatstr:
@@ -380,26 +380,16 @@ def month2num(month):
     """
     Return a month number
      - given a month name (long or short) in requested locales
-     - or given a season name (only in English)
+     - or given a season name in the seasons dictionary
     """
-
     cleanmonth = unaccented(month).lower()
     for f in range(1, 13):
         if month in lazylibrarian.MONTHNAMES[0][f] or cleanmonth in lazylibrarian.MONTHNAMES[1][f]:
             return f
 
-    if cleanmonth == "winter":
-        return 1
-    elif cleanmonth == "spring":
-        return 4
-    elif cleanmonth == "summer":
-        return 7
-    elif cleanmonth in ["fall", "autumn"]:
-        return 10
-    elif cleanmonth == "christmas":
-        return 12
-    else:
-        return 0
+    if cleanmonth in lazylibrarian.SEASONS:
+        return lazylibrarian.SEASONS[cleanmonth]
+    return 0
 
 
 def datecompare(nzbdate, control_date):
@@ -832,9 +822,9 @@ def unaccented_bytes(str_or_unicode, only_ascii=True):
     # e6 ae, f0 eth, f7 divide, f8 ostroke, fe thorn
     dic = {u'\xe6': 'a', u'\xf0': 'o', u'\xf7': '/', u'\xf8': 'o', u'\xfe': 'p'}
     stripped = replace_all(stripped, dic)
-    if only_ascii is not False:
+    if not only_ascii:
         # now get rid of any other non-ascii
-        if only_ascii is True:  # just strip out
+        if only_ascii:  # just strip out
             stripped = stripped.encode('ASCII', 'ignore')
         else:  # replace with specified char (use '_' for goodreads author names)
             stripped = stripped.encode('ASCII', 'replace')  # replaces with '?'

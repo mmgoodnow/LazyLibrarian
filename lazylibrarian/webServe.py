@@ -63,7 +63,7 @@ from lazylibrarian.formatter import unaccented, plural, now, today, check_int, r
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
-from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, img_id
+from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, img_id, tag_issue
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
@@ -3606,7 +3606,7 @@ class WebInterface:
             return serve_template(templatename="editauthor.html", title="Edit Author", config=data,
                                   images=photos)
         else:
-            logger.info(f'Missing author {authorid}:')
+            logger.info(f'Missing author {authorid}')
 
     # noinspection PyUnusedLocal
     # kwargs needed for passing utf8 hidden input
@@ -5395,7 +5395,7 @@ class WebInterface:
                 fname, err = rename_issue(issue['IssueID'])
                 if err:
                     logger.warning(f"Failed to move file {issue['IssueFile']}: {err}")
-                    raise cherrypy.HTTPError(404, f"Magazine IssueFile move failed")
+                    continue
                 else:
                     logger.debug(f"Renamed {issue['IssueDate']} to {os.path.basename(fname)}")
 
@@ -5825,7 +5825,6 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_download)
         db = database.DBConnection()
-        print(bookid)
         try:
             # we may want to open an issue with a hashed bookid
             mag_data = db.match('SELECT * from issues WHERE IssueID=?', (bookid,))
@@ -5988,6 +5987,16 @@ class WebInterface:
                             else:
                                 logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
 
+                        if action == 'tag' and issuefile:
+                            logger.debug(f"Tagging {issuefile}")
+                            tag_issue(issuefile, title, issue['IssueDate'])
+                            if CONFIG.get_bool('IMP_MAGOPF'):
+                                logger.debug(f"Writing opf for {issuefile}")
+                                entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                                _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
+                                                                                issue['IssueDate'], item,
+                                                                                language=entry[0],
+                                                                                overwrite=True)
                         if action == 'coverswap' and issuefile:
                             coverfile = None
                             if CONFIG['MAG_COVERSWAP']:
@@ -6161,6 +6170,19 @@ class WebInterface:
                             logger.debug(f'Magazine directory {magdir} is not empty')
                         logger.info(f'Magazine {title} deleted from disc')
 
+                if action == 'tag':
+                    issues = db.select('SELECT * from issues WHERE Title=?', (title,))
+                    mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                    for issue in issues:
+                        logger.debug(f"Tagging {issue['IssueFile']}")
+                        tag_issue(issue['IssueFile'], title, issue["IssueDate"])
+                        if CONFIG.get_bool('IMP_MAGOPF'):
+                            logger.debug(f"Writing opf for {issue['IssueFile']}")
+                            _, _ = lazylibrarian.postprocess.create_mag_opf(issue['IssueFile'], title,
+                                                                            issue["IssueDate"],
+                                                                            issue["IssueID"],
+                                                                            language=mag[0],
+                                                                            overwrite=True)
                 if action == "Remove" or action == "Delete":
                     db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))
                     db.action('DELETE from pastissues WHERE BookID=? COLLATE NOCASE', (title,))
@@ -6452,7 +6474,7 @@ class WebInterface:
         if 'type' in kwargs:
             ftype = kwargs['type']
         else:
-            return
+            return ''
 
         if 'limit' in kwargs:
             limit = kwargs['limit']

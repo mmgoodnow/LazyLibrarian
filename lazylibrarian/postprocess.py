@@ -911,7 +911,6 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
     thread_name("POSTPROCESS")
     db = database.DBConnection()
-    # noinspection PyBroadException,PyStatementEffect
     try:
         ppcount = 0
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
@@ -2716,27 +2715,24 @@ def send_to_calibre(booktype, global_name, folder, data):
             identifier = f"lazylibrarian:{issueid}"
             magfile = book_file(folder, "magazine", config=CONFIG)
             coverfile = os.path.join(folder, 'cover.jpg')
-            if path_isfile(coverfile):
-                # calibre likes "cover.jpg"
-                jpgfile = coverfile
-            else:
-                jpgfile = f"{os.path.splitext(magfile)[0]}.jpg"
-                if path_isfile(jpgfile):
+            # calibre likes "cover.jpg"
+            jpgfile = f"{os.path.splitext(magfile)[0]}.jpg"
+            if path_isfile(jpgfile):
+                try:
+                    jpgfile = safe_copy(jpgfile, coverfile)
+                except Exception as e:
+                    logger.warning(f"Failed to copy jpeg file: {str(e)}")
+                    return False, str(e), folder
+            elif magfile:
+                if not coverpage:
+                    coverpage = 1  # if not set, default to page 1
+                jpgfile = create_mag_cover(magfile, pagenum=coverpage, refresh=True)
+                if jpgfile:
                     try:
                         jpgfile = safe_copy(jpgfile, coverfile)
                     except Exception as e:
                         logger.warning(f"Failed to copy jpeg file: {str(e)}")
                         return False, str(e), folder
-                elif magfile:
-                    if coverpage == 0:
-                        coverpage = 1  # if not set, default to page 1
-                    jpgfile = create_mag_cover(magfile, pagenum=coverpage, refresh=True)
-                    if jpgfile:
-                        try:
-                            jpgfile = safe_copy(jpgfile, coverfile)
-                        except Exception as e:
-                            logger.warning(f"Failed to copy jpeg file: {str(e)}")
-                            return False, str(e), folder
 
             if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                 authors = title

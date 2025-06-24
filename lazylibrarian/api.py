@@ -1092,7 +1092,7 @@ class Api(object):
 
     def _showmonths(self):
         TELEMETRY.record_usage_data()
-        self.data = lazylibrarian.MONTHNAMES[0]
+        self.data = f"{lazylibrarian.MONTHNAMES[0]}, {lazylibrarian.SEASONS}"
 
     def _renameaudio(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -1254,6 +1254,9 @@ class Api(object):
         json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
         with open(syspath(json_file), 'w') as f:
             json.dump(lazylibrarian.MONTHNAMES[0], f)
+        json_file = os.path.join(DIRS.DATADIR, 'seasons.json')
+        with open(syspath(json_file), 'w') as f:
+            json.dump(lazylibrarian.SEASONS, f)
 
     def _getwanted(self):
         TELEMETRY.record_usage_data()
@@ -2308,7 +2311,7 @@ class Api(object):
         TELEMETRY.record_usage_data()
         library = kwargs.get('library', '')
         userid = kwargs.get('user', None)
-        
+
         # If no user specified and HC_SYNC is enabled, sync all users with tokens
         if not userid and CONFIG.get_bool('HC_SYNC'):
             try:
@@ -2697,6 +2700,7 @@ class Api(object):
             return False
         rc = delete_from_calibre(kwargs['id'])
         self.data = f"Delete result: {rc}"
+        return True
 
     def _sendmagtocalibre(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2763,10 +2767,10 @@ class Api(object):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
-            return
+            return False
         if '_' not in kwargs['id']:
             self.data = 'Invalid parameter: id'
-            return
+            return False
 
         comicid, issueid = kwargs['id'].split('_')
         db = database.DBConnection()
@@ -2775,7 +2779,7 @@ class Api(object):
         db.close()
         if not dbentry:
             self.data = f"ComicID_IssueID {kwargs['id']} not found in database"
-            return
+            return False
 
         data = dict(dbentry)
         if not data['IssueFile'] or not path_isfile(data['IssueFile']):
@@ -2790,14 +2794,14 @@ class Api(object):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
-            return
+            return False
 
         db = database.DBConnection()
         dbentry = db.match("SELECT * from books WHERE BookID=?", (kwargs['id'],))
         db.close()
         if not dbentry:
             self.data = f"IssueID {kwargs['id']} not found in database"
-            return
+            return False
 
         data = dict(dbentry)
         if not data['IssueFile'] or not path_isfile(data['IssueFile']):

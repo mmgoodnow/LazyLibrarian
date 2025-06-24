@@ -11,22 +11,19 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
+import logging
 import os
 import subprocess
-import logging
 from urllib.parse import unquote_plus
 
-from pypdf import PdfWriter, PdfReader
-
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import calibre_prg, zip_audio
-from lazylibrarian.formatter import (get_list, make_unicode, check_int, human_size, now, check_float, plural,
-                                     sort_definite)
-from lazylibrarian.images import shrink_mag, coverswap, valid_pdf
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
+from lazylibrarian.formatter import (get_list, make_unicode, check_int, human_size, now, check_float, plural)
+from lazylibrarian.images import shrink_mag, coverswap, valid_pdf, tag_issue
 
 
 def preprocess_ebook(bookfolder):
@@ -560,16 +557,16 @@ def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue=''):
             logger.error(msg)
             return False, msg
 
+        if not valid_pdf(os.path.join(bookfolder, sourcefile)):
+            msg = f"Invalid pdf {sourcefile} in {bookfolder}"
+            return False, msg
+
         dpi = CONFIG.get_int('SHRINK_MAG')
         cover = check_int(cover, 0)
 
         if not dpi and not (CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1) and not tag:
             logger.debug("No preprocessing required")
             return True, ''
-
-        if not valid_pdf(os.path.join(bookfolder, sourcefile)):
-            msg = f"Invalid pdf {sourcefile} in {bookfolder}"
-            return False, msg
 
         # reordering or shrinking pages is quite slow if the source is on a networked drive
         # so work on a local copy, then move it over.

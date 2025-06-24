@@ -1023,6 +1023,10 @@ def tag_issue(srcfile, title, issue):
     if not title or not issue:
         logger.error('Unable to tag, need title and issue')
         return
+    if not path_isfile(srcfile):
+        logger.error(f"Unable to read source file {srcfile}")
+        return
+
     src_pdf = PdfReader(srcfile)
     if not src_pdf:
         logger.error(f"Unable to read source file {src_pdf}")

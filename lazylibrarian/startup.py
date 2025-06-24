@@ -316,7 +316,7 @@ class StartupLazyLibrarian:
     def init_build_lists(self, config: ConfigDict):
         lazylibrarian.GRGENRES = self.build_genres()
         lazylibrarian.DICTS = self.build_dicts()
-        lazylibrarian.MONTHNAMES = self.build_monthtable(config)
+        lazylibrarian.MONTHNAMES, lazylibrarian.SEASONS = self.build_monthtable(config)
         lazylibrarian.NEWUSER_MSG = self.build_logintemplate()
         lazylibrarian.NEWFILE_MSG = self.build_filetemplate()
         lazylibrarian.BOOKSTRAP_THEMELIST = self.build_bookstrap_themes(DIRS.PROG_DIR)
@@ -484,7 +484,19 @@ class StartupLazyLibrarian:
                 }
 
     def build_monthtable(self, config: ConfigDict):
-        table = []
+        seasons = {}
+        json_file = os.path.join(DIRS.DATADIR, 'seasons.json')
+        if path_isfile(json_file):
+            try:
+                with open(syspath(json_file)) as json_data:
+                    seasons = json.load(json_data)
+                self.logger.debug(f'Loaded seasons.json : {seasons}')
+            except Exception as e:
+                self.logger.error(f'Failed to load seasons.json, {type(e).__name__} {str(e)}')
+        if not seasons:
+            seasons = {"winter": 1, "spring": 4, "summer": 7, "fall": 10,
+                       "autumn": 10, "christmas": 12}
+
         json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
         if path_isfile(json_file):
             try:
@@ -590,7 +602,7 @@ class StartupLazyLibrarian:
             cleantable.append(cleanlyne)
 
         monthnames = [table, cleantable]
-        return monthnames
+        return monthnames, seasons
 
     def create_version_file(self, filename):
         # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
