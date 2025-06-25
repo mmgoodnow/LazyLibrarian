@@ -719,8 +719,10 @@ class GoodReads:
                                     role = role.upper()
                                     if role not in ROLE:
                                         role = 'CONTRIBUTING'
-                                    auth_id = add_author_to_db(authorname=anm, refresh=False, authorid=aid,
-                                                               addbooks=False, reason=f"Contributor to {bookname}")
+                                    reason = f"Contributor to {bookname}"
+                                    auth_id = lazylibrarian.importer.add_author_to_db(authorname=anm, refresh=False,
+                                                                                      authorid=aid, addbooks=False,
+                                                                                      reason=reason)
                                     if auth_id:
                                         db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                                                   (auth_id, bookid, ROLE[role]), suppress='UNIQUE')
@@ -1458,8 +1460,9 @@ class GoodReads:
 
                 contributors.pop(0)  # skip primary author
                 for entry in contributors:
-                    auth_id = add_author_to_db(authorname=entry[1], refresh=False, authorid=entry[0],
-                                               addbooks=False, reason=f"Contributor to {bookname}")
+                    auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
+                                                                      authorid=entry[0], addbooks=False,
+                                                                      reason=f"Contributor to {bookname}")
                     if auth_id:
                         if entry[2].upper() in ROLE:
                             role = ROLE[entry[2].upper()]

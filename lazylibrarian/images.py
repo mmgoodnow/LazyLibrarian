@@ -817,7 +817,7 @@ def shrink_mag(issuefile, dpi=0):
         except Exception as e:
             logger.debug(f"Failed to shrink file with {str(params)} [{e}]")
             return ''
-
+    return ''
 
 # noinspection PyUnresolvedReferences
 def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
@@ -1020,17 +1020,18 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
 
 
 def tag_issue(srcfile, title, issue):
+    logger = logging.getLogger(__name__)
     if not title or not issue:
         logger.error('Unable to tag, need title and issue')
-        return
+        return False
     if not path_isfile(srcfile):
         logger.error(f"Unable to read source file {srcfile}")
-        return
+        return False
 
     src_pdf = PdfReader(srcfile)
     if not src_pdf:
         logger.error(f"Unable to read source file {src_pdf}")
-        return
+        return False
 
     dst_pdf = PdfWriter(clone_from=src_pdf)
     metadata = dict(src_pdf.metadata)
@@ -1085,4 +1086,4 @@ def tag_issue(srcfile, title, issue):
 
     dst_pdf.write(srcfile + '.tag')
     safe_move(srcfile + '.tag', srcfile)
-
+    return True

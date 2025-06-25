@@ -63,7 +63,8 @@ from lazylibrarian.formatter import unaccented, plural, now, today, check_int, r
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
-from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, img_id, tag_issue
+from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, \
+    img_id, tag_issue
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
@@ -526,6 +527,7 @@ class WebInterface:
         rowlist = []
         userid = None
         userprefs = 0
+        mydict = {}
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
@@ -641,8 +643,8 @@ class WebInterface:
                       'loading': lazylibrarian.AUTHORS_UPDATE,
                       'searching': lazylibrarian.SEARCHING,
                       }
-            loggerserverside.debug(str(mydict))
-            return mydict
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @staticmethod
     def label_thread(name=None):
@@ -5947,6 +5949,8 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
+        passed = 0
+        failed = 0
         try:
             title = ''
             args.pop('book_table_length', None)
@@ -5960,7 +5964,8 @@ class WebInterface:
                         issuefile = issue['IssueFile']
                         if not issuefile or not path_exists(issuefile):
                             logger.error(f"No IssueFile found for IssueID {item}")
-                            issuefile = ''
+                            failed += 1
+                            continue
                         if 'reCover' in action and issuefile:
                             coverfile = create_mag_cover(issuefile, refresh=True,
                                                          pagenum=check_int(action[-1], 1))
@@ -5984,19 +5989,25 @@ class WebInterface:
                                 issue['CoverFile'] = coverfile  # for updating calibre cover
                                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                                     self.update_calibre_issue_cover(issue)
+                                passed += 1
                             else:
+                                failed += 1
                                 logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
 
                         if action == 'tag' and issuefile:
                             logger.debug(f"Tagging {issuefile}")
-                            tag_issue(issuefile, title, issue['IssueDate'])
-                            if CONFIG.get_bool('IMP_MAGOPF'):
-                                logger.debug(f"Writing opf for {issuefile}")
-                                entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
-                                _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
-                                                                                issue['IssueDate'], item,
-                                                                                language=entry[0],
-                                                                                overwrite=True)
+                            res = tag_issue(issuefile, title, issue['IssueDate'])
+                            if not res:
+                                failed += 1
+                            else:
+                                passed += 1
+                                if CONFIG.get_bool('IMP_MAGOPF'):
+                                    logger.debug(f"Writing opf for {issuefile}")
+                                    entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                                    _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
+                                                                                    issue['IssueDate'], item,
+                                                                                    language=entry[0],
+                                                                                    overwrite=True)
                         if action == 'coverswap' and issuefile:
                             coverfile = None
                             if CONFIG['MAG_COVERSWAP']:
@@ -6032,21 +6043,28 @@ class WebInterface:
                                 issue['CoverFile'] = coverfile  # for updating calibre cover
                                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                                     self.update_calibre_issue_cover(issue)
+                                passed += 1
                             else:
+                                failed += 1
                                 logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
 
                         if action == "Delete" and issuefile:
                             result = self.delete_issue(issuefile)
                             if result:
+                                passed += 1
                                 logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} deleted from disc')
                                 if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                                     self.delete_from_calibre(issue)
+                            else:
+                                failed += 1
                         if action == "Remove" or action == "Delete":
                             db.action('DELETE from issues WHERE IssueID=?', (item,))
                             logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} removed from database')
                             _ = self.mag_set_latest(title)
+                            passed += 1
         finally:
             db.close()
+        logger.debug(f"{action.title()}: Pass {passed}, Fail {failed}")
         if title:
             raise cherrypy.HTTPRedirect(f"issue_page?title={quote(title)}")
         else:
@@ -6138,7 +6156,8 @@ class WebInterface:
         db = database.DBConnection()
         try:
             args.pop('book_table_length', None)
-
+            passed = 0
+            failed = 0
             for item in args:
                 title = item
                 if action == "Paused" or action == "Active":
@@ -6146,6 +6165,7 @@ class WebInterface:
                     new_value_dict = {"Status": action}
                     db.upsert("magazines", new_value_dict, control_value_dict)
                     logger.info(f'Status of magazine {title} changed to {action}')
+
                 if action == "Delete":
                     issues = db.select('SELECT * from issues WHERE Title=?', (title,))
                     logger.debug(f'Deleting magazine {title} from disc')
@@ -6175,19 +6195,25 @@ class WebInterface:
                     mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
                     for issue in issues:
                         logger.debug(f"Tagging {issue['IssueFile']}")
-                        tag_issue(issue['IssueFile'], title, issue["IssueDate"])
-                        if CONFIG.get_bool('IMP_MAGOPF'):
-                            logger.debug(f"Writing opf for {issue['IssueFile']}")
-                            _, _ = lazylibrarian.postprocess.create_mag_opf(issue['IssueFile'], title,
-                                                                            issue["IssueDate"],
-                                                                            issue["IssueID"],
-                                                                            language=mag[0],
-                                                                            overwrite=True)
+                        res = tag_issue(issue['IssueFile'], title, issue["IssueDate"])
+                        if not res:
+                            failed += 1
+                        else:
+                            passed += 1
+                            if CONFIG.get_bool('IMP_MAGOPF'):
+                                logger.debug(f"Writing opf for {issue['IssueFile']}")
+                                _, _ = lazylibrarian.postprocess.create_mag_opf(issue['IssueFile'], title,
+                                                                                issue["IssueDate"],
+                                                                                issue["IssueID"],
+                                                                                language=mag[0],
+                                                                                overwrite=True)
+
                 if action == "Remove" or action == "Delete":
                     db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))
                     db.action('DELETE from pastissues WHERE BookID=? COLLATE NOCASE', (title,))
                     db.action('DELETE from wanted where BookID=? COLLATE NOCASE', (title,))
                     logger.info(f'Magazine {title} removed from database')
+                    passed += 1
                 elif action == "Reset":
                     control_value_dict = {"Title": title}
                     new_value_dict = {
@@ -6198,6 +6224,7 @@ class WebInterface:
                     }
                     db.upsert("magazines", new_value_dict, control_value_dict)
                     logger.info(f'Magazine {title} details reset')
+                    passed += 1
                 elif action == 'Subscribe':
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
@@ -6206,10 +6233,12 @@ class WebInterface:
                                        (userid, 'magazine', title))
                         if res:
                             logger.debug(f"User {userid} is already subscribed to {title}")
+                            failed += 1
                         else:
                             db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
                                       (userid, 'magazine', title))
                             logger.debug(f"Subscribe {userid} to magazine {title}")
+                            passed += 1
                 elif action == 'Unsubscribe':
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
@@ -6221,9 +6250,10 @@ class WebInterface:
                             db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                       (userid, 'magazine', iss['issueid']))
                         logger.debug(f"Unsubscribe {userid} to magazine {title}")
+                    passed += 1
         finally:
             db.close()
-
+        logger.debug(f"{action.title()}: Pass {passed}, Fail {failed}")
         raise cherrypy.HTTPRedirect("magazines")
 
     @cherrypy.expose
