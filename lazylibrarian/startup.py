@@ -485,6 +485,7 @@ class StartupLazyLibrarian:
 
     def build_monthtable(self, config: ConfigDict):
         seasons = {}
+        table = None;
         json_file = os.path.join(DIRS.DATADIR, 'seasons.json')
         if path_isfile(json_file):
             try:
