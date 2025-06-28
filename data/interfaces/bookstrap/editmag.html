@@ -9,10 +9,10 @@
     </div>
 </%def>
 <%def name="body()">
-<form accept-charset="UTF-8" action="magazine_update" method="post">
+<form accept-charset="UTF-8" action="magazine_update" method="post" onsubmit="return false;">
     <div class="configtable">
         <input name="utf8" type="hidden" value="&#x2713;" />
-        <input name="old_title" type="hidden" value="${config['Title']}" />
+        <input name="old_title" id="old_title" type="hidden" value="${config['Title']}" />
         <fieldset>
             <legend>${title}</legend>
             <div class="form-group col-md6">
@@ -21,22 +21,43 @@
             </div>
         </fieldset>
         <div class="table_wrapper_button">
-            <input type="submit" value="Save changes" id="add" class="btn btn-primary">
+            <input type="submit" value="Save changes" id="mag_update" action="mag_update" class="btn btn-primary">
         </div>
         <p>&nbsp;</p>
     </div>
+    <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Updating ...</button>
 </form>
 </%def>
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
     function initThisPage()
-
+3
     {
         "use strict";
     }
     $(document).ready(function() {
         initThisPage();
+        $("#myAlert").addClass('hidden');
+
+        $('#mag_update').on('click', function(e) {
+            $("#myAlert").removeClass('hidden');
+            $.get('magazine_update', {'old_title': $("#old_title").val(), 'new_title': $("#new_title").val() }, function(data) {
+                $("#myAlert").addClass('hidden');
+                bootbox.dialog({
+                    title: 'Magazine Rename',
+                    message: data,
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(result){ window.location.reload('magazines'); }
+                        },
+                    }
+                });
+            });
+        });
     });
+
   </script>
 </%def>
 <html><head></head><body></body></html>

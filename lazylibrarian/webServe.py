@@ -1015,8 +1015,8 @@ class WebInterface:
     def get_user_profile(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_admin)
         db = database.DBConnection()
+        res = ''
         try:
-            res = ''
             match = db.match('SELECT * from users where UserName=?', (kwargs['user'],))
             if match:
                 subs = db.select('SELECT Type,WantID from subscribers WHERE UserID=?', (match['userid'],))
@@ -1210,7 +1210,6 @@ class WebInterface:
         self.label_thread('PASSWORD_RESET')
         logger = logging.getLogger(__name__)
         res = {}
-        msg = ''
         remote_ip = cherrypy.request.remote.ip
         db = database.DBConnection()
         try:
@@ -1592,17 +1591,24 @@ class WebInterface:
                               members=rows, series=series, multi=multi, ignored=ignored, email=email)
 
     @cherrypy.expose
-    def mark_series(self, action=None, **args):
+    @cherrypy.tools.json_out()
+    def mark_series_ajax(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         args.pop('book_table_length', None)
+        passed = 0
+        failed = 0
+        redirect = ''
         try:
             if action:
                 for seriesid in args:
                     if action in ["Wanted", "Active", "Skipped", "Ignored", "Paused"]:
                         match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
-                        if match:
+                        if not match:
+                            failed += 1
+                        else:
+                            passed += 1
                             db.upsert("series", {'Status': action}, {'SeriesID': seriesid})
                             logger.debug(f'Status set to "{action}" for "{match["SeriesName"]}"')
                             if action in ['Wanted', 'Active']:
@@ -1623,7 +1629,9 @@ class WebInterface:
                             reading = set(get_readinglist('Reading', userid))
                             abandoned = set(get_readinglist('Abandoned', userid))
                             members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
-                            if members:
+                            if not members:
+                                failed += 1
+                            else:
                                 for item in members:
                                     bookid = item['bookid']
                                     if action == "Unread":
@@ -1656,6 +1664,7 @@ class WebInterface:
                                         have_read.discard(bookid)
                                         to_read.discard(bookid)
                                         logger.debug(f'Status set to "abandoned" for "{bookid}"')
+                                    passed += 1
                                 set_readinglist('ToRead', userid, to_read)
                                 set_readinglist('HaveRead', userid, have_read)
                                 set_readinglist('Reading', userid, reading)
@@ -1669,16 +1678,19 @@ class WebInterface:
                                            (userid, 'series', seriesid))
                             if res:
                                 logger.debug(f"User {userid} is already subscribed to {seriesid}")
+                                failed += 1
                             else:
                                 db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
                                           (userid, 'series', seriesid))
                                 logger.debug(f"Subscribe {userid} to series {seriesid}")
+                                passed += 1
                     elif action == 'Unsubscribe':
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
                             userid = cookie['ll_uid'].value
                             db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                       (userid, 'series', seriesid))
+                            passed += 1
                             res = db.select('SELECT bookid from series where seriesid=?', (seriesid, ))
                             for iss in res:
                                 db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
@@ -1686,10 +1698,31 @@ class WebInterface:
                             logger.debug(f"Unsubscribe {userid} to series {seriesid}")
 
                 if "redirect" in args:
-                    raise cherrypy.HTTPRedirect(f"series?authorid={args['redirect']}")
-                raise cherrypy.HTTPRedirect("series")
+                    redirect = f"series?authorid={args['redirect']}"
+                else:
+                    redirect = "series"
         finally:
             db.close()
+
+        # Return JSON response instead of redirect
+        total = passed + failed
+        summary = f"Mark Series '{action}' completed."
+        if total > 0:
+            summary += f" {passed} successful"
+            if failed > 0:
+                summary += f", {failed} failed"
+            summary += f" out of {total} total items."
+        else:
+            summary += " No items were processed."
+        return {
+            'success': True,
+            'action': action,
+            'passed': passed,
+            'failed': failed,
+            'total': total,
+            'summary': summary,
+            'redirect': redirect
+        }
 
     # CONFIG ############################################################
 
@@ -5354,9 +5387,11 @@ class WebInterface:
             db.close()
 
         if magdata:
-            return serve_template(templatename="editmag.html", title="Edit Magazine", config=magdata)
+            return serve_template(templatename="editmag.html", title=f"Rename Magazine {magdata['Title']}",
+                                  config=magdata)
         else:
             logger.error(f'Missing magazine {mag}')
+            raise cherrypy.HTTPRedirect("magazines")
 
     # noinspection PyBroadException
     @cherrypy.expose
@@ -5364,67 +5399,85 @@ class WebInterface:
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
+        return_msg = ''
+        passed = 0
+        failed = 0
+        removed_old_dir = False
         new_title = kwargs.get('new_title')
         old_title = kwargs.get('old_title')
         if not old_title and not new_title:
-            logger.debug('Insufficient information, need Old and New Title')
-            raise cherrypy.HTTPRedirect("magazines")
-        if old_title == new_title:
-            logger.debug(f'Title for {old_title} unchanged')
-            raise cherrypy.HTTPRedirect("magazines")
+            return_msg = '<div class="alert alert-info">Insufficient information, need Old and New Title</div>'
 
-        self.validate_param("magazine title", new_title, ['<', '>', '='], 404)
-        logger.debug(f"Changing title [{old_title}] to [{new_title}]")
-        db = database.DBConnection()
-        try:
-            db.action('PRAGMA foreign_keys = OFF')
-            db.action("UPDATE magazines SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
-            db.action("UPDATE issues SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
-            db.action('PRAGMA foreign_keys = ON')
-            db.commit()
-            # rename files/folders to match, and issuefile to match new location
-            issues = db.select("SELECT IssueDate,IssueFile,IssueID from issues WHERE Title=?", (new_title,))
+        if not return_msg and old_title == new_title:
+            return_msg = f'<div class="alert alert-info">Title for {old_title} unchanged</div>'
 
-            for issue in issues:
-                calibre_id = None
-                old_path = os.path.dirname(issue['IssueFile'])
-                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                    dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
-                    data = dict(dbentry)
-                    data['Title'] = old_title
-                    calibre_id = get_calibre_id(data, try_filename=False)
+        if not return_msg:
+            valid = self.validate_param("magazine title", new_title, ['<', '>', '='], None)
+            if not valid:
+                return_msg = '<div class="alert alert-info">Invalid title, unable to rename</div>'
+
+        if not return_msg:
+            logger.debug(f"Changing title [{old_title}] to [{new_title}]")
+            db = database.DBConnection()
+            try:
+                db.action('PRAGMA foreign_keys = OFF')
+                db.action("UPDATE magazines SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
+                db.action("UPDATE issues SET Title=? WHERE Title=? COLLATE NOCASE", (new_title, old_title))
+                db.action('PRAGMA foreign_keys = ON')
+                db.commit()
+
+                return_msg = (f'<div class="alert alert-info"><strong>Summary:</strong><br>'
+                              f'Renamed {old_title} to {new_title}</div>')
+
+                # rename files/folders to match, and issuefile to match new location
+                issues = db.select("SELECT IssueDate,IssueFile,IssueID from issues WHERE Title=?", (new_title,))
+                for issue in issues:
+                    calibre_id = None
+                    old_path = os.path.dirname(issue['IssueFile'])
+                    if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                        dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
+                        data = dict(dbentry)
+                        data['Title'] = old_title
+                        calibre_id = get_calibre_id(data, try_filename=False)
+                        if calibre_id:
+                            logger.debug(f"Found calibre ID {calibre_id} for {old_title} {issue['IssueDate']}")
+                    fname, err = rename_issue(issue['IssueID'])
+                    if err:
+                        logger.warning(f"Failed to move file {issue['IssueFile']}: {err}")
+                        failed += 1
+                        continue
+                    else:
+                        logger.debug(f"Renamed {issue['IssueDate']} to {os.path.basename(fname)}")
+                        passed += 1
                     if calibre_id:
-                        logger.debug(f"Found calibre ID {calibre_id} for {old_title} {issue['IssueDate']}")
-
-                fname, err = rename_issue(issue['IssueID'])
-                if err:
-                    logger.warning(f"Failed to move file {issue['IssueFile']}: {err}")
-                    continue
-                else:
-                    logger.debug(f"Renamed {issue['IssueDate']} to {os.path.basename(fname)}")
-
-                if calibre_id:
-                    res, err, rc = calibredb('remove', [calibre_id])
-                    logger.debug(f"Remove result: {res} [{err}] {rc}")
-                    dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
-                    data = dict(dbentry)
-                    res, filename, pp_path = send_mag_issue_to_calibre(data)
-                    logger.debug(f"Add result: {res}")
-                    if res and filename:
-                        # calibre may have renamed it
-                        db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
-
-                # if no magazine issues left in the folder, delete it
-                # (removes any trailing cover images, opf etc)
-                if path_isdir(old_path) and not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
-                    logger.debug(f"Removing empty directory {old_path}")
-                    remove_dir(old_path, remove_contents=True)
-
-        except Exception:
-            logger.error(f'Unhandled exception in magazine_update: {traceback.format_exc()}')
-        finally:
-            db.close()
-        raise cherrypy.HTTPRedirect("magazines")
+                        res, err, rc = calibredb('remove', [calibre_id])
+                        logger.debug(f"Remove result: {res} [{err}] {rc}")
+                        dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
+                        data = dict(dbentry)
+                        res, filename, pp_path = send_mag_issue_to_calibre(data)
+                        logger.debug(f"Add result: {res}")
+                        if res and filename:
+                            # calibre may have renamed it
+                            db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
+                    # if no magazine issues left in the folder, delete it
+                    # (removes any trailing cover images, opf etc)
+                    if path_isdir(old_path) and not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
+                        logger.debug(f"Removed empty directory {old_path}")
+                        remove_dir(old_path, remove_contents=True)
+                        removed_old_dir = True
+                if passed + failed:
+                    return_msg += '<div class="row"><div class="col-md-6">Issues Updated:</div></div>'
+                    return_msg += (f'<div class="row"><div class="col-md-6"><span class="label label-success">'
+                                   f' Successful: {passed}</span></div>')
+                    return_msg += (f'<div class="col-md-6"><span class="label label-danger">'
+                                   f' Failed: {failed}</span></div></div>')
+                if removed_old_dir:
+                    return_msg += '<div class="row"><div class="col-md-6">Removed empty source folder</div></div>'
+            except Exception:
+                logger.error(f'Unhandled exception in magazine_update: {traceback.format_exc()}')
+            finally:
+                db.close()
+        return return_msg
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -5947,132 +6000,6 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("past_issues")
 
     @cherrypy.expose
-    def mark_issues(self, action=None, **args):
-        self.check_permitted(lazylibrarian.perm_status)
-        logger = logging.getLogger(__name__)
-        db = database.DBConnection()
-        passed = 0
-        failed = 0
-        try:
-            title = ''
-            args.pop('book_table_length', None)
-
-            if action:
-                for item in args:
-                    issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (item,))
-                    if issue:
-                        issue = dict(issue)
-                        title = issue['Title']
-                        issuefile = issue['IssueFile']
-                        if not issuefile or not path_exists(issuefile):
-                            logger.error(f"No IssueFile found for IssueID {item}")
-                            failed += 1
-                            continue
-                        if 'reCover' in action and issuefile:
-                            coverfile = create_mag_cover(issuefile, refresh=True,
-                                                         pagenum=check_int(action[-1], 1))
-                            if coverfile:
-                                myhash = uuid.uuid4().hex
-                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', f'{myhash}.jpg')
-                                copyfile(coverfile, hashname)
-                                setperm(hashname)
-                                control_value_dict = {"IssueFile": issue['IssueFile']}
-                                newcover = f'cache/magazine/{myhash}.jpg'
-                                new_value_dict = {"Cover": newcover}
-                                db.upsert("Issues", new_value_dict, control_value_dict)
-                                latest = db.match("select Title,LatestCover,IssueDate from magazines "
-                                                  "where title=? COLLATE NOCASE", (title,))
-                                if latest:
-                                    title = latest['Title']
-                                    if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
-                                        db.action("UPDATE magazines SET LatestCover=? "
-                                                  "WHERE Title=? COLLATE NOCASE", (newcover, title))
-                                issue['Cover'] = newcover
-                                issue['CoverFile'] = coverfile  # for updating calibre cover
-                                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                    self.update_calibre_issue_cover(issue)
-                                passed += 1
-                            else:
-                                failed += 1
-                                logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
-
-                        if action == 'tag' and issuefile:
-                            logger.debug(f"Tagging {issuefile}")
-                            res = tag_issue(issuefile, title, issue['IssueDate'])
-                            if not res:
-                                failed += 1
-                            else:
-                                passed += 1
-                                if CONFIG.get_bool('IMP_MAGOPF'):
-                                    logger.debug(f"Writing opf for {issuefile}")
-                                    entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
-                                    _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
-                                                                                    issue['IssueDate'], item,
-                                                                                    language=entry[0],
-                                                                                    overwrite=True)
-                        if action == 'coverswap' and issuefile:
-                            coverfile = None
-                            if CONFIG['MAG_COVERSWAP']:
-                                params = [CONFIG['MAG_COVERSWAP'], issuefile]
-                                logger.debug(f"Coverswap {params}")
-                                try:
-                                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                                    logger.info(res)
-                                    coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
-                                except subprocess.CalledProcessError as e:
-                                    logger.warning(e.output)
-                            else:
-                                res = coverswap(issuefile, 2)  # cover from page 2 (counted from 1)
-                                if res:
-                                    coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
-                            if coverfile:
-                                myhash = uuid.uuid4().hex
-                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', f'{myhash}.jpg')
-                                copyfile(coverfile, hashname)
-                                setperm(hashname)
-                                control_value_dict = {"IssueFile": issuefile}
-                                newcover = f'cache/magazine/{myhash}.jpg'
-                                new_value_dict = {"Cover": newcover}
-                                db.upsert("Issues", new_value_dict, control_value_dict)
-                                latest = db.match("select Title,LatestCover,IssueDate from magazines "
-                                                  "where title=? COLLATE NOCASE", (title,))
-                                if latest:
-                                    title = latest['Title']
-                                    if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
-                                        db.action("UPDATE magazines SET LatestCover=? "
-                                                  "WHERE Title=? COLLATE NOCASE", (newcover, title))
-                                issue['Cover'] = newcover
-                                issue['CoverFile'] = coverfile  # for updating calibre cover
-                                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                    self.update_calibre_issue_cover(issue)
-                                passed += 1
-                            else:
-                                failed += 1
-                                logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
-
-                        if action == "Delete" and issuefile:
-                            result = self.delete_issue(issuefile)
-                            if result:
-                                passed += 1
-                                logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} deleted from disc')
-                                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                    self.delete_from_calibre(issue)
-                            else:
-                                failed += 1
-                        if action == "Remove" or action == "Delete":
-                            db.action('DELETE from issues WHERE IssueID=?', (item,))
-                            logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} removed from database')
-                            _ = self.mag_set_latest(title)
-                            passed += 1
-        finally:
-            db.close()
-        logger.debug(f"{action.title()}: Pass {passed}, Fail {failed}")
-        if title:
-            raise cherrypy.HTTPRedirect(f"issue_page?title={quote(title)}")
-        else:
-            raise cherrypy.HTTPRedirect("magazines")
-
-    @cherrypy.expose
     @cherrypy.tools.json_out()
     def mark_issues_ajax(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
@@ -6295,113 +6222,6 @@ class WebInterface:
         except Exception as e:
             logger.warning(f'delete issue failed on {issuefile}, {type(e).__name__} {str(e)}')
             return False
-
-    @cherrypy.expose
-    def mark_magazines(self, action=None, **args):
-        self.check_permitted(lazylibrarian.perm_status)
-        logger = logging.getLogger(__name__)
-        db = database.DBConnection()
-        try:
-            args.pop('book_table_length', None)
-            passed = 0
-            failed = 0
-            for item in args:
-                title = item
-                if action == "Paused" or action == "Active":
-                    control_value_dict = {"Title": title}
-                    new_value_dict = {"Status": action}
-                    db.upsert("magazines", new_value_dict, control_value_dict)
-                    logger.info(f'Status of magazine {title} changed to {action}')
-
-                if action == "Delete":
-                    issues = db.select('SELECT * from issues WHERE Title=?', (title,))
-                    logger.debug(f'Deleting magazine {title} from disc')
-                    issuedir = ''
-                    for issue in issues:  # delete all issues of this magazine
-                        result = self.delete_issue(issue['IssueFile'])
-                        if result:
-                            logger.debug(f'Issue {issue["IssueFile"]} deleted from disc')
-                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                self.delete_from_calibre(issue)
-                            issuedir = os.path.dirname(issue['IssueFile'])
-                        else:
-                            logger.debug(f'Failed to delete {issue["IssueFile"]}')
-
-                    # if the directory is now empty, delete that too
-                    if issuedir and CONFIG.get_bool('MAG_DELFOLDER'):
-                        magdir = os.path.dirname(issuedir)
-                        try:
-                            os.rmdir(syspath(magdir))
-                            logger.debug(f'Magazine directory {magdir} deleted from disc')
-                        except OSError:
-                            logger.debug(f'Magazine directory {magdir} is not empty')
-                        logger.info(f'Magazine {title} deleted from disc')
-
-                if action == 'tag':
-                    issues = db.select('SELECT * from issues WHERE Title=?', (title,))
-                    mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
-                    for issue in issues:
-                        logger.debug(f"Tagging {issue['IssueFile']}")
-                        res = tag_issue(issue['IssueFile'], title, issue["IssueDate"])
-                        if not res:
-                            failed += 1
-                        else:
-                            passed += 1
-                            if CONFIG.get_bool('IMP_MAGOPF'):
-                                logger.debug(f"Writing opf for {issue['IssueFile']}")
-                                _, _ = lazylibrarian.postprocess.create_mag_opf(issue['IssueFile'], title,
-                                                                                issue["IssueDate"],
-                                                                                issue["IssueID"],
-                                                                                language=mag[0],
-                                                                                overwrite=True)
-
-                if action == "Remove" or action == "Delete":
-                    db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))
-                    db.action('DELETE from pastissues WHERE BookID=? COLLATE NOCASE', (title,))
-                    db.action('DELETE from wanted where BookID=? COLLATE NOCASE', (title,))
-                    logger.info(f'Magazine {title} removed from database')
-                    passed += 1
-                elif action == "Reset":
-                    control_value_dict = {"Title": title}
-                    new_value_dict = {
-                        "LastAcquired": '',
-                        "IssueDate": '',
-                        "LatestCover": '',
-                        "IssueStatus": "Wanted"
-                    }
-                    db.upsert("magazines", new_value_dict, control_value_dict)
-                    logger.info(f'Magazine {title} details reset')
-                    passed += 1
-                elif action == 'Subscribe':
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        userid = cookie['ll_uid'].value
-                        res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
-                                       (userid, 'magazine', title))
-                        if res:
-                            logger.debug(f"User {userid} is already subscribed to {title}")
-                            failed += 1
-                        else:
-                            db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                                      (userid, 'magazine', title))
-                            logger.debug(f"Subscribe {userid} to magazine {title}")
-                            passed += 1
-                elif action == 'Unsubscribe':
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        userid = cookie['ll_uid'].value
-                        db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
-                                  (userid, 'magazine', title))
-                        res = db.select('SELECT issueid from issues where title=?', (title, ))
-                        for iss in res:
-                            db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
-                                      (userid, 'magazine', iss['issueid']))
-                        logger.debug(f"Unsubscribe {userid} to magazine {title}")
-                    passed += 1
-        finally:
-            db.close()
-        logger.debug(f"{action.title()}: Pass {passed}, Fail {failed}")
-        raise cherrypy.HTTPRedirect("magazines")
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
