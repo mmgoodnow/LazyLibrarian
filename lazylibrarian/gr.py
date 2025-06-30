@@ -982,7 +982,10 @@ class GoodReads:
                                 for contributor in contributors:
                                     aid, anm, role = contributor
                                     if aid != gr_id:  # skip primary author
-                                        role = role.upper()
+                                        if not role:
+                                            role = 'UNKNOWN'
+                                        else:
+                                            role = role.upper()
                                         if role not in ROLE:
                                             role = 'CONTRIBUTING'
                                         reason = f"Contributor to {bookname}"
@@ -1468,7 +1471,7 @@ class GoodReads:
                                                                       authorid=entry[0], addbooks=False,
                                                                       reason=f"Contributor to {bookname}")
                     if auth_id:
-                        if entry[2].upper() in ROLE:
+                        if entry[2] and entry[2].upper() in ROLE:
                             role = ROLE[entry[2].upper()]
                         else:
                             role = ROLE['CONTRIBUTING']
