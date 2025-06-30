@@ -308,12 +308,12 @@
                     }
                 },
                 callback: function (result) {
-                    if (result) { document.getElementById("mark_authors").submit(); }
+                    if (result) { submitFormAjax(); }
                 }
             });
             return false;
         }
-        else { document.getElementById("mark_authors").submit(); }
+        else { submitFormAjax(); }
     }
 
     function bookinfo(bookid) {
@@ -339,5 +339,78 @@
         });
     };
 
+    function submitFormAjax() {
+        var form = document.getElementById("mark_authors");
+        var formData = new FormData(form);
+
+        // Show loading modal
+        bootbox.dialog({
+            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div>',
+            size: 'small',
+            backdrop: false
+        });
+
+        // Convert FormData to URLSearchParams for the AJAX call
+        var params = new URLSearchParams();
+        var formDataEntries = formData.entries();
+        for (var pair of formDataEntries) {
+            params.append(pair[0], pair[1]);
+        }
+
+        // Make AJAX call to the new endpoint
+        fetch('mark_authors_ajax', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show result modal
+            var message = '<div class="alert alert-info"><strong>Summary:</strong><br>' + data.summary + '</div>';
+            if (data.passed > 0 || data.failed > 0) {
+                message += '<div class="row">';
+                message += '<div class="col-md-6"><span class="label label-success">Successful: ' + data.passed + '</span></div>';
+                if (data.failed > 0) {
+                    message += '<div class="col-md-6"><span class="label label-danger">Failed: ' + data.failed + '</span></div>';
+                }
+                message += '</div>';
+            }
+            bootbox.dialog({
+                title: 'Mark Authors Complete',
+                message: message,
+                buttons: {
+                    ok: {
+                        label: 'OK',
+                        className: 'btn-primary',
+                        callback: function() {
+                            window.location.reload();
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show error modal
+            bootbox.dialog({
+                title: 'Error',
+                message: '<div class="alert alert-danger">An error occurred: ' + error.message + '</div>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(result){ window.location.reload('series'); }
+                        },
+                    }
+            });
+        });
+    }
   </script>
 </%def>

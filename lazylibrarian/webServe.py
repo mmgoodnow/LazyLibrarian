@@ -448,7 +448,7 @@ class WebInterface:
                 title = 'Inactive Authors'
             else:
                 title = 'Ignored Authors'
-        return serve_template(templatename="index.html", title=title)
+        return serve_template(templatename="index.html", title=title, redirect=title.lower())
 
     @cherrypy.expose
     def home(self):
@@ -512,7 +512,7 @@ class WebInterface:
                                           typelist=get_list(CONFIG['EBOOK_TYPE']), themelist=themelist)
             finally:
                 db.close()
-        return serve_template(templatename="index.html", title=title)
+        return serve_template(templatename="index.html", title='Authors', redirect='authors')
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
@@ -2116,13 +2116,14 @@ class WebInterface:
     # AUTHOR ############################################################
 
     @cherrypy.expose
-    def mark_authors(self, action=None, redirect=None, **args):
+    @cherrypy.tools.json_out()
+    def mark_authors_ajax(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         for arg in ['author_table_length', 'ignored']:
             args.pop(arg, None)
-        if not self.valid_source(redirect):
-            redirect = "authors"
+        passed = 0
+        failed = 0
         if action:
             db = database.DBConnection()
             try:
@@ -2130,9 +2131,11 @@ class WebInterface:
                     check = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (authorid,))
                     if not check:
                         logger.warning(f'Unable to set Status to "{action}" for "{authorid}"')
+                        failed += 1
                     elif action in ["Active", "Wanted", "Paused", "Ignored"]:
                         db.upsert("authors", {'Status': action}, {'AuthorID': authorid})
                         logger.info(f'Status set to "{action}" for "{check["AuthorName"]}"')
+                        passed += 1
                     elif action == "Delete":
                         logger.info(f"Deleting author and books: {check['AuthorName']}")
                         books = db.select("SELECT BookFile from books WHERE AuthorID=? AND BookFile is not null",
@@ -2147,9 +2150,11 @@ class WebInterface:
                                     logger.warning(f'rmtree failed on {book["BookFile"]}, {type(e).__name__} {str(e)}')
 
                         db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                        passed += 1
                     elif action == "Remove":
                         logger.info(f"Removing author: {check['AuthorName']}")
                         db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                        passed += 1
                     elif action == 'Subscribe':
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
@@ -2158,10 +2163,12 @@ class WebInterface:
                                            (userid, 'author', authorid))
                             if res:
                                 logger.debug(f"User {userid} is already subscribed to {authorid}")
+                                failed += 1
                             else:
                                 db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
                                           (userid, 'author', authorid))
                                 logger.debug(f"Subscribe {userid} to author {authorid}")
+                                passed += 1
                     elif action == 'Unsubscribe':
                         cookie = cherrypy.request.cookie
                         if cookie and 'll_uid' in list(cookie.keys()):
@@ -2173,12 +2180,29 @@ class WebInterface:
                                 db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                           (userid, 'ebook', iss['bookid']))
                             logger.debug(f"Unsubscribe {userid} author {authorid}")
+                            passed += 1
             finally:
                 db.close()
 
-        raise cherrypy.HTTPRedirect(redirect)
+        # Return JSON response instead of redirect
+        total = passed + failed
+        summary = f"Mark Authors '{action}' completed."
+        if total > 0:
+            summary += f" {passed} successful"
+            if failed > 0:
+                summary += f", {failed} failed"
+            summary += f" out of {total} total items."
+        else:
+            summary += " No items were processed."
+        return {
+            'success': True,
+            'action': action,
+            'passed': passed,
+            'failed': failed,
+            'total': total,
+            'summary': summary
+        }
 
-    # noinspection PyGlobalUndefined
     @cherrypy.expose
     def author_page(self, authorid, book_lang=None, library='eBook', ignored=False, book_filter=''):
         global lastauthor
@@ -5395,6 +5419,7 @@ class WebInterface:
 
     # noinspection PyBroadException
     @cherrypy.expose
+    @cherrypy.tools.json_out()
     def magazine_update(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.check_permitted(lazylibrarian.perm_edit)
