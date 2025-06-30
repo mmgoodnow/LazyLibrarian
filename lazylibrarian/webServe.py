@@ -25,7 +25,7 @@ import time
 import traceback
 import uuid
 from shutil import copyfile, rmtree
-from urllib.parse import unquote_plus, urlsplit, urlunsplit, quote
+from urllib.parse import unquote_plus, urlsplit, urlunsplit, quote, unquote
 
 import cherrypy
 from cherrypy.lib.static import serve_file
@@ -5300,7 +5300,7 @@ class WebInterface:
                 newrowlist = []
                 for mag in rowlist:
                     mag = dict(mag)  # turn sqlite objects into dicts
-                    entry = [mag['Title'], mag['LatestCover'], mag['Title'], mag['Iss_Cnt'], mag['LastAcquired'],
+                    entry = [mag['Title'], mag['LatestCover'], quote(mag['Title']), mag['Iss_Cnt'], mag['LastAcquired'],
                              mag['IssueDate'], mag['Status'], mag['IssueStatus'], mag['Genre']]
 
                     newrowlist.append(entry)  # add each rowlist to the masterlist
@@ -5921,7 +5921,7 @@ class WebInterface:
                                                            f"{os.path.splitext(issue_file)[1]}", email=email)
 
             # or we may just have a title to find magazine in issues table
-            mag_data = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
+            mag_data = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (unquote(bookid),))
             if not mag_data:
                 logger.warning(f"Unknown magazine title: {bookid}")
                 raise cherrypy.HTTPError(404, f"Magazine {bookid} not found")
