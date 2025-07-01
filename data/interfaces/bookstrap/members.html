@@ -37,7 +37,7 @@
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Series scan in progress ...</button>
     </p>
   %endif
-  <form action="mark_books" method="get" class="form-inline">
+  <form action="mark_books" name="mark_books" id="mark_books" method="get" class="form-inline" onsubmit="return false;">
     <div class="indented">
       <input type="hidden" name="redirect" value="members">
       <input type="hidden" name="seriesid" value="${series['SeriesID']}">
@@ -70,7 +70,6 @@
           %endif
         %endif
 
-
         <label for="action" class=""> as </label>
         <select class="mark_books form-control input-sm" id="action" name="action">
           %for item in ["Wanted", "Have", "Ignored", "Skipped", "Remove", "Delete"]:
@@ -85,7 +84,7 @@
           %endif
         </select>
       </div>
-      <input type="submit" class="mark_books btn btn-sm btn-primary" value="Go">
+      <input type="submit" class="mark_books btn btn-sm btn-primary" onclick="submitFormAjax()" value="Go">
       %endif
     %if CONFIG['TOGGLES']:
     &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1">  Cover</a>
@@ -215,5 +214,79 @@
         } );
     });
 
+    function submitFormAjax() {
+        var form = document.getElementById("mark_books");
+        var formData = new FormData(form);
+
+        // Show loading modal
+        bootbox.dialog({
+            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div>',
+            size: 'small',
+            backdrop: false,
+            closeButton: false
+        });
+
+        // Convert FormData to URLSearchParams for the AJAX call
+        var params = new URLSearchParams();
+        var formDataEntries = formData.entries();
+        for (var pair of formDataEntries) {
+            params.append(pair[0], pair[1]);
+        }
+
+        // Make AJAX call to the new endpoint
+        fetch('mark_books_ajax', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show result modal
+            var message = '<div class="alert alert-info"><strong>Summary:</strong><br>' + data.summary + '</div>';
+            if (data.passed > 0 || data.failed > 0) {
+                message += '<div class="row">';
+                message += '<div class="col-md-6"><span class="label label-success">Successful: ' + data.passed + '</span></div>';
+                if (data.failed > 0) {
+                    message += '<div class="col-md-6"><span class="label label-danger">Failed: ' + data.failed + '</span></div>';
+                }
+                message += '</div>';
+            }
+            bootbox.dialog({
+                title: 'Mark Books Complete',
+                message: message,
+                buttons: {
+                    ok: {
+                        label: 'OK',
+                        className: 'btn-primary',
+                        callback: function() {
+                            window.location.reload(data.redirect);
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show error modal
+            bootbox.dialog({
+                title: 'Error',
+                message: '<div class="alert alert-danger">An error occurred: ' + error.message + '</div>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(result){ window.location.reload(); }
+                        },
+                    }
+            });
+        });
+    }
   </script>
 </%def>

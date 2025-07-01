@@ -114,7 +114,7 @@
     </div>
   </form>
   <br/>
-  <form action="mark_books" method="get" class="form-inline">
+  <form action="mark_books" name="mark_books" id="mark_books" method="get" class="form-inline" onsubmit="return false;">
     <input type="hidden" name="redirect" value="manage">
     <input type="hidden" name="library" value="${library}">
     <div class="table-responsive">
@@ -173,7 +173,7 @@
         %endif
       </select>
     </div>
-    <input type="submit" class="mark_books btn btn-sm btn-default" value="Go">
+    <input type="submit" class="mark_books btn btn-sm btn-default"  onclick="submitFormAjax()" value="Go">
     %endif
   </form>
   <p>&nbsp;</p>
@@ -238,25 +238,25 @@
             $("#myAlert").removeClass('hidden');
             $.get('sync_to_hardcover', function(data) {
                 $("#myAlert").addClass('hidden');
-                
+
                 // Always parse as JSON
                 var jsonData;
                 try {
                     jsonData = JSON.parse(data);
                 } catch (e) {
                     // If parsing fails, show error
-                    showSyncModal('HardCover Sync Error', 
+                    showSyncModal('HardCover Sync Error',
                         '<div class="alert alert-danger">Invalid response from server: ' + e.message + '</div>',
                         { close: { label: "Close", className: 'btn-primary', callback: closeSyncModal } });
                     return;
                 }
-                
+
                 // Check if confirmation is required
                 if (jsonData.confirmation_required) {
-                    var confirmTitle = jsonData.multi_user ? 
-                        'HardCover Multi-User Sync Confirmation Required' : 
+                    var confirmTitle = jsonData.multi_user ?
+                        'HardCover Multi-User Sync Confirmation Required' :
                         'HardCover Sync Confirmation Required';
-                    
+
                     var confirmButtons = {
                         cancel: {
                             label: "Cancel",
@@ -290,8 +290,8 @@
                             }
                         }
                     };
-                    
-                    showSyncModal(confirmTitle, 
+
+                    showSyncModal(confirmTitle,
                         '<div class="alert alert-warning"><pre><strong>Warning:</strong> ' + jsonData.message + '</pre></div>',
                         confirmButtons);
                 } else {
@@ -300,12 +300,12 @@
                 }
             });
         });
-        
+
         // Global modal management variables
         var syncModal = null;
         var currentIndex = 0;
         var syncResults = null;
-        
+
         function initSyncModal() {
             if ($('#syncProgressModal').length === 0) {
                 var modalHtml = '<div id="syncProgressModal" class="modal fade" tabindex="-1" role="dialog">' +
@@ -320,25 +320,25 @@
                 $('body').append(modalHtml);
             }
             syncModal = $('#syncProgressModal');
-            
+
             // Clean up any existing event handlers
             syncModal.off('hidden.bs.modal');
             syncModal.on('hidden.bs.modal', function() {
                 syncModal.find('.modal-dialog').removeClass('modal-lg');
             });
         }
-        
+
         function showSyncModal(title, message, buttons) {
             if (!syncModal) {
                 initSyncModal();
             }
-            
+
             syncModal.find('.modal-title').html(title);
             syncModal.find('.modal-body').html(message);
-            
+
             var $footer = syncModal.find('.modal-footer');
             $footer.empty();
-            
+
             $.each(buttons, function(key, button) {
                 var $btn = $('<button type="button" class="btn"></button>');
                 $btn.addClass(button.className);
@@ -346,35 +346,35 @@
                 $btn.on('click', button.callback);
                 $footer.append($btn);
             });
-            
+
             syncModal.modal({
                 backdrop: 'static',
                 keyboard: false,
                 show: true
             });
         }
-        
+
         function closeSyncModal() {
             if (syncModal) {
                 syncModal.modal('hide');
             }
         }
-        
+
         function displaySyncResults(data) {
             // Parse JSON
             var jsonData;
             try {
                 jsonData = JSON.parse(data);
             } catch (e) {
-                showSyncModal('HardCover Sync Error', 
+                showSyncModal('HardCover Sync Error',
                     '<div class="alert alert-danger">Invalid response from server: ' + e.message + '</div>',
                     { close: { label: "Close", className: 'btn-primary', callback: closeSyncModal } });
                 return;
             }
-            
+
             syncResults = jsonData.results;
             currentIndex = 0;
-            
+
             // Check for debug notice and store globally for multi-user summary
             var debugNotice = '';
             if (jsonData.debug_notice) {
@@ -383,43 +383,43 @@
             } else {
                 window.syncDebugNotice = null;
             }
-            
+
             // Single user gets simpler display
             if (!jsonData.multi_user && syncResults.length === 1) {
                 var result = syncResults[0];
                 var statusClass = result.status === 'success' ? 'success' : 'danger';
                 var statusIcon = result.status === 'success' ? 'check' : 'times';
                 var userId = result.userid || 'Current User';
-                
+
                 var message = debugNotice +
                         '<div class="alert alert-' + statusClass + '">' +
                         '<i class="fa fa-' + statusIcon + '"></i> ' +
                         '<strong>' + result.status.charAt(0).toUpperCase() + result.status.slice(1) + '</strong>' +
                         '</div>' +
                         '<pre>' + result.message + '</pre>';
-                
+
                 showSyncModal('HardCover Sync Result - ' + userId, message,
                     { close: { label: "Close", className: 'btn-primary', callback: closeSyncModal } });
                 return;
             }
-            
+
             // Multi-user gets the step-through interface
             showNextResult();
         }
-        
+
         function showNextResult() {
             if (currentIndex < syncResults.length) {
                 var result = syncResults[currentIndex];
                 var statusClass = result.status === 'success' ? 'success' : 'danger';
                 var statusIcon = result.status === 'success' ? 'check' : 'times';
-                
+
                 var title = 'HardCover Sync - User ' + result.userid + ' (' + (currentIndex + 1) + ' of ' + syncResults.length + ')';
                 var message = '<div class="alert alert-' + statusClass + '">' +
                         '<i class="fa fa-' + statusIcon + '"></i> ' +
                         '<strong>' + result.status.charAt(0).toUpperCase() + result.status.slice(1) + '</strong>' +
                         '</div>' +
                         '<pre>' + result.message + '</pre>';
-                
+
                 var buttons = {
                     skip: {
                         label: "Skip to Summary",
@@ -439,34 +439,34 @@
                         }
                     }
                 };
-                
+
                 showSyncModal(title, message, buttons);
             } else {
                 showSummary();
             }
         }
-        
+
         function showSummary() {
             var successCount = syncResults.filter(function(r) { return r.status === 'success'; }).length;
             var errorCount = syncResults.filter(function(r) { return r.status === 'error'; }).length;
-            
+
             // Add debug notice if it exists (stored from displaySyncResults)
             var debugNotice = '';
             if (window.syncDebugNotice) {
                 debugNotice = '<div class="alert alert-info"><i class="fa fa-info-circle"></i> <strong>' + window.syncDebugNotice + '</strong></div>';
             }
-            
+
             var summaryHtml = debugNotice +
                 '<h4>Sync Summary</h4>' +
                 '<p>Total users synced: <strong>' + syncResults.length + '</strong></p>' +
                 '<p class="text-success">Successful: <strong>' + successCount + '</strong></p>' +
                 '<p class="text-danger">Errors: <strong>' + errorCount + '</strong></p>';
-            
+
             // Add modal-lg class for the summary
             if (syncModal) {
                 syncModal.find('.modal-dialog').addClass('modal-lg');
             }
-            
+
             var buttons = {
                 close: {
                     label: "Close",
@@ -474,7 +474,7 @@
                     callback: closeSyncModal
                 }
             };
-            
+
             showSyncModal('HardCover Multi-User Sync Complete', summaryHtml, buttons);
         }
 
@@ -650,5 +650,78 @@
         });
     };
 
+    function submitFormAjax() {
+        var form = document.getElementById("mark_books");
+        var formData = new FormData(form);
+
+        // Show loading modal
+        bootbox.dialog({
+            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div>',
+            size: 'small',
+            backdrop: false
+        });
+
+        // Convert FormData to URLSearchParams for the AJAX call
+        var params = new URLSearchParams();
+        var formDataEntries = formData.entries();
+        for (var pair of formDataEntries) {
+            params.append(pair[0], pair[1]);
+        }
+
+        // Make AJAX call to the new endpoint
+        fetch('mark_books_ajax', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show result modal
+            var message = '<div class="alert alert-info"><strong>Summary:</strong><br>' + data.summary + '</div>';
+            if (data.passed > 0 || data.failed > 0) {
+                message += '<div class="row">';
+                message += '<div class="col-md-6"><span class="label label-success">Successful: ' + data.passed + '</span></div>';
+                if (data.failed > 0) {
+                    message += '<div class="col-md-6"><span class="label label-danger">Failed: ' + data.failed + '</span></div>';
+                }
+                message += '</div>';
+            }
+            bootbox.dialog({
+                title: 'Mark Books Complete',
+                message: message,
+                buttons: {
+                    ok: {
+                        label: 'OK',
+                        className: 'btn-primary',
+                        callback: function() {
+                            window.location.reload(data.redirect);
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show error modal
+            bootbox.dialog({
+                title: 'Error',
+                message: '<div class="alert alert-danger">An error occurred: ' + error.message + '</div>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(result){ window.location.reload(); }
+                        },
+                    }
+            });
+        });
+    }
   </script>
 </%def>

@@ -4150,7 +4150,8 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
-    def mark_books(self, authorid=None, seriesid=None, action=None, redirect=None, **args):
+    @cherrypy.tools.json_out()
+    def mark_books_ajax(self, authorid=None, seriesid=None, action=None, redirect=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         if 'library' in args:
@@ -4169,6 +4170,8 @@ class WebInterface:
         for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype', 'AuthorID']:
             args.pop(arg, None)
 
+        passed = 0
+        failed = 0
         to_read = []
         have_read = []
         reading = []
@@ -4211,6 +4214,7 @@ class WebInterface:
                         elif action == "Abandoned":
                             abandoned.add(bookid)
                         logger.debug(f'Status set to {action} for {bookid}')
+                        passed += 1
 
                     elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth",
                                     "Wanted", "WantEbook", "WantAudio", "WantBoth"]:
@@ -4224,39 +4228,49 @@ class WebInterface:
                             if (action == "Wanted" and library == "eBook") or action in ["WantEbook", "WantBoth"]:
                                 if bookdata['Status'] in ["Open", "Have"]:
                                     logger.debug(f'eBook "{bookname}" is already marked Open')
+                                    failed += 1
                                 else:
                                     db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
                                     logger.debug(f'Status set to "Wanted" for "{bookname}"')
                                     wantedbooks.append({"bookid": bookid})
+                                    passed += 1
                             if (action == "Wanted" and library == "AudioBook") or action in ["WantAudio", "WantBoth"]:
                                 if bookdata['AudioStatus'] in ["Open", "Have"]:
                                     logger.debug(f'AudioBook "{bookname}" is already marked Open')
+                                    failed += 1
                                 else:
                                     db.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
                                     logger.debug(f'AudioStatus set to "Wanted" for "{bookname}"')
                                     wantedaudio.append({"bookid": bookid})
+                                    passed += 1
                             if (action == "Ignored" and library == 'eBook') or action == "IgnoreBoth":
                                 db.upsert("books", {'Status': "Ignored", 'ScanResult': f'User {action}'},
                                           {'BookID': bookid})
                                 logger.debug(f'Status set to "Ignored" for "{bookname}"')
+                                passed += 1
                             if (action == "Ignored" and library == 'AudioBook') or action == "IgnoreBoth":
                                 db.upsert("books", {'AudioStatus': "Ignored", 'ScanResult': f'User {action}'},
                                           {'BookID': bookid})
                                 logger.debug(f'AudioStatus set to "Ignored" for "{bookname}"')
+                                passed += 1
                             if action in ["Skipped", "Have"]:
                                 if library == 'eBook':
                                     db.upsert("books", {'Status': action, 'ScanResult': f'User {action}'},
                                               {'BookID': bookid})
                                     logger.debug(f'Status set to "{action}" for "{bookname}"')
+                                    passed += 1
                                 if library == 'AudioBook':
                                     db.upsert("books", {'AudioStatus': action, 'ScanResult': f'User {action}'},
                                               {'BookID': bookid})
                                     logger.debug(f'AudioStatus set to "{action}" for "{bookname}"')
+                                    passed += 1
                         else:
                             logger.warning(f"Unable to set status {action} for {bookid}")
+                            failed += 1
                     elif action == "NoDelay":
                         db.action("delete from failedsearch WHERE BookID=? AND Library=?", (bookid, library))
                         logger.debug(f'{library} delay set to zero for {bookid}')
+                        passed += 1
                     elif action in ["Remove", "Delete"]:
                         cmd = ("SELECT AuthorName,Bookname,BookFile,AudioFile,books.AuthorID from books,authors "
                                "WHERE BookID=? and books.AuthorID = authors.AuthorID")
@@ -4273,18 +4287,21 @@ class WebInterface:
                                         try:
                                             rmtree(os.path.dirname(bookfile), ignore_errors=True)
                                             logger.info(f'AudioBook {bookname} deleted from disc')
+                                            passed += 1
                                         except Exception as e:
                                             logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
-
+                                            failed += 1
                                 if 'eBook' in library:
                                     bookfile = bookdata['BookFile']
                                     if bookfile and path_isfile(bookfile):
                                         try:
                                             rmtree(os.path.dirname(bookfile), ignore_errors=True)
                                             deleted = True
+                                            passed += 1
                                         except Exception as e:
                                             logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
                                             deleted = False
+                                            failed += 1
 
                                         if deleted:
                                             logger.info(f'eBook {bookname} deleted from disc')
@@ -4298,18 +4315,22 @@ class WebInterface:
                                     for table in ['books', 'wanted', 'readinglists']:
                                         db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                     logger.info(f'Removed "{bookname}" from database')
+                                    passed += 1
                                 elif 'eBook' in library:
                                     db.upsert("books", {"Status": "Ignored", "ScanResult": "User deleted"},
                                               {"BookID": bookid})
                                     logger.debug(f'Status set to Ignored for "{bookname}"')
+                                    passed += 1
                                 elif 'Audio' in library:
                                     db.upsert("books", {"AudioStatus": "Ignored", "ScanResult": "User deleted"},
                                               {"BookID": bookid})
                                     logger.debug(f'AudioStatus set to Ignored for "{bookname}"')
+                                    passed += 1
                             else:
                                 for table in ['books', 'wanted', 'readinglists']:
                                     db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                 logger.info(f'Removed "{bookname}" from database')
+                                passed += 1
 
                 if action in reading_lists and userid:
                     set_readinglist("ToRead", userid, to_read)
@@ -4336,16 +4357,37 @@ class WebInterface:
 
         if redirect == "author":
             if 'eBook' in library:
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library=eBook")
+                redirect = f"author_page?authorid={authorid}&library=eBook"
             if 'Audio' in library:
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library=AudioBook")
+                redirect = f"author_page?authorid={authorid}&library=AudioBook"
         elif redirect in ["books", "audio"]:
-            raise cherrypy.HTTPRedirect(redirect)
+            redirect = redirect
         elif redirect == "members":
-            raise cherrypy.HTTPRedirect(f"series_members?seriesid={seriesid}&ignored=False")
+            redirect = f"series_members?seriesid={seriesid}&ignored=False"
         elif 'Audio' in library:
-            raise cherrypy.HTTPRedirect(f"manage?library=AudioBook")
-        raise cherrypy.HTTPRedirect(f"manage?library=eBook")
+            redirect = f"manage?library=AudioBook"
+        else:
+            redirect = f"manage?library=eBook"
+
+        # Return JSON response instead of redirect
+        total = passed + failed
+        summary = f"Mark Books '{action}' completed."
+        if total > 0:
+            summary += f" {passed} successful"
+            if failed > 0:
+                summary += f", {failed} failed"
+            summary += f" out of {total} total items."
+        else:
+            summary += " No items were processed."
+        return {
+            'success': True,
+            'action': action,
+            'passed': passed,
+            'failed': failed,
+            'total': total,
+            'summary': summary,
+            'redirect': redirect
+        }
 
     # WALL #########################################################
 
@@ -6045,8 +6087,8 @@ class WebInterface:
                         issuefile = issue['IssueFile']
                         if not issuefile or not path_exists(issuefile):
                             logger.error(f"No IssueFile found for IssueID {item}")
-                            failed += 1
-                            continue
+                            issuefile = None
+
                         if 'reCover' in action and issuefile:
                             coverfile = create_mag_cover(issuefile, refresh=True,
                                                          pagenum=check_int(action[-1], 1))
