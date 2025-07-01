@@ -132,7 +132,11 @@ def direct_bok(book=None, prov=None, test=False):
         book['bookid'] = '0'
         limit = 10
 
-    searchresults = zlib.search(book['searchterm'], limit=limit)
+    try:
+        searchresults = zlib.search(book['searchterm'], limit=limit)
+    except Exception as e:
+        logger.debug(f"Error getting results from zlibrary ({e})")
+        searchresults = None
     if not searchresults or not searchresults.get('success', 0):
         if test:
             return False
