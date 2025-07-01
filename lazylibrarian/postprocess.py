@@ -3227,14 +3227,15 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     _, _ = create_comic_opf(pp_path, data, global_name, True)
             else:
                 logger.debug(f'No data found for {bookid}_{issueid}')
-        else:
+        else:  # magazine
             if not CONFIG.get_bool('IMP_MAGOPF'):
                 logger.debug('create_mag_opf is disabled')
             else:
                 db = database.DBConnection()
-                entry = db.match('SELECT * FROM magazines where Title=?', (title,))
-                _, _ = create_mag_opf(pp_path, title, issuedate, issueid,
-                                      language=entry["Language"], overwrite=True)
+                entry = db.match('SELECT Language FROM magazines where Title=? COLLATE NOCASE', (title,))
+                if entry:
+                    _, _ = create_mag_opf(pp_path, title, issuedate, issueid,
+                                          language=entry["Language"], overwrite=True)
                 db.close()
 
     if firstfile:
