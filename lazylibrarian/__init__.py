@@ -76,6 +76,7 @@ AUTHORS_UPDATE = 0
 SEARCHING = 0
 LOGIN_MSG = ''
 HIST_REFRESH = 1000
+MARK_ISSUES = False
 DICTS = {}
 GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
 GRGENRES = {}

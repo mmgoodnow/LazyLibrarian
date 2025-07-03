@@ -221,6 +221,16 @@
         else { submitFormAjax(); }
     }
 
+    var timer = 2000;
+    if( timer > 0 )
+        {
+            tm = setInterval( function () {
+                $.get('issues_progress', function (data) {
+                    $("#progressbar").html(data);
+            });
+            }, timer );
+        }
+
     function submitFormAjax() {
         var form = document.getElementById("mark_issues");
         var formData = new FormData(form);
@@ -234,10 +244,17 @@
 
         // Show loading modal
         bootbox.dialog({
-            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div>',
+            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div><span id="progressbar"></span>',
             size: 'small',
             backdrop: false,
-            closeButton: false
+            closeButton: false,
+            buttons: {
+                ok: {
+                    label: '<i class=\"fa fa-ban\"></i>Abort',
+                    className: 'btn-warning',
+                    callback: function(){ $.get("abort_progress", function(data) {}); window.history.back(); }
+                }
+            }
         });
 
         // Convert FormData to URLSearchParams for the AJAX call

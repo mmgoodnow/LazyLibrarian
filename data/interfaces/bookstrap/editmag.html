@@ -9,7 +9,7 @@
     </div>
 </%def>
 <%def name="body()">
-<form accept-charset="UTF-8" action="magazine_update" method="post" onsubmit="return false;">
+<form accept-charset="UTF-8" name="magazine_update" id="magazine_update" action="magazine_update" method="post" onsubmit="return false;">
     <div class="configtable">
         <input name="utf8" type="hidden" value="&#x2713;" />
         <input name="old_title" id="old_title" type="hidden" value="${config['Title']}" />
@@ -21,43 +21,115 @@
             </div>
         </fieldset>
         <div class="table_wrapper_button">
-            <input type="submit" value="Save changes" id="mag_update" action="mag_update" class="btn btn-primary">
+            <input type="submit" value="Save changes" id="mag_update" action="mag_update" class="btn btn-primary"  onclick="submitFormAjax()">
         </div>
         <p>&nbsp;</p>
     </div>
-    <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Updating ...</button>
 </form>
 </%def>
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
     function initThisPage()
-
     {
         "use strict";
     }
     $(document).ready(function() {
         initThisPage();
-        $("#myAlert").addClass('hidden');
-
-        $('#mag_update').on('click', function(e) {
-            $("#myAlert").removeClass('hidden');
-            $.get('magazine_update', {'old_title': $("#old_title").val(), 'new_title': $("#new_title").val() }, function(data) {
-                $("#myAlert").addClass('hidden');
-                bootbox.dialog({
-                    title: 'Magazine Rename',
-                    message: data,
-                    buttons: {
-                        primary: {
-                            label: "Close",
-                            className: 'btn-primary',
-                            callback: function(result){ window.location.reload('magazines'); }
-                        },
-                    }
-                });
-            });
-        });
     });
 
+
+    var timer = 2000;
+    if( timer > 0 )
+        {
+            tm = setInterval( function () {
+                $.get('issues_progress', function (data) {
+                    $("#progressbar").html(data);
+            });
+            }, timer );
+        }
+
+    function submitFormAjax() {
+        var form = document.getElementById("magazine_update");
+        var formData = new FormData(form);
+
+        // Show loading modal
+        bootbox.dialog({
+            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div><span id="progressbar"></span>',
+            size: 'small',
+            backdrop: false,
+            closeButton: false,
+            buttons: {
+                ok: {
+                    label: '<i class=\"fa fa-ban\"></i>Abort',
+                    className: 'btn-warning',
+                    callback: function(){ $.get("abort_progress", function(data) {}); window.history.back(); }
+                }
+            }
+        });
+
+        // Convert FormData to URLSearchParams for the AJAX call
+        var params = new URLSearchParams();
+        var formDataEntries = formData.entries();
+        for (var pair of formDataEntries) {
+            params.append(pair[0], pair[1]);
+        }
+
+        // Make AJAX call to the new endpoint
+        fetch('magazine_update_ajax', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show result modal
+            var message = '<div class="alert alert-info"><strong>Summary:</strong><br>' + data.summary + '</div>';
+            if (data.passed > 0 || data.failed > 0) {
+                message += '<div class="row">';
+                message += '<div class="col-md-6"><span class="label label-success">Successful: ' + data.passed + '</span></div>';
+                if (data.failed > 0) {
+                    message += '<div class="col-md-6"><span class="label label-danger">Failed: ' + data.failed + '</span></div>';
+                }
+                message += '</div>';
+            }
+
+            bootbox.dialog({
+                title: 'Operation Complete',
+                message: message,
+                buttons: {
+                    ok: {
+                        label: 'OK',
+                        className: 'btn-primary',
+                        callback: function() {
+                            // Refresh the page to show updated data
+                            window.location.reload();
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            // Close loading modal
+            bootbox.hideAll();
+
+            // Show error modal
+            bootbox.dialog({
+                title: 'Error',
+                message: '<div class="alert alert-danger">An error occurred: ' + error.message + '</div>',
+                buttons: {
+                    ok: {
+                        label: 'OK',
+                        className: 'btn-danger'
+                    }
+                }
+            });
+        });
+    }
   </script>
 </%def>
 <html><head></head><body></body></html>

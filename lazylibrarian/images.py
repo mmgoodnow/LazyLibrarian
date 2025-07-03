@@ -1034,7 +1034,11 @@ def tag_issue(srcfile, title, issue):
         return False
 
     dst_pdf = PdfWriter(clone_from=src_pdf)
-    metadata = dict(src_pdf.metadata)
+    try:
+        metadata = dict(src_pdf.metadata)
+    except TypeError:
+        # no metadata found in source file
+        metadata = {}
 
     sorted_title = sort_definite(title, articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
     if CONFIG.get_bool('IMP_CALIBRE_MAGISSUE'):

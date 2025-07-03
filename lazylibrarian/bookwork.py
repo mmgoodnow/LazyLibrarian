@@ -1563,9 +1563,12 @@ def thinglang(isbn):
         timeout = CONFIG.get_int('HTTP_TIMEOUT')
         r = requests.get(book_url, timeout=timeout, proxies=proxies)
         resp = r.text
-        logger.debug(f"LibraryThing reports language [{resp}] for {isbn}")
-        if 'invalid' not in resp and 'unknown' not in resp and '<' not in resp:
-            booklang = resp
+        if '!DOCTYPE html' in resp:
+            logger.debug("Librarything returned html for language")
+        else:
+            logger.debug(f"LibraryThing reports language [{resp}] for {isbn}")
+            if 'invalid' not in resp and 'unknown' not in resp and '<' not in resp:
+                booklang = resp
     except Exception as e:
         logger.error(f"{type(e).__name__} finding language: {str(e)}")
     finally:

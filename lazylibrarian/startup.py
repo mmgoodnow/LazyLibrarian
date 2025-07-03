@@ -477,7 +477,7 @@ class StartupLazyLibrarian:
                 except Exception as e:
                     self.logger.error(f'Failed to load {json_file}, {type(e).__name__} {str(e)}')
         self.logger.error('No valid dicts.json file found')
-        return {"filename_dict": {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
+        return {"filename_dict": {'<': '', '>': '', '...': '', ' = ': ' ', '?': '', '$': 's', '|': '',
                                   ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
                                   '\\\\': '\\'},
                 "apostrophe_dict": quotes

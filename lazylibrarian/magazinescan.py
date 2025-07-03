@@ -453,12 +453,13 @@ def get_dateparts(title_or_issue, datetype=''):
             style = 9
 
     # now check the single string compound dates
-    if len(words) == 1:
-        data = words[0]
+    pos = 0
+    while pos < len(words):
+        data = words[pos]
         if data.isdigit():
             if len(data) == 4 and check_year(data):  # YYYY
                 year = int(data)
-                style = 15
+                #style = 15
             elif len(data) == 6:
                 if check_year(data[:4]):  # YYYYMM
                     year = int(data[:4])
@@ -486,7 +487,8 @@ def get_dateparts(title_or_issue, datetype=''):
                 style = 18
             elif len(data) > 2:
                 issue = int(data)
-                style = 14
+                #style = 14
+        pos += 1
 
     dateparts = {"year": year, "months": months, "day": day, "issue": issue, "volume": volume,
                  "month": month, "mname": mname, "inoun": inoun, "vnoun": vnoun, "style": style}
@@ -657,6 +659,12 @@ def get_dateparts(title_or_issue, datetype=''):
         dateparts['month'] = dateparts['months'][0]
     else:
         dateparts['month'] = 0
+
+    if dateparts['year'] and not dateparts['style']:
+        dateparts['style'] = 15
+
+    if dateparts['issue'] and not dateparts['style']:
+        dateparts['style'] = 14
 
     datetype_ok = True
     if datetype and dateparts['style']:

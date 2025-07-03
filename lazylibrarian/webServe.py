@@ -381,6 +381,7 @@ def serve_template(templatename, **kwargs):
 class WebInterface:
 
     auth = AuthController()
+    progress_data = ''
 
     @staticmethod
     def validate_param(keyword, value, tokens, errorpage):
@@ -5462,7 +5463,7 @@ class WebInterface:
     # noinspection PyBroadException
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def magazine_update(self, **kwargs):
+    def magazine_update_ajax(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
@@ -5498,7 +5499,12 @@ class WebInterface:
 
                 # rename files/folders to match, and issuefile to match new location
                 issues = db.select("SELECT IssueDate,IssueFile,IssueID from issues WHERE Title=?", (new_title,))
+                total_items = len(issues)
+                current_item = 0
                 for issue in issues:
+                    current_item += 1
+                    current_percent = int(current_item * 100 / total_items)
+                    self.progress_data = f"{current_item}/{total_items}/{current_percent}"
                     calibre_id = None
                     old_path = os.path.dirname(issue['IssueFile'])
                     if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
@@ -5544,7 +5550,27 @@ class WebInterface:
                 logger.error(f'Unhandled exception in magazine_update: {traceback.format_exc()}')
             finally:
                 db.close()
-        return return_msg
+        self.progress_data = ''
+        # Return JSON response instead of redirect
+        total = passed + failed
+        summary = f"Operation completed."
+        if total > 0:
+            summary += f" {passed} successful"
+            if failed > 0:
+                summary += f", {failed} failed"
+            summary += f" out of {total} total items."
+        else:
+            summary += " No items were processed."
+
+        return {
+            'success': True,
+            'passed': passed,
+            'failed': failed,
+            'total': total,
+            'title': new_title,
+            'summary': summary
+        }
+
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -5848,8 +5874,31 @@ class WebInterface:
                 db.close()
             if res and res['SendTo']:
                 email = res['SendTo']
+        self.progress_data = ''
         return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
                               user=user, email=email, firstpage=firstpage, response=response)
+
+    @cherrypy.expose
+    def abort_progress(self):
+        logger = logging.getLogger(__name__)
+        lazylibrarian.MARK_ISSUES = False
+        logger.warning('Mark Issues/Magazines Aborted by user')
+        return False
+
+    @cherrypy.expose
+    def issues_progress(self):
+        try:
+            current, total, percent = self.progress_data.split('/')
+        except ValueError:
+            current = '0'
+            total = '0'
+            percent = '0'
+
+        bar = ('<div class="progress center-block" style="width: 70%;"><div class="progress-bar-info'
+            f' progress-bar progress-bar-striped" role="progressbar aria-valuenow="{percent}"'
+            f' aria-valuemin="0" aria-valuemax="100" style="width:{percent}%;">'
+            f'<span class="progressbar-front-text">{current}/{total}</span></div></div>')
+        return bar
 
     @cherrypy.expose
     def past_issues(self, mag=None, **kwargs):
@@ -6077,9 +6126,16 @@ class WebInterface:
         try:
             title = ''
             args.pop('book_table_length', None)
-
+            lazylibrarian.MARK_ISSUES = True
             if action:
+                total_items = len(args)
+                current_item = 0
                 for item in args:
+                    if lazylibrarian.MARK_ISSUES is False:
+                        break
+                    current_item += 1
+                    current_percent = int(current_item * 100 / total_items)
+                    self.progress_data = f"{current_item}/{total_items}/{current_percent}"
                     issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (item,))
                     if issue:
                         issue = dict(issue)
@@ -6201,6 +6257,7 @@ class WebInterface:
         else:
             summary += " No items were processed."
 
+        self.progress_data = ''
         return {
             'success': True,
             'action': action,
@@ -6298,9 +6355,12 @@ class WebInterface:
         db = database.DBConnection()
         try:
             args.pop('book_table_length', None)
+            lazylibrarian.MARK_ISSUES = True
             passed = 0
             failed = 0
             for item in args:
+                if lazylibrarian.MARK_ISSUES is False:
+                    break
                 title = item
                 if action == "Paused" or action == "Active":
                     control_value_dict = {"Title": title}
