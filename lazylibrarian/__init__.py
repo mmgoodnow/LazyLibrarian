@@ -89,6 +89,7 @@ FFMPEGAAC = ''
 SAB_VER = (0, 0, 0)
 NEWUSER_MSG = ''
 NEWFILE_MSG = ''
+libraryscan_data = ''
 
 # user permissions
 perm_config = 1 << 0  # 1 access to config page

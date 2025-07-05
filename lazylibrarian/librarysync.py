@@ -31,7 +31,7 @@ from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file,
-                                      opf_file, get_directory)
+                                      opf_file, get_directory, book_file)
 from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented, replace_all, strip_quotes,
                                      split_title, now, make_unicode)
 from lazylibrarian.gb import GoogleBooks
@@ -516,6 +516,29 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         logger.warning(f'Cannot find directory: {startdir}. Not scanning')
         return 0
 
+    if startdir == destdir:
+        lazylibrarian.AUTHORS_UPDATE = 1
+    logger.debug("Counting directories...")
+    dir_cnt = 0
+    for rootdir, dirnames, filenames in walk(startdir):
+        for directory in dirnames:
+            lazylibrarian.libraryscan_data = f"Counting directories: {dir_cnt}"
+            # prevent magazine being scanned
+            c = directory[0]
+            ignorefile = '.ll_ignore'
+            dirname = os.path.join(rootdir, directory)
+            if c in ["_", "."]:
+                logger.debug(f'Skipping {dirname}')
+                # ignore directories containing this special file
+            elif path_exists(os.path.join(rootdir, directory, ignorefile)):
+                logger.debug(f'Found .ll_ignore file in {dirname}')
+            elif (book_file(dirname, booktype='ebook', config=CONFIG, recurse=False) or
+                  book_file(dirname, booktype='audiobook', config=CONFIG, recurse=False)):
+                dir_cnt += 1
+    msg = f"Found {dir_cnt} directories"
+    logger.debug(msg)
+    lazylibrarian.libraryscan_data = msg
+
     db = database.DBConnection()
     processed_subdirectories = []
     rehit = []
@@ -671,7 +694,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     logger.debug(f'Found .ll_ignore file in {os.path.join(rootdir, directory)}')
                     dirnames.remove(directory)
             subdirectory = rootdir.replace(make_unicode(startdir), '')
+            total_items = dir_cnt
             for files in filenames:
+                current_item = len(processed_subdirectories)
+                current_percent = int(current_item * 100 / total_items)
+                lazylibrarian.libraryscan_data = f"{current_item}/{total_items}/{current_percent}"
                 # Added new code to skip if we've done this directory before.
                 # Made this conditional with a switch in config.ini
                 # in case user keeps multiple different books in the same subdirectory
@@ -974,8 +1001,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 if not bookid:
                                     # get author name from (grand)parent directory of this book directory
+                                    book_filename = os.path.join(rootdir, files)
                                     newauthorname = book_filename[len(startdir.rstrip(os.sep)) + 1:].split(os.sep)[0]
-                                    if not ' ' in newauthorname:
+                                    if ' ' not in newauthorname:
                                         newauthorname = os.path.basename(os.path.dirname(rootdir))
                                     newauthorname = make_unicode(newauthorname)
                                     # calibre replaces trailing periods with _ eg Smith Jr. -> Smith Jr_
@@ -1220,6 +1248,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         logger.info(f"{file_count} {plural(file_count, 'file')} processed")
 
         if startdir == destdir:
+            if len(remiss):
+                lazylibrarian.libraryscan_data = (f'<div class="alert alert-danger">'
+                                                  f'Failed to match {len(remiss)}<br></div>')
             # On full library scans, check for missing workpages
             set_work_pages()
             # and books with unknown language
@@ -1348,7 +1379,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     new_value_dict = {"Status": "Active"}
                     db.upsert("authors", new_value_dict, control_value_dict)
     finally:
-        logger.debug(f"Processed folders: {len(processed_subdirectories)}, matched books: {len(rehit)}, unmatched: {len(remiss)}")
+        logger.debug(f"Processed folders: {len(processed_subdirectories)}, "
+                     f"matched books: {len(rehit)}, unmatched: {len(remiss)}")
         if '_SCAN' in threading.current_thread().name:
             threading.current_thread().name = 'WEBSERVER'
         db.close()
