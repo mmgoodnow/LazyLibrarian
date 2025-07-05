@@ -1170,11 +1170,12 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
             author = sorted_contributions[0]
             bookdict['auth_name'] = " ".join(author['author']['name'].split())
-            bookdict['auth_id'] = str(author['author']['id'])
+            # not all hardcover entries have an id???
+            bookdict['auth_id'] = str(author['author'].get('id', '0'))
             if len(sorted_contributions) > 1:
                 sorted_contributions.pop(0)
                 for item in sorted_contributions:
-                    bookdict['contributing_authors'].append([str(item['author']['id']),
+                    bookdict['contributing_authors'].append([str(item['author'].get('id', '0')),
                                                              " ".join(item['author']['name'].split())])
 
         bookdict['title'] = book_data.get('title', '')
@@ -1262,15 +1263,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
             if not author_contributions:
                 # If no author contributions found, fall back to the original list
                 author_contributions = contributions
-
-            # Sort contributions by author ID in descending order (highest ID first)
-            sorted_contributions = sorted(author_contributions,
-                                          key=lambda x: int(x['author']['id']) if x['author']['id'] else 0,
-                                          reverse=True)
+            # Sort contributions by author name in asscending order
+            sorted_contributions = sorted(author_contributions, key=lambda x: x['author']['name'])
 
             author = sorted_contributions[0]
             bookdict['auth_name'] = " ".join(author['author']['name'].split())
-            bookdict['auth_id'] = str(author['author']['id'])
+            # not all hardcover entries have an id???
+            bookdict['auth_id'] = str(author['author'].get('id', '0'))
 
         bookdict['title'] = book_data.get('title', '')
         bookdict['subtitle'] = book_data.get('subtitle', '')
@@ -1877,17 +1876,16 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 lazylibrarian.importer.update_totals(auth_id)
 
                 for entry in bookdict['contributing_authors']:
-                    auth_id = add_author_to_db(authorname=entry[1], refresh=False,
-                                               authorid=entry[0],
-                                               addbooks=False,
-                                               reason=f"Contributor to {bookdict['title']}")
+                    auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
+                                                                      authorid=entry[0], addbooks=False,
+                                                                      reason=f"Contributor to {bookdict['title']}")
                     if auth_id:
                         # Add any others as contributing authors
                         db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                                   (auth_id, bookdict['bookid'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
                         lazylibrarian.importer.update_totals(auth_id)
                     else:
-                        logger.debug(f"Unable to add {auth_id}")
+                        self.logger.debug(f"Unable to add contributor {entry[1]} for {bookdict['title']}")
 
                 # Handle series data if present
                 if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):

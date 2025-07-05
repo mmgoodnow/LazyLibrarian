@@ -124,7 +124,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
         else:
             check_exist_author = None
         if not exists and (CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
-            logger.debug(f'Author {author} not found in database, trying to add')
+            logger.debug(f'Author {author} not found in database, adding...')
             # no match for supplied author, but we're allowed to add new ones
             if title:
                 search = f"{author}<ll>{title}"
@@ -293,8 +293,8 @@ def get_all_author_details(authorid='', authorname=None):
                 authorname = ol_author['authorname']
 
     if CONFIG['HC_API'] and (CONFIG['BOOK_API'] in ['HardCover', 'GoogleBooks'] or CONFIG.get_bool('MULTI_SOURCE')):
-        if not hc_id and authorid.isnumeric():
-            hc_id = authorid
+        # if not hc_id and not CONFIG['GR_API'] and authorid.isnumeric():  # could be gr or hc, won't be both!
+        #     hc_id = authorid
         if not hc_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
             searchterm = authorname
             match = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
@@ -315,8 +315,8 @@ def get_all_author_details(authorid='', authorname=None):
 
     if CONFIG['GR_API'] and (CONFIG['BOOK_API'] not in ['OpenLibrary', 'HardCover'] or
                              CONFIG.get_bool('MULTI_SOURCE')):
-        if not gr_id and authorid.isnumeric():
-            gr_id = authorid
+        # if not CONFIG['HC_API'] and not gr_id and authorid.isnumeric():  # could be gr or hc, won't be both!
+        #     gr_id = authorid
         if (not gr_id and CONFIG['GR_API'] and authorname and 'unknown' not in authorname and
                 'anonymous' not in authorname):
             gr = GoodReads(authorname)
@@ -474,7 +474,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
             if dbauthor:
                 logger.warning(
                     f"Authorname {current_author['authorname']} already exists with id {dbauthor['authorID']}")
-                current_author['authorid'] = dbauthor['authorid']
+                # current_author['authorid'] = dbauthor['authorid']
                 aka = authorname.replace(',', '')
                 akas = get_list(dbauthor['AKA'], ',')
                 if aka and aka not in akas:

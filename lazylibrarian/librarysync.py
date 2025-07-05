@@ -517,6 +517,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         return 0
 
     db = database.DBConnection()
+    processed_subdirectories = []
+    rehit = []
+    remiss = []
     # noinspection PyBroadException
     try:
         # keep statistics of full library scans
@@ -559,8 +562,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         modified_count = 0
         rescan_count = 0
         rescan_hits = 0
-        rehit = []
-        remiss = []
         file_count = 0
 
         # allow full_scan override so we can scan in alternate directories without deleting others
@@ -600,7 +601,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
         # to save repeat-scans of the same directory if it contains multiple formats of the same book,
         # keep track of which directories we've already looked at
-        processed_subdirectories = []
         warned_no_new_authors = False  # only warn about the setting once
         booktypes = ''
         count = -1
@@ -974,7 +974,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 if not bookid:
                                     # get author name from (grand)parent directory of this book directory
-                                    newauthorname = os.path.basename(os.path.dirname(rootdir))
+                                    newauthorname = book_filename[len(startdir.rstrip(os.sep)) + 1:].split(os.sep)[0]
+                                    if not ' ' in newauthorname:
+                                        newauthorname = os.path.basename(os.path.dirname(rootdir))
                                     newauthorname = make_unicode(newauthorname)
                                     # calibre replaces trailing periods with _ eg Smith Jr. -> Smith Jr_
                                     if newauthorname.endswith('_'):
@@ -1066,7 +1068,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 db.action(cmd, (language, bookid))
                                     else:
                                         logger.warning(f"Rescan no match for {book}, closest {round(closest, 2)}%")
-                                        remiss.append(f"{book} {round(closest, 2)}%")
+                                        remiss.append(f"{book}:{author} ({round(closest, 2)}%)")
 
                                 # see if it's there now...
                                 if bookid:
@@ -1346,6 +1348,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     new_value_dict = {"Status": "Active"}
                     db.upsert("authors", new_value_dict, control_value_dict)
     finally:
+        logger.debug(f"Processed folders: {len(processed_subdirectories)}, matched books: {len(rehit)}, unmatched: {len(remiss)}")
         if '_SCAN' in threading.current_thread().name:
             threading.current_thread().name = 'WEBSERVER'
         db.close()

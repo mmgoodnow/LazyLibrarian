@@ -1390,25 +1390,33 @@ class OpenLibrary:
             bookgenre = ''
             db = database.DBConnection()
             try:
+                auth_name, exists = lazylibrarian.importer.get_preferred_author_name(authorname)
                 match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
                 if match:
                     authorname = match['AuthorName']
                 elif reason.startswith('Librarysync ') and ' rescan ' in reason:
-                    authorname = reason.split(' rescan ')[1]
+                    authorname = auth_name
                     match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
                     if match:
                         authorid = match['AuthorID']
                 else:
                     # ol does not give us authorname in work page
-                    auth_id = lazylibrarian.importer.add_author_to_db(authorid=authorid, refresh=False,
-                                                                      addbooks=False,
-                                                                      reason=f"ol.find_book {bookid}")
-                    # authorid may have changed on importing
-                    if auth_id and authorid != auth_id and auth_id.startswith('OL'):
-                        authorid = auth_id
-                    match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
-                    if match:
+                    if exists:
+                        match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorName=?', (auth_name,))
                         authorname = match['AuthorName']
+                        authorid = match['AuthorID']
+                    else:
+                        auth_id = lazylibrarian.importer.add_author_name_to_db(authorname=auth_name,
+                                                                               refresh=False,
+                                                                               addbooks=False,
+                                                                               reason=f"ol.find_book {bookid}")
+                        # authorid may have changed on importing
+                        match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorID=? or ol_id=?', (auth_id, auth_id))
+                        if match:
+                            authorname = match['AuthorName']
+                            authorid = match['AuthorID']
+                        else:
+                            authorname = ''
                 if not authorname:
                     self.logger.warning(f"No AuthorName for {authorid}, unable to add book {title}")
                     return
@@ -1436,7 +1444,7 @@ class OpenLibrary:
                     cover, _ = get_book_cover(bookid, ignore='openlibrary')
                 elif cover and cover.startswith('http'):
                     cover = cache_bookimg(cover, bookid, 'ol')
-
+                print(1, authorid)
                 reason = f"[{thread_name()}] {reason}"
                 control_value_dict = {"BookID": bookid}
                 new_value_dict = {
@@ -1468,6 +1476,8 @@ class OpenLibrary:
                           (authorid, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
                 # ol work page doesn't give us enough info on secondary authors
                 # we can get the data later when the primary author is refreshed using ol_search
+            except Exception:
+                self.logger.error(f'Unhandled exception in OL.find_book: {traceback.format_exc()}')
             finally:
                 db.close()
             self.logger.info(f"{title} by {authorname} added to the books database, {bookstatus}/{audiostatus}")

@@ -730,7 +730,7 @@ def format_author_name(author: str, postfix: List[str]) -> str:
             else:
                 # guess its "surname, forename" or "surname, initial(s)" so swap them round
                 forename = words[1].strip()
-                # openlibrary adds period to shoretened fornames, eg "Will.""
+                # openlibrary adds period to shortened fornames, eg "Will."
                 # make sure we don't interfere with initials...
                 if forename.endswith('.') and len(forename) > 2 and forename.count('.') == 1:
                     forename = forename.strip('.')
@@ -738,16 +738,11 @@ def format_author_name(author: str, postfix: List[str]) -> str:
             if author != f"{forename} {surname}":
                 fuzzlogger.debug(f'Formatted authorname [{author}] to [{forename} {surname}]')
                 author = f"{forename} {surname}"
-    # reformat any initials, we want to end up with L.E. Modesitt Jr
-    if len(author) > 2 and author[1] in '. ':
-        surname = author
-        forename = ''
-        while len(surname) > 2 and surname[1] in '. ':
-            forename = f"{forename + surname[0]}."
-            surname = surname[2:].strip()
-        if author != f"{forename} {surname}":
-            fuzzlogger.debug(f'Stripped authorname [{author}] to [{forename} {surname}]')
-            author = f"{forename} {surname}"
+    # reformat any initials, we want to end up with L.E. Modesitt Jr, Charles H. Elliott PhD
+    if '.' in author:
+        forename, surname = author.rsplit('.', 1)
+        forename = forename.replace('. ', '.')
+        author = f"{forename}. {surname}"
 
     res = ' '.join(author.split())  # ensure no extra whitespace
     if res.isupper() or res.islower():

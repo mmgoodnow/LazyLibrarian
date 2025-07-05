@@ -44,8 +44,8 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'MATCH_RATIO', 80),
     ConfigInt('General', 'DLOAD_RATIO', 90),
     ConfigInt('General', 'NAME_RATIO', 90),
-    ConfigInt('General', 'NAME_PARTIAL', 95),
-    ConfigInt('General', 'NAME_PARTNAME', 98),
+    ConfigInt('General', 'NAME_PARTIAL', 93),
+    ConfigInt('General', 'NAME_PARTNAME', 93),
     ConfigInt('General', 'DISPLAYLENGTH', 10),
     ConfigInt('General', 'HIST_REFRESH', 1000),
     ConfigBool('General', 'NO_IPV6', 0),
@@ -366,7 +366,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('LibraryScan', 'NO_LANG', 0),
     ConfigBool('LibraryScan', 'ISBN_LOOKUP', 1),
     ConfigBool('LibraryScan', 'IMP_IGNORE', 0),
-    
+
     ConfigStr('PostProcess', 'CREATE_LINK', ''),
     ConfigFolder('PostProcess', 'EBOOK_DEST_FOLDER', '$Author/$Title'),
     ConfigStr('PostProcess', 'EBOOK_DEST_FILE', '$Title - $Author'),
