@@ -96,7 +96,7 @@
         <thead>
           <tr>
             %if perm&lazylibrarian.perm_status:
-            <th class="select text-center no-sort"><input type="checkbox" onClick="toggleAll(this)" /></th>
+            <th class="select text-center no-sort"><input type="checkbox" id="allcheck" onClick="toggleAll(this)" /></th>
             %else:
             <th class="hidden"></th>
             %endif
@@ -303,6 +303,8 @@
     function validateForm() {
         var x = document.forms["mark_books"]["action"].value;
         var c = (document.querySelectorAll('input[class="checkbox"]:checked').length);
+        var all_check = document.getElementById("allcheck").checked;
+        if (all_check) { c -= 1};
         if (c > 0 && x == "Delete") {
             if (c == 1) {msg = "Are you sure you want to permanently delete the selected book?"}
             if (c > 1) {msg = "Are you sure you want to permanently delete the " + c + " selected books?"}

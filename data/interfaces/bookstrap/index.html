@@ -111,7 +111,7 @@
       <thead>
         <tr>
             %if perm&lazylibrarian.perm_status:
-            <th class="select text-center no-sort"><input type="checkbox" onClick="toggleAll(this)" /></th>
+            <th class="select text-center no-sort"><input type="checkbox" id="allcheck" onClick="toggleAll(this)" /></th>
             %else:
             <th class="hidden"></th>
             %endif
@@ -285,6 +285,8 @@
     function validateForm() {
         var x = document.forms["mark_authors"]["action"].value;
         var c = ($(":checkbox:checked").length);
+        var all_check = document.getElementById("allcheck").checked;
+        if (all_check) { c -= 1};
         if (c > 0 && (x == "Delete" || x == "Remove")) {
             if (x == "Delete") {
                 if (c == 1){ msg = "Are you sure you want to permanently delete the selected author and their books?"}
@@ -338,6 +340,16 @@
             });
         });
     };
+
+    var timer = 2000;
+    if( timer > 0 )
+        {
+            tm = setInterval( function () {
+                $.get('libraryscan_progress', function (data) {
+                    $("#myAlert").html(data);
+            });
+            }, timer );
+        }
 
     function submitFormAjax() {
         var form = document.getElementById("mark_authors");

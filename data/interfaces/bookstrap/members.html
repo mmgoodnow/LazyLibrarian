@@ -99,7 +99,7 @@
         <thead>
           <tr>
             %if perm&lazylibrarian.perm_status:
-            <th class="select text-center no-sort"><input type="checkbox" onClick="toggleAll(this)" /></th>
+            <th class="select text-center no-sort"><input type="checkbox" id="allcheck" onClick="toggleAll(this)" /></th>
             %else:
             <td class="hidden"></td>
             %endif
