@@ -5900,6 +5900,20 @@ class WebInterface:
         return bar
 
     @cherrypy.expose
+    def magazinescan_progress(self):
+        try:
+            current, total, percent = lazylibrarian.magazinescan_data.split('/')
+        except ValueError:
+            return lazylibrarian.magazinescan_data
+
+        bar = ('<div class="text-center">Scanning Library Folders<br></div>'
+               '<div class="progress center-block" style="width: 90%;"><div class="progress-bar-info'
+               f' progress-bar progress-bar-striped" role="progressbar aria-valuenow="{percent}"'
+               f' aria-valuemin="0" aria-valuemax="100" style="width:{percent}%;">'
+               f'<span class="progressbar-front-text">{current}/{total}</span></div></div>')
+        return bar
+
+    @cherrypy.expose
     def libraryscan_progress(self):
         try:
             current, total, percent = lazylibrarian.libraryscan_data.split('/')

@@ -28,6 +28,7 @@ from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, pat
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
     replacevars, month2num, check_int
 from lazylibrarian.images import create_mag_cover, tag_issue
+from lazylibrarian.librarysync import get_book_info
 
 
 def create_id(issuename=None):
@@ -87,6 +88,17 @@ def magazine_scan(title=None):
                         db.action('DELETE from magazines WHERE Title=?', (title,))
 
         logger.info(f" Checking [{mag_path}] for {CONFIG['MAG_TYPE']}")
+
+        issue_cnt = 0
+        for _, _, filenames in walk(mag_path):
+            for fname in filenames:
+                if CONFIG.is_valid_booktype(fname, booktype='mag'):
+                    issue_cnt += 1
+                    lazylibrarian.magazinescan_data = f"Counting issues: {issue_cnt}"
+        msg = f"Found {issue_cnt} issues"
+        logger.debug(msg)
+        lazylibrarian.magazinescan_data = msg
+
         booktypes = ''
         count = -1
         booktype_list = get_list(CONFIG['MAG_TYPE'])
@@ -120,18 +132,38 @@ def magazine_scan(title=None):
             pattern = None
 
         if pattern:
+            total_items = issue_cnt
+            current_item = 0
             for rootdir, _, filenames in walk(mag_path):
                 for fname in filenames:
                     # maybe not all magazines will be pdf?
                     if CONFIG.is_valid_booktype(fname, booktype='mag'):
                         issuedate = ''
                         issuefile = os.path.join(rootdir, fname)  # full path to issue.pdf
+                        current_item += 1
+                        current_percent = int(current_item * 100 / total_items)
+                        lazylibrarian.magazinescan_data = f"{current_item}/{total_items}/{current_percent}"
+
                         # noinspection PyBroadException
                         try:
                             match = db.match('SELECT Title,IssueDate from issues WHERE IssueFile=?', (issuefile,))
                             if match:
                                 title = match['Title']
                                 issuedate = match['IssueDate']
+                            else:
+                                opf_file = f"{os.path.splitext(issuefile)[0]}.opf"
+                                if path_isfile(opf_file):
+                                    res = get_book_info(opf_file)
+                                    if res['Authors'] and res['Authors'][0] != "magazines":
+                                        title = res['Authors'][0]
+                                    elif res['Creator']:
+                                        title = res['Creator']
+                                    if title:
+                                        res = get_dateparts(issuefile)
+                                        if res:
+                                            issuedate = res['dbdate']
+                                if title and issuedate:
+                                    match = True
                             if not match:
                                 match = pattern.match(fname)
                                 if match:
