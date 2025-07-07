@@ -1055,7 +1055,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     if sortedlist:
                                         item = sortedlist[0]
                                         closest = item['highest_fuzz']
-                                        while item['source'] != CONFIG['BOOK_API']:
+                                        while bestmatch + 1 < len(sortedlist) and item['source'] != CONFIG['BOOK_API']:
                                             bestmatch += 1
                                             if sortedlist[bestmatch]['highest_fuzz'] < closest:
                                                 break
