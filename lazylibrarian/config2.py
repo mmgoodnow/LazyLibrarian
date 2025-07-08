@@ -550,7 +550,7 @@ class LLConfigHandler(ConfigDict):
         """ Update REDACTLIST after config changes """
 
         self.REDACTLIST = []
-        wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
+        wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV', '_KEY']
         if self.get_bool('HOSTREDACT'):
             wordlist.append('_HOST')
         for key in self.config.keys():
@@ -638,8 +638,9 @@ class LLConfigHandler(ConfigDict):
     def use_direct(self) -> int:
         """ Returns number of enabled direct book providers """
         count = self.count_in_use('GEN')
-        if self.get_bool('BOK') and not BLOCKHANDLER.is_blocked('BOK'):
-            count += 1
+        for item in ['BOK', 'ANNA']:
+            if self.get_bool(item) and not BLOCKHANDLER.is_blocked(item):
+                count += 1
         return count
 
     def disp_name(self, provider: str) -> str:
