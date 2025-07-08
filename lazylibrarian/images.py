@@ -819,6 +819,7 @@ def shrink_mag(issuefile, dpi=0):
             return ''
     return ''
 
+
 # noinspection PyUnresolvedReferences
 def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
@@ -1019,19 +1020,38 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     return ''
 
 
-def tag_issue(srcfile, title, issue):
+def read_pdf_tags(srcfile):
+    logger = logging.getLogger(__name__)
+    metadata = {}
+    if not path_isfile(srcfile):
+        logger.error(f"Unable to read source file {srcfile}")
+        return metadata
+    src_pdf = PdfReader(srcfile)
+    if not src_pdf:
+        logger.error(f"Unable to read source file {src_pdf}")
+        return metadata
+    try:
+        metadata = dict(src_pdf.metadata)
+    except TypeError:
+        # no metadata found in source file
+        metadata = {}
+    finally:
+        return metadata
+
+
+def write_pdf_tags(srcfile, title, issue, tags=None):
     logger = logging.getLogger(__name__)
     if not title or not issue:
         logger.error('Unable to tag, need title and issue')
-        return False
+        return {}
     if not path_isfile(srcfile):
         logger.error(f"Unable to read source file {srcfile}")
-        return False
+        return {}
 
     src_pdf = PdfReader(srcfile)
     if not src_pdf:
         logger.error(f"Unable to read source file {src_pdf}")
-        return False
+        return {}
 
     dst_pdf = PdfWriter(clone_from=src_pdf)
     try:
@@ -1040,6 +1060,8 @@ def tag_issue(srcfile, title, issue):
         # no metadata found in source file
         metadata = {}
 
+    magname = title
+    magissue = issue
     sorted_title = sort_definite(title, articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
     if CONFIG.get_bool('IMP_CALIBRE_MAGISSUE'):
         iname = issue
@@ -1078,16 +1100,30 @@ def tag_issue(srcfile, title, issue):
         language = match['Language']
     db.close()
 
+    metadata['/LL_Issue'] = magissue
+    metadata['/LL_Title'] = magname
+    # Write original filename into file so we can recover it if needed
+    if not metadata.get('/LL_Filename'):
+        metadata['/LL_Filename'] = os.path.basename(srcfile)
     metadata['/Title'] = iname
     metadata['/Title sort'] = sorted_iname
     metadata['/Author'] = title
     metadata['/Series'] = series
-    # Write original filename into file so we can recover it if needed
-    metadata['/Source Filename'] = srcfile
     if language:
         metadata['/Languages'] = language
-    dst_pdf.metadata = metadata
+
+    if tags:  # were we passed any customised tags
+        for item in tags:
+            # overwrite generated ones with customised, add extras
+            metadata[item] = tags[item]
+
+    newmetadata = {}
+    for item in metadata:  # Remove any empty tags
+        if metadata[item]:
+            newmetadata[item] = metadata[item]
+
+    dst_pdf.metadata = newmetadata
 
     dst_pdf.write(srcfile + '.tag')
     safe_move(srcfile + '.tag', srcfile)
-    return True
+    return newmetadata

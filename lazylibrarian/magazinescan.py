@@ -24,10 +24,10 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
-    safe_move, get_directory, remove_dir, listdir, book_file
+    safe_move, get_directory, remove_dir, book_file
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
     replacevars, month2num, check_int
-from lazylibrarian.images import create_mag_cover, tag_issue
+from lazylibrarian.images import create_mag_cover, write_pdf_tags, read_pdf_tags
 from lazylibrarian.librarysync import get_book_info
 
 
@@ -147,10 +147,11 @@ def magazine_scan(title=None):
                         # noinspection PyBroadException
                         try:
                             match = db.match('SELECT Title,IssueDate from issues WHERE IssueFile=?', (issuefile,))
-                            if match:
+                            if match:  # issue is already in the database
                                 title = match['Title']
                                 issuedate = match['IssueDate']
-                            else:
+
+                            if not match:  # try for data in an opf file (faster than reading pdf tags)
                                 opf_file = f"{os.path.splitext(issuefile)[0]}.opf"
                                 if path_isfile(opf_file):
                                     res = get_book_info(opf_file)
@@ -164,7 +165,16 @@ def magazine_scan(title=None):
                                             issuedate = res['dbdate']
                                 if title and issuedate:
                                     match = True
-                            if not match:
+
+                            if not match:  # try our custom tags in the pdf
+                                metadata = read_pdf_tags(issuefile)
+                                if metadata:
+                                    issuedate = metadata.get('/LL_Issue')
+                                    title = metadata.get('/LL_Title')
+                                if title and issuedate:
+                                    match = True
+
+                            if not match:  # last resort
                                 match = pattern.match(fname)
                                 if match:
                                     title = match.group("title").strip()
@@ -491,7 +501,7 @@ def get_dateparts(title_or_issue, datetype=''):
         if data.isdigit():
             if len(data) == 4 and check_year(data):  # YYYY
                 year = int(data)
-                #style = 15
+                # style = 15
             elif len(data) == 6:
                 if check_year(data[:4]):  # YYYYMM
                     year = int(data[:4])
@@ -519,7 +529,7 @@ def get_dateparts(title_or_issue, datetype=''):
                 style = 18
             elif len(data) > 2:
                 issue = int(data)
-                #style = 14
+                # style = 14
         pos += 1
 
     dateparts = {"year": year, "months": months, "day": day, "issue": issue, "volume": volume,
@@ -743,7 +753,7 @@ def get_dateparts(title_or_issue, datetype=''):
     return dateparts
 
 
-def rename_issue(issueid):
+def rename_issue(issueid, tags=None):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     if not issueid:
@@ -817,7 +827,7 @@ def rename_issue(issueid):
 
     if CONFIG.get_bool('TAG_PDF'):
         logger.debug(f"Tagging {new_filename}")
-        tag_issue(new_filename, match['Title'], match['IssueDate'])
+        _ = write_pdf_tags(new_filename, match['Title'], match['IssueDate'], tags=tags)
 
     if CONFIG.get_bool('IMP_MAGOPF'):
         logger.debug(f"Writing opf for {new_filename}")

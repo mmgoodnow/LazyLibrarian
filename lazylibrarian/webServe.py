@@ -64,7 +64,7 @@ from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, \
-    img_id, tag_issue
+    img_id, write_pdf_tags, read_pdf_tags
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
@@ -5684,12 +5684,13 @@ class WebInterface:
         TELEMETRY.record_usage_data()
         db = database.DBConnection()
         try:
-            issuedata = db.match("SELECT Title,IssueDate,IssueID from issues WHERE IssueID=?", (issueid,))
+            issuedata = db.match("SELECT Title,IssueDate,IssueID,IssueFile from issues WHERE IssueID=?", (issueid,))
         finally:
             db.close()
 
         if issuedata:
-            return serve_template(templatename="editissue.html", title="Edit Issue", config=issuedata)
+            tagdict = read_pdf_tags(issuedata['IssueFile'])
+            return serve_template(templatename="editissue.html", title="Edit Issue", config=issuedata, tags=tagdict)
         else:
             logger.error(f"Missing issue {issueid}")
 
@@ -5753,7 +5754,22 @@ class WebInterface:
             if issue["Title"] != magtitle:
                 edited = 'Title '
             if issue["IssueDate"] != issuenum:
-                edited += 'Date/Num'
+                edited += 'Date/Num '
+            new_tags = {}
+            for item in kwargs:
+                if item.startswith('tags_/'):
+                    new_tags[item[5:]] = kwargs[item]
+            try:
+                old_tags = eval(kwargs['tagdata'])
+            except SyntaxError:
+                old_tags = None
+            if not isinstance(tags, dict):
+                logger.warning("Invalid old_tags dictionary")
+                old_tags = {}
+            if old_tags == new_tags:
+                logger.debug("No tag changes")
+            else:
+                edited += 'Tags '
             if edited:
                 if issue["Title"] != magtitle:
                     if not magazine:
@@ -5771,7 +5787,7 @@ class WebInterface:
                     db.action("UPDATE issues SET Title=? WHERE IssueID=?", (magtitle, issue['IssueID']))
                 db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
 
-                fname, err = rename_issue(issue['IssueID'])
+                fname, err = rename_issue(issue['IssueID'], tags=new_tags)
                 response = (f'Issue {issue["IssueDate"]} of {issue["Title"]}, changed to '
                             f'{os.path.basename(fname)} {edited}')
                 if err:
@@ -6202,7 +6218,7 @@ class WebInterface:
 
                         if action == 'tag' and issuefile:
                             logger.debug(f"Tagging {issuefile}")
-                            res = tag_issue(issuefile, title, issue['IssueDate'])
+                            res = write_pdf_tags(issuefile, title, issue['IssueDate'])
                             if not res:
                                 failed += 1
                             else:
@@ -6424,7 +6440,7 @@ class WebInterface:
                     mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
                     for issue in issues:
                         logger.debug(f"Tagging {issue['IssueFile']}")
-                        res = tag_issue(issue['IssueFile'], title, issue["IssueDate"])
+                        res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"])
                         if not res:
                             failed += 1
                         else:

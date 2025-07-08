@@ -13,6 +13,7 @@
     <div class="configtable">
         <input name="utf8" type="hidden" value="&#x2713;" />
         <input name="issueid" type="hidden" value="${config['IssueID']}" />
+        <textarea id="summernote" name="tagdata" class="hidden" rows="20" placeholder="">${tags}</textarea>
         <fieldset>
             <legend>${title}</legend>
             <div class="form-group col-md6">
@@ -23,6 +24,15 @@
                 <label for="issuenum" class="control-label">Issue Date/Num:</label>
                 <input type="text" id="issuenum" name="issuenum" value="${config['IssueDate']}" class="form-control" placeholder="Date/Num">
             </div>
+        %if tags:
+            <legend>PDF Tags</legend>
+            %for item in tags:
+                <div class="form-group col-md6">
+                    <label for="tags_${item}" class="control-label">${item}</label>
+                    <input type="text" id="tags_${item}" name="tags_${item}" value="${tags[item]}" class="form-control" placeholder="">
+                </div>
+            %endfor
+        %endif
         </fieldset>
         <div class="table_wrapper_button">
             <input type="submit" value="Save changes" id="add" class="btn btn-primary">

@@ -48,7 +48,7 @@ from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
 from lazylibrarian.hc import HardCover, hc_sync
 from lazylibrarian.images import get_author_image, get_author_images, get_book_cover, get_book_covers, \
-    create_mag_covers, create_mag_cover, shrink_mag
+    create_mag_covers, create_mag_cover, shrink_mag, read_pdf_tags, write_pdf_tags
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
@@ -260,6 +260,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'getauthorsfrombookfiles': (1, 'Scan your book folder and get all secondary authors from epub,mobi,opf'),
             'getauthorsfromhc': (1, 'Scan your database and get all secondary authors from HardCover'),
             'getauthorsfromol': (1, 'Scan your database and get all secondary authors from OpenLibrary'),
+            'getpdftags': (0, '&id= Show embedded tags in a pdf issue file'),
+            'setpdftags': (1, '&id= &tags= Set embedded tags in a pdf issue file'),
             }
 
 
@@ -2863,3 +2865,53 @@ class Api(object):
             self.data = get_authors_from_ol()
         else:
             threading.Thread(target=get_authors_from_ol, name='API-AUTH_FROM_OL').start()
+
+    def _getpdftags(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        db = database.DBConnection()
+        dbentry = db.match("SELECT IssueFile from issues WHERE IssueID=?", (kwargs['id'],))
+        if not dbentry:
+            self.data = f"IssueID {kwargs['id']} not found in database"
+            db.close()
+            return
+        issuefile = dbentry['IssueFile']
+        db.close()
+        if not path_isfile(issuefile):
+            self.data = f"Unable to read source file for IssueID {kwargs['id']}"
+            return
+        self.data = read_pdf_tags(issuefile)
+
+    def _setpdftags(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        db = database.DBConnection()
+        dbentry = db.match("SELECT IssueFile,Title,IssueDate from issues WHERE IssueID=?", (kwargs['id'],))
+        if not dbentry:
+            self.data = f"IssueID {kwargs['id']} not found in database"
+            db.close()
+            return
+        issuefile = dbentry['IssueFile']
+        title = dbentry['Title']
+        issuedate = dbentry['IssueDate']
+        db.close()
+        if 'tags' not in kwargs:
+            tags = {}
+        else:
+            try:
+                tags = eval(kwargs['tags'])
+            except SyntaxError:
+                tags = None
+            if not isinstance(tags, dict):
+                self.data = "Invalid tags dictionary"
+                return
+        if not path_isfile(issuefile):
+            self.data = f"Unable to read source file for IssueID {kwargs['id']}"
+            return
+        self.data = write_pdf_tags(issuefile, title, issuedate, tags)
+
+

@@ -23,7 +23,7 @@ from lazylibrarian.common import calibre_prg, zip_audio
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
 from lazylibrarian.formatter import (get_list, make_unicode, check_int, human_size, now, check_float, plural)
-from lazylibrarian.images import shrink_mag, coverswap, valid_pdf, tag_issue
+from lazylibrarian.images import shrink_mag, coverswap, valid_pdf, write_pdf_tags
 
 
 def preprocess_ebook(bookfolder):
@@ -308,7 +308,7 @@ def get_metatags(bookid, bookfile, authorname, bookname, source_file):
     return metatags
 
 
-def write_tags(bookfolder, filename, track, metatags):
+def write_audio_tags(bookfolder, filename, track, metatags):
     logger = logging.getLogger(__name__)
     loggerpostprocess = logging.getLogger('special.postprocess')
     ffmpeg = CONFIG['FFMPEG']
@@ -527,7 +527,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
         errored = 0
         for part in parts:
-            res = write_tags(bookfolder, part[3], part[0], metatags)
+            res = write_audio_tags(bookfolder, part[3], part[0], metatags)
             if not res:
                 errored += 1
         logger.debug(f"Written tags to {len(parts)}, errors on {errored}")
@@ -597,7 +597,8 @@ def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue=''):
             coverswap(srcfile, cover)
 
         if tag:
-            tag_issue(srcfile, title, issue)
+            # write a default set of tags
+            _ = write_pdf_tags(srcfile, title, issue, None)
 
         safe_move(srcfile, original)
         _ = setperm(original)
