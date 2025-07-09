@@ -572,6 +572,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
     if caps_changed:
         CONFIG.save_config_and_backup_old(section='Capabilities')
 
+    last_used = []
     for provider in CONFIG.providers('NEWZNAB'):
         dispname = provider['DISPNAME']
         if not dispname:
@@ -614,11 +615,14 @@ def iterate_over_znab_sites(book=None, search_type=None):
                             delay = provider.get_int('LASTUSED') + ratelimit - time.time()
                             if delay > 0:
                                 time.sleep(delay)
-                        provider.set_int('LASTUSED', int(time.time()))
+                        last_used.append([provider, int(time.time())])
 
                     providers += 1
                     logger.debug(f'Querying provider {dispname}')
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
+    for item in last_used:
+        logger.debug(f"Updating LASTUSED for {provider['NAME']}")
+        item[0].set_int('LASTUSED', item[1])
 
     caps_changed = []
     # can't update while iterating so copy and update after
@@ -635,6 +639,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
     if caps_changed:
         CONFIG.save_config_and_backup_old(section='Capabilities')
 
+    last_used = []
     for provider in CONFIG.providers('TORZNAB'):
         dispname = provider['DISPNAME']
         if not dispname:
@@ -677,11 +682,15 @@ def iterate_over_znab_sites(book=None, search_type=None):
                             delay = provider.get_int('LASTUSED') + ratelimit - time.time()
                             if delay > 0:
                                 time.sleep(delay)
-                        provider.set_int('LASTUSED', int(time.time()))
+                        last_used.append([provider, int(time.time())])
 
                     providers += 1
                     logger.debug(f'Querying provider {dispname}')
                     resultslist += newznab_plus(book, provider, search_type, "torznab")[1]
+
+    for item in last_used:
+        logger.debug(f"Updating LASTUSED for {provider['NAME']}")
+        item[0].set_int('LASTUSED', item[1])
 
     return resultslist, providers
 
