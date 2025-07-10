@@ -204,6 +204,8 @@ def serve_template(templatename, **kwargs):
                             res = db.match('SELECT * from users where UserName=?', (user,))
                             if res:
                                 logger.debug(f"{user} is a registered user")
+                                cherrypy.response.cookie['ll_uid'] = res['UserID']
+                                cherrypy.response.cookie['ll_prefs'] = res['Prefs']
                                 db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
                                           (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                             if not res and CONFIG.get_bool('PROXY_REGISTER'):
@@ -230,6 +232,8 @@ def serve_template(templatename, **kwargs):
                                         if cnt['counter'] > 1:
                                             lazylibrarian.SHOWLOGOUT = 1
                                         res = db.match('SELECT * from users where UserName=?', (user,))
+                                        cherrypy.response.cookie['ll_uid'] = res['UserID']
+                                        cherrypy.response.cookie['ll_prefs'] = res['Prefs']
                                         db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
                                                   (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                                     else:
@@ -5763,7 +5767,7 @@ class WebInterface:
                 old_tags = eval(kwargs['tagdata'])
             except SyntaxError:
                 old_tags = None
-            if not isinstance(tags, dict):
+            if not isinstance(old_tags, dict):
                 logger.warning("Invalid old_tags dictionary")
                 old_tags = {}
             if old_tags == new_tags:
@@ -5922,7 +5926,7 @@ class WebInterface:
         except ValueError:
             return lazylibrarian.magazinescan_data
 
-        bar = ('<div class="text-center">Scanning Library Folders<br></div>'
+        bar = ('<div class="text-center">Scanning Library ...<br></div>'
                '<div class="progress center-block" style="width: 90%;"><div class="progress-bar-info'
                f' progress-bar progress-bar-striped" role="progressbar aria-valuenow="{percent}"'
                f' aria-valuemin="0" aria-valuemax="100" style="width:{percent}%;">'
@@ -6218,7 +6222,11 @@ class WebInterface:
 
                         if action == 'tag' and issuefile:
                             logger.debug(f"Tagging {issuefile}")
-                            res = write_pdf_tags(issuefile, title, issue['IssueDate'])
+                            try:
+                                res = write_pdf_tags(issuefile, title, issue['IssueDate'])
+                            except Exception as e:
+                                logger.error(f"Failed to tag {issuefile}: {e}")
+                                res = False
                             if not res:
                                 failed += 1
                             else:
@@ -6396,6 +6404,8 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
+        total_items = 0
+        current_item = 0
         try:
             args.pop('book_table_length', None)
             lazylibrarian.MARK_ISSUES = True
@@ -6438,9 +6448,17 @@ class WebInterface:
                 if action == 'tag':
                     issues = db.select('SELECT * from issues WHERE Title=?', (title,))
                     mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                    total_items += len(issues)
                     for issue in issues:
                         logger.debug(f"Tagging {issue['IssueFile']}")
-                        res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"])
+                        current_item += 1
+                        current_percent = int(current_item * 100 / total_items)
+                        lazylibrarian.magazinescan_data = f"{current_item}/{total_items}/{current_percent}"
+                        try:
+                            res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"])
+                        except Exception as e:
+                            logger.error(f"Failed to tag {issue['IssueFile']}: {e}")
+                            res = False
                         if not res:
                             failed += 1
                         else:
