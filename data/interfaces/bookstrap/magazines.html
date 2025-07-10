@@ -290,7 +290,7 @@
         {
             tm = setInterval( function () {
                 $.get('magazinescan_progress', function (data) {
-                    $("#myAlert").html(data);
+                    $("#progressbar").html(data);
             });
             }, timer );
         }
@@ -301,10 +301,17 @@
 
         // Show loading modal
         bootbox.dialog({
-            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div>',
+            message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div><span id="progressbar"></span>',
             size: 'small',
             backdrop: false,
-            closeButton: false
+            closeButton: false,
+            buttons: {
+                ok: {
+                    label: '<i class=\"fa fa-ban\"></i>Abort',
+                    className: 'btn-warning',
+                    callback: function(){ $.get("abort_progress", function(data) {}); window.history.back(); }
+                }
+            }
         });
 
         // Convert FormData to URLSearchParams for the AJAX call

@@ -150,6 +150,7 @@ def magazine_scan(title=None):
                             if match:  # issue is already in the database
                                 title = match['Title']
                                 issuedate = match['IssueDate']
+                                logger.debug(f"Using {title}:{issuedate} from database issuefile")
 
                             if not match:  # try for data in an opf file (faster than reading pdf tags)
                                 opf_file = f"{os.path.splitext(issuefile)[0]}.opf"
@@ -165,6 +166,7 @@ def magazine_scan(title=None):
                                             issuedate = res['dbdate']
                                 if title and issuedate:
                                     match = True
+                                    logger.debug(f"Using {title}:{issuedate} from opf file")
 
                             if not match:  # try our custom tags in the pdf
                                 metadata = read_pdf_tags(issuefile)
@@ -172,6 +174,7 @@ def magazine_scan(title=None):
                                     issuedate = metadata.get('/LL_Issue')
                                     title = metadata.get('/LL_Title')
                                 if title and issuedate:
+                                    logger.debug(f"Using {title}:{issuedate} from pdf tags")
                                     match = True
 
                             if not match:  # last resort
@@ -180,21 +183,38 @@ def magazine_scan(title=None):
                                     title = match.group("title").strip()
                                     issuedate = match.group("issuedate").strip()
                                     loggermatching.debug(f"Title pattern [{title}][{issuedate}] {fname}")
-                                    if title.isdigit():
-                                        match = False
-                                    else:
-                                        parent = os.path.basename(rootdir).strip()
-                                        if parent.lower() == title.lower():
-                                            # assume folder name is in users preferred case
-                                            title = parent
+                                    if title and issuedate:
                                         match = True
-                                if not match:
-                                    logger.debug(f"Title pattern match failed for [{fname}]")
+                                        if title.rsplit('(', 1)[1].split(')').isdigit():
+                                            # it's a calibre folder, title is probably parent folder
+                                            issuefolder = os.path.dirname(issuefile)
+                                            parent = os.path.dirname(issuefolder)
+                                            title = os.path.basename(parent)
+                                            logger.debug(f"Using {title}:{issuedate} from calibre parent folder")
+                                        else:
+                                            logger.debug(f"Using {title}:{issuedate} from filename pattern match")
+                                else:
+                                    logger.debug(f"Pattern match failed for [{fname}]")
                         except Exception:
                             match = False
                         if not match:
                             title = os.path.basename(rootdir).strip()
                             issuedate = ''
+                            try:
+                                # noinspection PyTypeChecker
+                                calibreid = title.rsplit('(', 1)[1].split(')')[0]
+                                if not calibreid.isdigit():
+                                    calibreid = ''
+                            except IndexError:
+                                calibreid = ''
+
+                            if calibreid:
+                                # it's a calibre folder, title is probably parent folder
+                                parent = os.path.dirname(rootdir)
+                                title = os.path.basename(parent)
+                                logger.debug(f"Using {title} from calibre parent folder")
+                            else:
+                                logger.debug(f"Using {title} from basename {rootdir}")
 
                         datetype = ''
                         # is this magazine already in the database?
@@ -707,6 +727,14 @@ def get_dateparts(title_or_issue, datetype=''):
 
     if dateparts['issue'] and not dateparts['style']:
         dateparts['style'] = 14
+
+    if not dateparts['style'] and datetype == 'I':
+        # if we haven't found a matching datestyle, and we're expecting just an issuenum
+        # and if only one word is digits, assume that's the issuenum
+        numbers = [word for word in words if word.isdigit()]
+        if len(numbers) == 1:
+            dateparts['issue'] = numbers[0]
+            dateparts['style'] = 14
 
     datetype_ok = True
     if datetype and dateparts['style']:

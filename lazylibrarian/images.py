@@ -1056,7 +1056,8 @@ def write_pdf_tags(srcfile, title, issue, tags=None):
     dst_pdf = PdfWriter(clone_from=src_pdf)
     try:
         metadata = dict(src_pdf.metadata)
-    except TypeError:
+    except Exception as e:
+        logger.error(f"{srcfile}:{e}")
         # no metadata found in source file
         metadata = {}
 
@@ -1083,7 +1084,7 @@ def write_pdf_tags(srcfile, title, issue, tags=None):
 
         iname = f"{title} - {month} {yr}"  # The Magpi - January 2017
         sorted_iname = f"{sorted_title} - {month} {yr}"  # Magpi, The - January 2017
-        series = f"{title} #{yr[:2]}.{mn}"
+        series = f"{title} #{yr}.{mn}"
     elif title in issue:
         iname = issue  # 0063 - Android Magazine -> 0063
         sorted_iname = iname
@@ -1122,8 +1123,12 @@ def write_pdf_tags(srcfile, title, issue, tags=None):
         if metadata[item]:
             newmetadata[item] = metadata[item]
 
-    dst_pdf.metadata = newmetadata
-
-    dst_pdf.write(srcfile + '.tag')
-    safe_move(srcfile + '.tag', srcfile)
+    try:
+        dst_pdf.metadata = newmetadata
+        dst_pdf.write(srcfile + '.tag')
+        safe_move(srcfile + '.tag', srcfile)
+    except Exception as e:
+        logger.error(f"Unable to write tags: {e}")
+        logger.error(f"{newmetadata}")
+        newmetadata = {}
     return newmetadata
