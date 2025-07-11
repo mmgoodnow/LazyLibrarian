@@ -227,7 +227,7 @@
                 "bServerSide": true,
                 "sAjaxSource": 'get_series?whichStatus=${whichStatus}&AuthorID=${authorid}',
                 "bFilter": true,
-                "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
+                "aLengthMenu": [[5, 10, 15, 25, 50, 100, 500, 1000, 5000, -1], [5, 10, 15, 25, 50, 100, 500, 1000, 5000, "All"]],
                 "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     %if perm&lazylibrarian.perm_status == 0:
