@@ -208,53 +208,53 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
     # Assumes the book is the correct file for the id and renames it to match
     # Adds the id to the database if not already there
     logger = logging.getLogger(__name__)
+    if not source_dir or not path_isdir(source_dir):
+        logger.warning(f"{source_dir} is not a directory")
+        return False
+    if source_dir.startswith(get_directory(library)):
+        logger.warning('Source directory must not be the same as or inside library')
+        return False
+
+    TELEMETRY.record_usage_data('Process/Book/FromDir')
+    reject = multibook(source_dir)
+    if reject:
+        logger.debug(f"Not processing {source_dir}, found multiple {reject}")
+        return False
+
+    if library not in ['eBook', 'Audio']:
+        logger.error(f"book_from_dir not implemented for {library}")
+        return False
+
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        if not source_dir or not path_isdir(source_dir):
-            logger.warning(f"{source_dir} is not a directory")
-            return False
-        if source_dir.startswith(get_directory(library)):
-            logger.warning('Source directory must not be the same as or inside library')
-            return False
-
-        TELEMETRY.record_usage_data('Process/Book/FromDir')
-        reject = multibook(source_dir)
-        if reject:
-            logger.debug(f"Not processing {source_dir}, found multiple {reject}")
-            return False
-
-        if library in ['eBook', 'Audio']:
-            logger.debug(f'Processing {library} directory {source_dir}')
+        logger.debug(f'Processing {library} directory {source_dir}')
+        book = db.match('SELECT * from books where BookID=?', (bookid,))
+        if not book:
+            logger.warning(f"Bookid [{bookid}] not found in database, trying to add...")
+            if CONFIG['BOOK_API'] == "GoodReads":
+                gr_id = GoodReads(bookid)
+                gr_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
+            elif CONFIG['BOOK_API'] == "GoogleBooks":
+                gb_id = GoogleBooks(bookid)
+                gb_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
+            elif CONFIG['BOOK_API'] == "OpenLibrary":
+                ol_id = OpenLibrary(bookid)
+                ol_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
+            elif CONFIG['BOOK_API'] == "HardCover":
+                hc_id = HardCover(bookid)
+                hc_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
+            # see if it's there now...
             book = db.match('SELECT * from books where BookID=?', (bookid,))
-            if not book:
-                logger.warning(f"Bookid [{bookid}] not found in database, trying to add...")
-                if CONFIG['BOOK_API'] == "GoodReads":
-                    gr_id = GoodReads(bookid)
-                    gr_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
-                elif CONFIG['BOOK_API'] == "GoogleBooks":
-                    gb_id = GoogleBooks(bookid)
-                    gb_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
-                elif CONFIG['BOOK_API'] == "OpenLibrary":
-                    ol_id = OpenLibrary(bookid)
-                    ol_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
-                elif CONFIG['BOOK_API'] == "HardCover":
-                    hc_id = HardCover(bookid)
-                    hc_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
-                # see if it's there now...
-                book = db.match('SELECT * from books where BookID=?', (bookid,))
-            if not book:
-                logger.debug(f"Unable to add bookid {bookid} to database")
-                return False
-            return process_book(source_dir, bookid, library)
-        else:
-            logger.error(f"book_from_dir not implemented for {library}")
+        db.close()
+        if not book:
+            logger.debug(f"Unable to add bookid {bookid} to database")
             return False
+        return process_book(source_dir, bookid, library)
     except Exception:
         logger.error(f'Unhandled exception in book_from_dir: {traceback.format_exc()}')
-        return False
-    finally:
         db.close()
+        return False
 
 
 def process_issues(source_dir=None, title=''):
@@ -1737,11 +1737,11 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             status['action'] = 'Restarted'
     except Exception:
         logger.error(f'Unhandled exception in process_dir: {traceback.format_exc()}')
-    finally:
-        db.close()
-        logger.debug(f'Returning {status}')
-        thread_name(threadname)
-        return status
+
+    db.close()
+    logger.debug(f'Returning {status}')
+    thread_name(threadname)
+    return status
 
 
 def check_contents(source, downloadid, booktype, title):
@@ -2354,9 +2354,9 @@ def get_download_progress(source, downloadid):
         logger.error(f'Unhandled exception in get_download_progress: {traceback.format_exc()}')
         progress = 0
         finished = False
-    finally:
-        db.close()
-        return progress, finished
+
+    db.close()
+    return progress, finished
 
 
 def delete_task(source, download_id, remove_data):

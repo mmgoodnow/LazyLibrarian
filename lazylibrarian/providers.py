@@ -621,7 +621,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
                     logger.debug(f'Querying provider {dispname}')
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
     for item in last_used:
-        logger.debug(f"Updating LASTUSED for {provider['NAME']}")
+        logger.debug(f"Updating LASTUSED for {item[0]['NAME']}")
         item[0].set_int('LASTUSED', item[1])
 
     caps_changed = []
@@ -689,7 +689,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
                     resultslist += newznab_plus(book, provider, search_type, "torznab")[1]
 
     for item in last_used:
-        logger.debug(f"Updating LASTUSED for {provider['NAME']}")
+        logger.debug(f"Updating LASTUSED for {item[0]['NAME']}")
         item[0].set_int('LASTUSED', item[1])
 
     return resultslist, providers
@@ -1102,8 +1102,8 @@ def iterate_over_irc_sites(book=None, search_type=None):
                         resultslist += results
     except Exception as e:
         logger.error(str(e))
-    finally:
-        return resultslist, providers
+
+    return resultslist, providers
 
 
 def ny_times(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):

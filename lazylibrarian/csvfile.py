@@ -156,7 +156,6 @@ def restore_table(table, savedir=None, status=None):
 def export_csv(search_dir=None, status="Wanted", library=''):
     """ Write a csv file to the search_dir containing all books marked as "Wanted" """
     logger = logging.getLogger(__name__)
-    msg = 'Export CSV'
     if not library:
         if CONFIG.get_bool('AUDIO_TAB'):
             library = 'AudioBook'
@@ -214,8 +213,8 @@ def export_csv(search_dir=None, status="Wanted", library=''):
     except Exception:
         msg = f'Unhandled exception in export_csv: {traceback.format_exc()}'
         logger.error(msg)
-    finally:
-        return msg
+
+    return msg
 
 
 def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem'):
@@ -271,7 +270,6 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
         Delete the file on successful completion if 'DELETE_CSV' is True
     """
     logger = logging.getLogger(__name__)
-    msg = 'Import CSV'
     if not library:
         library = 'AudioBook' if CONFIG.get_bool('AUDIO_TAB') else 'eBook'
     if not search_dir:
@@ -448,8 +446,8 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
     except Exception:
         msg = f'Unhandled exception in import_csv: {traceback.format_exc()}'
         logger.error(msg)
-    finally:
-        db.close()
-        if 'IMPORTCSV' in threading.current_thread().name:
-            threading.current_thread().name = 'WEBSERVER'
-        return msg
+
+    db.close()
+    if 'IMPORTCSV' in threading.current_thread().name:
+        threading.current_thread().name = 'WEBSERVER'
+    return msg

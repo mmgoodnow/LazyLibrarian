@@ -1020,195 +1020,203 @@ class WebInterface:
     def get_user_profile(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_admin)
         db = database.DBConnection()
-        res = ''
-        try:
-            match = db.match('SELECT * from users where UserName=?', (kwargs['user'],))
-            if match:
-                subs = db.select('SELECT Type,WantID from subscribers WHERE UserID=?', (match['userid'],))
-                cnt = db.match('select count(*) as counter from sent_file where UserID=?', (match['userid'],))
-                last_login = check_int(match['Last_Login'], 0)
-                subscriptions = ''
-                for item in subs:
-                    if item['Type'] != 'ebook':
-                        if subscriptions:
-                            subscriptions += '\n'
-                        subscriptions += f'{item["Type"]} {item["WantID"]}'
-                res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
-                                  'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
-                                  'sendto': match['SendTo'], 'booktype': match['BookType'], 'userid': match['UserID'],
-                                  'lastlogin': datetime.datetime.fromtimestamp(last_login).ctime()
-                                  if last_login else '',
-                                  'logins': match['Login_Count'], 'downloads': cnt['counter'], 'subs': subscriptions,
-                                  'theme': match['Theme'], 'hc_id': match['hc_id'], 'hc_token': match['hc_token']})
-            else:
-                res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '', 'sendto': '',
-                                  'booktype': '', 'userid': '', 'lastlogin': '', 'logins': '0', 'subs': '',
-                                  'theme': '', 'hc_id': '', 'hc_token': ''})
-        finally:
-            db.close()
-            return res
+        match = db.match('SELECT * from users where UserName=?', (kwargs['user'],))
+        if match:
+            subs = db.select('SELECT Type,WantID from subscribers WHERE UserID=?', (match['userid'],))
+            cnt = db.match('select count(*) as counter from sent_file where UserID=?', (match['userid'],))
+            last_login = check_int(match['Last_Login'], 0)
+            subscriptions = ''
+            for item in subs:
+                if item['Type'] != 'ebook':
+                    if subscriptions:
+                        subscriptions += '\n'
+                    subscriptions += f'{item["Type"]} {item["WantID"]}'
+            res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
+                              'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
+                              'sendto': match['SendTo'], 'booktype': match['BookType'], 'userid': match['UserID'],
+                              'lastlogin': datetime.datetime.fromtimestamp(last_login).ctime()
+                              if last_login else '',
+                              'logins': match['Login_Count'], 'downloads': cnt['counter'], 'subs': subscriptions,
+                              'theme': match['Theme'], 'hc_id': match['hc_id'], 'hc_token': match['hc_token']})
+        else:
+            res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '', 'sendto': '',
+                              'booktype': '', 'userid': '', 'lastlogin': '', 'logins': '0', 'subs': '',
+                              'theme': '', 'hc_id': '', 'hc_token': ''})
+        db.close()
+        return res
 
     @cherrypy.expose
     def admin_users(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_admin)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            user = kwargs['user']
-            new_user = not user
 
-            if new_user:
-                msg = "New user NOT added: "
-                if not kwargs['username']:
-                    return msg + "No username given"
-                else:
-                    # new user must not have same username as an existing one
-                    match = db.match('SELECT UserName from users where UserName=?', (kwargs['username'],))
-                    if match:
-                        return msg + "Username already exists"
+        user = kwargs['user']
+        new_user = not user
+        changes = ''
 
-                if not kwargs['fullname']:
-                    return msg + "No fullname given"
-
-                if not kwargs['email']:
-                    return msg + "No email given"
-
-                if not is_valid_email(kwargs['email']):
-                    return msg + "Invalid email given"
-
-                perms = check_int(kwargs['perms'], 0)
-                if not perms:
-                    return msg + "No permissions or invalid permissions given"
-                if not kwargs['password']:
-                    return msg + "No password given"
-
-                if perms == lazylibrarian.perm_admin:
-                    perm_msg = 'ADMIN'
-                elif perms == lazylibrarian.perm_friend:
-                    perm_msg = 'Friend'
-                elif perms == lazylibrarian.perm_guest:
-                    perm_msg = 'Guest'
-                else:
-                    perm_msg = f'Custom {perms}'
-
-                self.validate_param("username", kwargs['username'], ['<', '>', '='], 404)
-                self.validate_param("fullname", kwargs['fullname'], ['<', '>', '='], 404)
-                msg = lazylibrarian.NEWUSER_MSG.replace('{username}', kwargs['username']).replace(
-                    '{password}', kwargs['password']).replace(
-                    '{permission}', perm_msg)
-
-                result = notifiers.email_notifier.notify_message('LazyLibrarian New Account', msg, kwargs['email'])
-
-                if result:
-                    cmd = ("INSERT into users (UserID, UserName, Name, Password, Email, SendTo, Perms, hc_token) "
-                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-                    db.action(cmd, (pwd_generator(), kwargs['username'], kwargs['fullname'],
-                                    md5_utf8(kwargs['password']), kwargs['email'], kwargs['sendto'], perms,
-                                    kwargs.get('hc_token', '')))
-                    msg = f"New user added: {kwargs['username']}: {perm_msg}"
-                    msg += f"<br>Email sent to {kwargs['email']}"
-                    cnt = db.match("select count(*) as counter from users")
-                    if cnt['counter'] > 1:
-                        lazylibrarian.SHOWLOGOUT = 1
-                else:
-                    msg = "New user NOT added"
-                    msg += f"<br>Failed to send email to {kwargs['email']}"
-                return msg
-
+        if new_user:
+            msg = "New user NOT added: "
+            if not kwargs['username']:
+                db.close()
+                return msg + "No username given"
             else:
-                if user != kwargs['username']:
-                    # if username changed, must not have same username as another user
-                    match = db.match('SELECT UserName from users where UserName=?', (kwargs['username'],))
-                    if match:
-                        return "Username already exists"
+                # new user must not have same username as an existing one
+                match = db.match('SELECT UserName from users where UserName=?', (kwargs['username'],))
+                if match:
+                    db.close()
+                    return msg + "Username already exists"
 
-                changes = ''
-                cmd = ("SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType,Theme,"
-                       "hc_token from users where UserName=?")
-                details = db.match(cmd, (user,))
+            if not kwargs['fullname']:
+                db.close()
+                return msg + "No fullname given"
 
-                if details:
-                    userid = details['UserID']
-                    if kwargs['username'] and kwargs['username'] != user:
-                        changes += ' username'
-                        db.action('UPDATE users SET UserName=? WHERE UserID=?', (kwargs['username'], userid))
+            if not kwargs['email']:
+                db.close()
+                return msg + "No email given"
 
-                    if kwargs['fullname'] and details['Name'] != kwargs['fullname']:
-                        changes += ' name'
-                        db.action('UPDATE users SET Name=? WHERE UserID=?', (kwargs['fullname'], userid))
+            if not is_valid_email(kwargs['email']):
+                db.close()
+                return msg + "Invalid email given"
 
-                    if details['Email'] != kwargs['email']:
-                        if kwargs['email']:
-                            if not is_valid_email(kwargs['email']):
-                                return "Invalid email given"
-                        changes += ' email'
-                        db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
+            perms = check_int(kwargs['perms'], 0)
+            if not perms:
+                db.close()
+                return msg + "No permissions or invalid permissions given"
+            if not kwargs['password']:
+                db.close()
+                return msg + "No password given"
 
-                    if details['SendTo'] != kwargs['sendto']:
-                        if kwargs['sendto']:
-                            if not is_valid_email(kwargs['sendto']):
-                                return "Invalid sendto email given"
-                        changes += ' sendto'
-                        db.action('UPDATE users SET sendto=? WHERE UserID=?', (kwargs['sendto'], userid))
+            if perms == lazylibrarian.perm_admin:
+                perm_msg = 'ADMIN'
+            elif perms == lazylibrarian.perm_friend:
+                perm_msg = 'Friend'
+            elif perms == lazylibrarian.perm_guest:
+                perm_msg = 'Guest'
+            else:
+                perm_msg = f'Custom {perms}'
 
-                    if kwargs['password']:
-                        pwd = md5_utf8(kwargs['password'])
-                        if pwd != details['Password']:
-                            changes += ' password'
-                            db.action('UPDATE users SET password=? WHERE UserID=?', (pwd, userid))
+            self.validate_param("username", kwargs['username'], ['<', '>', '='], 404)
+            self.validate_param("fullname", kwargs['fullname'], ['<', '>', '='], 404)
+            msg = lazylibrarian.NEWUSER_MSG.replace('{username}', kwargs['username']).replace(
+                '{password}', kwargs['password']).replace(
+                '{permission}', perm_msg)
 
-                    if details['Theme'] != kwargs['theme']:
-                        valid = False
-                        if kwargs['theme'] == 'legacy':
-                            valid = True
-                        elif kwargs['theme']:
-                            parts = kwargs['theme'].split('_', 1)
-                            if parts[0] == 'bookstrap':
-                                if len(parts) == 2 and parts[1] in lazylibrarian.BOOKSTRAP_THEMELIST:
-                                    valid = True
-                        if valid:
-                            changes += ' Theme'
-                            db.action('UPDATE users SET Theme=? WHERE UserID=?', (kwargs['theme'], userid))
-                        else:
-                            logger.warning(f"Invalid user theme [{kwargs['theme']}]")
+            result = notifiers.email_notifier.notify_message('LazyLibrarian New Account', msg, kwargs['email'])
 
-                    if details['CalibreRead'] != kwargs['calread']:
-                        changes += ' CalibreRead'
-                        db.action('UPDATE users SET CalibreRead=? WHERE UserID=?', (kwargs['calread'], userid))
-
-                    if details['CalibreToRead'] != kwargs['caltoread']:
-                        changes += ' CalibreToRead'
-                        db.action('UPDATE users SET CalibreToRead=? WHERE UserID=?', (kwargs['caltoread'], userid))
-
-                    if details['BookType'] != kwargs['booktype']:
-                        changes += ' BookType'
-                        db.action('UPDATE users SET BookType=? WHERE UserID=?', (kwargs['booktype'], userid))
-
-                    if details['hc_token'] != kwargs['hc_token']:
-                        changes += ' hc_token'
-                        db.action('UPDATE users SET hc_token=? WHERE UserID=?', (kwargs['hc_token'], userid))
-
-                    if details['Perms'] != kwargs['perms']:
-                        oldperm = check_int(details['Perms'], 0)
-                        newperm = check_int(kwargs['perms'], 0)
-                        if oldperm & 1 and not newperm & 1:
-                            count = 0
-                            perms = db.select('SELECT Perms from users')
-                            for item in perms:
-                                val = check_int(item['Perms'], 0)
-                                if val & 1:
-                                    count += 1
-                            if count < 2:
-                                return "Unable to remove last administrator"
-                        if oldperm != newperm:
-                            changes += ' Perms'
-                            db.action('UPDATE users SET Perms=? WHERE UserID=?', (kwargs['perms'], userid))
-
-                    if changes:
-                        return f'Updated user details:{changes}'
-                return "No changes made"
-        finally:
+            if result:
+                cmd = ("INSERT into users (UserID, UserName, Name, Password, Email, SendTo, Perms, hc_token) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+                db.action(cmd, (pwd_generator(), kwargs['username'], kwargs['fullname'],
+                                md5_utf8(kwargs['password']), kwargs['email'], kwargs['sendto'], perms,
+                                kwargs.get('hc_token', '')))
+                msg = f"New user added: {kwargs['username']}: {perm_msg}"
+                msg += f"<br>Email sent to {kwargs['email']}"
+                cnt = db.match("select count(*) as counter from users")
+                if cnt['counter'] > 1:
+                    lazylibrarian.SHOWLOGOUT = 1
+            else:
+                msg = "New user NOT added"
+                msg += f"<br>Failed to send email to {kwargs['email']}"
             db.close()
+            return msg
+
+        else:
+            if user != kwargs['username']:
+                # if username changed, must not have same username as another user
+                match = db.match('SELECT UserName from users where UserName=?', (kwargs['username'],))
+                if match:
+                    db.close()
+                    return "Username already exists"
+
+            cmd = ("SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType,Theme,"
+                   "hc_token from users where UserName=?")
+            details = db.match(cmd, (user,))
+
+            if details:
+                userid = details['UserID']
+                if kwargs['username'] and kwargs['username'] != user:
+                    changes += ' username'
+                    db.action('UPDATE users SET UserName=? WHERE UserID=?', (kwargs['username'], userid))
+
+                if kwargs['fullname'] and details['Name'] != kwargs['fullname']:
+                    changes += ' name'
+                    db.action('UPDATE users SET Name=? WHERE UserID=?', (kwargs['fullname'], userid))
+
+                if details['Email'] != kwargs['email']:
+                    if kwargs['email']:
+                        if not is_valid_email(kwargs['email']):
+                            return "Invalid email given"
+                    changes += ' email'
+                    db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
+
+                if details['SendTo'] != kwargs['sendto']:
+                    if kwargs['sendto']:
+                        if not is_valid_email(kwargs['sendto']):
+                            return "Invalid sendto email given"
+                    changes += ' sendto'
+                    db.action('UPDATE users SET sendto=? WHERE UserID=?', (kwargs['sendto'], userid))
+
+                if kwargs['password']:
+                    pwd = md5_utf8(kwargs['password'])
+                    if pwd != details['Password']:
+                        changes += ' password'
+                        db.action('UPDATE users SET password=? WHERE UserID=?', (pwd, userid))
+
+                if details['Theme'] != kwargs['theme']:
+                    valid = False
+                    if kwargs['theme'] == 'legacy':
+                        valid = True
+                    elif kwargs['theme']:
+                        parts = kwargs['theme'].split('_', 1)
+                        if parts[0] == 'bookstrap':
+                            if len(parts) == 2 and parts[1] in lazylibrarian.BOOKSTRAP_THEMELIST:
+                                valid = True
+                    if valid:
+                        changes += ' Theme'
+                        db.action('UPDATE users SET Theme=? WHERE UserID=?', (kwargs['theme'], userid))
+                    else:
+                        logger.warning(f"Invalid user theme [{kwargs['theme']}]")
+
+                if details['CalibreRead'] != kwargs['calread']:
+                    changes += ' CalibreRead'
+                    db.action('UPDATE users SET CalibreRead=? WHERE UserID=?', (kwargs['calread'], userid))
+
+                if details['CalibreToRead'] != kwargs['caltoread']:
+                    changes += ' CalibreToRead'
+                    db.action('UPDATE users SET CalibreToRead=? WHERE UserID=?', (kwargs['caltoread'], userid))
+
+                if details['BookType'] != kwargs['booktype']:
+                    changes += ' BookType'
+                    db.action('UPDATE users SET BookType=? WHERE UserID=?', (kwargs['booktype'], userid))
+
+                if details['hc_token'] != kwargs['hc_token']:
+                    changes += ' hc_token'
+                    db.action('UPDATE users SET hc_token=? WHERE UserID=?', (kwargs['hc_token'], userid))
+
+                if details['Perms'] != kwargs['perms']:
+                    oldperm = check_int(details['Perms'], 0)
+                    newperm = check_int(kwargs['perms'], 0)
+                    if oldperm & 1 and not newperm & 1:
+                        count = 0
+                        perms = db.select('SELECT Perms from users')
+                        for item in perms:
+                            val = check_int(item['Perms'], 0)
+                            if val & 1:
+                                count += 1
+                        if count < 2:
+                            db.close()
+                            return "Unable to remove last administrator"
+                    if oldperm != newperm:
+                        changes += ' Perms'
+                        db.action('UPDATE users SET Perms=? WHERE UserID=?', (kwargs['perms'], userid))
+
+        if changes:
+            msg = f'Updated user details:{changes}'
+        else:
+            msg = "No changes made"
+        db.close()
+        return msg
 
     @cherrypy.expose
     def password_reset(self, **kwargs):
@@ -1279,31 +1287,30 @@ class WebInterface:
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.label_thread('EDIT_SERIES')
         db = database.DBConnection()
-        try:
-            seriesdata = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
-            if seriesdata:
-                # use bookid to update seriesdata['Reason']
-                seriesdata = dict(seriesdata)
-                cmd = "select BookName,BookID from books where (bookid=?) or (gr_id=?) or (lt_workid=?)"
-                reason = seriesdata['Reason']
-                bookinfo = db.match(cmd, (reason, reason, reason))
-                if bookinfo:
-                    seriesdata['Reason'] = f"{bookinfo['BookID']}: {bookinfo['BookName']}"
+        seriesdata = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
+        if seriesdata:
+            # use bookid to update seriesdata['Reason']
+            seriesdata = dict(seriesdata)
+            cmd = "select BookName,BookID from books where (bookid=?) or (gr_id=?) or (lt_workid=?)"
+            reason = seriesdata['Reason']
+            bookinfo = db.match(cmd, (reason, reason, reason))
+            if bookinfo:
+                seriesdata['Reason'] = f"{bookinfo['BookID']}: {bookinfo['BookName']}"
 
-                cmd = "SELECT SeriesNum,BookName from member,books WHERE books.BookID=member.BookID and seriesid=?"
-                memberdata = db.select(cmd, (seriesid,))
-                # sort properly by seriesnum as sqlite doesn't (yet) have natural sort
-                members = []
-                for item in memberdata:
-                    members.append(dict(item))
-                self.natural_sort(members, key=lambda y: y['SeriesNum'] if y['SeriesNum'] is not None else '')
-                return serve_template(templatename="editseries.html", title="Edit Series", config=seriesdata,
-                                      members=members)
-            else:
-                logger.info(f'Missing series {seriesid}')
-                raise cherrypy.HTTPError(404, f"Series {seriesid} not found")
-        finally:
+            cmd = "SELECT SeriesNum,BookName from member,books WHERE books.BookID=member.BookID and seriesid=?"
+            memberdata = db.select(cmd, (seriesid,))
+            # sort properly by seriesnum as sqlite doesn't (yet) have natural sort
+            members = []
+            for item in memberdata:
+                members.append(dict(item))
+            self.natural_sort(members, key=lambda y: y['SeriesNum'] if y['SeriesNum'] is not None else '')
             db.close()
+            return serve_template(templatename="editseries.html", title="Edit Series", config=seriesdata,
+                                  members=members)
+        else:
+            logger.info(f'Missing series {seriesid}')
+            db.close()
+            raise cherrypy.HTTPError(404, f"Series {seriesid} not found")
 
     @cherrypy.expose
     def series_update(self, seriesid='', **kwargs):
@@ -1363,7 +1370,6 @@ class WebInterface:
         loggerserverside = logging.getLogger('special.serverside')
         rows = []
         filtered = []
-        rowlist = []
         userid = None
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -1483,12 +1489,18 @@ class WebInterface:
 
             loggerserverside.debug(f"get_series returning {displaystart} to {displaystart + displaylength}")
             loggerserverside.debug(f"get_series filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            mydict = {'iTotalDisplayRecords': len(filtered),
+                      'iTotalRecords': len(rowlist),
+                      'aaData': rows,
+                      }
+            loggerserverside.debug(str(mydict))
+            return mydict
+
         except Exception:
             logger.error(f'Unhandled exception in get_series: {traceback.format_exc()}')
             rows = []
             rowlist = []
             filtered = []
-        finally:
             mydict = {'iTotalDisplayRecords': len(filtered),
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
@@ -2278,23 +2290,21 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
-            if authorsearch:
-                author_name = authorsearch['AuthorName']
-                logger.info(f"{status} author: {author_name}")
-
-                control_value_dict = {'AuthorID': authorid}
-                new_value_dict = {'Status': status}
-                db.upsert("authors", new_value_dict, control_value_dict)
-                logger.debug(
-                    f'AuthorID [{authorid}]-[{author_name}] {status} - redirecting to Author home page')
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
-            else:
-                logger.debug(f'pause_author Invalid authorid [{authorid}]')
-                raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
-        finally:
+        authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+        if authorsearch:
+            author_name = authorsearch['AuthorName']
+            logger.info(f"{status} author: {author_name}")
+            control_value_dict = {'AuthorID': authorid}
+            new_value_dict = {'Status': status}
+            db.upsert("authors", new_value_dict, control_value_dict)
+            logger.debug(
+                f'AuthorID [{authorid}]-[{author_name}] {status} - redirecting to Author home page')
             db.close()
+            raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
+        else:
+            logger.debug(f'pause_author Invalid authorid [{authorid}]')
+            db.close()
+            raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
 
     @cherrypy.expose
     def pause_author(self, authorid):
@@ -2336,22 +2346,20 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            authorsearch = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
-            if authorsearch:  # to stop error if try to refresh an author while they are still loading
-                authorname = authorsearch['AuthorName']
-                if not authorname or 'unknown' in authorname.lower() or 'anonymous' in authorname.lower():
-                    authorname = None
-                threading.Thread(target=add_author_to_db, name=f"REFRESHAUTHOR_{authorid}",
-                                 args=[authorname, True, authorid, True,
-                                       f"WebServer refresh_author {authorid}"]).start()
-
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
-            else:
-                logger.debug(f'refresh_author Invalid authorid [{authorid}]')
-                raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
-        finally:
+        authorsearch = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
+        if authorsearch:  # to stop error if try to refresh an author while they are still loading
+            authorname = authorsearch['AuthorName']
+            if not authorname or 'unknown' in authorname.lower() or 'anonymous' in authorname.lower():
+                authorname = None
+            threading.Thread(target=add_author_to_db, name=f"REFRESHAUTHOR_{authorid}",
+                             args=[authorname, True, authorid, True,
+                                   f"WebServer refresh_author {authorid}"]).start()
             db.close()
+            raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
+        else:
+            logger.debug(f'refresh_author Invalid authorid [{authorid}]')
+            db.close()
+            raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
 
     @cherrypy.expose
     def follow_author(self, authorid):
@@ -2410,74 +2418,73 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         loggerfuzz = logging.getLogger('special.fuzz')
         db = database.DBConnection()
-        try:
-            authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
-            if authorsearch:  # to stop error if try to refresh an author while they are still loading
-                author_name = authorsearch['AuthorName']
-                types = []
-                if CONFIG.get_bool('EBOOK_TAB'):
-                    types.append('eBook')
-                if CONFIG.get_bool('AUDIO_TAB'):
-                    types.append('AudioBook')
-                if not types:
-                    raise cherrypy.HTTPRedirect('authors')
-                library = types[0]
-                if 'library' in kwargs and kwargs['library'] in types:
-                    library = kwargs['library']
+        authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+        if authorsearch:  # to stop error if try to refresh an author while they are still loading
+            author_name = authorsearch['AuthorName']
+            types = []
+            if CONFIG.get_bool('EBOOK_TAB'):
+                types.append('eBook')
+            if CONFIG.get_bool('AUDIO_TAB'):
+                types.append('AudioBook')
+            if not types:
+                db.close()
+                raise cherrypy.HTTPRedirect('authors')
+            library = types[0]
+            if 'library' in kwargs and kwargs['library'] in types:
+                library = kwargs['library']
 
+            if library == 'AudioBook':
+                authordir = safe_unicode(os.path.join(get_directory('AudioBook'), author_name))
+            else:  # if library == 'eBook':
+                authordir = safe_unicode(os.path.join(get_directory('eBook'), author_name))
+            if not path_isdir(authordir):
+                # books might not be in exact same authorname folder due to capitalisation
+                # or accent stripping etc.
+                # eg Calibre puts books into folder "Eric Van Lustbader", but
+                # goodreads told lazylibrarian he's "Eric van Lustbader", note the lowercase 'v'
+                # or calibre calls "Neil deGrasse Tyson" "Neil DeGrasse Tyson" with a capital 'D'
+                # so try a fuzzy match...
+                libdir = os.path.dirname(authordir)
+                matchname, exists = get_preferred_author_name(author_name)
+                if exists:
+                    author_name = matchname
+                matchname = unaccented(matchname).lower()
+                for item in listdir(libdir):
+                    match = fuzz.ratio(format_author_name(unaccented(item),
+                                                          get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
+                    if match >= CONFIG.get_int('NAME_RATIO'):
+                        authordir = os.path.join(libdir, item)
+                        loggerfuzz.debug(f"Fuzzy match folder {round(match, 2)}% {item} for {author_name}")
+                        # Add this name variant as an aka if not already there?
+                        break
+
+            if not path_isdir(authordir):
+                # if still not found, see if we have a book by them, and what directory it's in
                 if library == 'AudioBook':
-                    authordir = safe_unicode(os.path.join(get_directory('AudioBook'), author_name))
-                else:  # if library == 'eBook':
-                    authordir = safe_unicode(os.path.join(get_directory('eBook'), author_name))
-                if not path_isdir(authordir):
-                    # books might not be in exact same authorname folder due to capitalisation
-                    # or accent stripping etc.
-                    # eg Calibre puts books into folder "Eric Van Lustbader", but
-                    # goodreads told lazylibrarian he's "Eric van Lustbader", note the lowercase 'v'
-                    # or calibre calls "Neil deGrasse Tyson" "Neil DeGrasse Tyson" with a capital 'D'
-                    # so try a fuzzy match...
-                    libdir = os.path.dirname(authordir)
-                    matchname, exists = get_preferred_author_name(author_name)
-                    if exists:
-                        author_name = matchname
-                    matchname = unaccented(matchname).lower()
-                    for item in listdir(libdir):
-                        match = fuzz.ratio(format_author_name(unaccented(item),
-                                                              get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
-                        if match >= CONFIG.get_int('NAME_RATIO'):
-                            authordir = os.path.join(libdir, item)
-                            loggerfuzz.debug(f"Fuzzy match folder {round(match, 2)}% {item} for {author_name}")
-                            # Add this name variant as an aka if not already there?
-                            break
-
-                if not path_isdir(authordir):
-                    # if still not found, see if we have a book by them, and what directory it's in
-                    if library == 'AudioBook':
-                        sourcefile = 'AudioFile'
-                    else:
-                        sourcefile = 'BookFile'
-                    cmd = f"SELECT {sourcefile} from books,authors where books.AuthorID = authors.AuthorID"
-                    cmd += f"  and AuthorName=? and {sourcefile} <> ''"
-                    anybook = db.match(cmd, (author_name,))
-                    if anybook:
-                        authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
-                if path_isdir(authordir):
-                    remv = CONFIG.get_bool('FULL_SCAN')
-                    try:
-                        threading.Thread(target=library_scan, name=f'AUTHOR_SCAN_{authorid}',
-                                         args=[authordir, library, authorid, remv]).start()
-                    except Exception as e:
-                        logger.error(f'Unable to complete the scan: {type(e).__name__} {str(e)}')
+                    sourcefile = 'AudioFile'
                 else:
-                    # maybe we don't have any of their books
-                    logger.warning(f'Unable to find author directory: {authordir}')
-
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library={library}")
+                    sourcefile = 'BookFile'
+                cmd = f"SELECT {sourcefile} from books,authors where books.AuthorID = authors.AuthorID"
+                cmd += f"  and AuthorName=? and {sourcefile} <> ''"
+                anybook = db.match(cmd, (author_name,))
+                if anybook:
+                    authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
+            if path_isdir(authordir):
+                remv = CONFIG.get_bool('FULL_SCAN')
+                try:
+                    threading.Thread(target=library_scan, name=f'AUTHOR_SCAN_{authorid}',
+                                     args=[authordir, library, authorid, remv]).start()
+                except Exception as e:
+                    logger.error(f'Unable to complete the scan: {type(e).__name__} {str(e)}')
             else:
-                logger.debug(f'ScanAuthor Invalid authorid [{authorid}]')
-                raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
-        finally:
+                # maybe we don't have any of their books
+                logger.warning(f'Unable to find author directory: {authordir}')
             db.close()
+            raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}&library={library}")
+        else:
+            logger.debug(f'ScanAuthor Invalid authorid [{authorid}]')
+            db.close()
+            raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
 
     @cherrypy.expose
     def add_author(self, authorname):
@@ -2615,57 +2622,56 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         logger.debug(f"snatch {library} bookid {bookid} mode={mode} from {provider} url=[{url}] {title}")
         db = database.DBConnection()
-        try:
-            bookdata = db.match('SELECT AuthorID, BookName from books WHERE BookID=?', (bookid,))
-            if bookdata:
-                size_temp = check_int(size, 1000)  # Need to cater for when this is NONE (Issue 35)
-                size = round(float(size_temp) / 1048576, 2)
-                control_value_dict = {"NZBurl": url}
-                new_value_dict = {
-                    "NZBprov": provider,
-                    "BookID": bookid,
-                    "NZBdate": now(),  # when we asked for it
-                    "NZBsize": size,
-                    "NZBtitle": bookdata["BookName"],
-                    "NZBmode": mode,
-                    "AuxInfo": library,
-                    "Status": "Snatched"
-                }
-                db.upsert("wanted", new_value_dict, control_value_dict)
-                author_id = bookdata["AuthorID"]
-                dl_title = bookdata["BookName"]
-                if provider in ['soulseek', 'annas']:
-                    dl_title = title
-                if mode == 'direct':
-                    snatch, res = direct_dl_method(bookid, dl_title, url, library, provider)
-                elif mode in ["torznab", "torrent", "magnet"]:
-                    snatch, res = tor_dl_method(bookid, bookdata["BookName"], url, library, provider=provider)
-                elif mode == 'nzb':
-                    snatch, res = nzb_dl_method(bookid, bookdata["BookName"], url, library)
-                elif mode == 'irc':
-                    if title:
-                        snatch, res = irc_dl_method(bookid, title, url, library, provider)
-                    else:
-                        snatch, res = irc_dl_method(bookid, bookdata["BookName"], url, library, provider)
+        bookdata = db.match('SELECT AuthorID, BookName from books WHERE BookID=?', (bookid,))
+        if bookdata:
+            size_temp = check_int(size, 1000)  # Need to cater for when this is NONE (Issue 35)
+            size = round(float(size_temp) / 1048576, 2)
+            control_value_dict = {"NZBurl": url}
+            new_value_dict = {
+                "NZBprov": provider,
+                "BookID": bookid,
+                "NZBdate": now(),  # when we asked for it
+                "NZBsize": size,
+                "NZBtitle": bookdata["BookName"],
+                "NZBmode": mode,
+                "AuxInfo": library,
+                "Status": "Snatched"
+            }
+            db.upsert("wanted", new_value_dict, control_value_dict)
+            author_id = bookdata["AuthorID"]
+            dl_title = bookdata["BookName"]
+            if provider in ['soulseek', 'annas']:
+                dl_title = title
+            if mode == 'direct':
+                snatch, res = direct_dl_method(bookid, dl_title, url, library, provider)
+            elif mode in ["torznab", "torrent", "magnet"]:
+                snatch, res = tor_dl_method(bookid, bookdata["BookName"], url, library, provider=provider)
+            elif mode == 'nzb':
+                snatch, res = nzb_dl_method(bookid, bookdata["BookName"], url, library)
+            elif mode == 'irc':
+                if title:
+                    snatch, res = irc_dl_method(bookid, title, url, library, provider)
                 else:
-                    res = f'Unhandled NZBmode [{mode}] for {url}'
-                    logger.error(res)
-                    snatch = False
-                if snatch:
-                    logger.info(f'Requested {library} {bookdata["BookName"]} from {provider}')
-                    custom_notify_snatch(f"{bookid} {library}")
-                    notify_snatch(
-                        f"{unaccented(bookdata['BookName'], only_ascii=False)} from "
-                        f"{CONFIG.disp_name(provider)} at {now()}")
-                    schedule_job(action=SchedulerCommand.START, target='PostProcessor')
-                else:
-                    db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?", (res, url))
-                raise cherrypy.HTTPRedirect(f"author_page?authorid={author_id}&library={library}")
+                    snatch, res = irc_dl_method(bookid, bookdata["BookName"], url, library, provider)
             else:
-                logger.debug(f'snatch_book Invalid bookid [{bookid}]')
-                raise cherrypy.HTTPError(404, f"BookID {bookid} not found")
-        finally:
+                res = f'Unhandled NZBmode [{mode}] for {url}'
+                logger.error(res)
+                snatch = False
+            if snatch:
+                logger.info(f'Requested {library} {bookdata["BookName"]} from {provider}')
+                custom_notify_snatch(f"{bookid} {library}")
+                notify_snatch(
+                    f"{unaccented(bookdata['BookName'], only_ascii=False)} from "
+                    f"{CONFIG.disp_name(provider)} at {now()}")
+                schedule_job(action=SchedulerCommand.START, target='PostProcessor')
+            else:
+                db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?", (res, url))
             db.close()
+            raise cherrypy.HTTPRedirect(f"author_page?authorid={author_id}&library={library}")
+        else:
+            logger.debug(f'snatch_book Invalid bookid [{bookid}]')
+            db.close()
+            raise cherrypy.HTTPError(404, f"BookID {bookid} not found")
 
     @cherrypy.expose
     def audio(self, booklang=None, book_filter=''):
@@ -2715,7 +2721,6 @@ class WebInterface:
     def get_books(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         rows = []
         filtered = []
-        rowlist = []
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
         db = database.DBConnection()
@@ -3060,26 +3065,27 @@ class WebInterface:
                 f"get_books {kwargs['source']} returning {displaystart} to {displaystart + displaylength}, "
                 f"flagged {flag_to},{flag_have}")
             loggerserverside.debug(f"get_books filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+
         except Exception:
             logger.error(f'Unhandled exception in get_books: {traceback.format_exc()}')
             rows = []
             rowlist = []
             filtered = []
-        finally:
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(rowlist),
-                      'aaData': rows,
-                      }
-            if kwargs['source'] == 'Author':
-                status = db.match("SELECT Status from authors WHERE authorid=?", (kwargs['AuthorID'],))
-                mydict['loading'] = status['Status'] == 'Loading'
-            elif kwargs['source'] == 'Books':
-                mydict['loading'] = lazylibrarian.EBOOK_UPDATE
-            elif kwargs['source'] == 'Audio':
-                mydict['loading'] = lazylibrarian.AUDIO_UPDATE
-            db.close()
-            loggerserverside.debug(str(mydict))
-            return mydict
+
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': len(rowlist),
+                  'aaData': rows,
+                  }
+        if kwargs['source'] == 'Author':
+            status = db.match("SELECT Status from authors WHERE authorid=?", (kwargs['AuthorID'],))
+            mydict['loading'] = status['Status'] == 'Loading'
+        elif kwargs['source'] == 'Books':
+            mydict['loading'] = lazylibrarian.EBOOK_UPDATE
+        elif kwargs['source'] == 'Audio':
+            mydict['loading'] = lazylibrarian.AUDIO_UPDATE
+        db.close()
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @staticmethod
     def natural_sort(lst, key=lambda s: s, reverse=False):
@@ -4659,46 +4665,45 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_edit)
         db = database.DBConnection()
-        try:
-            comicdata = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
-            if comicdata:
-                edited = ""
-                if comicdata["Title"] != new_name:
-                    edited += "Title "
-                if comicdata["aka"] != aka:
-                    edited += "aka "
-                if comicdata["Description"] != editordata:
-                    edited += "Description "
+        comicdata = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        if comicdata:
+            edited = ""
+            if comicdata["Title"] != new_name:
+                edited += "Title "
+            if comicdata["aka"] != aka:
+                edited += "aka "
+            if comicdata["Description"] != editordata:
+                edited += "Description "
 
-                if comicid != new_id:
-                    match = db.match('SELECT ComicID from comics where ComicID=?', (new_id,))
-                    if match:
-                        logger.debug(f"Unable to use new ID, {new_id} already exists")
-                    else:
-                        db.action('PRAGMA foreign_keys = OFF')
-                        db.action("UPDATE comics SET comicid=? WHERE comicid=?", (new_id, comicid))
-                        db.action("UPDATE comicissues SET comicid=? WHERE comicid=?", (new_id, comicid))
-                        db.action('PRAGMA foreign_keys = ON')
-                        logger.debug(f"Updated comicid {comicid} to {new_id}")
-                        comicid = new_id
-
-                if edited:
-                    control_value_dict = {'ComicID': comicid}
-                    new_value_dict = {
-                        'Title': new_name,
-                        'aka': aka,
-                        'Description': editordata
-                    }
-                    db.upsert("comics", new_value_dict, control_value_dict)
-                    logger.info(f'Updated [ {edited}] for {comicdata["Title"]}')
+            if comicid != new_id:
+                match = db.match('SELECT ComicID from comics where ComicID=?', (new_id,))
+                if match:
+                    logger.debug(f"Unable to use new ID, {new_id} already exists")
                 else:
-                    logger.debug(f'Comic [{comicdata["Title"]}] has not been changed')
-                raise cherrypy.HTTPRedirect(f"comicissue_page?comicid={comicid}")
+                    db.action('PRAGMA foreign_keys = OFF')
+                    db.action("UPDATE comics SET comicid=? WHERE comicid=?", (new_id, comicid))
+                    db.action("UPDATE comicissues SET comicid=? WHERE comicid=?", (new_id, comicid))
+                    db.action('PRAGMA foreign_keys = ON')
+                    logger.debug(f"Updated comicid {comicid} to {new_id}")
+                    comicid = new_id
+
+            if edited:
+                control_value_dict = {'ComicID': comicid}
+                new_value_dict = {
+                    'Title': new_name,
+                    'aka': aka,
+                    'Description': editordata
+                }
+                db.upsert("comics", new_value_dict, control_value_dict)
+                logger.info(f'Updated [ {edited}] for {comicdata["Title"]}')
             else:
-                logger.warning(f"Invalid comicid [{comicid}]")
-                raise cherrypy.HTTPError(404, f"Comic ID {comicid} not found")
-        finally:
+                logger.debug(f'Comic [{comicdata["Title"]}] has not been changed')
             db.close()
+            raise cherrypy.HTTPRedirect(f"comicissue_page?comicid={comicid}")
+        else:
+            logger.warning(f"Invalid comicid [{comicid}]")
+            db.close()
+            raise cherrypy.HTTPError(404, f"Comic ID {comicid} not found")
 
     @cherrypy.expose
     def search_for_comic(self, comicid=None):
@@ -4845,14 +4850,14 @@ class WebInterface:
             rows = []
             rowlist = []
             filtered = []
-        finally:
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(rowlist),
-                      'aaData': rows,
-                      'loading': lazylibrarian.COMIC_UPDATE,
-                      }
-            loggerserverside.debug(str(mydict))
-            return mydict
+
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': len(rowlist),
+                  'aaData': rows,
+                  'loading': lazylibrarian.COMIC_UPDATE,
+                  }
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @cherrypy.expose
     def comic_scan(self, **kwargs):
@@ -4975,7 +4980,6 @@ class WebInterface:
                          sSortDir_0="desc", sSearch="", **kwargs):
         rows = []
         filtered = []
-        rowlist = []
         logger = logging.getLogger(__name__)
         loggerserverside = logging.getLogger('special.serverside')
 
@@ -5044,14 +5048,14 @@ class WebInterface:
             rows = []
             rowlist = []
             filtered = []
-        finally:
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(rowlist),
-                      'aaData': rows,
-                      'loading': lazylibrarian.COMIC_UPDATE,
-                      }
-            loggerserverside.debug(str(mydict))
-            return mydict
+
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': len(rowlist),
+                  'aaData': rows,
+                  'loading': lazylibrarian.COMIC_UPDATE,
+                  }
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @cherrypy.expose
     def find_comic(self, title=None, **kwargs):
@@ -5411,14 +5415,14 @@ class WebInterface:
             rows = []
             rowlist = []
             filtered = []
-        finally:
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(rowlist),
-                      'aaData': rows,
-                      'loading': lazylibrarian.MAG_UPDATE,
-                      }
-            loggerserverside.debug(str(mydict))
-            return mydict
+
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': len(rowlist),
+                  'aaData': rows,
+                  'loading': lazylibrarian.MAG_UPDATE,
+                  }
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @cherrypy.expose
     def magazines(self, mag_filter=''):
@@ -5471,24 +5475,26 @@ class WebInterface:
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
-        return_msg = ''
+        summary = ''
         passed = 0
         failed = 0
-        removed_old_dir = False
         new_title = kwargs.get('new_title')
         old_title = kwargs.get('old_title')
         if not old_title and not new_title:
-            return_msg = '<div class="alert alert-info">Insufficient information, need Old and New Title</div>'
-
-        if not return_msg and old_title == new_title:
-            return_msg = f'<div class="alert alert-info">Title for {old_title} unchanged</div>'
-
-        if not return_msg:
+            summary = 'Insufficient information, need Old and New Title'
+        if not summary and old_title == new_title:
+            summary = f'Title for {old_title} unchanged'
+        if not summary:
             valid = self.validate_param("magazine title", new_title, ['<', '>', '='], None)
             if not valid:
-                return_msg = '<div class="alert alert-info">Invalid title, unable to rename</div>'
-
-        if not return_msg:
+                summary = 'Invalid new title, unable to rename'
+        if not summary:
+            db = database.DBConnection()
+            res = db.match("SELECT Title from magazines WHERE Title=? COLLATE NOCASE", (new_title,))
+            if res:
+                summary = f'Title {new_title} already exists, unable to rename'
+            db.close()
+        if not summary:
             logger.debug(f"Changing title [{old_title}] to [{new_title}]")
             db = database.DBConnection()
             try:
@@ -5498,8 +5504,7 @@ class WebInterface:
                 db.action('PRAGMA foreign_keys = ON')
                 db.commit()
 
-                return_msg = (f'<div class="alert alert-info"><strong>Summary:</strong><br>'
-                              f'Renamed {old_title} to {new_title}</div>')
+                summary = f'Renamed {old_title} to {new_title}'
 
                 # rename files/folders to match, and issuefile to match new location
                 issues = db.select("SELECT IssueDate,IssueFile,IssueID from issues WHERE Title=?", (new_title,))
@@ -5510,7 +5515,6 @@ class WebInterface:
                     current_percent = int(current_item * 100 / total_items)
                     self.issues_data = f"{current_item}/{total_items}/{current_percent}"
                     calibre_id = None
-                    old_path = os.path.dirname(issue['IssueFile'])
                     if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                         dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
                         data = dict(dbentry)
@@ -5536,20 +5540,6 @@ class WebInterface:
                         if res and filename:
                             # calibre may have renamed it
                             db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
-                    # if no magazine issues left in the folder, delete it
-                    # (removes any trailing cover images, opf etc)
-                    if path_isdir(old_path) and not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
-                        logger.debug(f"Removed empty directory {old_path}")
-                        remove_dir(old_path, remove_contents=True)
-                        removed_old_dir = True
-                if passed + failed:
-                    return_msg += '<div class="row"><div class="col-md-6">Issues Updated:</div></div>'
-                    return_msg += (f'<div class="row"><div class="col-md-6"><span class="label label-success">'
-                                   f' Successful: {passed}</span></div>')
-                    return_msg += (f'<div class="col-md-6"><span class="label label-danger">'
-                                   f' Failed: {failed}</span></div></div>')
-                if removed_old_dir:
-                    return_msg += '<div class="row"><div class="col-md-6">Removed empty source folder</div></div>'
             except Exception:
                 logger.error(f'Unhandled exception in magazine_update: {traceback.format_exc()}')
             finally:
@@ -5557,15 +5547,8 @@ class WebInterface:
         self.issues_data = ''
         # Return JSON response instead of redirect
         total = passed + failed
-        summary = f"Operation completed."
-        if total > 0:
-            summary += f" {passed} successful"
-            if failed > 0:
-                summary += f", {failed} failed"
-            summary += f" out of {total} total items."
-        else:
-            summary += " No items were processed."
-
+        if not summary:
+            summary = "Rename completed. "
         return {
             'success': True,
             'passed': passed,
@@ -5582,7 +5565,6 @@ class WebInterface:
         loggerserverside = logging.getLogger('special.serverside')
         rows = []
         filtered = []
-        rowlist = []
         # noinspection PyBroadException
         try:
             displaystart = int(iDisplayStart)
@@ -5671,14 +5653,14 @@ class WebInterface:
             rows = []
             rowlist = []
             filtered = []
-        finally:
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(rowlist),
-                      'aaData': rows,
-                      'loading': lazylibrarian.MAG_UPDATE,
-                      }
-            loggerserverside.debug(str(mydict))
-            return mydict
+
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': len(rowlist),
+                  'aaData': rows,
+                  'loading': lazylibrarian.MAG_UPDATE,
+                  }
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @cherrypy.expose
     def edit_issue(self, issueid=None):
@@ -5969,7 +5951,6 @@ class WebInterface:
         # kwargs is used by datatables to pass params
         rows = []
         filtered = []
-        rowlist = []
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
@@ -6027,14 +6008,14 @@ class WebInterface:
             rows = []
             rowlist = []
             filtered = []
-        finally:
-            db.close()
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(rowlist),
-                      'aaData': rows,
-                      }
-            loggerserverside.debug(str(mydict))
-            return mydict
+
+        db.close()
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': len(rowlist),
+                  'aaData': rows,
+                  }
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @cherrypy.expose
     def send_mag(self, bookid=None):
@@ -7029,12 +7010,12 @@ class WebInterface:
         except Exception:
             logger.error(f'Unhandled exception in get_log: {traceback.format_exc()}')
             rows = filtered = []
-        finally:
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': total,
-                      'aaData': rows,
-                      }
-            return mydict
+
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': total,
+                  'aaData': rows,
+                  }
+        return mydict
 
     # HISTORY ###########################################################
 
@@ -7162,14 +7143,14 @@ class WebInterface:
             rows = []
             rowlist = []
             filtered = []
-        finally:
-            db.close()
-            mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(rowlist),
-                      'aaData': rows,
-                      }
-            loggerserverside.debug(str(mydict))
-            return mydict
+
+        db.close()
+        mydict = {'iTotalDisplayRecords': len(filtered),
+                  'iTotalRecords': len(rowlist),
+                  'aaData': rows,
+                  }
+        loggerserverside.debug(str(mydict))
+        return mydict
 
     @cherrypy.expose
     def bookdesc(self, bookid=None):

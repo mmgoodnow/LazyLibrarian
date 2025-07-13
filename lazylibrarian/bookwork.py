@@ -789,16 +789,17 @@ def add_series_members(seriesid, refresh=False):
         if res:
             db.action('UPDATE series SET Have=?, Total=? WHERE SeriesID=?',
                       (check_int(res[1], 0), check_int(res[0], 0), seriesid))
+        return count
 
     except Exception as e:
         logger.error(f"{type(e).__name__} adding series {seriesid}: {str(e)}")
         logger.error(f'{traceback.format_exc()}')
+        return count
     finally:
         db.close()
         if 'SERIESMEMBERS' in threading.current_thread().name:
             threading.current_thread().name = 'WEBSERVER'
         lazylibrarian.SERIES_UPDATE = False
-        return count
 
 
 def get_series_authors(seriesid):
@@ -1569,10 +1570,11 @@ def thinglang(isbn):
             logger.debug(f"LibraryThing reports language [{resp}] for {isbn}")
             if 'invalid' not in resp and 'unknown' not in resp and '<' not in resp:
                 booklang = resp
+        return booklang
+
     except Exception as e:
         logger.error(f"{type(e).__name__} finding language: {str(e)}")
-    finally:
-        return booklang
+        return ''
 
 
 def isbnlang(isbn):

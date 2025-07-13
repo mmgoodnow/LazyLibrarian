@@ -346,13 +346,14 @@ class OpenLibrary:
                                     order = onum
                                 results.append([order, bookname, authorname, authorlink, workid])
                         self.logger.debug(f"Found {len(results)} for seriesid {series_id}")
+                if results:
+                    return results
 
             except IndexError:
                 if b'<table>' in data:  # error parsing, or just no series data available?
                     self.logger.debug(f'Error parsing series table for {series_id}')
                 else:
                     self.logger.debug(f"SeriesID {series_id} not found at librarything")
-            finally:
                 if results:
                     return results
 
@@ -1411,7 +1412,8 @@ class OpenLibrary:
                                                                                addbooks=False,
                                                                                reason=f"ol.find_book {bookid}")
                         # authorid may have changed on importing
-                        match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorID=? or ol_id=?', (auth_id, auth_id))
+                        match = db.match('SELECT AuthorName,AuthorID from authors '
+                                         'WHERE AuthorID=? or ol_id=?', (auth_id, auth_id))
                         if match:
                             authorname = match['AuthorName']
                             authorid = match['AuthorID']

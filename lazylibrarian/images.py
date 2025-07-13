@@ -1022,21 +1022,18 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
 
 def read_pdf_tags(srcfile):
     logger = logging.getLogger(__name__)
-    metadata = {}
     if not path_isfile(srcfile):
         logger.error(f"Unable to read source file {srcfile}")
-        return metadata
+        return {}
     src_pdf = PdfReader(srcfile)
     if not src_pdf:
         logger.error(f"Unable to read source file {src_pdf}")
-        return metadata
+        return {}
     try:
-        metadata = dict(src_pdf.metadata)
+        return dict(src_pdf.metadata)
     except TypeError:
         # no metadata found in source file
-        metadata = {}
-    finally:
-        return metadata
+        return {}
 
 
 def write_pdf_tags(srcfile, title, issue, tags=None):

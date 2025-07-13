@@ -574,8 +574,12 @@ def sync_to_gr():
                         msg += f"{len(ll_have)} {plural(len(ll_have), 'change')} to Audio Owned from GoodReads\n"
 
         logger.info(msg.strip('\n').replace('\n', ', '))
+        return msg
+
     except Exception:
         logger.error(f"Exception in sync_to_gr: {traceback.format_exc()}")
+        return msg
+
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": "GRSYNC"})
         db.close()
@@ -591,7 +595,6 @@ def sync_to_gr():
                              args=[new_audio, 'AudioBook']).start()
 
         thread_name('WEBSERVER')
-        return msg
 
 
 def grfollow(authorid, follow=True):

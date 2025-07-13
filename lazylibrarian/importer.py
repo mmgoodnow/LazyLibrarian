@@ -636,15 +636,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
             ret_id = current_author['authorid']
         else:
             logger.warning(f"Authorid {authorid} ({authorname}) not found in database")
-            return ret_id
+        return ret_id
 
     except Exception:
         msg = f'Unhandled exception: {traceback.format_exc()}'
         logger.debug(msg)
-        ret_id = None
+        return None
     finally:
         db.close()
-        return ret_id
 
 
 # translations: e.g. allow "fire & fury" to match "fire and fury"

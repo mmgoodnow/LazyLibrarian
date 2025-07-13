@@ -99,9 +99,10 @@ def get_book_meta(fdir, reason="get_book_meta"):
                 db.close()
             if existing_book:
                 return existing_book['AuthorName'], existing_book['BookName']
+        return "", ""
+
     except Exception:
         logger.error(f'Error getting book meta: {traceback.format_exc()}')
-    finally:
         return "", ""
 
 

@@ -74,15 +74,13 @@ def get_readinglist(table, user):
         status = 5
     else:
         status = 4
-    try:
-        cmd = f"SELECT bookid from readinglists WHERE userid=? and status=?"
-        res = db.select(cmd, (user, status))
-        if res:
-            for item in res:
-                readinglist.append(item[0])
-    finally:
-        db.close()
-        return readinglist
+    cmd = f"SELECT bookid from readinglists WHERE userid=? and status=?"
+    res = db.select(cmd, (user, status))
+    if res:
+        for item in res:
+            readinglist.append(item[0])
+    db.close()
+    return readinglist
 
 
 def set_readinglist(table, user, booklist):

@@ -371,12 +371,15 @@ def validate_bookdict(bookdict):
             if CONFIG.get_bool('NO_PUBDATE'):
                 if not publish_date or publish_date == '0000':
                     rejected.append(['date', 'No publication date'])
+        return rejected
+
     except Exception:
         logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
         logger.error(f"{bookdict}")
+        return rejected
+
     finally:
         db.close()
-        return rejected
 
 
 class HardCover:
@@ -823,10 +826,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
             self.logger.debug(f"Found {len(resultlist)} for series {series_id}: {series_name}")
             self.logger.debug(f"Used {api_hits} api hit, {cache_hits} in cache")
 
-        if queue:
-            queue.put(resultlist)
-            return
-        return resultlist
+        if not queue:
+            return resultlist
+
+        queue.put(resultlist)
+
 
     def find_results(self, searchterm=None, queue=None, refresh=False):
         """Search for books or authors in HardCover."""
@@ -906,10 +910,10 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                     resultbooks.append(book)
 
             if not resultbooks:
-                if queue:
-                    queue.put(resultlist)
-                    return
-                return resultlist
+                if not queue:
+                    return resultlist
+                queue.put(resultlist)
+
 
             for book_data in resultbooks:
                 if 'users_count' in book_data:
@@ -2045,7 +2049,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
         if not newbookdict:
             self.syncinglogger.debug(f"No bookdict found for {hc_id}")
-            return
+            return None
 
         auth_name, exists = lazylibrarian.importer.get_preferred_author_name(newbookdict['auth_name'])
 
@@ -2742,6 +2746,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             # Build final message
             msg = self._build_sync_message(stats, reading_list_changes, search_activities,
                                            sync_activities, final_status, miss, ll_userid_context, readonly)
+            return msg
 
         except Exception as e:
             error_msg = f"Error during HardCover sync for user {ll_userid_context}: {str(e)}"
@@ -2749,6 +2754,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             import traceback
             self.logger.error(traceback.format_exc())
             return f"User {ll_userid_context} HardCover sync failed: {str(e)}"
+
         finally:
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "HCSYNC"})
             db.close()
@@ -2756,7 +2762,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
             for missed in miss:
                 self.syncinglogger.warning(f"Unable to add bookid {missed[0]} ({missed[1]}) at HardCover, no hc_id")
             thread_name('WEBSERVER')
-            return msg
 
     def _check_sync_safety(self, deleted_count, update_count, sync_limit, confirmed):
         """Check if sync can proceed and return appropriate action.

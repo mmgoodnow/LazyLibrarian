@@ -15,10 +15,7 @@
 import os
 import logging
 
-try:
-    from html import escape  # python 3.x
-except ImportError:
-    from cgi import escape  # python 2.x
+from html import escape  # python 3.x
 
 
 def opf_read(filename):
@@ -98,9 +95,10 @@ def opf_read(filename):
         for item in replaces:
             items.append(item[0])
         matchlogger.debug(','.join(items))
+        return outfile, replaces
+
     except Exception as e:
         logger.debug(str(e))
-    finally:
         return outfile, replaces
 
 

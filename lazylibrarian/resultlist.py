@@ -308,9 +308,9 @@ def find_best_result(resultlist, book, searchtype, source):
             logger.debug(f"No {source} found for [{book['searchterm']}] using searchtype {searchtype}")
     except Exception:
         logger.error(f'Unhandled exception in find_best_result: {traceback.format_exc()}')
-    finally:
-        db.close()
-        return highest
+
+    db.close()
+    return highest
 
 
 def download_result(match, book):

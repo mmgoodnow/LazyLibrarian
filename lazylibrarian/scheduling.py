@@ -311,12 +311,14 @@ def author_update(restart=True, only_overdue=True):
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "AUTHORUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "author_update")
+        return msg
+
     except Exception:
         logger.error(f'Unhandled exception in AuthorUpdate: {traceback.format_exc()}')
-        msg = "Unhandled exception in AuthorUpdate"
+        return "Unhandled exception in AuthorUpdate"
+
     finally:
         db.close()
-        return msg
 
 
 def series_update(restart=True, only_overdue=True):
@@ -342,12 +344,14 @@ def series_update(restart=True, only_overdue=True):
             db.upsert("jobs", {"Finish": time.time()}, {"Name": "SERIESUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "series_update")
+        return msg
+
     except Exception:
         logger.error(f'Unhandled exception in series_update: {traceback.format_exc()}')
-        msg = "Unhandled exception in series_update"
+        return "Unhandled exception in series_update"
+
     finally:
         db.close()
-        return msg
 
 
 def all_author_update(refresh=False):
@@ -464,6 +468,7 @@ def is_overdue(which="author") -> (int, int, str, str, int):
     maxage = CONFIG.get_int('CACHE_AGE')
     if maxage:
         db = database.DBConnection()
+        logger = logging.getLogger(__name__)
         try:
             if which == 'author':
                 cmd = "SELECT AuthorName,AuthorID,Updated from authors WHERE Status='Active' or Status='Loading'"
@@ -489,9 +494,9 @@ def is_overdue(which="author") -> (int, int, str, str, int):
                     ident = res[0]['SeriesID']
                     days, overdue = get_overdue_from_dbrows()
         except Exception as e:
-            pass
-        finally:
-            db.close()
+            logger.debug(f"Error: {e}")
+
+        db.close()
     return overdue, total, name, ident, days
 
 
