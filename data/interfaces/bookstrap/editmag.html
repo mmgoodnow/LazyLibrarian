@@ -90,6 +90,7 @@
             // Show result modal
             var message = '<div class="alert alert-info"><strong>Summary:</strong><br>' + data.summary + '</div>';
             if (data.passed > 0 || data.failed > 0) {
+                message += '<div class="row"><div class="col-md-6">Issues Renamed</div></div>';
                 message += '<div class="row">';
                 message += '<div class="col-md-6"><span class="label label-success">Successful: ' + data.passed + '</span></div>';
                 if (data.failed > 0) {
