@@ -166,149 +166,148 @@ def serve_template(templatename, **kwargs):
             res = {}
             cookie = None
             db = database.DBConnection()
-            try:
-                if lazylibrarian.LOGINUSER:
-                    res = db.match('SELECT * from users where UserID=?', (lazylibrarian.LOGINUSER,))
-                    if res:
-                        cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
-                        userid = lazylibrarian.LOGINUSER
+
+            if lazylibrarian.LOGINUSER:
+                res = db.match('SELECT * from users where UserID=?', (lazylibrarian.LOGINUSER,))
+                if res:
+                    cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
+                    userid = lazylibrarian.LOGINUSER
+                    logger.debug(f"Auto-login for {res['UserName']}")
+                    lazylibrarian.SHOWLOGOUT = 0
+                    db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                              (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+                else:
+                    logger.debug(f"Auto-login failed for userid {lazylibrarian.LOGINUSER}")
+                    clear_our_cookies()
+                lazylibrarian.LOGINUSER = None
+
+            else:
+                cookie = cherrypy.request.cookie
+                authorization = cherrypy.request.headers.get('Authorization')
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    res = db.match('SELECT * from users where UserID=?', (cookie['ll_uid'].value,))
+                    if not res:
+                        clear_our_cookies()
+                elif authorization and authorization.startswith('Basic '):
+                    auth_bytes = authorization.split('Basic ')[1].encode('ascii')
+                    value_bytes = base64.b64decode(auth_bytes)
+                    values = value_bytes.decode('ascii')
+                    res = {}
+                    if ':' in values:
+                        user, pwd = values.split(':', 1)
+                        res = db.match('SELECT * from users where UserName=? and Password=?', (user, pwd))
+                if not res and CONFIG.get_bool('PROXY_AUTH'):
+                    logger.debug('Proxy Auth enabled')
+                    user = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_USER'))
+                    if user:
+                        logger.debug(f"{CONFIG.get_str('PROXY_AUTH_USER')}: {user}")
+                        res = db.match('SELECT * from users where UserName=?', (user,))
+                        if res:
+                            logger.debug(f"{user} is a registered user")
+                            cherrypy.response.cookie['ll_uid'] = res['UserID']
+                            cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+                            db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                                      (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+                        if not res and CONFIG.get_bool('PROXY_REGISTER'):
+                            logger.debug(f"User {user} not registered, trying to add...")
+                            fullname = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_NAME'))
+                            logger.debug(f"{CONFIG.get_str('PROXY_AUTH_NAME')}: {fullname}")
+                            email = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_EMAIL'))
+                            logger.debug(f"{CONFIG.get_str('PROXY_AUTH_NAME')}: {email}")
+                            if fullname and email:
+                                new_pwd = pwd_generator()
+                                msg = lazylibrarian.NEWUSER_MSG.replace('{username}', user).replace(
+                                    '{password}', new_pwd).replace('{permission}', 'Friend')
+
+                                result = notifiers.email_notifier.notify_message('LazyLibrarian New Account',
+                                                                                 msg, email)
+                                if result:
+                                    cmd = ('INSERT into users (UserID, UserName, Name, Password, Email, '
+                                           'SendTo, Perms) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                                    db.action(cmd, (pwd_generator(), user, fullname, md5_utf8(new_pwd),
+                                                    email, '', lazylibrarian.perm_friend))
+                                    msg = f"New user added from proxy auth: {user}: Friend"
+                                    msg += f"<br>Email sent to {email}"
+                                    cnt = db.match("select count(*) as counter from users")
+                                    if cnt['counter'] > 1:
+                                        lazylibrarian.SHOWLOGOUT = 1
+                                    res = db.match('SELECT * from users where UserName=?', (user,))
+                                    cherrypy.response.cookie['ll_uid'] = res['UserID']
+                                    cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+                                    db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
+                                              (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+                                else:
+                                    msg = "New user NOT added"
+                                    msg += f"<br>Failed to send email to {email}"
+                                logger.debug(msg)
+
+                if not res:
+                    columns = db.select('PRAGMA table_info(users)')
+                    if not columns:  # no such table
+                        cnt = 0
+                    else:
+                        cnt = db.match("select count(*) as counter from users")
+                    if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
+                            templatename not in ["register.html", "response.html", "opds.html"]:
+                        res = db.match('SELECT * from users')
+                        cherrypy.response.cookie['ll_uid'] = res['UserID']
+                        cherrypy.response.cookie['ll_prefs'] = res['Prefs']
                         logger.debug(f"Auto-login for {res['UserName']}")
-                        lazylibrarian.SHOWLOGOUT = 0
                         db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
                                   (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
+                        lazylibrarian.SHOWLOGOUT = 0
                     else:
-                        logger.debug(f"Auto-login failed for userid {lazylibrarian.LOGINUSER}")
-                        clear_our_cookies()
-                    lazylibrarian.LOGINUSER = None
+                        lazylibrarian.SHOWLOGOUT = 1
 
-                else:
-                    cookie = cherrypy.request.cookie
-                    authorization = cherrypy.request.headers.get('Authorization')
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        res = db.match('SELECT * from users where UserID=?', (cookie['ll_uid'].value,))
-                        if not res:
-                            clear_our_cookies()
-                    elif authorization and authorization.startswith('Basic '):
-                        auth_bytes = authorization.split('Basic ')[1].encode('ascii')
-                        value_bytes = base64.b64decode(auth_bytes)
-                        values = value_bytes.decode('ascii')
-                        res = {}
-                        if ':' in values:
-                            user, pwd = values.split(':', 1)
-                            res = db.match('SELECT * from users where UserName=? and Password=?', (user, pwd))
-                    if not res and CONFIG.get_bool('PROXY_AUTH'):
-                        logger.debug('Proxy Auth enabled')
-                        user = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_USER'))
-                        if user:
-                            logger.debug(f"{CONFIG.get_str('PROXY_AUTH_USER')}: {user}")
-                            res = db.match('SELECT * from users where UserName=?', (user,))
-                            if res:
-                                logger.debug(f"{user} is a registered user")
-                                cherrypy.response.cookie['ll_uid'] = res['UserID']
-                                cherrypy.response.cookie['ll_prefs'] = res['Prefs']
-                                db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
-                                          (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
-                            if not res and CONFIG.get_bool('PROXY_REGISTER'):
-                                logger.debug(f"User {user} not registered, trying to add...")
-                                fullname = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_NAME'))
-                                logger.debug(f"{CONFIG.get_str('PROXY_AUTH_NAME')}: {fullname}")
-                                email = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_EMAIL'))
-                                logger.debug(f"{CONFIG.get_str('PROXY_AUTH_NAME')}: {email}")
-                                if fullname and email:
-                                    new_pwd = pwd_generator()
-                                    msg = lazylibrarian.NEWUSER_MSG.replace('{username}', user).replace(
-                                        '{password}', new_pwd).replace('{permission}', 'Friend')
-
-                                    result = notifiers.email_notifier.notify_message('LazyLibrarian New Account',
-                                                                                     msg, email)
-                                    if result:
-                                        cmd = ('INSERT into users (UserID, UserName, Name, Password, Email, '
-                                               'SendTo, Perms) VALUES (?, ?, ?, ?, ?, ?, ?)')
-                                        db.action(cmd, (pwd_generator(), user, fullname, md5_utf8(new_pwd),
-                                                        email, '', lazylibrarian.perm_friend))
-                                        msg = f"New user added from proxy auth: {user}: Friend"
-                                        msg += f"<br>Email sent to {email}"
-                                        cnt = db.match("select count(*) as counter from users")
-                                        if cnt['counter'] > 1:
-                                            lazylibrarian.SHOWLOGOUT = 1
-                                        res = db.match('SELECT * from users where UserName=?', (user,))
-                                        cherrypy.response.cookie['ll_uid'] = res['UserID']
-                                        cherrypy.response.cookie['ll_prefs'] = res['Prefs']
-                                        db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
-                                                  (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
-                                    else:
-                                        msg = "New user NOT added"
-                                        msg += f"<br>Failed to send email to {email}"
-                                    logger.debug(msg)
-
-                    if not res:
+                if not res:
+                    remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
+                    if not remote_ip:
+                        remote_ip = cherrypy.request.headers.get('X-Host')  # lighthttpd
+                    if not remote_ip:
+                        remote_ip = cherrypy.request.headers.get('Remote-Addr')
+                    if not remote_ip:
+                        remote_ip = cherrypy.request.remote.ip
+                    whitelist = get_list(CONFIG.get_csv('WHITELIST'))
+                    to_whitelist = False
+                    if remote_ip in whitelist:
+                        # exact match
+                        to_whitelist = True
+                    for white in whitelist:
+                        # allow ranges in the format 192.168.1.1/24
+                        white_parts = white.split('.')
+                        if len(white_parts) == 4 and white_parts[3] == '1/24':
+                            if remote_ip.startswith('.'.join(white_parts[:3])):
+                                to_whitelist = True
+                                break
+                    if to_whitelist:
                         columns = db.select('PRAGMA table_info(users)')
                         if not columns:  # no such table
                             cnt = 0
                         else:
-                            cnt = db.match("select count(*) as counter from users")
-                        if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
-                                templatename not in ["register.html", "response.html", "opds.html"]:
-                            res = db.match('SELECT * from users')
+                            cnt = db.match('SELECT count(*) as counter from users where Perms=65535')
+                        if cnt and templatename not in ["register.html", "response.html", "opds.html"]:
+                            res = db.match('SELECT * from users where Perms=65535')
                             cherrypy.response.cookie['ll_uid'] = res['UserID']
                             cherrypy.response.cookie['ll_prefs'] = res['Prefs']
-                            logger.debug(f"Auto-login for {res['UserName']}")
+                            logger.debug(f"Auto-login for {res['UserName']} at {remote_ip}")
                             db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
                                       (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                             lazylibrarian.SHOWLOGOUT = 0
                         else:
                             lazylibrarian.SHOWLOGOUT = 1
-
-                    if not res:
-                        remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
-                        if not remote_ip:
-                            remote_ip = cherrypy.request.headers.get('X-Host')  # lighthttpd
-                        if not remote_ip:
-                            remote_ip = cherrypy.request.headers.get('Remote-Addr')
-                        if not remote_ip:
-                            remote_ip = cherrypy.request.remote.ip
-                        whitelist = get_list(CONFIG.get_csv('WHITELIST'))
-                        to_whitelist = False
-                        if remote_ip in whitelist:
-                            # exact match
-                            to_whitelist = True
-                        for white in whitelist:
-                            # allow ranges in the format 192.168.1.1/24
-                            white_parts = white.split('.')
-                            if len(white_parts) == 4 and white_parts[3] == '1/24':
-                                if remote_ip.startswith('.'.join(white_parts[:3])):
-                                    to_whitelist = True
-                                    break
-                        if to_whitelist:
-                            columns = db.select('PRAGMA table_info(users)')
-                            if not columns:  # no such table
-                                cnt = 0
-                            else:
-                                cnt = db.match('SELECT count(*) as counter from users where Perms=65535')
-                            if cnt and templatename not in ["register.html", "response.html", "opds.html"]:
-                                res = db.match('SELECT * from users where Perms=65535')
-                                cherrypy.response.cookie['ll_uid'] = res['UserID']
-                                cherrypy.response.cookie['ll_prefs'] = res['Prefs']
-                                logger.debug(f"Auto-login for {res['UserName']} at {remote_ip}")
-                                db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
-                                          (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
-                                lazylibrarian.SHOWLOGOUT = 0
-                            else:
-                                lazylibrarian.SHOWLOGOUT = 1
-                if res:
-                    perm = check_int(res['Perms'], 0)
-                    username = res['UserName']
-                    userid = res['UserID']
-                    try:
-                        res2 = db.match('SELECT Theme from users where UserID=?', (userid,))
-                        if res2:
-                            usertheme = res2['Theme']
-                            if not usertheme:
-                                usertheme = ''
-                    except Exception as e:
-                        logger.debug(f"Unable to get user theme for {userid}: {str(e)}")
-            finally:
-                db.close()
+            if res:
+                perm = check_int(res['Perms'], 0)
+                username = res['UserName']
+                userid = res['UserID']
+                try:
+                    res2 = db.match('SELECT Theme from users where UserID=?', (userid,))
+                    if res2:
+                        usertheme = res2['Theme']
+                        if not usertheme:
+                            usertheme = ''
+                except Exception as e:
+                    logger.debug(f"Unable to get user theme for {userid}: {str(e)}")
+            db.close()
             if cookie and 'll_prefs' in list(cookie.keys()):
                 userprefs = check_int(cookie['ll_prefs'].value, 0)
 
@@ -411,16 +410,14 @@ class WebInterface:
             cookie_userid = cookie['ll_uid'].value
             perm = 0
             db = database.DBConnection()
-            try:
-                res = db.match('SELECT * from users where UserID=?', (cookie_userid,))
-                if res:
-                    perm = check_int(res['Perms'], 0)
-                    userid = res['UserID']
-                else:
-                    loggeradmin.debug(f"No match for userid [{cookie_userid}]")
-                    clear_our_cookies()
-            finally:
-                db.close()
+            res = db.match('SELECT * from users where UserID=?', (cookie_userid,))
+            if res:
+                perm = check_int(res['Perms'], 0)
+                userid = res['UserID']
+            else:
+                loggeradmin.debug(f"No match for userid [{cookie_userid}]")
+                clear_our_cookies()
+            db.close()
         else:
             perm = lazylibrarian.perm_admin
 
@@ -702,10 +699,8 @@ class WebInterface:
             userprefs = check_int(cookie['ll_prefs'].value, 0)
         if cookie and 'll_uid' in list(cookie.keys()):
             db = database.DBConnection()
-            try:
-                db.action('UPDATE users SET prefs=? where UserID=?', (userprefs, cookie['ll_uid'].value))
-            finally:
-                db.close()
+            db.action('UPDATE users SET prefs=? where UserID=?', (userprefs, cookie['ll_uid'].value))
+            db.close()
         clear_our_cookies()
         # cherrypy.lib.sessions.expire()
         raise cherrypy.HTTPRedirect("home")
@@ -729,89 +724,87 @@ class WebInterface:
         if cookie and 'll_uid' in list(cookie.keys()):
             userid = cookie['ll_uid'].value
             db = database.DBConnection()
-            try:
-                user = db.match('SELECT UserName,Name,Email,Password,BookType,SendTo,Theme,hc_token '
-                                'from users where UserID=?', (userid,))
-                if user:
-                    if kwargs['username'] and user['UserName'] != kwargs['username']:
-                        # if username changed, must not have same username as another user
-                        match = db.match('SELECT UserName from users where UserName=?', (kwargs['username'],))
-                        if match:
-                            return "Unable to change username: already exists"
-                        if self.validate_param("username", kwargs['username'], ['<', '>', '='], None):
-                            changes += ' username'
-                            db.action('UPDATE users SET UserName=? WHERE UserID=?', (kwargs['username'], userid))
-                        else:
-                            logger.warning("Invalid username")
+            user = db.match('SELECT UserName,Name,Email,Password,BookType,SendTo,Theme,hc_token '
+                            'from users where UserID=?', (userid,))
+            if user:
+                if kwargs['username'] and user['UserName'] != kwargs['username']:
+                    # if username changed, must not have same username as another user
+                    match = db.match('SELECT UserName from users where UserName=?', (kwargs['username'],))
+                    if match:
+                        return "Unable to change username: already exists"
+                    if self.validate_param("username", kwargs['username'], ['<', '>', '='], None):
+                        changes += ' username'
+                        db.action('UPDATE users SET UserName=? WHERE UserID=?', (kwargs['username'], userid))
+                    else:
+                        logger.warning("Invalid username")
 
-                    if kwargs['fullname'] and user['Name'] != kwargs['fullname']:
-                        if self.validate_param("fullname", kwargs['fullname'], ['<', '>', '='], None):
-                            changes += ' name'
-                            db.action('UPDATE users SET Name=? WHERE UserID=?', (kwargs['fullname'], userid))
-                        else:
-                            logger.warning("Invalid fullname")
+                if kwargs['fullname'] and user['Name'] != kwargs['fullname']:
+                    if self.validate_param("fullname", kwargs['fullname'], ['<', '>', '='], None):
+                        changes += ' name'
+                        db.action('UPDATE users SET Name=? WHERE UserID=?', (kwargs['fullname'], userid))
+                    else:
+                        logger.warning("Invalid fullname")
 
-                    if kwargs['email'] and user['Email'] != kwargs['email']:
-                        if not is_valid_email(kwargs['email']):
-                            logger.warning("Invalid email")
-                        else:
-                            changes += ' email'
-                            db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
+                if kwargs['email'] and user['Email'] != kwargs['email']:
+                    if not is_valid_email(kwargs['email']):
+                        logger.warning("Invalid email")
+                    else:
+                        changes += ' email'
+                        db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
 
-                    if user['Theme'] != kwargs['theme']:
-                        valid = False
-                        theme = kwargs['theme']
-                        if theme in ['None', 'Default', '']:
-                            theme = ''
-                        if not theme:
-                            valid = True
-                        if theme == 'legacy':
-                            valid = True
-                        else:
-                            parts = theme.split('_', 1)
-                            if parts[0] == 'bookstrap':
-                                if len(parts) == 2 and parts[1] in lazylibrarian.BOOKSTRAP_THEMELIST:
-                                    valid = True
-                        if valid:
-                            changes += ' Theme'
-                            db.action('UPDATE users SET Theme=? WHERE UserID=?', (theme, userid))
-                        else:
-                            logger.warning(f"Invalid user theme [{theme}]")
+                if user['Theme'] != kwargs['theme']:
+                    valid = False
+                    theme = kwargs['theme']
+                    if theme in ['None', 'Default', '']:
+                        theme = ''
+                    if not theme:
+                        valid = True
+                    if theme == 'legacy':
+                        valid = True
+                    else:
+                        parts = theme.split('_', 1)
+                        if parts[0] == 'bookstrap':
+                            if len(parts) == 2 and parts[1] in lazylibrarian.BOOKSTRAP_THEMELIST:
+                                valid = True
+                    if valid:
+                        changes += ' Theme'
+                        db.action('UPDATE users SET Theme=? WHERE UserID=?', (theme, userid))
+                    else:
+                        logger.warning(f"Invalid user theme [{theme}]")
 
-                    if user['SendTo'] != kwargs['sendto']:
-                        if not is_valid_email(kwargs['sendto']):
-                            logger.warning("Invalid email")
-                        else:
-                            changes += ' sendto'
-                            db.action('UPDATE users SET sendto=? WHERE UserID=?', (kwargs['sendto'], userid))
+                if user['SendTo'] != kwargs['sendto']:
+                    if not is_valid_email(kwargs['sendto']):
+                        logger.warning("Invalid email")
+                    else:
+                        changes += ' sendto'
+                        db.action('UPDATE users SET sendto=? WHERE UserID=?', (kwargs['sendto'], userid))
 
-                    if user['BookType'] != kwargs['booktype']:
-                        changes += ' BookType'
-                        db.action('UPDATE users SET BookType=? WHERE UserID=?', (kwargs['booktype'], userid))
+                if user['BookType'] != kwargs['booktype']:
+                    changes += ' BookType'
+                    db.action('UPDATE users SET BookType=? WHERE UserID=?', (kwargs['booktype'], userid))
 
-                    if user['hc_token'] != kwargs['hc_token']:
-                        if self.validate_param("hardcopy token", kwargs['hc_token'], ['<', '>', '='], None):
-                            changes += ' hc_token'
-                            db.action('UPDATE users SET hc_token=? WHERE UserID=?', (kwargs['hc_token'], userid))
-                        else:
-                            logger.warning("Invalid hardcopy token")
+                if user['hc_token'] != kwargs['hc_token']:
+                    if self.validate_param("hardcopy token", kwargs['hc_token'], ['<', '>', '='], None):
+                        changes += ' hc_token'
+                        db.action('UPDATE users SET hc_token=? WHERE UserID=?', (kwargs['hc_token'], userid))
+                    else:
+                        logger.warning("Invalid hardcopy token")
 
-                    if kwargs['password']:
-                        pwd = md5_utf8(kwargs['password'])
-                        if pwd != user['password']:
-                            changes += ' password'
-                            db.action('UPDATE users SET password=? WHERE UserID=?', (pwd, userid))
+                if kwargs['password']:
+                    pwd = md5_utf8(kwargs['password'])
+                    if pwd != user['password']:
+                        changes += ' password'
+                        db.action('UPDATE users SET password=? WHERE UserID=?', (pwd, userid))
 
-                    # only allow admin to change these
-                    # if kwargs['calread'] and user['CalibreRead'] != kwargs['calread']:
-                    #     changes += ' CalibreRead'
-                    #     db.action('UPDATE users SET CalibreRead=? WHERE UserID=?', (kwargs['calread'], userid))
+                # only allow admin to change these
+                # if kwargs['calread'] and user['CalibreRead'] != kwargs['calread']:
+                #     changes += ' CalibreRead'
+                #     db.action('UPDATE users SET CalibreRead=? WHERE UserID=?', (kwargs['calread'], userid))
 
-                    # if kwargs['caltoread'] and user['CalibreToRead'] != kwargs['caltoread']:
-                    #     changes += ' CalibreToRead'
-                    #     db.action('UPDATE users SET CalibreToRead=? WHERE UserID=?', (kwargs['caltoread'], userid))
-            finally:
-                db.close()
+                # if kwargs['caltoread'] and user['CalibreToRead'] != kwargs['caltoread']:
+                #     changes += ' CalibreToRead'
+                #     db.action('UPDATE users SET CalibreToRead=? WHERE UserID=?', (kwargs['caltoread'], userid))
+            db.close()
 
             if changes:
                 return f'Updated user details:{changes}'
@@ -931,33 +924,30 @@ class WebInterface:
         value = get_list(kwargs.pop('value[]', ''))
         cnt = 0
         db = database.DBConnection()
-        try:
-            for item in kwargs:
-                if '[text]' in item:
-                    feedname = kwargs[item]
-                    feednum = kwargs.get(item.replace('[text]', '[value]'), '')
-                    if feedname and feednum:
-                        res = db.match('SELECT * from subscribers WHERE Type=? and UserID=? and WantID=?',
-                                       ("feed", user, feedname))
-                        if feednum in value:
-                            if res:
-                                logger.debug(f"{feedname} {user} was already subscribed")
-                            else:
-                                cnt += 1
-                                db.action('INSERT INTO subscribers (Type, UserID, WantID) VALUES (?, ?, ?)',
-                                          ("feed", user, feedname))
-                                logger.debug(f"Subscribed {user} to {feedname}")
+        for item in kwargs:
+            if '[text]' in item:
+                feedname = kwargs[item]
+                feednum = kwargs.get(item.replace('[text]', '[value]'), '')
+                if feedname and feednum:
+                    res = db.match('SELECT * from subscribers WHERE Type=? and UserID=? and WantID=?',
+                                   ("feed", user, feedname))
+                    if feednum in value:
+                        if res:
+                            logger.debug(f"{feedname} {user} was already subscribed")
                         else:
-                            if res:
-                                cnt += 1
-                                db.action('DELETE from subscribers WHERE Type=? and UserID=? and WantID=?',
-                                          ("feed", user, feedname))
-                                logger.debug(f"Unsubscribed {user} to {feedname}")
-                            else:
-                                logger.debug(f"{feedname} {user} was already unsubscribed")
-        finally:
-            db.close()
-
+                            cnt += 1
+                            db.action('INSERT INTO subscribers (Type, UserID, WantID) VALUES (?, ?, ?)',
+                                      ("feed", user, feedname))
+                            logger.debug(f"Subscribed {user} to {feedname}")
+                    else:
+                        if res:
+                            cnt += 1
+                            db.action('DELETE from subscribers WHERE Type=? and UserID=? and WantID=?',
+                                      ("feed", user, feedname))
+                            logger.debug(f"Unsubscribed {user} to {feedname}")
+                        else:
+                            logger.debug(f"{feedname} {user} was already unsubscribed")
+        db.close()
         return f"Changed {cnt} {plural(cnt, 'feed')}"
 
     @cherrypy.expose
@@ -1225,38 +1215,37 @@ class WebInterface:
         res = {}
         remote_ip = cherrypy.request.remote.ip
         db = database.DBConnection()
-        try:
-            if 'username' in kwargs and kwargs['username']:
-                logger.debug(f"Reset password request from {kwargs['username']}, IP:{remote_ip}")
-                res = db.match('SELECT UserID,Email from users where username=?', (kwargs['username'],))  # type: dict
-                if res:
-                    if 'email' in kwargs and kwargs['email']:
-                        if res['Email']:
-                            if kwargs['email'] == res['Email']:
-                                msg = ''
-                            else:
-                                msg = 'Email does not match our records'
+        if 'username' in kwargs and kwargs['username']:
+            logger.debug(f"Reset password request from {kwargs['username']}, IP:{remote_ip}")
+            res = db.match('SELECT UserID,Email from users where username=?', (kwargs['username'],))  # type: dict
+            if res:
+                if 'email' in kwargs and kwargs['email']:
+                    if res['Email']:
+                        if kwargs['email'] == res['Email']:
+                            msg = ''
                         else:
-                            msg = 'No email address registered'
+                            msg = 'Email does not match our records'
                     else:
-                        msg = 'No email address supplied'
+                        msg = 'No email address registered'
                 else:
-                    msg = "Unknown username"
+                    msg = 'No email address supplied'
             else:
-                msg = "Who are you?"
+                msg = "Unknown username"
+        else:
+            msg = "Who are you?"
 
-            if res and not msg:
-                new_pwd = pwd_generator()
-                msg = f"Your new password is {new_pwd}"
-                result = notifiers.email_notifier.notify_message('LazyLibrarian New Password', msg, res['Email'])
-                if result:
-                    pwd = md5_utf8(new_pwd)
-                    db.action("UPDATE users SET Password=? WHERE UserID=?", (pwd, res['UserID']))
-                    return "Password reset, check your email"
-                else:
-                    msg = f"Failed to send email to [{res['Email']}]"
-        finally:
-            db.close()
+        if res and not msg:
+            new_pwd = pwd_generator()
+            msg = f"Your new password is {new_pwd}"
+            result = notifiers.email_notifier.notify_message('LazyLibrarian New Password', msg, res['Email'])
+            if result:
+                pwd = md5_utf8(new_pwd)
+                db.action("UPDATE users SET Password=? WHERE UserID=?", (pwd, res['UserID']))
+                return "Password reset, check your email"
+            else:
+                msg = f"Failed to send email to [{res['Email']}]"
+                logger.debug(msg)
+        db.close()
         msg = f"Password not reset: {msg}"
         logger.error(f"{msg} IP:{remote_ip}")
         return msg
@@ -1271,14 +1260,12 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            seriesdata = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
-            if seriesdata:
-                db.action("DELETE from series WHERE SeriesID=?", (seriesid,))
-            else:
-                logger.warning(f'Missing series: {seriesid}')
-        finally:
-            db.close()
+        seriesdata = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
+        if seriesdata:
+            db.action("DELETE from series WHERE SeriesID=?", (seriesid,))
+        else:
+            logger.warning(f'Missing series: {seriesid}')
+        db.close()
         raise cherrypy.HTTPRedirect("series")
 
     @cherrypy.expose
@@ -1318,38 +1305,36 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         db = database.DBConnection()
-        try:
-            if seriesid:
-                old_data = db.match("SELECT * from series where seriesid=?", (seriesid,))
-                if old_data:
-                    updated = False
-                    seriesname = old_data['SeriesName']
-                    seriesid = old_data['SeriesID']
-                    new_id = kwargs.get('new_id')
-                    if new_id and new_id != seriesid:
-                        seriesid = new_id
-                        updated = True
-                    new_name = kwargs.get('new_name')
-                    if new_name:
-                        self.validate_param("new series name", new_name, ['<', '>', '='], 404)
-                    if new_name and new_name != seriesname:
-                        seriesname = new_name
-                        updated = True
-                    if updated:
-                        db.action('PRAGMA foreign_keys = OFF')
-                        db.action("UPDATE series SET SeriesID=?, SeriesName=? WHERE SeriesID=?",
-                                  (seriesid, seriesname, old_data['SeriesID']))
-                        if seriesid != old_data['SeriesID']:
-                            for table in ['member', 'seriesauthors']:
-                                cmd = "UPDATE " + table + " SET SeriesID=? WHERE SeriesID=?"
-                                db.action(cmd, (seriesid, old_data['SeriesID']))
-                        db.action('PRAGMA foreign_keys = ON')
-                        logger.debug(f"Updated series info for {seriesid}:{seriesname}")
-                else:
-                    logger.debug(f"No match updating series {seriesid}")
-                    raise cherrypy.HTTPError(404, f"Series {seriesid} not found")
-        finally:
-            db.close()
+        if seriesid:
+            old_data = db.match("SELECT * from series where seriesid=?", (seriesid,))
+            if old_data:
+                updated = False
+                seriesname = old_data['SeriesName']
+                seriesid = old_data['SeriesID']
+                new_id = kwargs.get('new_id')
+                if new_id and new_id != seriesid:
+                    seriesid = new_id
+                    updated = True
+                new_name = kwargs.get('new_name')
+                if new_name:
+                    self.validate_param("new series name", new_name, ['<', '>', '='], 404)
+                if new_name and new_name != seriesname:
+                    seriesname = new_name
+                    updated = True
+                if updated:
+                    db.action('PRAGMA foreign_keys = OFF')
+                    db.action("UPDATE series SET SeriesID=?, SeriesName=? WHERE SeriesID=?",
+                              (seriesid, seriesname, old_data['SeriesID']))
+                    if seriesid != old_data['SeriesID']:
+                        for table in ['member', 'seriesauthors']:
+                            cmd = "UPDATE " + table + " SET SeriesID=? WHERE SeriesID=?"
+                            db.action(cmd, (seriesid, old_data['SeriesID']))
+                    db.action('PRAGMA foreign_keys = ON')
+                    logger.debug(f"Updated series info for {seriesid}:{seriesname}")
+            else:
+                logger.debug(f"No match updating series {seriesid}")
+                raise cherrypy.HTTPError(404, f"Series {seriesid} not found")
+        db.close()
         raise cherrypy.HTTPRedirect("series")
 
     @cherrypy.expose
@@ -1418,24 +1403,22 @@ class WebInterface:
 
             myseries = []
             db = database.DBConnection()
-            try:
-                if userid and userprefs & lazylibrarian.pref_myseries:
-                    res = db.select("SELECT WantID from subscribers WHERE Type='series' and UserID=?", (userid,))
-                    loggerserverside.debug(f"User subscribes to {len(res)} series")
-                    for series in res:
-                        myseries.append(series['WantID'])
-                    cmd += " and series.seriesID in (" + ", ".join(f"'{w}'" for w in myseries) + ")"
+            if userid and userprefs & lazylibrarian.pref_myseries:
+                res = db.select("SELECT WantID from subscribers WHERE Type='series' and UserID=?", (userid,))
+                loggerserverside.debug(f"User subscribes to {len(res)} series")
+                for series in res:
+                    myseries.append(series['WantID'])
+                cmd += " and series.seriesID in (" + ", ".join(f"'{w}'" for w in myseries) + ")"
 
-                cmd += " GROUP BY series.seriesID order by AuthorName,SeriesName"
+            cmd += " GROUP BY series.seriesID order by AuthorName,SeriesName"
 
-                loggerserverside.debug(f"get_series {cmd}: {str(args)}")
+            loggerserverside.debug(f"get_series {cmd}: {str(args)}")
 
-                if args:
-                    rowlist = db.select(cmd, tuple(args))
-                else:
-                    rowlist = db.select(cmd)
-            finally:
-                db.close()
+            if args:
+                rowlist = db.select(cmd, tuple(args))
+            else:
+                rowlist = db.select(cmd)
+            db.close()
 
             # turn the sqlite rowlist into a list of lists
             if len(rowlist):
@@ -1530,52 +1513,50 @@ class WebInterface:
     def series_members(self, seriesid, ignored=False):
         self.check_permitted(lazylibrarian.perm_series)
         db = database.DBConnection()
-        try:
-            cmd = ("SELECT SeriesName,series.SeriesID,AuthorName,seriesauthors.AuthorID from "
-                   "series,authors,seriesauthors where authors.AuthorID=seriesauthors.AuthorID and "
-                   "series.SeriesID=seriesauthors.SeriesID and series.SeriesID=?")
-            series = db.match(cmd, (seriesid,))
-            cmd = ("SELECT member.BookID,BookName,SeriesNum,BookImg,books.Status,AuthorName,authors.AuthorID,"
-                   "BookLink,WorkPage,AudioStatus,BookSub from member,series,books,authors where "
-                   "series.SeriesID=member.SeriesID and books.BookID=member.BookID and "
-                   "books.AuthorID=authors.AuthorID and ")
-            if not ignored or ignored == 'False':
-                cmd += "(books.Status != 'Ignored' or AudioStatus != 'Ignored')"
+        cmd = ("SELECT SeriesName,series.SeriesID,AuthorName,seriesauthors.AuthorID from "
+               "series,authors,seriesauthors where authors.AuthorID=seriesauthors.AuthorID and "
+               "series.SeriesID=seriesauthors.SeriesID and series.SeriesID=?")
+        series = db.match(cmd, (seriesid,))
+        cmd = ("SELECT member.BookID,BookName,SeriesNum,BookImg,books.Status,AuthorName,authors.AuthorID,"
+               "BookLink,WorkPage,AudioStatus,BookSub from member,series,books,authors where "
+               "series.SeriesID=member.SeriesID and books.BookID=member.BookID and "
+               "books.AuthorID=authors.AuthorID and ")
+        if not ignored or ignored == 'False':
+            cmd += "(books.Status != 'Ignored' or AudioStatus != 'Ignored')"
+        else:
+            cmd += "(books.Status == 'Ignored' and AudioStatus == 'Ignored')"
+        cmd += " and series.SeriesID=? order by SeriesName"
+        members = db.select(cmd, (seriesid,))
+        # is it a multi-author series?
+        multi = "False"
+        authorid = ''
+        for item in members:
+            if not authorid:
+                authorid = item['AuthorID']
             else:
-                cmd += "(books.Status == 'Ignored' and AudioStatus == 'Ignored')"
-            cmd += " and series.SeriesID=? order by SeriesName"
-            members = db.select(cmd, (seriesid,))
-            # is it a multi-author series?
-            multi = "False"
-            authorid = ''
-            for item in members:
-                if not authorid:
-                    authorid = item['AuthorID']
-                else:
-                    if not authorid == item['AuthorID']:
-                        multi = "True"
-                        break
+                if not authorid == item['AuthorID']:
+                    multi = "True"
+                    break
 
-            email = ''
-            to_read = set()
-            have_read = set()
-            reading = set()
-            abandoned = set()
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                cmd = "SELECT UserName,Perms,SendTo from users where UserID=?"
-                userid = cookie['ll_uid'].value
-                res = db.match(cmd, (userid,))
-                if res:
-                    to_read = get_readinglist('ToRead', userid)
-                    have_read = get_readinglist('HaveRead', userid)
-                    reading = get_readinglist('Reading', userid)
-                    abandoned = get_readinglist('Abandoned', userid)
-                    email = res['SendTo']
-                    if not email:
-                        email = ''
-        finally:
-            db.close()
+        email = ''
+        to_read = set()
+        have_read = set()
+        reading = set()
+        abandoned = set()
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            cmd = "SELECT UserName,Perms,SendTo from users where UserID=?"
+            userid = cookie['ll_uid'].value
+            res = db.match(cmd, (userid,))
+            if res:
+                to_read = get_readinglist('ToRead', userid)
+                have_read = get_readinglist('HaveRead', userid)
+                reading = get_readinglist('Reading', userid)
+                abandoned = get_readinglist('Abandoned', userid)
+                email = res['SendTo']
+                if not email:
+                    email = ''
+        db.close()
         # turn the sqlite rowlist into a list of lists
         rows = []
 
@@ -1617,109 +1598,107 @@ class WebInterface:
         passed = 0
         failed = 0
         redirect = ''
-        try:
-            if action:
-                for seriesid in args:
-                    if action in ["Wanted", "Active", "Skipped", "Ignored", "Paused"]:
-                        match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
-                        if not match:
+        if action:
+            for seriesid in args:
+                if action in ["Wanted", "Active", "Skipped", "Ignored", "Paused"]:
+                    match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
+                    if not match:
+                        failed += 1
+                    else:
+                        passed += 1
+                        db.upsert("series", {'Status': action}, {'SeriesID': seriesid})
+                        logger.debug(f'Status set to "{action}" for "{match["SeriesName"]}"')
+                        if action in ['Wanted', 'Active']:
+                            threadname = f'SERIESMEMBERS_{seriesid}'
+                            if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
+                                threading.Thread(target=add_series_members, name=threadname,
+                                                 args=[seriesid]).start()
+                            ensure_running('series_update')
+                        else:
+                            # stop monitoring
+                            db.action("UPDATE series SET Updated=0 WHERE SeriesID=?", (seriesid,))
+                elif action in ["Unread", "Read", "ToRead", "Reading", "Abandoned"]:
+                    cookie = cherrypy.request.cookie
+                    if cookie and 'll_uid' in list(cookie.keys()):
+                        userid = cookie['ll_uid'].value
+                        to_read = set(get_readinglist('ToRead', userid))
+                        have_read = set(get_readinglist('HaveRead', userid))
+                        reading = set(get_readinglist('Reading', userid))
+                        abandoned = set(get_readinglist('Abandoned', userid))
+                        members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
+                        if not members:
                             failed += 1
                         else:
-                            passed += 1
-                            db.upsert("series", {'Status': action}, {'SeriesID': seriesid})
-                            logger.debug(f'Status set to "{action}" for "{match["SeriesName"]}"')
-                            if action in ['Wanted', 'Active']:
-                                threadname = f'SERIESMEMBERS_{seriesid}'
-                                if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
-                                    threading.Thread(target=add_series_members, name=threadname,
-                                                     args=[seriesid]).start()
-                                ensure_running('series_update')
-                            else:
-                                # stop monitoring
-                                db.action("UPDATE series SET Updated=0 WHERE SeriesID=?", (seriesid,))
-                    elif action in ["Unread", "Read", "ToRead", "Reading", "Abandoned"]:
-                        cookie = cherrypy.request.cookie
-                        if cookie and 'll_uid' in list(cookie.keys()):
-                            userid = cookie['ll_uid'].value
-                            to_read = set(get_readinglist('ToRead', userid))
-                            have_read = set(get_readinglist('HaveRead', userid))
-                            reading = set(get_readinglist('Reading', userid))
-                            abandoned = set(get_readinglist('Abandoned', userid))
-                            members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
-                            if not members:
-                                failed += 1
-                            else:
-                                for item in members:
-                                    bookid = item['bookid']
-                                    if action == "Unread":
-                                        to_read.discard(bookid)
-                                        have_read.discard(bookid)
-                                        reading.discard(bookid)
-                                        abandoned.discard(bookid)
-                                        logger.debug(f'Status set to "unread" for "{bookid}"')
-                                    elif action == "Read":
-                                        to_read.discard(bookid)
-                                        reading.discard(bookid)
-                                        abandoned.discard(bookid)
-                                        have_read.add(bookid)
-                                        logger.debug(f'Status set to "read" for "{bookid}"')
-                                    elif action == "ToRead":
-                                        reading.discard(bookid)
-                                        abandoned.discard(bookid)
-                                        have_read.discard(bookid)
-                                        to_read.add(bookid)
-                                        logger.debug(f'Status set to "to read" for "{bookid}"')
-                                    elif action == "Reading":
-                                        reading.add(bookid)
-                                        abandoned.discard(bookid)
-                                        have_read.discard(bookid)
-                                        to_read.discard(bookid)
-                                        logger.debug(f'Status set to "reading" for "{bookid}"')
-                                    elif action == "Abandoned":
-                                        reading.discard(bookid)
-                                        abandoned.add(bookid)
-                                        have_read.discard(bookid)
-                                        to_read.discard(bookid)
-                                        logger.debug(f'Status set to "abandoned" for "{bookid}"')
-                                    passed += 1
-                                set_readinglist('ToRead', userid, to_read)
-                                set_readinglist('HaveRead', userid, have_read)
-                                set_readinglist('Reading', userid, reading)
-                                set_readinglist('Abandoned', userid, abandoned)
-
-                    elif action == 'Subscribe':
-                        cookie = cherrypy.request.cookie
-                        if cookie and 'll_uid' in list(cookie.keys()):
-                            userid = cookie['ll_uid'].value
-                            res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
-                                           (userid, 'series', seriesid))
-                            if res:
-                                logger.debug(f"User {userid} is already subscribed to {seriesid}")
-                                failed += 1
-                            else:
-                                db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                                          (userid, 'series', seriesid))
-                                logger.debug(f"Subscribe {userid} to series {seriesid}")
+                            for item in members:
+                                bookid = item['bookid']
+                                if action == "Unread":
+                                    to_read.discard(bookid)
+                                    have_read.discard(bookid)
+                                    reading.discard(bookid)
+                                    abandoned.discard(bookid)
+                                    logger.debug(f'Status set to "unread" for "{bookid}"')
+                                elif action == "Read":
+                                    to_read.discard(bookid)
+                                    reading.discard(bookid)
+                                    abandoned.discard(bookid)
+                                    have_read.add(bookid)
+                                    logger.debug(f'Status set to "read" for "{bookid}"')
+                                elif action == "ToRead":
+                                    reading.discard(bookid)
+                                    abandoned.discard(bookid)
+                                    have_read.discard(bookid)
+                                    to_read.add(bookid)
+                                    logger.debug(f'Status set to "to read" for "{bookid}"')
+                                elif action == "Reading":
+                                    reading.add(bookid)
+                                    abandoned.discard(bookid)
+                                    have_read.discard(bookid)
+                                    to_read.discard(bookid)
+                                    logger.debug(f'Status set to "reading" for "{bookid}"')
+                                elif action == "Abandoned":
+                                    reading.discard(bookid)
+                                    abandoned.add(bookid)
+                                    have_read.discard(bookid)
+                                    to_read.discard(bookid)
+                                    logger.debug(f'Status set to "abandoned" for "{bookid}"')
                                 passed += 1
-                    elif action == 'Unsubscribe':
-                        cookie = cherrypy.request.cookie
-                        if cookie and 'll_uid' in list(cookie.keys()):
-                            userid = cookie['ll_uid'].value
-                            db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
-                                      (userid, 'series', seriesid))
-                            passed += 1
-                            res = db.select('SELECT bookid from series where seriesid=?', (seriesid, ))
-                            for iss in res:
-                                db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
-                                          (userid, 'series', iss['bookid']))
-                            logger.debug(f"Unsubscribe {userid} to series {seriesid}")
+                            set_readinglist('ToRead', userid, to_read)
+                            set_readinglist('HaveRead', userid, have_read)
+                            set_readinglist('Reading', userid, reading)
+                            set_readinglist('Abandoned', userid, abandoned)
 
-                if "redirect" in args:
-                    redirect = f"series?authorid={args['redirect']}"
-                else:
-                    redirect = "series"
-        finally:
-            db.close()
+                elif action == 'Subscribe':
+                    cookie = cherrypy.request.cookie
+                    if cookie and 'll_uid' in list(cookie.keys()):
+                        userid = cookie['ll_uid'].value
+                        res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
+                                       (userid, 'series', seriesid))
+                        if res:
+                            logger.debug(f"User {userid} is already subscribed to {seriesid}")
+                            failed += 1
+                        else:
+                            db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                                      (userid, 'series', seriesid))
+                            logger.debug(f"Subscribe {userid} to series {seriesid}")
+                            passed += 1
+                elif action == 'Unsubscribe':
+                    cookie = cherrypy.request.cookie
+                    if cookie and 'll_uid' in list(cookie.keys()):
+                        userid = cookie['ll_uid'].value
+                        db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                  (userid, 'series', seriesid))
+                        passed += 1
+                        res = db.select('SELECT bookid from series where seriesid=?', (seriesid, ))
+                        for iss in res:
+                            db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                      (userid, 'series', iss['bookid']))
+                        logger.debug(f"Unsubscribe {userid} to series {seriesid}")
+
+            if "redirect" in args:
+                redirect = f"series?authorid={args['redirect']}"
+            else:
+                redirect = "series"
+        db.close()
 
         # Return JSON response instead of redirect
         total = passed + failed
@@ -1865,173 +1844,171 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_config)
         db = database.DBConnection()
-        try:
-            adminmsg = ''
-            if 'user_accounts' in kwargs:
-                # logger.error('CFG2: Need to handle user account changes')
-                if kwargs['user_accounts']:
-                    email = ''
-                    if 'admin_email' in kwargs and kwargs['admin_email']:
-                        email = kwargs['admin_email']
-                    else:
-                        adminmsg += 'Please set a contact email so users can make requests<br>'
+        adminmsg = ''
+        if 'user_accounts' in kwargs:
+            # logger.error('CFG2: Need to handle user account changes')
+            if kwargs['user_accounts']:
+                email = ''
+                if 'admin_email' in kwargs and kwargs['admin_email']:
+                    email = kwargs['admin_email']
+                else:
+                    adminmsg += 'Please set a contact email so users can make requests<br>'
 
-                    if email and not is_valid_email(email):
-                        adminmsg += 'Contact email looks invalid, please check<br>'
+                if email and not is_valid_email(email):
+                    adminmsg += 'Contact email looks invalid, please check<br>'
 
-                    if CONFIG['HTTP_USER'] != '':
-                        adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
+                if CONFIG['HTTP_USER'] != '':
+                    adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
 
-                    admin = db.match("SELECT password from users where name='admin'")
-                    if admin:
-                        if admin['password'] == md5_utf8('admin'):
-                            adminmsg += "The default admin user is \"admin\" and password is \"admin\"<br>"
-                            adminmsg += "This is insecure, please change it on Config -> User Admin<br>"
+                admin = db.match("SELECT password from users where name='admin'")
+                if admin:
+                    if admin['password'] == md5_utf8('admin'):
+                        adminmsg += "The default admin user is \"admin\" and password is \"admin\"<br>"
+                        adminmsg += "This is insecure, please change it on Config -> User Admin<br>"
 
-            # store any genre changes
-            genre_changes = ''
-            genrelimit = check_int(kwargs.get('genrelimit', 0), 0)
-            if lazylibrarian.GRGENRES.get('genreLimit', 10) != genrelimit:
-                lazylibrarian.GRGENRES['genreLimit'] = genrelimit
-                genre_changes += 'limit '
-            genreusers = check_int(kwargs.get('genreusers', 0), 0)
-            if lazylibrarian.GRGENRES.get('genreUsers', 10) != genreusers:
-                lazylibrarian.GRGENRES['genreUsers'] = genreusers
-                genre_changes += 'users '
-            newexcludes = sorted(get_list(kwargs.get('genreexclude', ''), ','))
-            if sorted(lazylibrarian.GRGENRES.get('genreExclude', [])) != newexcludes:
-                lazylibrarian.GRGENRES['genreExclude'] = newexcludes
-                genre_changes += 'excludes '
-            newexcludes = sorted(get_list(kwargs.get('genreexcludeparts', ''), ','))
-            if sorted(lazylibrarian.GRGENRES.get('genreExcludeParts', [])) != newexcludes:
-                lazylibrarian.GRGENRES['genreExcludeParts'] = newexcludes
-                genre_changes += 'parts '
-            # now the replacements
-            genredict = {}
-            for item in kwargs:
-                if item.startswith('genrereplace['):
-                    mykey = make_unicode(item.split('[')[1].split(']')[0])
-                    myval = make_unicode(kwargs.get(item, ''))
-                    if myval:
-                        genredict[mykey] = myval
+        # store any genre changes
+        genre_changes = ''
+        genrelimit = check_int(kwargs.get('genrelimit', 0), 0)
+        if lazylibrarian.GRGENRES.get('genreLimit', 10) != genrelimit:
+            lazylibrarian.GRGENRES['genreLimit'] = genrelimit
+            genre_changes += 'limit '
+        genreusers = check_int(kwargs.get('genreusers', 0), 0)
+        if lazylibrarian.GRGENRES.get('genreUsers', 10) != genreusers:
+            lazylibrarian.GRGENRES['genreUsers'] = genreusers
+            genre_changes += 'users '
+        newexcludes = sorted(get_list(kwargs.get('genreexclude', ''), ','))
+        if sorted(lazylibrarian.GRGENRES.get('genreExclude', [])) != newexcludes:
+            lazylibrarian.GRGENRES['genreExclude'] = newexcludes
+            genre_changes += 'excludes '
+        newexcludes = sorted(get_list(kwargs.get('genreexcludeparts', ''), ','))
+        if sorted(lazylibrarian.GRGENRES.get('genreExcludeParts', [])) != newexcludes:
+            lazylibrarian.GRGENRES['genreExcludeParts'] = newexcludes
+            genre_changes += 'parts '
+        # now the replacements
+        genredict = {}
+        for item in kwargs:
+            if item.startswith('genrereplace['):
+                mykey = make_unicode(item.split('[')[1].split(']')[0])
+                myval = make_unicode(kwargs.get(item, ''))
+                if myval:
+                    genredict[mykey] = myval
 
-            # new genre to add
-            if 'genrenew' in kwargs and 'genreold' in kwargs:
-                if kwargs['genrenew'] and kwargs['genreold']:
-                    genredict[make_unicode(kwargs['genreold'])] = make_unicode(kwargs['genrenew'])
-                    genre_changes += 'new-entry '
+        # new genre to add
+        if 'genrenew' in kwargs and 'genreold' in kwargs:
+            if kwargs['genrenew'] and kwargs['genreold']:
+                genredict[make_unicode(kwargs['genreold'])] = make_unicode(kwargs['genrenew'])
+                genre_changes += 'new-entry '
 
-            dicts_same = False
-            if len(lazylibrarian.GRGENRES.get('genreReplace', {})) != len(genredict):
-                genre_changes += 'dict-length '
+        dicts_same = False
+        if len(lazylibrarian.GRGENRES.get('genreReplace', {})) != len(genredict):
+            genre_changes += 'dict-length '
+        else:
+            shared_items = {k: lazylibrarian.GRGENRES['genreReplace'][k]
+                            for k in lazylibrarian.GRGENRES['genreReplace']
+                            if k in genredict and lazylibrarian.GRGENRES['genreReplace'][k] == genredict[k]}
+            if len(shared_items) != len(genredict):
+                genre_changes += 'shared-values '
             else:
-                shared_items = {k: lazylibrarian.GRGENRES['genreReplace'][k]
-                                for k in lazylibrarian.GRGENRES['genreReplace']
-                                if k in genredict and lazylibrarian.GRGENRES['genreReplace'][k] == genredict[k]}
-                if len(shared_items) != len(genredict):
-                    genre_changes += 'shared-values '
-                else:
-                    dicts_same = True
+                dicts_same = True
 
-            if not dicts_same:
-                lazylibrarian.GRGENRES['genreReplace'] = genredict
+        if not dicts_same:
+            lazylibrarian.GRGENRES['genreReplace'] = genredict
 
-            if genre_changes:
-                logger.debug(f"Genre changes: {genre_changes}")
-                logger.debug("Writing out new genres.json")
-                newdict = {
-                    'genreLimit': lazylibrarian.GRGENRES['genreLimit'],
-                    'genreUsers': lazylibrarian.GRGENRES['genreUsers'],
-                    'genreExclude': lazylibrarian.GRGENRES['genreExclude'],
-                    'genreExcludeParts': lazylibrarian.GRGENRES['genreExcludeParts'],
-                    'genreReplace': lazylibrarian.GRGENRES['genreReplace'],
-                }
-                with open(syspath(os.path.join(DIRS.DATADIR, 'genres.json')), 'w') as f:
-                    json.dump(newdict, f, indent=4)
-                logger.debug("Applying genre changes")
-                check_db()
+        if genre_changes:
+            logger.debug(f"Genre changes: {genre_changes}")
+            logger.debug("Writing out new genres.json")
+            newdict = {
+                'genreLimit': lazylibrarian.GRGENRES['genreLimit'],
+                'genreUsers': lazylibrarian.GRGENRES['genreUsers'],
+                'genreExclude': lazylibrarian.GRGENRES['genreExclude'],
+                'genreExcludeParts': lazylibrarian.GRGENRES['genreExcludeParts'],
+                'genreReplace': lazylibrarian.GRGENRES['genreReplace'],
+            }
+            with open(syspath(os.path.join(DIRS.DATADIR, 'genres.json')), 'w') as f:
+                json.dump(newdict, f, indent=4)
+            logger.debug("Applying genre changes")
+            check_db()
 
-            # now the config file entries
-            for key, item in CONFIG.config.items():
-                if key.lower() in kwargs:
-                    value = kwargs[key.lower()]
-                    # validate entries here...
-                    if value:
-                        if key.lower() in ['bok_host']:
-                            tokens = ['<', '>', '"', "'", '+', '(', ')']
-                        elif (key.lower() in ['user_agent', 'fmt_series'] or key.lower().endswith('_folder')
-                              or key.lower().endswith('_file')):
-                            tokens = ['<', '&', '>', '=', '"', "'", '+']
-                        elif '_pass' in key.lower():
-                            tokens = ['<', '>']
-                        else:
-                            tokens = ['<', '&', '>', '=', '"', "'", '+', '(', ')']
-                        if not self.validate_param(key.lower(), value, tokens, None):
-                            newvalue = unquote_plus(value)
-                            for token in tokens:
-                                if token in newvalue:
-                                    newvalue = newvalue.replace(token, '')
-                            value = newvalue
-                            logger.warning(f"Invalid Token: Key {key} changed to {value}")
-                    CONFIG.set_from_ui(key, value)
-                else:
-                    if isinstance(item, ConfigBool) and item.get_read_count() > 0:
-                        item.set_from_ui(False)  # Set other items to False that we've seen (i.e. are shown)
-            CONFIG.ensure_valid_homepage()
+        # now the config file entries
+        for key, item in CONFIG.config.items():
+            if key.lower() in kwargs:
+                value = kwargs[key.lower()]
+                # validate entries here...
+                if value:
+                    if key.lower() in ['bok_host']:
+                        tokens = ['<', '>', '"', "'", '+', '(', ')']
+                    elif (key.lower() in ['user_agent', 'fmt_series'] or key.lower().endswith('_folder')
+                          or key.lower().endswith('_file')):
+                        tokens = ['<', '&', '>', '=', '"', "'", '+']
+                    elif '_pass' in key.lower():
+                        tokens = ['<', '>']
+                    else:
+                        tokens = ['<', '&', '>', '=', '"', "'", '+', '(', ')']
+                    if not self.validate_param(key.lower(), value, tokens, None):
+                        newvalue = unquote_plus(value)
+                        for token in tokens:
+                            if token in newvalue:
+                                newvalue = newvalue.replace(token, '')
+                        value = newvalue
+                        logger.warning(f"Invalid Token: Key {key} changed to {value}")
+                CONFIG.set_from_ui(key, value)
+            else:
+                if isinstance(item, ConfigBool) and item.get_read_count() > 0:
+                    item.set_from_ui(False)  # Set other items to False that we've seen (i.e. are shown)
+        CONFIG.ensure_valid_homepage()
 
-            magazines = db.select('SELECT * from magazines')
-            if magazines:
-                count = 0
-                for mag in magazines:
-                    title = mag['Title']
-                    reject = mag['Reject']
-                    regex = mag['Regex']
-                    genres = mag['Genre']
-                    datetype = mag['DateType']
-                    coverpage = check_int(mag['CoverPage'], 1)
-                    language = mag['Language']
-                    # seems kwargs parameters from cherrypy are sometimes passed as latin-1,
-                    # can't see how to configure it, so we need to correct it on accented magazine names
-                    # eg "Elle Quebec" where we might have e-acute stored as unicode
-                    # e-acute is \xe9 in latin-1  but  \xc3\xa9 in utf-8
-                    # otherwise the comparison fails, but sometimes accented characters won't
-                    # fit latin-1 but fit utf-8 how can we tell ???
-                    if not isinstance(title, str):
+        magazines = db.select('SELECT * from magazines')
+        if magazines:
+            count = 0
+            for mag in magazines:
+                title = mag['Title']
+                reject = mag['Reject']
+                regex = mag['Regex']
+                genres = mag['Genre']
+                datetype = mag['DateType']
+                coverpage = check_int(mag['CoverPage'], 1)
+                language = mag['Language']
+                # seems kwargs parameters from cherrypy are sometimes passed as latin-1,
+                # can't see how to configure it, so we need to correct it on accented magazine names
+                # eg "Elle Quebec" where we might have e-acute stored as unicode
+                # e-acute is \xe9 in latin-1  but  \xc3\xa9 in utf-8
+                # otherwise the comparison fails, but sometimes accented characters won't
+                # fit latin-1 but fit utf-8 how can we tell ???
+                if not isinstance(title, str):
+                    try:
+                        title = title.encode('latin-1')
+                    except UnicodeEncodeError:
                         try:
-                            title = title.encode('latin-1')
+                            title = title.encode('utf-8')
                         except UnicodeEncodeError:
-                            try:
-                                title = title.encode('utf-8')
-                            except UnicodeEncodeError:
-                                logger.warning(f'Unable to convert title [{repr(title)}]')
-                                title = unaccented(title, only_ascii=False)
+                            logger.warning(f'Unable to convert title [{repr(title)}]')
+                            title = unaccented(title, only_ascii=False)
 
-                    new_value_dict = {}
-                    new_reject = kwargs.get(f'reject_list[{title}]', None)
-                    if not new_reject == reject:
-                        new_value_dict['Reject'] = new_reject
-                    new_regex = kwargs.get(f'regex[{title}]', None)
-                    if not new_regex == regex:
-                        new_value_dict['Regex'] = new_regex
-                    new_genres = kwargs.get(f'genre_list[{title}]', None)
-                    if not new_genres == genres:
-                        new_value_dict['Genre'] = new_genres
-                    new_datetype = kwargs.get(f'datetype[{title}]', None)
-                    if not new_datetype == datetype:
-                        new_value_dict['DateType'] = new_datetype
-                    new_coverpage = check_int(kwargs.get(f"coverpage[{title}]", None), 1)
-                    if not new_coverpage == coverpage:
-                        new_value_dict['CoverPage'] = new_coverpage
-                    new_language = kwargs.get(f'language[{title}]', None)
-                    if not new_language == language:
-                        new_value_dict['Language'] = new_language
-                    if new_value_dict:
-                        count += 1
-                        db.upsert("magazines", new_value_dict, {'Title': title})
-                if count:
-                    logger.info(f"Magazine {count} filters updated")
-        finally:
-            db.close()
+                new_value_dict = {}
+                new_reject = kwargs.get(f'reject_list[{title}]', None)
+                if not new_reject == reject:
+                    new_value_dict['Reject'] = new_reject
+                new_regex = kwargs.get(f'regex[{title}]', None)
+                if not new_regex == regex:
+                    new_value_dict['Regex'] = new_regex
+                new_genres = kwargs.get(f'genre_list[{title}]', None)
+                if not new_genres == genres:
+                    new_value_dict['Genre'] = new_genres
+                new_datetype = kwargs.get(f'datetype[{title}]', None)
+                if not new_datetype == datetype:
+                    new_value_dict['DateType'] = new_datetype
+                new_coverpage = check_int(kwargs.get(f"coverpage[{title}]", None), 1)
+                if not new_coverpage == coverpage:
+                    new_value_dict['CoverPage'] = new_coverpage
+                new_language = kwargs.get(f'language[{title}]', None)
+                if not new_language == language:
+                    new_value_dict['Language'] = new_language
+                if new_value_dict:
+                    count += 1
+                    db.upsert("magazines", new_value_dict, {'Title': title})
+            if count:
+                logger.info(f"Magazine {count} filters updated")
+        db.close()
 
         CONFIG.update_providers_from_ui(kwargs)
 
@@ -2087,8 +2064,10 @@ class WebInterface:
         lazylibrarian.SEARCHING = 1
         if searchfor.lower().startswith('authorid:'):
             self.add_author_id(searchfor[9:])
+            return None
         elif searchfor.lower().startswith('bookid:'):
             self.add_book(searchfor[7:])
+            return None
         else:
             authid_key = 'AuthorID'
             bookid_key = 'BookID'
@@ -2225,31 +2204,28 @@ class WebInterface:
         global lastauthor
         self.check_permitted(lazylibrarian.perm_ebook + lazylibrarian.perm_audio)
         db = database.DBConnection()
-        try:
-            user = 0
-            email = ''
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                user = cookie['ll_uid'].value
-                res = db.match('SELECT SendTo from users where UserID=?', (user,))
-                if res and res['SendTo']:
-                    email = res['SendTo']
+        user = 0
+        email = ''
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            user = cookie['ll_uid'].value
+            res = db.match('SELECT SendTo from users where UserID=?', (user,))
+            if res and res['SendTo']:
+                email = res['SendTo']
 
-            author = dict(db.match("SELECT * from authors WHERE AuthorID=?", (authorid,)))
-            if not author:
-                author = dict(db.match("SELECT * from authors WHERE ol_id=? or gr_id=? or hc_id=?",
-                                       (authorid, authorid, authorid,)))
-            if ignored:
-                languages = db.select(
-                    "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status ='Ignored'",
-                    (authorid,))
-            else:
-                languages = db.select(
-                    "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status !='Ignored'",
-                    (authorid,))
-
-        finally:
-            db.close()
+        author = dict(db.match("SELECT * from authors WHERE AuthorID=?", (authorid,)))
+        if not author:
+            author = dict(db.match("SELECT * from authors WHERE ol_id=? or gr_id=? or hc_id=?",
+                                   (authorid, authorid, authorid,)))
+        if ignored:
+            languages = db.select(
+                "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status ='Ignored'",
+                (authorid,))
+        else:
+            languages = db.select(
+                "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status !='Ignored'",
+                (authorid,))
+        db.close()
 
         types = []
         if CONFIG.get_bool('EBOOK_TAB'):
@@ -2327,18 +2303,16 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
-            if authorsearch:  # to stop error if try to remove an author while they are still loading
-                author_name = authorsearch['AuthorName']
-                logger.info(f"Removing all references to author: {author_name}")
-                db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
-                # if the author was the only remaining contributor to a series, remove the series
-                orphans = db.select('select seriesid from series except select seriesid from seriesauthors')
-                for orphan in orphans:
-                    db.action('DELETE from series where seriesid=?', (orphan[0],))
-        finally:
-            db.close()
+        authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+        if authorsearch:  # to stop error if try to remove an author while they are still loading
+            author_name = authorsearch['AuthorName']
+            logger.info(f"Removing all references to author: {author_name}")
+            db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+            # if the author was the only remaining contributor to a series, remove the series
+            orphans = db.select('select seriesid from series except select seriesid from seriesauthors')
+            for orphan in orphans:
+                db.action('DELETE from series where seriesid=?', (orphan[0],))
+        db.close()
         raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
@@ -2366,50 +2340,46 @@ class WebInterface:
         # empty GRfollow is not-yet-used, zero means manually unfollowed so sync leaves it alone
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            authorsearch = db.match('SELECT AuthorName, GRfollow from authors WHERE AuthorID=?', (authorid,))
-            if authorsearch:
-                if authorsearch['GRfollow'] and authorsearch['GRfollow'] != '0':
-                    logger.warning(f"Already Following {authorsearch['AuthorName']}")
-                else:
-                    msg = grsync.grfollow(authorid, True)
-                    if msg.startswith('Unable'):
-                        logger.warning(msg)
-                    else:
-                        logger.info(msg)
-                        followid = msg.split("followid=")[1]
-                        db.action("UPDATE authors SET GRfollow=? WHERE AuthorID=?", (followid, authorid))
+        authorsearch = db.match('SELECT AuthorName, GRfollow from authors WHERE AuthorID=?', (authorid,))
+        if authorsearch:
+            if authorsearch['GRfollow'] and authorsearch['GRfollow'] != '0':
+                logger.warning(f"Already Following {authorsearch['AuthorName']}")
             else:
-                msg = f"Invalid authorid to follow ({authorid})"
-                logger.error(msg)
-                raise cherrypy.HTTPError(404, msg)
-        finally:
-            db.close()
+                msg = grsync.grfollow(authorid, True)
+                if msg.startswith('Unable'):
+                    logger.warning(msg)
+                else:
+                    logger.info(msg)
+                    followid = msg.split("followid=")[1]
+                    db.action("UPDATE authors SET GRfollow=? WHERE AuthorID=?", (followid, authorid))
+        else:
+            msg = f"Invalid authorid to follow ({authorid})"
+            logger.error(msg)
+            raise cherrypy.HTTPError(404, msg)
 
+        db.close()
         raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
     def unfollow_author(self, authorid):
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            authorsearch = db.match('SELECT AuthorName, GRfollow from authors WHERE AuthorID=?', (authorid,))
-            if authorsearch:
-                if not authorsearch['GRfollow'] or authorsearch['GRfollow'] == '0':
-                    logger.warning(f"Not Following {authorsearch['AuthorName']}")
-                else:
-                    msg = grsync.grfollow(authorid, False)
-                    if msg.startswith('Unable'):
-                        logger.warning(msg)
-                    else:
-                        db.action("UPDATE authors SET GRfollow='0' WHERE AuthorID=?", (authorid,))
-                        logger.info(msg)
+        authorsearch = db.match('SELECT AuthorName, GRfollow from authors WHERE AuthorID=?', (authorid,))
+        if authorsearch:
+            if not authorsearch['GRfollow'] or authorsearch['GRfollow'] == '0':
+                logger.warning(f"Not Following {authorsearch['AuthorName']}")
             else:
-                msg = f"Invalid authorid to unfollow ({authorid})"
-                logger.error(msg)
-                raise cherrypy.HTTPError(404, msg)
-        finally:
-            db.close()
+                msg = grsync.grfollow(authorid, False)
+                if msg.startswith('Unable'):
+                    logger.warning(msg)
+                else:
+                    db.action("UPDATE authors SET GRfollow='0' WHERE AuthorID=?", (authorid,))
+                    logger.info(msg)
+        else:
+            msg = f"Invalid authorid to unfollow ({authorid})"
+            logger.error(msg)
+            raise cherrypy.HTTPError(404, msg)
+        db.close()
         raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
@@ -3126,40 +3096,38 @@ class WebInterface:
 
         author_id = ''
         db = database.DBConnection()
-        try:
+        match = db.match('SELECT AuthorID from books WHERE BookID=?', (bookid,))
+        if not match and authorid:
+            _ = add_author_to_db(None, False, authorid, False, f'WebServer add_book {bookid}')
             match = db.match('SELECT AuthorID from books WHERE BookID=?', (bookid,))
-            if not match and authorid:
-                _ = add_author_to_db(None, False, authorid, False, f'WebServer add_book {bookid}')
-                match = db.match('SELECT AuthorID from books WHERE BookID=?', (bookid,))
-            if match:
-                db.upsert("books", {'Status': ebook_status, 'AudioStatus': audio_status},
-                          {'BookID': bookid})
-                author_id = match['AuthorID']
-                update_totals(author_id)
-            else:
-                if CONFIG['BOOK_API'] == "GoogleBooks":
-                    gb = GoogleBooks(bookid)
-                    t = threading.Thread(target=gb.find_book, name='GB-BOOK',
-                                         args=[bookid, ebook_status, audio_status, "Added by user"])
-                    t.start()
-                elif CONFIG['BOOK_API'] == "GoodReads":
-                    gr = GoodReads(bookid)
-                    t = threading.Thread(target=gr.find_book, name='GR-BOOK',
-                                         args=[bookid, ebook_status, audio_status, "Added by user"])
-                    t.start()
-                elif CONFIG['BOOK_API'] == "HardCover":
-                    h_c = HardCover(bookid)
-                    t = threading.Thread(target=h_c.find_book, name='HC-BOOK',
-                                         args=[bookid, ebook_status, audio_status, "Added by user"])
-                    t.start()
-                else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
-                    ol = OpenLibrary(bookid)
-                    t = threading.Thread(target=ol.find_book, name='OL-BOOK',
-                                         args=[bookid, ebook_status, audio_status, "Added by user"])
-                    t.start()
-                t.join(timeout=10)  # 10 s to add book before redirect
-        finally:
-            db.close()
+        if match:
+            db.upsert("books", {'Status': ebook_status, 'AudioStatus': audio_status},
+                      {'BookID': bookid})
+            author_id = match['AuthorID']
+            update_totals(author_id)
+        else:
+            if CONFIG['BOOK_API'] == "GoogleBooks":
+                gb = GoogleBooks(bookid)
+                t = threading.Thread(target=gb.find_book, name='GB-BOOK',
+                                     args=[bookid, ebook_status, audio_status, "Added by user"])
+                t.start()
+            elif CONFIG['BOOK_API'] == "GoodReads":
+                gr = GoodReads(bookid)
+                t = threading.Thread(target=gr.find_book, name='GR-BOOK',
+                                     args=[bookid, ebook_status, audio_status, "Added by user"])
+                t.start()
+            elif CONFIG['BOOK_API'] == "HardCover":
+                h_c = HardCover(bookid)
+                t = threading.Thread(target=h_c.find_book, name='HC-BOOK',
+                                     args=[bookid, ebook_status, audio_status, "Added by user"])
+                t.start()
+            else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                ol = OpenLibrary(bookid)
+                t = threading.Thread(target=ol.find_book, name='OL-BOOK',
+                                     args=[bookid, ebook_status, audio_status, "Added by user"])
+                t.start()
+            t.join(timeout=10)  # 10 s to add book before redirect
+        db.close()
 
         if CONFIG.get_bool('IMP_AUTOSEARCH'):
             books = [{"bookid": bookid}]
@@ -3224,55 +3192,53 @@ class WebInterface:
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             db = database.DBConnection()
-            try:
-                res = db.match('SELECT Name,UserName,UserID,Email from users where UserID=?', (cookie['ll_uid'].value,))
-                if res:
-                    cmd = ("SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE BookID=? and "
-                           "books.AuthorID = authors.AuthorID")
-                    bookdata = db.match(cmd, (kwargs['bookid'],))
-                    kwargs.update(bookdata)
-                    kwargs.update(res)
-                    kwargs.update({'message': 'Request to Download'})
+            res = db.match('SELECT Name,UserName,UserID,Email from users where UserID=?', (cookie['ll_uid'].value,))
+            if res:
+                cmd = ("SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE BookID=? and "
+                       "books.AuthorID = authors.AuthorID")
+                bookdata = db.match(cmd, (kwargs['bookid'],))
+                kwargs.update(bookdata)
+                kwargs.update(res)
+                kwargs.update({'message': 'Request to Download'})
 
-                    remote_ip = cherrypy.request.remote.ip
-                    msg = f'IP: {remote_ip}\n'
-                    for item in kwargs:
-                        if kwargs[item]:
-                            line = f"{item}: {unaccented(kwargs[item], only_ascii=False)}\n"
-                        else:
-                            line = f"{item}: \n"
-                        msg += line
-
-                    types = []
-                    if CONFIG.get_bool('EBOOK_TAB'):
-                        types.append('eBook')
-                    if CONFIG.get_bool('AUDIO_TAB'):
-                        types.append('AudioBook')
-
-                    booktype = 'book'
-                    if types:
-                        if 'library' in kwargs and kwargs['library'] in types:
-                            booktype = kwargs['library']
-
-                    title = f"{booktype}: {bookdata['BookName']}"
-
-                    if 'email' in kwargs and kwargs['email']:
-                        result = notifiers.email_notifier.notify_message('Request from LazyLibrarian User',
-                                                                         msg, CONFIG['ADMIN_EMAIL'])
-                        if result:
-                            prefix = "Message sent"
-                            msg = "You will receive a reply by email"
-                        else:
-                            logger.error(f"Unable to send message to: {msg}")
-                            prefix = "Message not sent"
-                            msg = "Please try again later"
+                remote_ip = cherrypy.request.remote.ip
+                msg = f'IP: {remote_ip}\n'
+                for item in kwargs:
+                    if kwargs[item]:
+                        line = f"{item}: {unaccented(kwargs[item], only_ascii=False)}\n"
                     else:
-                        prefix = "Unable to send message"
-                        msg = "No email address supplied"
+                        line = f"{item}: \n"
+                    msg += line
+
+                types = []
+                if CONFIG.get_bool('EBOOK_TAB'):
+                    types.append('eBook')
+                if CONFIG.get_bool('AUDIO_TAB'):
+                    types.append('AudioBook')
+
+                booktype = 'book'
+                if types:
+                    if 'library' in kwargs and kwargs['library'] in types:
+                        booktype = kwargs['library']
+
+                title = f"{booktype}: {bookdata['BookName']}"
+
+                if 'email' in kwargs and kwargs['email']:
+                    result = notifiers.email_notifier.notify_message('Request from LazyLibrarian User',
+                                                                     msg, CONFIG['ADMIN_EMAIL'])
+                    if result:
+                        prefix = "Message sent"
+                        msg = "You will receive a reply by email"
+                    else:
+                        logger.error(f"Unable to send message to: {msg}")
+                        prefix = "Message not sent"
+                        msg = "Please try again later"
                 else:
-                    msg = "Unknown user"
-            finally:
-                db.close()
+                    prefix = "Unable to send message"
+                    msg = "No email address supplied"
+            else:
+                msg = "Unknown user"
+            db.close()
         else:
             msg = "Nobody logged in?"
 
@@ -3321,7 +3287,7 @@ class WebInterface:
         itemid = itemid.split('.')[0]  # discard any extension
         if len(userid) != 10:
             logger.debug(f"Invalid userID [{userid}]")
-            return
+            return None
 
         target = ''
 
@@ -3333,132 +3299,131 @@ class WebInterface:
             size = 0
 
         db = database.DBConnection()
-        try:
-            res = db.match('SELECT UserName,Perms,BookType from users where UserID=?', (userid,))
-            if res:
-                perm = check_int(res['Perms'], 0)
-                preftype = res['BookType']
-            else:
-                logger.debug(f"Invalid userID [{userid}]")
-                return
+        res = db.match('SELECT UserName,Perms,BookType from users where UserID=?', (userid,))
+        if res:
+            perm = check_int(res['Perms'], 0)
+            preftype = res['BookType']
+        else:
+            logger.debug(f"Invalid userID [{userid}]")
+            return None
 
-            if not perm & lazylibrarian.perm_download:
-                logger.debug(f"Insufficient permissions for userID [{userid}]")
-                return
+        if not perm & lazylibrarian.perm_download:
+            logger.debug(f"Insufficient permissions for userID [{userid}]")
+            return None
 
-            if ftype == 'img':
-                if itemid:
-                    res = db.match('SELECT BookName,BookImg from books WHERE BookID=?', (itemid,))
+        if ftype == 'img':
+            if itemid:
+                res = db.match('SELECT BookName,BookImg from books WHERE BookID=?', (itemid,))
+                if res:
+                    logger.debug(f"Itemid {itemid} matches ebook")
+                    if size:
+                        target = createthumb(os.path.join(DIRS.DATADIR, res['BookImg']), size, False)
+                    if not target:
+                        target = os.path.join(DIRS.DATADIR, res['BookImg'])
+                    if path_isfile(target):
+                        return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
+                else:
+                    res = db.match('SELECT Title,Cover from issues WHERE IssueID=?', (itemid,))
                     if res:
-                        logger.debug(f"Itemid {itemid} matches ebook")
+                        logger.debug(f"Itemid {itemid} matches issue")
                         if size:
-                            target = createthumb(os.path.join(DIRS.DATADIR, res['BookImg']), size, False)
+                            target = createthumb(os.path.join(DIRS.DATADIR, res['Cover']), size, False)
                         if not target:
-                            target = os.path.join(DIRS.DATADIR, res['BookImg'])
+                            target = os.path.join(DIRS.DATADIR, res['Cover'])
                         if path_isfile(target):
-                            return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
+                            return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
                     else:
-                        res = db.match('SELECT Title,Cover from issues WHERE IssueID=?', (itemid,))
+                        try:
+                            comicid, issueid = itemid.split('_')
+                            cmd = ("SELECT Title,Cover from comics,comicissues WHERE "
+                                   "comics.ComicID=comicissues.ComicID and comics.ComicID=? and IssueID=?")
+                            res = db.match(cmd, (comicid, issueid))
+                        except (IndexError, ValueError):
+                            res = None
                         if res:
-                            logger.debug(f"Itemid {itemid} matches issue")
+                            logger.debug(f"Itemid {itemid} matches comicid")
                             if size:
                                 target = createthumb(os.path.join(DIRS.DATADIR, res['Cover']), size, False)
                             if not target:
                                 target = os.path.join(DIRS.DATADIR, res['Cover'])
                             if path_isfile(target):
                                 return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
-                        else:
-                            try:
-                                comicid, issueid = itemid.split('_')
-                                cmd = ("SELECT Title,Cover from comics,comicissues WHERE "
-                                       "comics.ComicID=comicissues.ComicID and comics.ComicID=? and IssueID=?")
-                                res = db.match(cmd, (comicid, issueid))
-                            except (IndexError, ValueError):
-                                res = None
-                            if res:
-                                logger.debug(f"Itemid {itemid} matches comicid")
-                                if size:
-                                    target = createthumb(os.path.join(DIRS.DATADIR, res['Cover']), size, False)
-                                if not target:
-                                    target = os.path.join(DIRS.DATADIR, res['Cover'])
-                                if path_isfile(target):
-                                    return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
 
-                logger.debug(f"Itemid {itemid} no match")
-                target = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'll192.png')
-                if path_isfile(target):
-                    return self.send_file(target, name='lazylibrarian.png')
+            logger.debug(f"Itemid {itemid} no match")
+            target = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'll192.png')
+            if path_isfile(target):
+                return self.send_file(target, name='lazylibrarian.png')
 
-            elif ftype == 'comic':
-                try:
-                    comicid, issueid = itemid.split('_')
-                    cmd = ("SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID "
-                           "and comics.ComicID=? and IssueID=?")
-                    res = db.match(cmd, (comicid, issueid))
-                except (IndexError, ValueError):
-                    res = None
-                    issueid = 0
+        elif ftype == 'comic':
+            try:
+                comicid, issueid = itemid.split('_')
+                cmd = ("SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID "
+                       "and comics.ComicID=? and IssueID=?")
+                res = db.match(cmd, (comicid, issueid))
+            except (IndexError, ValueError):
+                res = None
+                issueid = 0
 
-                if res:
-                    target = res['IssueFile']
+            if res:
+                target = res['IssueFile']
+                if target and path_isfile(target):
+                    logger.debug(f'Opening {ftype} {target}')
+                    return self.send_file(target, name=f"{res['Title']} {issueid}{os.path.splitext(target)[1]}")
+
+        elif ftype == 'audio':
+            res = db.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
+            if res:
+                cnt = 0
+                myfile = res['AudioFile']
+                # count the audiobook parts
+                if myfile and path_isfile(myfile):
+                    parentdir = os.path.dirname(myfile)
+                    for _, _, filenames in walk(parentdir):
+                        for filename in filenames:
+                            if CONFIG.is_valid_booktype(filename, 'audiobook'):
+                                cnt += 1
+
+                if cnt > 1 and not CONFIG.get_bool('RSS_PODCAST'):
+                    target = zip_audio(os.path.dirname(myfile), res['BookName'], itemid)
                     if target and path_isfile(target):
                         logger.debug(f'Opening {ftype} {target}')
-                        return self.send_file(target, name=f"{res['Title']} {issueid}{os.path.splitext(target)[1]}")
+                        return self.send_file(target, name=res['BookName'] + '.zip')
 
-            elif ftype == 'audio':
-                res = db.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
-                if res:
-                    cnt = 0
-                    myfile = res['AudioFile']
-                    # count the audiobook parts
-                    if myfile and path_isfile(myfile):
-                        parentdir = os.path.dirname(myfile)
-                        for _, _, filenames in walk(parentdir):
-                            for filename in filenames:
-                                if CONFIG.is_valid_booktype(filename, 'audiobook'):
-                                    cnt += 1
+                if myfile and path_isfile(myfile):
+                    logger.debug(f'Opening {ftype} {myfile}')
+                    return self.send_file(myfile)
 
-                    if cnt > 1 and not CONFIG.get_bool('RSS_PODCAST'):
-                        target = zip_audio(os.path.dirname(myfile), res['BookName'], itemid)
-                        if target and path_isfile(target):
-                            logger.debug(f'Opening {ftype} {target}')
-                            return self.send_file(target, name=res['BookName'] + '.zip')
+        elif ftype == 'book':
+            res = db.match('SELECT BookFile,BookName from books WHERE BookID=?', (itemid,))
+            if res:
+                myfile = res['BookFile']
+                fname, extn = os.path.splitext(myfile)
+                types = []
+                for item in get_list(CONFIG['EBOOK_TYPE']):
+                    target = fname + '.' + item
+                    if path_isfile(target):
+                        types.append(item)
 
-                    if myfile and path_isfile(myfile):
-                        logger.debug(f'Opening {ftype} {myfile}')
-                        return self.send_file(myfile)
+                # serve user preferred type if available, or system preferred type
+                if preftype and preftype in types:
+                    extn = preftype
+                else:
+                    extn = types[0]
+                myfile = fname + '.' + extn
+                if path_isfile(myfile):
+                    logger.debug(f'Opening {ftype} {myfile}')
+                    return self.send_file(myfile)
 
-            elif ftype == 'book':
-                res = db.match('SELECT BookFile,BookName from books WHERE BookID=?', (itemid,))
-                if res:
-                    myfile = res['BookFile']
-                    fname, extn = os.path.splitext(myfile)
-                    types = []
-                    for item in get_list(CONFIG['EBOOK_TYPE']):
-                        target = fname + '.' + item
-                        if path_isfile(target):
-                            types.append(item)
-
-                    # serve user preferred type if available, or system preferred type
-                    if preftype and preftype in types:
-                        extn = preftype
-                    else:
-                        extn = types[0]
-                    myfile = fname + '.' + extn
-                    if path_isfile(myfile):
-                        logger.debug(f'Opening {ftype} {myfile}')
-                        return self.send_file(myfile)
-
-            elif ftype == 'issue':
-                res = db.match('SELECT Title,IssueFile from issues WHERE IssueID=?', (itemid,))
-                if res:
-                    myfile = res['IssueFile']
-                    if myfile and path_isfile(myfile):
-                        logger.debug(f'Opening {ftype} {myfile}')
-                        return self.send_file(myfile, name=f"{res['Title']} {itemid}{os.path.splitext(myfile)[1]}")
-        finally:
-            db.close()
+        elif ftype == 'issue':
+            res = db.match('SELECT Title,IssueFile from issues WHERE IssueID=?', (itemid,))
+            if res:
+                myfile = res['IssueFile']
+                if myfile and path_isfile(myfile):
+                    logger.debug(f'Opening {ftype} {myfile}')
+                    return self.send_file(myfile, name=f"{res['Title']} {itemid}{os.path.splitext(myfile)[1]}")
+        db.close()
         logger.warning(f"No file found for {ftype} {itemid}")
+        return None
 
     @cherrypy.expose
     def send_book(self, bookid=None, library=None, redirect=None, booktype=None):
@@ -3472,35 +3437,33 @@ class WebInterface:
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
         db = database.DBConnection()
-        try:
-            if not CONFIG.get_bool('USER_ACCOUNTS'):
-                perm = lazylibrarian.perm_admin
-                preftype = ''
-            else:
-                perm = 0
-                preftype = ''
-                cookie = cherrypy.request.cookie
-                if cookie and 'll_uid' in list(cookie.keys()):
-                    res = db.match('SELECT UserName,Perms,BookType from users where UserID=?',
-                                   (cookie['ll_uid'].value,))
-                    if res:
-                        perm = check_int(res['Perms'], 0)
-                        preftype = res['BookType']
+        if not CONFIG.get_bool('USER_ACCOUNTS'):
+            perm = lazylibrarian.perm_admin
+            preftype = ''
+        else:
+            perm = 0
+            preftype = ''
+            cookie = cherrypy.request.cookie
+            if cookie and 'll_uid' in list(cookie.keys()):
+                res = db.match('SELECT UserName,Perms,BookType from users where UserID=?',
+                               (cookie['ll_uid'].value,))
+                if res:
+                    perm = check_int(res['Perms'], 0)
+                    preftype = res['BookType']
 
-            if booktype is not None:
-                preftype = booktype
+        if booktype is not None:
+            preftype = booktype
 
-            bookid_key = 'BookID'
-            for item in api_sources:
-                if CONFIG['BOOK_API'] == item[0]:
-                    bookid_key = item[2]
-                    break
+        bookid_key = 'BookID'
+        for item in api_sources:
+            if CONFIG['BOOK_API'] == item[0]:
+                bookid_key = item[2]
+                break
 
-            cmd = (f"SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE books.{bookid_key}=? or "
-                   "BookID=? and books.AuthorID = authors.AuthorID")
-            bookdata = db.match(cmd, (bookid, bookid))
-        finally:
-            db.close()
+        cmd = (f"SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE books.{bookid_key}=? or "
+               "BookID=? and books.AuthorID = authors.AuthorID")
+        bookdata = db.match(cmd, (bookid, bookid))
+        db.close()
         if not bookdata:
             logger.warning(f'Missing bookid: {bookid}')
         else:
@@ -3679,6 +3642,7 @@ class WebInterface:
                                   images=photos)
         else:
             logger.info(f'Missing author {authorid}')
+            return None
 
     # noinspection PyUnusedLocal
     # kwargs needed for passing utf8 hidden input
@@ -3688,123 +3652,121 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            authdata = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
-            if authdata:
-                edited = ""
-                if not authorborn or authorborn == 'None':
-                    authorborn = None
-                if not authordeath or authordeath == 'None':
-                    authordeath = None
-                if authorimg == 'None':
-                    authorimg = ''
-                manual = bool(check_int(manual, 0))
+        authdata = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
+        if authdata:
+            edited = ""
+            if not authorborn or authorborn == 'None':
+                authorborn = None
+            if not authordeath or authordeath == 'None':
+                authordeath = None
+            if authorimg == 'None':
+                authorimg = ''
+            manual = bool(check_int(manual, 0))
 
-                if authdata["AuthorBorn"] != authorborn:
-                    edited += "Born "
-                if authdata["AKA"] != aka:
-                    edited += "AKA "
-                if authdata["AuthorDeath"] != authordeath:
-                    edited += "Died "
-                if 'cover' in kwargs:
-                    if kwargs['cover'] == "manual":
-                        if authorimg and (authdata["AuthorImg"] != authorimg):
-                            edited += "Image manual"
-                    elif kwargs['cover'] != "current":
-                        authorimg = os.path.join(DIRS.DATADIR, kwargs['cover'])
-                        edited += f"Image {kwargs['cover']} "
+            if authdata["AuthorBorn"] != authorborn:
+                edited += "Born "
+            if authdata["AKA"] != aka:
+                edited += "AKA "
+            if authdata["AuthorDeath"] != authordeath:
+                edited += "Died "
+            if 'cover' in kwargs:
+                if kwargs['cover'] == "manual":
+                    if authorimg and (authdata["AuthorImg"] != authorimg):
+                        edited += "Image manual"
+                elif kwargs['cover'] != "current":
+                    authorimg = os.path.join(DIRS.DATADIR, kwargs['cover'])
+                    edited += f"Image {kwargs['cover']} "
 
-                if authdata["About"] != editordata:
-                    edited += "Description "
-                if not (bool(check_int(authdata["Manual"], 0)) == manual):
-                    edited += "Manual "
+            if authdata["About"] != editordata:
+                edited += "Description "
+            if not (bool(check_int(authdata["Manual"], 0)) == manual):
+                edited += "Manual "
 
-                if authdata["AuthorName"] != authorname:
-                    match = db.match('SELECT AuthorName from authors where AuthorName=?', (authorname,))
-                    if match:
-                        logger.debug(f"Unable to rename, new author name {authorname} already exists")
-                        authorname = authdata["AuthorName"]
-                    else:
-                        edited += "Name "
-
-                if edited:
-                    # Check dates, format to yyyy/mm/dd
-                    # use None to clear date
-                    # Leave unchanged if fails datecheck
-                    if authorborn is not None:
-                        ab = date_format(authorborn, context=authorname, datelang=CONFIG['DATE_LANG'])
-                        if len(ab) == 10:
-                            authorborn = ab
-                        else:
-                            logger.warning(f"Author Born date [{authorborn}] rejected")
-                            authorborn = authdata["AuthorBorn"]  # leave unchanged
-                            edited = edited.replace('Born ', '')
-
-                    if authordeath is not None:
-                        ab = date_format(authordeath, context=authorname, datelang=CONFIG['DATE_LANG'])
-                        if len(ab) == 10:
-                            authordeath = ab
-                        else:
-                            logger.warning(f"Author Died date [{authordeath}] rejected")
-                            authordeath = authdata["AuthorDeath"]  # leave unchanged
-                            edited = edited.replace('Died ', '')
-
-                    if not authorimg:
-                        authorimg = authdata["AuthorImg"]
-                    else:
-                        if authorimg == 'none':
-                            authorimg = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nophoto.png')
-
-                        rejected = True
-
-                        if authorimg.startswith('http'):
-                            # cache image from url
-                            authorimg, success, _ = cache_img(ImageType.AUTHOR, img_id(), authorimg, refresh=True)
-                            if success:
-                                rejected = False
-                        else:
-                            # Cache file image
-                            if not path_isfile(authorimg):
-                                logger.warning(f"Failed to find file {authorimg}")
-                            else:
-                                extn = os.path.splitext(authorimg)[1].lower()
-                                if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
-                                    image_id = img_id()
-                                    destfile = os.path.join(DIRS.CACHEDIR, 'author', image_id + '.jpg')
-                                    try:
-                                        copyfile(authorimg, destfile)
-                                        logger.debug(f"{authorimg}->{destfile}")
-                                        setperm(destfile)
-                                        authorimg = 'cache/author/' + image_id + '.jpg'
-                                        rejected = False
-                                    except Exception as why:
-                                        logger.warning(
-                                            f"Failed to copy file {authorimg}, {type(why).__name__} {str(why)}")
-                                else:
-                                    logger.warning(f"Invalid extension on [{authorimg}]")
-
-                        if rejected:
-                            logger.warning(f"Author Image [{authorimg}] rejected")
-                            authorimg = authdata["AuthorImg"]
-                            edited = edited.replace('Image ', '')
-
-                    control_value_dict = {'AuthorID': authorid}
-                    new_value_dict = {
-                        'AuthorName': authorname,
-                        'AuthorBorn': authorborn,
-                        'AuthorDeath': authordeath,
-                        'AuthorImg': authorimg,
-                        'About': editordata,
-                        'AKA': aka,
-                        'Manual': bool(manual)
-                    }
-                    db.upsert("authors", new_value_dict, control_value_dict)
-                    logger.info(f'Updated [ {edited}] for {authorname}')
-
+            if authdata["AuthorName"] != authorname:
+                match = db.match('SELECT AuthorName from authors where AuthorName=?', (authorname,))
+                if match:
+                    logger.debug(f"Unable to rename, new author name {authorname} already exists")
+                    authorname = authdata["AuthorName"]
                 else:
-                    logger.debug(f'Author [{authorname}] has not been changed')
-        finally:
-            db.close()
+                    edited += "Name "
+
+            if edited:
+                # Check dates, format to yyyy/mm/dd
+                # use None to clear date
+                # Leave unchanged if fails datecheck
+                if authorborn is not None:
+                    ab = date_format(authorborn, context=authorname, datelang=CONFIG['DATE_LANG'])
+                    if len(ab) == 10:
+                        authorborn = ab
+                    else:
+                        logger.warning(f"Author Born date [{authorborn}] rejected")
+                        authorborn = authdata["AuthorBorn"]  # leave unchanged
+                        edited = edited.replace('Born ', '')
+
+                if authordeath is not None:
+                    ab = date_format(authordeath, context=authorname, datelang=CONFIG['DATE_LANG'])
+                    if len(ab) == 10:
+                        authordeath = ab
+                    else:
+                        logger.warning(f"Author Died date [{authordeath}] rejected")
+                        authordeath = authdata["AuthorDeath"]  # leave unchanged
+                        edited = edited.replace('Died ', '')
+
+                if not authorimg:
+                    authorimg = authdata["AuthorImg"]
+                else:
+                    if authorimg == 'none':
+                        authorimg = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nophoto.png')
+
+                    rejected = True
+
+                    if authorimg.startswith('http'):
+                        # cache image from url
+                        authorimg, success, _ = cache_img(ImageType.AUTHOR, img_id(), authorimg, refresh=True)
+                        if success:
+                            rejected = False
+                    else:
+                        # Cache file image
+                        if not path_isfile(authorimg):
+                            logger.warning(f"Failed to find file {authorimg}")
+                        else:
+                            extn = os.path.splitext(authorimg)[1].lower()
+                            if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
+                                image_id = img_id()
+                                destfile = os.path.join(DIRS.CACHEDIR, 'author', image_id + '.jpg')
+                                try:
+                                    copyfile(authorimg, destfile)
+                                    logger.debug(f"{authorimg}->{destfile}")
+                                    setperm(destfile)
+                                    authorimg = 'cache/author/' + image_id + '.jpg'
+                                    rejected = False
+                                except Exception as why:
+                                    logger.warning(
+                                        f"Failed to copy file {authorimg}, {type(why).__name__} {str(why)}")
+                            else:
+                                logger.warning(f"Invalid extension on [{authorimg}]")
+
+                    if rejected:
+                        logger.warning(f"Author Image [{authorimg}] rejected")
+                        authorimg = authdata["AuthorImg"]
+                        edited = edited.replace('Image ', '')
+
+                control_value_dict = {'AuthorID': authorid}
+                new_value_dict = {
+                    'AuthorName': authorname,
+                    'AuthorBorn': authorborn,
+                    'AuthorDeath': authordeath,
+                    'AuthorImg': authorimg,
+                    'About': editordata,
+                    'AKA': aka,
+                    'Manual': bool(manual)
+                }
+                db.upsert("authors", new_value_dict, control_value_dict)
+                logger.info(f'Updated [ {edited}] for {authorname}')
+
+            else:
+                logger.debug(f'Author [{authorname}] has not been changed')
+        db.close()
 
         icrawlerdir = os.path.join(DIRS.CACHEDIR, 'icrawler', authorid)
         rmtree(icrawlerdir, ignore_errors=True)
@@ -3817,25 +3779,23 @@ class WebInterface:
         self.label_thread('EDIT_BOOK')
         TELEMETRY.record_usage_data()
         db = database.DBConnection()
-        try:
-            authors = db.select(
-                "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
-            cmd = ("SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,books.AuthorID,"
-                   "BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile,books.gr_id,"
-                   "books.gb_id,books.ol_id, books.hc_id from books,authors WHERE books.AuthorID = authors.AuthorID"
-                   " and BookID=?")
-            bookdata = db.match(cmd, (bookid,))
-            cmd = "SELECT SeriesName, SeriesNum from member,series where series.SeriesID=member.SeriesID and BookID=?"
-            seriesdict = db.select(cmd, (bookid,))
-            if bookdata:
-                cmd = ("SELECT SeriesName from series,seriesauthors WHERE series.seriesid = seriesauthors.seriesid and "
-                       "authorid=? ORDER by SeriesName COLLATE NOCASE")
-                series = db.select(cmd, (bookdata['AuthorID'],))
-            else:
-                series = db.select("SELECT SeriesName from series WHERE Status !='Ignored' "
-                                   "ORDER by SeriesName COLLATE NOCASE")
-        finally:
-            db.close()
+        authors = db.select(
+            "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
+        cmd = ("SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,books.AuthorID,"
+               "BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile,books.gr_id,"
+               "books.gb_id,books.ol_id, books.hc_id from books,authors WHERE books.AuthorID = authors.AuthorID"
+               " and BookID=?")
+        bookdata = db.match(cmd, (bookid,))
+        cmd = "SELECT SeriesName, SeriesNum from member,series where series.SeriesID=member.SeriesID and BookID=?"
+        seriesdict = db.select(cmd, (bookid,))
+        if bookdata:
+            cmd = ("SELECT SeriesName from series,seriesauthors WHERE series.seriesid = seriesauthors.seriesid and "
+                   "authorid=? ORDER by SeriesName COLLATE NOCASE")
+            series = db.select(cmd, (bookdata['AuthorID'],))
+        else:
+            series = db.select("SELECT SeriesName from series WHERE Status !='Ignored' "
+                               "ORDER by SeriesName COLLATE NOCASE")
+        db.close()
         if bookdata:
             bookdata = dict(bookdata)
             bookdata['library'] = library
@@ -3877,6 +3837,7 @@ class WebInterface:
                                   seriesdict=seriesdict, authors=authors, covers=covers, replaces=subs, series=series)
         else:
             logger.info(f'Missing book {bookid}')
+            return None
 
     @cherrypy.expose
     def book_update(self, bookname='', bookid='', booksub='', bookgenre='', booklang='', bookdate='',
@@ -4192,164 +4153,162 @@ class WebInterface:
         wantedaudio = []
 
         db = database.DBConnection()
-        try:
-            if not self.valid_source(redirect):
-                redirect = "books"
-            check_totals = []
-            if redirect == 'author':
-                check_totals = [authorid]
-            reading_lists = ["Unread", "Read", "ToRead", "Reading", "Abandoned"]
-            if action:
+        if not self.valid_source(redirect):
+            redirect = "books"
+        check_totals = []
+        if redirect == 'author':
+            check_totals = [authorid]
+        reading_lists = ["Unread", "Read", "ToRead", "Reading", "Abandoned"]
+        if action:
+            if action in reading_lists:
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    to_read = set(get_readinglist("ToRead", userid))
+                    have_read = set(get_readinglist("HaveRead", userid))
+                    reading = set(get_readinglist("Reading", userid))
+                    abandoned = set(get_readinglist("Abandoned", userid))
+
+            for bookid in args:
                 if action in reading_lists:
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        userid = cookie['ll_uid'].value
-                        to_read = set(get_readinglist("ToRead", userid))
-                        have_read = set(get_readinglist("HaveRead", userid))
-                        reading = set(get_readinglist("Reading", userid))
-                        abandoned = set(get_readinglist("Abandoned", userid))
+                    to_read.discard(bookid)
+                    have_read.discard(bookid)
+                    reading.discard(bookid)
+                    abandoned.discard(bookid)
 
-                for bookid in args:
-                    if action in reading_lists:
-                        to_read.discard(bookid)
-                        have_read.discard(bookid)
-                        reading.discard(bookid)
-                        abandoned.discard(bookid)
+                    if action == "Read":
+                        have_read.add(bookid)
+                    elif action == "ToRead":
+                        to_read.add(bookid)
+                    elif action == "Reading":
+                        reading.add(bookid)
+                    elif action == "Abandoned":
+                        abandoned.add(bookid)
+                    logger.debug(f'Status set to {action} for {bookid}')
+                    passed += 1
 
-                        if action == "Read":
-                            have_read.add(bookid)
-                        elif action == "ToRead":
-                            to_read.add(bookid)
-                        elif action == "Reading":
-                            reading.add(bookid)
-                        elif action == "Abandoned":
-                            abandoned.add(bookid)
-                        logger.debug(f'Status set to {action} for {bookid}')
-                        passed += 1
-
-                    elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth",
-                                    "Wanted", "WantEbook", "WantAudio", "WantBoth"]:
-                        bookdata = db.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
-                                            (bookid,))
-                        if bookdata:
-                            authorid = bookdata['AuthorID']
-                            bookname = bookdata['BookName']
-                            if authorid not in check_totals:
-                                check_totals.append(authorid)
-                            if (action == "Wanted" and library == "eBook") or action in ["WantEbook", "WantBoth"]:
-                                if bookdata['Status'] in ["Open", "Have"]:
-                                    logger.debug(f'eBook "{bookname}" is already marked Open')
-                                    failed += 1
-                                else:
-                                    db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
-                                    logger.debug(f'Status set to "Wanted" for "{bookname}"')
-                                    wantedbooks.append({"bookid": bookid})
-                                    passed += 1
-                            if (action == "Wanted" and library == "AudioBook") or action in ["WantAudio", "WantBoth"]:
-                                if bookdata['AudioStatus'] in ["Open", "Have"]:
-                                    logger.debug(f'AudioBook "{bookname}" is already marked Open')
-                                    failed += 1
-                                else:
-                                    db.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
-                                    logger.debug(f'AudioStatus set to "Wanted" for "{bookname}"')
-                                    wantedaudio.append({"bookid": bookid})
-                                    passed += 1
-                            if (action == "Ignored" and library == 'eBook') or action == "IgnoreBoth":
-                                db.upsert("books", {'Status': "Ignored", 'ScanResult': f'User {action}'},
-                                          {'BookID': bookid})
-                                logger.debug(f'Status set to "Ignored" for "{bookname}"')
-                                passed += 1
-                            if (action == "Ignored" and library == 'AudioBook') or action == "IgnoreBoth":
-                                db.upsert("books", {'AudioStatus': "Ignored", 'ScanResult': f'User {action}'},
-                                          {'BookID': bookid})
-                                logger.debug(f'AudioStatus set to "Ignored" for "{bookname}"')
-                                passed += 1
-                            if action in ["Skipped", "Have"]:
-                                if library == 'eBook':
-                                    db.upsert("books", {'Status': action, 'ScanResult': f'User {action}'},
-                                              {'BookID': bookid})
-                                    logger.debug(f'Status set to "{action}" for "{bookname}"')
-                                    passed += 1
-                                if library == 'AudioBook':
-                                    db.upsert("books", {'AudioStatus': action, 'ScanResult': f'User {action}'},
-                                              {'BookID': bookid})
-                                    logger.debug(f'AudioStatus set to "{action}" for "{bookname}"')
-                                    passed += 1
-                        else:
-                            logger.warning(f"Unable to set status {action} for {bookid}")
-                            failed += 1
-                    elif action == "NoDelay":
-                        db.action("delete from failedsearch WHERE BookID=? AND Library=?", (bookid, library))
-                        logger.debug(f'{library} delay set to zero for {bookid}')
-                        passed += 1
-                    elif action in ["Remove", "Delete"]:
-                        cmd = ("SELECT AuthorName,Bookname,BookFile,AudioFile,books.AuthorID from books,authors "
-                               "WHERE BookID=? and books.AuthorID = authors.AuthorID")
-                        bookdata = db.match(cmd, (bookid,))
-                        if bookdata:
-                            authorid = bookdata['AuthorID']
-                            bookname = bookdata['BookName']
-                            if authorid not in check_totals:
-                                check_totals.append(authorid)
-                            if action == "Delete":
-                                if 'Audio' in library:
-                                    bookfile = bookdata['AudioFile']
-                                    if bookfile and path_isfile(bookfile):
-                                        try:
-                                            rmtree(os.path.dirname(bookfile), ignore_errors=True)
-                                            logger.info(f'AudioBook {bookname} deleted from disc')
-                                            passed += 1
-                                        except Exception as e:
-                                            logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
-                                            failed += 1
-                                if 'eBook' in library:
-                                    bookfile = bookdata['BookFile']
-                                    if bookfile and path_isfile(bookfile):
-                                        try:
-                                            rmtree(os.path.dirname(bookfile), ignore_errors=True)
-                                            deleted = True
-                                            passed += 1
-                                        except Exception as e:
-                                            logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
-                                            deleted = False
-                                            failed += 1
-
-                                        if deleted:
-                                            logger.info(f'eBook {bookname} deleted from disc')
-                                            if CONFIG['IMP_CALIBREDB'] and \
-                                                    CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
-                                                self.delete_from_calibre(bookdata)
-
-                            authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
-                            if authorcheck:
-                                if authorcheck['Status'] not in ['Active', 'Wanted']:
-                                    for table in ['books', 'wanted', 'readinglists']:
-                                        db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
-                                    logger.info(f'Removed "{bookname}" from database')
-                                    passed += 1
-                                elif 'eBook' in library:
-                                    db.upsert("books", {"Status": "Ignored", "ScanResult": "User deleted"},
-                                              {"BookID": bookid})
-                                    logger.debug(f'Status set to Ignored for "{bookname}"')
-                                    passed += 1
-                                elif 'Audio' in library:
-                                    db.upsert("books", {"AudioStatus": "Ignored", "ScanResult": "User deleted"},
-                                              {"BookID": bookid})
-                                    logger.debug(f'AudioStatus set to Ignored for "{bookname}"')
-                                    passed += 1
+                elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth",
+                                "Wanted", "WantEbook", "WantAudio", "WantBoth"]:
+                    bookdata = db.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
+                                        (bookid,))
+                    if bookdata:
+                        authorid = bookdata['AuthorID']
+                        bookname = bookdata['BookName']
+                        if authorid not in check_totals:
+                            check_totals.append(authorid)
+                        if (action == "Wanted" and library == "eBook") or action in ["WantEbook", "WantBoth"]:
+                            if bookdata['Status'] in ["Open", "Have"]:
+                                logger.debug(f'eBook "{bookname}" is already marked Open')
+                                failed += 1
                             else:
+                                db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
+                                logger.debug(f'Status set to "Wanted" for "{bookname}"')
+                                wantedbooks.append({"bookid": bookid})
+                                passed += 1
+                        if (action == "Wanted" and library == "AudioBook") or action in ["WantAudio", "WantBoth"]:
+                            if bookdata['AudioStatus'] in ["Open", "Have"]:
+                                logger.debug(f'AudioBook "{bookname}" is already marked Open')
+                                failed += 1
+                            else:
+                                db.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
+                                logger.debug(f'AudioStatus set to "Wanted" for "{bookname}"')
+                                wantedaudio.append({"bookid": bookid})
+                                passed += 1
+                        if (action == "Ignored" and library == 'eBook') or action == "IgnoreBoth":
+                            db.upsert("books", {'Status': "Ignored", 'ScanResult': f'User {action}'},
+                                      {'BookID': bookid})
+                            logger.debug(f'Status set to "Ignored" for "{bookname}"')
+                            passed += 1
+                        if (action == "Ignored" and library == 'AudioBook') or action == "IgnoreBoth":
+                            db.upsert("books", {'AudioStatus': "Ignored", 'ScanResult': f'User {action}'},
+                                      {'BookID': bookid})
+                            logger.debug(f'AudioStatus set to "Ignored" for "{bookname}"')
+                            passed += 1
+                        if action in ["Skipped", "Have"]:
+                            if library == 'eBook':
+                                db.upsert("books", {'Status': action, 'ScanResult': f'User {action}'},
+                                          {'BookID': bookid})
+                                logger.debug(f'Status set to "{action}" for "{bookname}"')
+                                passed += 1
+                            if library == 'AudioBook':
+                                db.upsert("books", {'AudioStatus': action, 'ScanResult': f'User {action}'},
+                                          {'BookID': bookid})
+                                logger.debug(f'AudioStatus set to "{action}" for "{bookname}"')
+                                passed += 1
+                    else:
+                        logger.warning(f"Unable to set status {action} for {bookid}")
+                        failed += 1
+                elif action == "NoDelay":
+                    db.action("delete from failedsearch WHERE BookID=? AND Library=?", (bookid, library))
+                    logger.debug(f'{library} delay set to zero for {bookid}')
+                    passed += 1
+                elif action in ["Remove", "Delete"]:
+                    cmd = ("SELECT AuthorName,Bookname,BookFile,AudioFile,books.AuthorID from books,authors "
+                           "WHERE BookID=? and books.AuthorID = authors.AuthorID")
+                    bookdata = db.match(cmd, (bookid,))
+                    if bookdata:
+                        authorid = bookdata['AuthorID']
+                        bookname = bookdata['BookName']
+                        if authorid not in check_totals:
+                            check_totals.append(authorid)
+                        if action == "Delete":
+                            if 'Audio' in library:
+                                bookfile = bookdata['AudioFile']
+                                if bookfile and path_isfile(bookfile):
+                                    try:
+                                        rmtree(os.path.dirname(bookfile), ignore_errors=True)
+                                        logger.info(f'AudioBook {bookname} deleted from disc')
+                                        passed += 1
+                                    except Exception as e:
+                                        logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
+                                        failed += 1
+                            if 'eBook' in library:
+                                bookfile = bookdata['BookFile']
+                                if bookfile and path_isfile(bookfile):
+                                    try:
+                                        rmtree(os.path.dirname(bookfile), ignore_errors=True)
+                                        deleted = True
+                                        passed += 1
+                                    except Exception as e:
+                                        logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
+                                        deleted = False
+                                        failed += 1
+
+                                    if deleted:
+                                        logger.info(f'eBook {bookname} deleted from disc')
+                                        if CONFIG['IMP_CALIBREDB'] and \
+                                                CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
+                                            self.delete_from_calibre(bookdata)
+
+                        authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
+                        if authorcheck:
+                            if authorcheck['Status'] not in ['Active', 'Wanted']:
                                 for table in ['books', 'wanted', 'readinglists']:
                                     db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
                                 logger.info(f'Removed "{bookname}" from database')
                                 passed += 1
+                            elif 'eBook' in library:
+                                db.upsert("books", {"Status": "Ignored", "ScanResult": "User deleted"},
+                                          {"BookID": bookid})
+                                logger.debug(f'Status set to Ignored for "{bookname}"')
+                                passed += 1
+                            elif 'Audio' in library:
+                                db.upsert("books", {"AudioStatus": "Ignored", "ScanResult": "User deleted"},
+                                          {"BookID": bookid})
+                                logger.debug(f'AudioStatus set to Ignored for "{bookname}"')
+                                passed += 1
+                        else:
+                            for table in ['books', 'wanted', 'readinglists']:
+                                db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
+                            logger.info(f'Removed "{bookname}" from database')
+                            passed += 1
 
-                if action in reading_lists and userid:
-                    set_readinglist("ToRead", userid, to_read)
-                    set_readinglist("HaveRead", userid, have_read)
-                    set_readinglist("Reading", userid, reading)
-                    set_readinglist("Abandoned", userid, abandoned)
-        finally:
-            db.close()
+            if action in reading_lists and userid:
+                set_readinglist("ToRead", userid, to_read)
+                set_readinglist("HaveRead", userid, have_read)
+                set_readinglist("Reading", userid, reading)
+                set_readinglist("Abandoned", userid, abandoned)
+        db.close()
 
         if check_totals:
             for author in check_totals:
@@ -5070,35 +5029,33 @@ class WebInterface:
         else:
             title = strip_quotes(title)
             db = database.DBConnection()
-            try:
-                exists = db.match('SELECT Title from comics WHERE Title=?', (title,))
-                if exists:
-                    logger.debug(f"Comic {title} already exists ({exists['Title']})")
+            exists = db.match('SELECT Title from comics WHERE Title=?', (title,))
+            if exists:
+                logger.debug(f"Comic {title} already exists ({exists['Title']})")
+            else:
+                cvres = cv_identify(title, best=False)
+                if title.startswith('CV'):
+                    for item in cvres:
+                        item['fuzz'] = fuzz.token_sort_ratio(title, item['seriesid'])
+                        comicresults.append(item)
                 else:
-                    cvres = cv_identify(title, best=False)
-                    if title.startswith('CV'):
-                        for item in cvres:
-                            item['fuzz'] = fuzz.token_sort_ratio(title, item['seriesid'])
-                            comicresults.append(item)
-                    else:
-                        cxres = cx_identify(title, best=False)
-                        words = name_words(title)
-                        titlewords = ' '.join(title_words(words))
-                        for item in cvres:
-                            item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
-                            comicresults.append(item)
-                        for item in cxres:
-                            item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
-                            comicresults.append(item)
-                        comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
-                    comicids = db.select("SELECT ComicID from comics")
-                    comiclist = []
-                    for item in comicids:
-                        comiclist.append(item['ComicID'])
-                    return serve_template(templatename="comicresults.html", title="Comics",
-                                          results=comicresults, comicids=comiclist)
-            finally:
-                db.close()
+                    cxres = cx_identify(title, best=False)
+                    words = name_words(title)
+                    titlewords = ' '.join(title_words(words))
+                    for item in cvres:
+                        item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
+                        comicresults.append(item)
+                    for item in cxres:
+                        item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
+                        comicresults.append(item)
+                    comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
+                comicids = db.select("SELECT ComicID from comics")
+                comiclist = []
+                for item in comicids:
+                    comiclist.append(item['ComicID'])
+                return serve_template(templatename="comicresults.html", title="Comics",
+                                      results=comicresults, comicids=comiclist)
+            db.close()
 
             if kwargs.get('comicfilter'):
                 raise cherrypy.HTTPRedirect("comics?comic_filter=" + kwargs.get('comicfilter'))
@@ -5122,38 +5079,37 @@ class WebInterface:
         self.validate_param("comicid", comicid, ['<', '&', '>', '=', '"', "'", '+', '(', ')'], 404)
         db = database.DBConnection()
         match = False
-        try:
-            exists = db.match('SELECT Title from comics WHERE ComicID=?', (comicid,))
-            if exists:
-                logger.debug(f"Comic {exists['Title']} already exists ({exists['comicid']})")
-            else:
-                try:
-                    for item in comicresults:
-                        if item['seriesid'] == comicid:
-                            aka = ''
-                            akares = cv_identify(item['title'])
-                            if not akares:
-                                akares = cx_identify(item['title'])
-                            if akares and akares[3]['seriesid'] != comicid:
-                                aka = akares[3]['seriesid']
-                            db.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
-                                      'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
-                                      'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                      (comicid, item['title'], 'Active', now(), None,
-                                       now(), None, 'Wanted', None, item['searchterm'], item['start'],
-                                       item['first'], item['last'], item['publisher'], item['link'], aka))
-                            match = True
-                            break
-                except NameError:
-                    match = False
-                if not match:
-                    msg = f"Failed to get data for {comicid}"
-                    logger.warning(msg)
-                    raise cherrypy.HTTPError(404, msg)
-        finally:
-            if match and CONFIG.get_bool('IMP_AUTOSEARCH'):
-                self.start_comic_search(comicid)
-            db.close()
+        exists = db.match('SELECT Title from comics WHERE ComicID=?', (comicid,))
+        if exists:
+            logger.debug(f"Comic {exists['Title']} already exists ({exists['comicid']})")
+        else:
+            try:
+                for item in comicresults:
+                    if item['seriesid'] == comicid:
+                        aka = ''
+                        akares = cv_identify(item['title'])
+                        if not akares:
+                            akares = cx_identify(item['title'])
+                        if akares and akares[3]['seriesid'] != comicid:
+                            aka = akares[3]['seriesid']
+                        db.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
+                                  'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
+                                  'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                  (comicid, item['title'], 'Active', now(), None,
+                                   now(), None, 'Wanted', None, item['searchterm'], item['start'],
+                                   item['first'], item['last'], item['publisher'], item['link'], aka))
+                        match = True
+                        break
+            except NameError:
+                match = False
+            if not match:
+                msg = f"Failed to get data for {comicid}"
+                logger.warning(msg)
+                raise cherrypy.HTTPError(404, msg)
+
+        if match and CONFIG.get_bool('IMP_AUTOSEARCH'):
+            self.start_comic_search(comicid)
+        db.close()
         if kwargs.get('comicfilter'):
             raise cherrypy.HTTPRedirect("comics?comic_filter=" + kwargs.get('comicfilter'))
         else:
@@ -5164,77 +5120,74 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            args.pop('book_table_length', None)
-            for item in args:
-                if action == "Paused" or action == "Active":
-                    control_value_dict = {"ComicID": item}
-                    new_value_dict = {"Status": action}
-                    db.upsert("comics", new_value_dict, control_value_dict)
-                    logger.info(f'Status of comic {item} changed to {action}')
-                if action == "Delete":
-                    issues = db.select('SELECT IssueFile from comicissues WHERE ComicID=?', (item,))
-                    logger.debug(f'Deleting comic {item} from disc')
-                    issuedir = ''
-                    for issue in issues:  # delete all issues of this comic
-                        result = self.delete_issue(issue['IssueFile'])
-                        if result:
-                            logger.debug(f'Issue {issue["IssueFile"]} deleted from disc')
-                            issuedir = os.path.dirname(issue['IssueFile'])
-                        else:
-                            logger.debug(f'Failed to delete {issue["IssueFile"]}')
+        args.pop('book_table_length', None)
+        for item in args:
+            if action == "Paused" or action == "Active":
+                control_value_dict = {"ComicID": item}
+                new_value_dict = {"Status": action}
+                db.upsert("comics", new_value_dict, control_value_dict)
+                logger.info(f'Status of comic {item} changed to {action}')
+            if action == "Delete":
+                issues = db.select('SELECT IssueFile from comicissues WHERE ComicID=?', (item,))
+                logger.debug(f'Deleting comic {item} from disc')
+                issuedir = ''
+                for issue in issues:  # delete all issues of this comic
+                    result = self.delete_issue(issue['IssueFile'])
+                    if result:
+                        logger.debug(f'Issue {issue["IssueFile"]} deleted from disc')
+                        issuedir = os.path.dirname(issue['IssueFile'])
+                    else:
+                        logger.debug(f'Failed to delete {issue["IssueFile"]}')
 
-                    # if the directory is now empty, delete that too
-                    if issuedir and CONFIG.get_bool('COMIC_DELFOLDER'):
-                        magdir = os.path.dirname(issuedir)
-                        try:
-                            os.rmdir(syspath(magdir))
-                            logger.debug(f'Comic directory {magdir} deleted from disc')
-                        except OSError:
-                            logger.debug(f'Comic directory {magdir} is not empty')
-                        logger.info(f'Comic {item} deleted from disc')
+                # if the directory is now empty, delete that too
+                if issuedir and CONFIG.get_bool('COMIC_DELFOLDER'):
+                    magdir = os.path.dirname(issuedir)
+                    try:
+                        os.rmdir(syspath(magdir))
+                        logger.debug(f'Comic directory {magdir} deleted from disc')
+                    except OSError:
+                        logger.debug(f'Comic directory {magdir} is not empty')
+                    logger.info(f'Comic {item} deleted from disc')
 
-                if action == "Remove" or action == "Delete":
-                    db.action('DELETE from comics WHERE ComicID=?', (item,))
-                    db.action('DELETE from wanted where BookID=?', (item,))
-                    logger.info(f'Comic {item} removed from database')
-                if action == "Reset":
-                    control_value_dict = {"ComicID": item}
-                    new_value_dict = {
-                        "LastAcquired": '',
-                        "LatestIssue": '',
-                        "LatestCover": '',
-                        "IssueStatus": "Wanted"
-                    }
-                    db.upsert("comics", new_value_dict, control_value_dict)
-                    logger.info(f'Comic {item} details reset')
+            if action == "Remove" or action == "Delete":
+                db.action('DELETE from comics WHERE ComicID=?', (item,))
+                db.action('DELETE from wanted where BookID=?', (item,))
+                logger.info(f'Comic {item} removed from database')
+            if action == "Reset":
+                control_value_dict = {"ComicID": item}
+                new_value_dict = {
+                    "LastAcquired": '',
+                    "LatestIssue": '',
+                    "LatestCover": '',
+                    "IssueStatus": "Wanted"
+                }
+                db.upsert("comics", new_value_dict, control_value_dict)
+                logger.info(f'Comic {item} details reset')
 
-                if action == 'Subscribe':
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        userid = cookie['ll_uid'].value
-                        res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
-                                       (userid, 'comic', item))
-                        if res:
-                            logger.debug(f"User {userid} is already subscribed to {item}")
-                        else:
-                            db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                                      (userid, 'comic', item))
-                            logger.debug(f"Subscribe {userid} to comic {item}")
-                if action == 'Unsubscribe':
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        userid = cookie['ll_uid'].value
-                        db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+            if action == 'Subscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
+                                   (userid, 'comic', item))
+                    if res:
+                        logger.debug(f"User {userid} is already subscribed to {item}")
+                    else:
+                        db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
                                   (userid, 'comic', item))
-                        res = db.select('SELECT issueid from comicissues where comicid=?', (item, ))
-                        for iss in res:
-                            db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
-                                      (userid, 'comic', iss['issueid']))
-                        logger.debug(f"Unsubscribe {userid} to comic {item}")
-        finally:
-            db.close()
-
+                        logger.debug(f"Subscribe {userid} to comic {item}")
+            if action == 'Unsubscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                              (userid, 'comic', item))
+                    res = db.select('SELECT issueid from comicissues where comicid=?', (item, ))
+                    for iss in res:
+                        db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                  (userid, 'comic', iss['issueid']))
+                    logger.debug(f"Unsubscribe {userid} to comic {item}")
+        db.close()
         raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
@@ -5242,61 +5195,59 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            args.pop('book_table_length', None)
-            comicid = None
-            for item in args:
-                comicid, issueid = item.split('_')
-                cmd = ("SELECT IssueFile,Title,comics.ComicID from comics,comicissues WHERE "
-                       "comics.ComicID = comicissues.ComicID and comics.ComicID=? and IssueID=?")
-                issue = db.match(cmd, (comicid, issueid))
-                if issue:
-                    if action == "Delete":
-                        result = self.delete_issue(issue['IssueFile'])
-                        if result:
-                            logger.info(f'Issue {issueid} of {issue["Title"]} deleted from disc')
-                    if action == "Remove" or action == "Delete":
-                        db.action('DELETE from comicissues WHERE ComicID=? and IssueID=?', (comicid, issueid))
-                        logger.info(f'Issue {issueid} of {issue["Title"]} removed from database')
-                        # Set issuedate to issuedate of most recent issue we have
-                        # Set latestcover to most recent issue cover
-                        # Set lastacquired to acquired date of most recent issue we have
-                        # Set added to acquired date of the earliest issue we have
-                        cmd = ("select IssueID,IssueAcquired,IssueFile from comicissues where ComicID=?"
-                               " order by IssueID ")
-                        newest = db.match(cmd + 'DESC', (comicid,))
-                        oldest = db.match(cmd + 'ASC', (comicid,))
-                        control_value_dict = {'ComicID': comicid}
-                        if newest and oldest:
-                            old_acquired = ''
-                            new_acquired = ''
-                            cover = ''
-                            issuefile = newest['IssueFile']
-                            if path_exists(issuefile):
-                                cover = os.path.splitext(issuefile)[0] + '.jpg'
-                                mtime = os.path.getmtime(syspath(issuefile))
-                                new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
-                            issuefile = oldest['IssueFile']
-                            if path_exists(issuefile):
-                                mtime = os.path.getmtime(syspath(issuefile))
-                                old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+        args.pop('book_table_length', None)
+        comicid = None
+        for item in args:
+            comicid, issueid = item.split('_')
+            cmd = ("SELECT IssueFile,Title,comics.ComicID from comics,comicissues WHERE "
+                   "comics.ComicID = comicissues.ComicID and comics.ComicID=? and IssueID=?")
+            issue = db.match(cmd, (comicid, issueid))
+            if issue:
+                if action == "Delete":
+                    result = self.delete_issue(issue['IssueFile'])
+                    if result:
+                        logger.info(f'Issue {issueid} of {issue["Title"]} deleted from disc')
+                if action == "Remove" or action == "Delete":
+                    db.action('DELETE from comicissues WHERE ComicID=? and IssueID=?', (comicid, issueid))
+                    logger.info(f'Issue {issueid} of {issue["Title"]} removed from database')
+                    # Set issuedate to issuedate of most recent issue we have
+                    # Set latestcover to most recent issue cover
+                    # Set lastacquired to acquired date of most recent issue we have
+                    # Set added to acquired date of the earliest issue we have
+                    cmd = ("select IssueID,IssueAcquired,IssueFile from comicissues where ComicID=?"
+                           " order by IssueID ")
+                    newest = db.match(cmd + 'DESC', (comicid,))
+                    oldest = db.match(cmd + 'ASC', (comicid,))
+                    control_value_dict = {'ComicID': comicid}
+                    if newest and oldest:
+                        old_acquired = ''
+                        new_acquired = ''
+                        cover = ''
+                        issuefile = newest['IssueFile']
+                        if path_exists(issuefile):
+                            cover = os.path.splitext(issuefile)[0] + '.jpg'
+                            mtime = os.path.getmtime(syspath(issuefile))
+                            new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+                        issuefile = oldest['IssueFile']
+                        if path_exists(issuefile):
+                            mtime = os.path.getmtime(syspath(issuefile))
+                            old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
-                            new_value_dict = {
-                                'LatestIssue': newest['IssueID'],
-                                'LatestCover': cover,
-                                'LastAcquired': new_acquired,
-                                'Added': old_acquired
-                            }
-                        else:
-                            new_value_dict = {
-                                'LatestIssue': '',
-                                'LastAcquired': '',
-                                'LatestCover': '',
-                                'Added': ''
-                            }
-                        db.upsert("comics", new_value_dict, control_value_dict)
-        finally:
-            db.close()
+                        new_value_dict = {
+                            'LatestIssue': newest['IssueID'],
+                            'LatestCover': cover,
+                            'LastAcquired': new_acquired,
+                            'Added': old_acquired
+                        }
+                    else:
+                        new_value_dict = {
+                            'LatestIssue': '',
+                            'LastAcquired': '',
+                            'LatestCover': '',
+                            'Added': ''
+                        }
+                    db.upsert("comics", new_value_dict, control_value_dict)
+        db.close()
         if comicid:
             raise cherrypy.HTTPRedirect(f"comicissue_page?comicid={comicid}")
 
@@ -5428,20 +5379,18 @@ class WebInterface:
     def magazines(self, mag_filter=''):
         self.check_permitted(lazylibrarian.perm_magazines)
         db = database.DBConnection()
-        try:
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                user = cookie['ll_uid'].value
-                res = db.match('SELECT SendTo from users where UserID=?', (user,))
-                if res and res['SendTo']:
-                    email = res['SendTo']
-                else:
-                    email = ''
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            user = cookie['ll_uid'].value
+            res = db.match('SELECT SendTo from users where UserID=?', (user,))
+            if res and res['SendTo']:
+                email = res['SendTo']
             else:
-                user = 0
                 email = ''
-        finally:
-            db.close()
+        else:
+            user = 0
+            email = ''
+        db.close()
         # use server-side processing
         covers = 1
         if not CONFIG['TOGGLES']:
@@ -5679,6 +5628,7 @@ class WebInterface:
             return serve_template(templatename="editissue.html", title="Edit Issue", config=issuedata, tags=tagdict)
         else:
             logger.error(f"Missing issue {issueid}")
+            return None
 
     @cherrypy.expose
     def issue_update(self, **kwargs):
@@ -5734,99 +5684,97 @@ class WebInterface:
             db.close()
             raise cherrypy.HTTPRedirect(f"issue_page?title={quote(redirect)}&response={response}")
 
+        old_path = os.path.dirname(issue['IssueFile'])
+        edited = ''
+        if issue["Title"] != magtitle:
+            edited = 'Title '
+        if issue["IssueDate"] != issuenum:
+            edited += 'Date/Num '
+        new_tags = {}
+        for item in kwargs:
+            if item.startswith('tags_/'):
+                new_tags[item[5:]] = kwargs[item]
         try:
-            old_path = os.path.dirname(issue['IssueFile'])
-            edited = ''
+            old_tags = eval(kwargs['tagdata'])
+        except SyntaxError:
+            old_tags = None
+        if not isinstance(old_tags, dict):
+            logger.warning("Invalid old_tags dictionary")
+            old_tags = {}
+        if old_tags == new_tags:
+            logger.debug("No tag changes")
+        else:
+            edited += 'Tags '
+        if edited:
             if issue["Title"] != magtitle:
-                edited = 'Title '
-            if issue["IssueDate"] != issuenum:
-                edited += 'Date/Num '
-            new_tags = {}
-            for item in kwargs:
-                if item.startswith('tags_/'):
-                    new_tags[item[5:]] = kwargs[item]
-            try:
-                old_tags = eval(kwargs['tagdata'])
-            except SyntaxError:
-                old_tags = None
-            if not isinstance(old_tags, dict):
-                logger.warning("Invalid old_tags dictionary")
-                old_tags = {}
-            if old_tags == new_tags:
-                logger.debug("No tag changes")
-            else:
-                edited += 'Tags '
-            if edited:
-                if issue["Title"] != magtitle:
-                    if not magazine:
-                        if not magtitle:
-                            logger.warning(f"Missing magazine title")
-                            raise cherrypy.HTTPError(404, f"Magazine title missing")
+                if not magazine:
+                    if not magtitle:
+                        logger.warning(f"Missing magazine title")
+                        raise cherrypy.HTTPError(404, f"Magazine title missing")
 
-                        self.validate_param("magazine title", magtitle, ['<', '>', '='], 404)
-                        logger.debug(f"Magazine title [{magtitle}] not found, adding it")
-                        control_value_dict = {"Title": magtitle}
-                        new_value_dict = {"LastAcquired": today(),
-                                          "IssueStatus": CONFIG['FOUND_STATUS'],
-                                          "IssueDate": "", "LatestCover": ""}
-                        db.upsert("magazines", new_value_dict, control_value_dict)
-                    db.action("UPDATE issues SET Title=? WHERE IssueID=?", (magtitle, issue['IssueID']))
-                db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
-
-                fname, err = rename_issue(issue['IssueID'], tags=new_tags)
-                response = (f'Issue {issue["IssueDate"]} of {issue["Title"]}, changed to '
-                            f'{os.path.basename(fname)} {edited}')
-                if err:
-                    raise cherrypy.HTTPError(404, f"Magazine IssueFile {issue['IssueFile']} move failed: {err}")
-
-                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                    calibre_id = get_calibre_id(issue, try_filename=False)
-                    if calibre_id:
-                        logger.debug(f"Found calibre ID {calibre_id} for {issue['Title']} {issue['IssueDate']}")
-                        res, err, rc = calibredb('remove', [calibre_id])
-                        logger.debug(f"Remove result: {res} [{err}] {rc}")
-                        dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
-                        data = dict(dbentry)
-                        res, filename, pp_path = send_mag_issue_to_calibre(data)
-                        logger.debug(f"Add result: {res}")
-                        if res and filename:
-                            db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
-
-                # if no magazine issues left in the folder, delete it
-                # (removes any trailing cover images, opf etc)
-                if not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
-                    logger.debug(f"Removing empty directory {old_path}")
-                    remove_dir(old_path, remove_contents=True)
-
-                if mostrecentissue:
-                    if mostrecentissue.isdigit() and str(issuenum).isdigit():
-                        older = (int(mostrecentissue) > int(issuenum))  # issuenumber
-                    else:
-                        older = (mostrecentissue > issuenum)  # YYYY-MM-DD
-                else:
-                    older = False
-
-                control_value_dict = {"Title": magtitle}
-                if older:
-                    new_value_dict = {"LastAcquired": today(),
-                                      "IssueStatus": CONFIG['FOUND_STATUS']}
-                else:
+                    self.validate_param("magazine title", magtitle, ['<', '>', '='], 404)
+                    logger.debug(f"Magazine title [{magtitle}] not found, adding it")
+                    control_value_dict = {"Title": magtitle}
                     new_value_dict = {"LastAcquired": today(),
                                       "IssueStatus": CONFIG['FOUND_STATUS'],
-                                      "IssueDate": issuenum,
-                                      "LatestCover": issue['Cover']}
-                db.upsert("magazines", new_value_dict, control_value_dict)
-                if self.mag_set_latest(issue['Title']):
-                    # update latest issue of old mag title, if any issues left, redirect to there
-                    redirect = issue['Title']
+                                      "IssueDate": "", "LatestCover": ""}
+                    db.upsert("magazines", new_value_dict, control_value_dict)
+                db.action("UPDATE issues SET Title=? WHERE IssueID=?", (magtitle, issue['IssueID']))
+            db.action("UPDATE issues SET IssueDate=? WHERE IssueID=?", (issuenum, issue['IssueID']))
+
+            fname, err = rename_issue(issue['IssueID'], tags=new_tags)
+            response = (f'Issue {issue["IssueDate"]} of {issue["Title"]}, changed to '
+                        f'{os.path.basename(fname)} {edited}')
+            if err:
+                raise cherrypy.HTTPError(404, f"Magazine IssueFile {issue['IssueFile']} move failed: {err}")
+
+            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                calibre_id = get_calibre_id(issue, try_filename=False)
+                if calibre_id:
+                    logger.debug(f"Found calibre ID {calibre_id} for {issue['Title']} {issue['IssueDate']}")
+                    res, err, rc = calibredb('remove', [calibre_id])
+                    logger.debug(f"Remove result: {res} [{err}] {rc}")
+                    dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
+                    data = dict(dbentry)
+                    res, filename, pp_path = send_mag_issue_to_calibre(data)
+                    logger.debug(f"Add result: {res}")
+                    if res and filename:
+                        db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (filename, issue['IssueID']))
+
+            # if no magazine issues left in the folder, delete it
+            # (removes any trailing cover images, opf etc)
+            if not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
+                logger.debug(f"Removing empty directory {old_path}")
+                remove_dir(old_path, remove_contents=True)
+
+            if mostrecentissue:
+                if mostrecentissue.isdigit() and str(issuenum).isdigit():
+                    older = (int(mostrecentissue) > int(issuenum))  # issuenumber
                 else:
-                    # no issues under old title, redirect to new title
-                    redirect = magtitle
+                    older = (mostrecentissue > issuenum)  # YYYY-MM-DD
             else:
-                response = f'Issue {issue["IssueDate"]} of {issue["Title"]} is unchanged'
-                logger.debug(response)
-        finally:
-            db.close()
+                older = False
+
+            control_value_dict = {"Title": magtitle}
+            if older:
+                new_value_dict = {"LastAcquired": today(),
+                                  "IssueStatus": CONFIG['FOUND_STATUS']}
+            else:
+                new_value_dict = {"LastAcquired": today(),
+                                  "IssueStatus": CONFIG['FOUND_STATUS'],
+                                  "IssueDate": issuenum,
+                                  "LatestCover": issue['Cover']}
+            db.upsert("magazines", new_value_dict, control_value_dict)
+            if self.mag_set_latest(issue['Title']):
+                # update latest issue of old mag title, if any issues left, redirect to there
+                redirect = issue['Title']
+            else:
+                # no issues under old title, redirect to new title
+                redirect = magtitle
+        else:
+            response = f'Issue {issue["IssueDate"]} of {issue["Title"]} is unchanged'
+            logger.debug(response)
+        db.close()
         raise cherrypy.HTTPRedirect(f"issue_page?title={quote(redirect)}&response={response}")
 
     @cherrypy.expose
@@ -5835,12 +5783,10 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_magazines)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            res = db.match('SELECT Title from magazines where Title=? COLLATE NOCASE', (title,))
-            if res:
-                title = res['Title']
-        finally:
-            db.close()
+        res = db.match('SELECT Title from magazines where Title=? COLLATE NOCASE', (title,))
+        if res:
+            title = res['Title']
+        db.close()
         if not res:
             logger.warning(f"Unknown magazine title: {title}")
             raise cherrypy.HTTPError(404, f"Magazine title {title} not found")
@@ -6074,65 +6020,63 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            maglist = []
-            args.pop('book_table_length', None)
+        maglist = []
+        args.pop('book_table_length', None)
 
-            for nzburl in args:
-                nzburl = make_unicode(nzburl)
-                # some NZBurl have &amp;  some have just & so need to try both forms
-                if '&' in nzburl and '&amp;' not in nzburl:
-                    nzburl2 = nzburl.replace('&', '&amp;')
-                elif '&amp;' in nzburl:
-                    nzburl2 = nzburl.replace('&amp;', '&')
-                else:
-                    nzburl2 = ''
+        for nzburl in args:
+            nzburl = make_unicode(nzburl)
+            # some NZBurl have &amp;  some have just & so need to try both forms
+            if '&' in nzburl and '&amp;' not in nzburl:
+                nzburl2 = nzburl.replace('&', '&amp;')
+            elif '&amp;' in nzburl:
+                nzburl2 = nzburl.replace('&amp;', '&')
+            else:
+                nzburl2 = ''
 
-                if not nzburl2:
-                    title = db.select('SELECT * from pastissues WHERE NZBurl=?', (nzburl,))
-                else:
-                    title = db.select('SELECT * from pastissues WHERE NZBurl=? OR NZBurl=?', (nzburl, nzburl2))
+            if not nzburl2:
+                title = db.select('SELECT * from pastissues WHERE NZBurl=?', (nzburl,))
+            else:
+                title = db.select('SELECT * from pastissues WHERE NZBurl=? OR NZBurl=?', (nzburl, nzburl2))
 
-                for item in title:
-                    nzburl = item['NZBurl']
-                    if action == 'Remove':
-                        db.action('DELETE from pastissues WHERE NZBurl=?', (nzburl,))
-                        logger.debug(f'Item {item["NZBtitle"]} removed from past issues')
-                        maglist.append({'nzburl': nzburl})
-                    elif action == 'Wanted':
-                        bookid = item['BookID']
-                        nzbprov = item['NZBprov']
-                        nzbtitle = item['NZBtitle']
-                        nzbmode = item['NZBmode']
-                        nzbsize = item['NZBsize']
-                        auxinfo = item['AuxInfo']
-                        maglist.append({
-                            'bookid': bookid,
-                            'nzbprov': nzbprov,
-                            'nzbtitle': nzbtitle,
-                            'nzburl': nzburl,
-                            'nzbmode': nzbmode
-                        })
-                        # copy into wanted table
-                        control_value_dict = {'NZBurl': nzburl}
-                        new_value_dict = {
-                            'BookID': bookid,
-                            'NZBtitle': nzbtitle,
-                            'NZBdate': now(),
-                            'NZBprov': nzbprov,
-                            'Status': action,
-                            'NZBsize': nzbsize,
-                            'AuxInfo': auxinfo,
-                            'NZBmode': nzbmode
-                        }
-                        db.upsert("wanted", new_value_dict, control_value_dict)
+            for item in title:
+                nzburl = item['NZBurl']
+                if action == 'Remove':
+                    db.action('DELETE from pastissues WHERE NZBurl=?', (nzburl,))
+                    logger.debug(f'Item {item["NZBtitle"]} removed from past issues')
+                    maglist.append({'nzburl': nzburl})
+                elif action == 'Wanted':
+                    bookid = item['BookID']
+                    nzbprov = item['NZBprov']
+                    nzbtitle = item['NZBtitle']
+                    nzbmode = item['NZBmode']
+                    nzbsize = item['NZBsize']
+                    auxinfo = item['AuxInfo']
+                    maglist.append({
+                        'bookid': bookid,
+                        'nzbprov': nzbprov,
+                        'nzbtitle': nzbtitle,
+                        'nzburl': nzburl,
+                        'nzbmode': nzbmode
+                    })
+                    # copy into wanted table
+                    control_value_dict = {'NZBurl': nzburl}
+                    new_value_dict = {
+                        'BookID': bookid,
+                        'NZBtitle': nzbtitle,
+                        'NZBdate': now(),
+                        'NZBprov': nzbprov,
+                        'Status': action,
+                        'NZBsize': nzbsize,
+                        'AuxInfo': auxinfo,
+                        'NZBmode': nzbmode
+                    }
+                    db.upsert("wanted", new_value_dict, control_value_dict)
 
-                    elif action in ['Ignored', 'Skipped']:
-                        db.action('UPDATE pastissues set status=? WHERE NZBurl=?', (action, nzburl))
-                        logger.debug(f'Item {item["NZBtitle"]} marked {action} in past issues')
-                        maglist.append({'nzburl': nzburl})
-        finally:
-            db.close()
+                elif action in ['Ignored', 'Skipped']:
+                    db.action('UPDATE pastissues set status=? WHERE NZBurl=?', (action, nzburl))
+                    logger.debug(f'Item {item["NZBtitle"]} marked {action} in past issues')
+                    maglist.append({'nzburl': nzburl})
+        db.close()
 
         if action == 'Remove':
             logger.info(f'Removed {len(maglist)} {plural(len(maglist), "item")} from past issues')
@@ -6151,130 +6095,128 @@ class WebInterface:
         db = database.DBConnection()
         passed = 0
         failed = 0
-        try:
-            title = ''
-            args.pop('book_table_length', None)
-            lazylibrarian.MARK_ISSUES = True
-            if action:
-                total_items = len(args)
-                current_item = 0
-                for item in args:
-                    if not lazylibrarian.MARK_ISSUES:
-                        break
-                    current_item += 1
-                    current_percent = int(current_item * 100 / total_items)
-                    self.issues_data = f"{current_item}/{total_items}/{current_percent}"
-                    issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (item,))
-                    if issue:
-                        issue = dict(issue)
-                        title = issue['Title']
-                        issuefile = issue['IssueFile']
-                        if not issuefile or not path_exists(issuefile):
-                            logger.error(f"No IssueFile found for IssueID {item}")
-                            issuefile = None
+        title = ''
+        args.pop('book_table_length', None)
+        lazylibrarian.MARK_ISSUES = True
+        if action:
+            total_items = len(args)
+            current_item = 0
+            for item in args:
+                if not lazylibrarian.MARK_ISSUES:
+                    break
+                current_item += 1
+                current_percent = int(current_item * 100 / total_items)
+                self.issues_data = f"{current_item}/{total_items}/{current_percent}"
+                issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (item,))
+                if issue:
+                    issue = dict(issue)
+                    title = issue['Title']
+                    issuefile = issue['IssueFile']
+                    if not issuefile or not path_exists(issuefile):
+                        logger.error(f"No IssueFile found for IssueID {item}")
+                        issuefile = None
 
-                        if 'reCover' in action and issuefile:
-                            coverfile = create_mag_cover(issuefile, refresh=True,
-                                                         pagenum=check_int(action[-1], 1))
-                            if coverfile:
-                                myhash = uuid.uuid4().hex
-                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', f'{myhash}.jpg')
-                                copyfile(coverfile, hashname)
-                                setperm(hashname)
-                                control_value_dict = {"IssueFile": issue['IssueFile']}
-                                newcover = f'cache/magazine/{myhash}.jpg'
-                                new_value_dict = {"Cover": newcover}
-                                db.upsert("Issues", new_value_dict, control_value_dict)
-                                latest = db.match("select Title,LatestCover,IssueDate from magazines "
-                                                  "where title=? COLLATE NOCASE", (title,))
-                                if latest:
-                                    title = latest['Title']
-                                    if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
-                                        db.action("UPDATE magazines SET LatestCover=? "
-                                                  "WHERE Title=? COLLATE NOCASE", (newcover, title))
-                                issue['Cover'] = newcover
-                                issue['CoverFile'] = coverfile  # for updating calibre cover
-                                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                    self.update_calibre_issue_cover(issue)
-                                passed += 1
-                            else:
-                                failed += 1
-                                logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
-
-                        if action == 'tag' and issuefile:
-                            logger.debug(f"Tagging {issuefile}")
-                            try:
-                                res = write_pdf_tags(issuefile, title, issue['IssueDate'])
-                            except Exception as e:
-                                logger.error(f"Failed to tag {issuefile}: {e}")
-                                res = False
-                            if not res:
-                                failed += 1
-                            else:
-                                passed += 1
-                                if CONFIG.get_bool('IMP_MAGOPF'):
-                                    logger.debug(f"Writing opf for {issuefile}")
-                                    entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
-                                    _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
-                                                                                    issue['IssueDate'], item,
-                                                                                    language=entry[0],
-                                                                                    overwrite=True)
-                        if action == 'coverswap' and issuefile:
-                            coverfile = None
-                            if CONFIG['MAG_COVERSWAP']:
-                                params = [CONFIG['MAG_COVERSWAP'], issuefile]
-                                logger.debug(f"Coverswap {params}")
-                                try:
-                                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                                    logger.info(res)
-                                    coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
-                                except subprocess.CalledProcessError as e:
-                                    logger.warning(e.output)
-                            else:
-                                res = coverswap(issuefile, 2)  # cover from page 2 (counted from 1)
-                                if res:
-                                    coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
-                            if coverfile:
-                                myhash = uuid.uuid4().hex
-                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', f'{myhash}.jpg')
-                                copyfile(coverfile, hashname)
-                                setperm(hashname)
-                                control_value_dict = {"IssueFile": issuefile}
-                                newcover = f'cache/magazine/{myhash}.jpg'
-                                new_value_dict = {"Cover": newcover}
-                                db.upsert("Issues", new_value_dict, control_value_dict)
-                                latest = db.match("select Title,LatestCover,IssueDate from magazines "
-                                                  "where title=? COLLATE NOCASE", (title,))
-                                if latest:
-                                    title = latest['Title']
-                                    if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
-                                        db.action("UPDATE magazines SET LatestCover=? "
-                                                  "WHERE Title=? COLLATE NOCASE", (newcover, title))
-                                issue['Cover'] = newcover
-                                issue['CoverFile'] = coverfile  # for updating calibre cover
-                                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                    self.update_calibre_issue_cover(issue)
-                                passed += 1
-                            else:
-                                failed += 1
-                                logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
-
-                        if action == "Delete" and issuefile:
-                            result = self.delete_issue(issuefile)
-                            if result:
-                                passed += 1
-                                logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} deleted from disc')
-                                if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                    self.delete_from_calibre(issue)
-                            else:
-                                failed += 1
-                        if action == "Remove" or action == "Delete":
-                            db.action('DELETE from issues WHERE IssueID=?', (item,))
-                            logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} removed from database')
-                            _ = self.mag_set_latest(title)
+                    if 'reCover' in action and issuefile:
+                        coverfile = create_mag_cover(issuefile, refresh=True,
+                                                     pagenum=check_int(action[-1], 1))
+                        if coverfile:
+                            myhash = uuid.uuid4().hex
+                            hashname = os.path.join(DIRS.CACHEDIR, 'magazine', f'{myhash}.jpg')
+                            copyfile(coverfile, hashname)
+                            setperm(hashname)
+                            control_value_dict = {"IssueFile": issue['IssueFile']}
+                            newcover = f'cache/magazine/{myhash}.jpg'
+                            new_value_dict = {"Cover": newcover}
+                            db.upsert("Issues", new_value_dict, control_value_dict)
+                            latest = db.match("select Title,LatestCover,IssueDate from magazines "
+                                              "where title=? COLLATE NOCASE", (title,))
+                            if latest:
+                                title = latest['Title']
+                                if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
+                                    db.action("UPDATE magazines SET LatestCover=? "
+                                              "WHERE Title=? COLLATE NOCASE", (newcover, title))
+                            issue['Cover'] = newcover
+                            issue['CoverFile'] = coverfile  # for updating calibre cover
+                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                                self.update_calibre_issue_cover(issue)
                             passed += 1
-        finally:
-            db.close()
+                        else:
+                            failed += 1
+                            logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
+
+                    if action == 'tag' and issuefile:
+                        logger.debug(f"Tagging {issuefile}")
+                        try:
+                            res = write_pdf_tags(issuefile, title, issue['IssueDate'])
+                        except Exception as e:
+                            logger.error(f"Failed to tag {issuefile}: {e}")
+                            res = False
+                        if not res:
+                            failed += 1
+                        else:
+                            passed += 1
+                            if CONFIG.get_bool('IMP_MAGOPF'):
+                                logger.debug(f"Writing opf for {issuefile}")
+                                entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                                _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
+                                                                                issue['IssueDate'], item,
+                                                                                language=entry[0],
+                                                                                overwrite=True)
+                    if action == 'coverswap' and issuefile:
+                        coverfile = None
+                        if CONFIG['MAG_COVERSWAP']:
+                            params = [CONFIG['MAG_COVERSWAP'], issuefile]
+                            logger.debug(f"Coverswap {params}")
+                            try:
+                                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                                logger.info(res)
+                                coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
+                            except subprocess.CalledProcessError as e:
+                                logger.warning(e.output)
+                        else:
+                            res = coverswap(issuefile, 2)  # cover from page 2 (counted from 1)
+                            if res:
+                                coverfile = create_mag_cover(issuefile, refresh=True, pagenum=1)
+                        if coverfile:
+                            myhash = uuid.uuid4().hex
+                            hashname = os.path.join(DIRS.CACHEDIR, 'magazine', f'{myhash}.jpg')
+                            copyfile(coverfile, hashname)
+                            setperm(hashname)
+                            control_value_dict = {"IssueFile": issuefile}
+                            newcover = f'cache/magazine/{myhash}.jpg'
+                            new_value_dict = {"Cover": newcover}
+                            db.upsert("Issues", new_value_dict, control_value_dict)
+                            latest = db.match("select Title,LatestCover,IssueDate from magazines "
+                                              "where title=? COLLATE NOCASE", (title,))
+                            if latest:
+                                title = latest['Title']
+                                if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
+                                    db.action("UPDATE magazines SET LatestCover=? "
+                                              "WHERE Title=? COLLATE NOCASE", (newcover, title))
+                            issue['Cover'] = newcover
+                            issue['CoverFile'] = coverfile  # for updating calibre cover
+                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                                self.update_calibre_issue_cover(issue)
+                            passed += 1
+                        else:
+                            failed += 1
+                            logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
+
+                    if action == "Delete" and issuefile:
+                        result = self.delete_issue(issuefile)
+                        if result:
+                            passed += 1
+                            logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} deleted from disc')
+                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                                self.delete_from_calibre(issue)
+                        else:
+                            failed += 1
+                    if action == "Remove" or action == "Delete":
+                        db.action('DELETE from issues WHERE IssueID=?', (item,))
+                        logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} removed from database')
+                        _ = self.mag_set_latest(title)
+                        passed += 1
+        db.close()
 
         logger.debug(f"{action.title()}: Pass {passed}, Fail {failed}")
 
@@ -6387,116 +6329,114 @@ class WebInterface:
         db = database.DBConnection()
         total_items = 0
         current_item = 0
-        try:
-            args.pop('book_table_length', None)
-            lazylibrarian.MARK_ISSUES = True
-            passed = 0
-            failed = 0
-            for item in args:
-                if not lazylibrarian.MARK_ISSUES:
-                    break
-                title = item
-                if action == "Paused" or action == "Active":
-                    control_value_dict = {"Title": title}
-                    new_value_dict = {"Status": action}
-                    db.upsert("magazines", new_value_dict, control_value_dict)
-                    logger.info(f'Status of magazine {title} changed to {action}')
+        args.pop('book_table_length', None)
+        lazylibrarian.MARK_ISSUES = True
+        passed = 0
+        failed = 0
+        for item in args:
+            if not lazylibrarian.MARK_ISSUES:
+                break
+            title = item
+            if action == "Paused" or action == "Active":
+                control_value_dict = {"Title": title}
+                new_value_dict = {"Status": action}
+                db.upsert("magazines", new_value_dict, control_value_dict)
+                logger.info(f'Status of magazine {title} changed to {action}')
 
-                if action == "Delete":
-                    issues = db.select('SELECT * from issues WHERE Title=?', (title,))
-                    logger.debug(f'Deleting magazine {title} from disc')
-                    issuedir = ''
-                    for issue in issues:  # delete all issues of this magazine
-                        result = self.delete_issue(issue['IssueFile'])
-                        if result:
-                            logger.debug(f'Issue {issue["IssueFile"]} deleted from disc')
-                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
-                                self.delete_from_calibre(issue)
-                            issuedir = os.path.dirname(issue['IssueFile'])
-                        else:
-                            logger.debug(f'Failed to delete {issue["IssueFile"]}')
+            if action == "Delete":
+                issues = db.select('SELECT * from issues WHERE Title=?', (title,))
+                logger.debug(f'Deleting magazine {title} from disc')
+                issuedir = ''
+                for issue in issues:  # delete all issues of this magazine
+                    result = self.delete_issue(issue['IssueFile'])
+                    if result:
+                        logger.debug(f'Issue {issue["IssueFile"]} deleted from disc')
+                        if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                            self.delete_from_calibre(issue)
+                        issuedir = os.path.dirname(issue['IssueFile'])
+                    else:
+                        logger.debug(f'Failed to delete {issue["IssueFile"]}')
 
-                    # if the directory is now empty, delete that too
-                    if issuedir and CONFIG.get_bool('MAG_DELFOLDER'):
-                        magdir = os.path.dirname(issuedir)
-                        try:
-                            os.rmdir(syspath(magdir))
-                            logger.debug(f'Magazine directory {magdir} deleted from disc')
-                        except OSError:
-                            logger.debug(f'Magazine directory {magdir} is not empty')
-                        logger.info(f'Magazine {title} deleted from disc')
+                # if the directory is now empty, delete that too
+                if issuedir and CONFIG.get_bool('MAG_DELFOLDER'):
+                    magdir = os.path.dirname(issuedir)
+                    try:
+                        os.rmdir(syspath(magdir))
+                        logger.debug(f'Magazine directory {magdir} deleted from disc')
+                    except OSError:
+                        logger.debug(f'Magazine directory {magdir} is not empty')
+                    logger.info(f'Magazine {title} deleted from disc')
 
-                if action == 'tag':
-                    issues = db.select('SELECT * from issues WHERE Title=?', (title,))
-                    mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
-                    total_items += len(issues)
-                    for issue in issues:
-                        logger.debug(f"Tagging {issue['IssueFile']}")
-                        current_item += 1
-                        current_percent = int(current_item * 100 / total_items)
-                        lazylibrarian.magazinescan_data = f"{current_item}/{total_items}/{current_percent}"
-                        try:
-                            res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"])
-                        except Exception as e:
-                            logger.error(f"Failed to tag {issue['IssueFile']}: {e}")
-                            res = False
-                        if not res:
-                            failed += 1
-                        else:
-                            passed += 1
-                            if CONFIG.get_bool('IMP_MAGOPF'):
-                                logger.debug(f"Writing opf for {issue['IssueFile']}")
-                                _, _ = lazylibrarian.postprocess.create_mag_opf(issue['IssueFile'], title,
-                                                                                issue["IssueDate"],
-                                                                                issue["IssueID"],
-                                                                                language=mag[0],
-                                                                                overwrite=True)
+            if action == 'tag':
+                issues = db.select('SELECT * from issues WHERE Title=?', (title,))
+                mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                total_items += len(issues)
+                for issue in issues:
+                    logger.debug(f"Tagging {issue['IssueFile']}")
+                    current_item += 1
+                    current_percent = int(current_item * 100 / total_items)
+                    lazylibrarian.magazinescan_data = f"{current_item}/{total_items}/{current_percent}"
+                    try:
+                        res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"])
+                    except Exception as e:
+                        logger.error(f"Failed to tag {issue['IssueFile']}: {e}")
+                        res = False
+                    if not res:
+                        failed += 1
+                    else:
+                        passed += 1
+                        if CONFIG.get_bool('IMP_MAGOPF'):
+                            logger.debug(f"Writing opf for {issue['IssueFile']}")
+                            _, _ = lazylibrarian.postprocess.create_mag_opf(issue['IssueFile'], title,
+                                                                            issue["IssueDate"],
+                                                                            issue["IssueID"],
+                                                                            language=mag[0],
+                                                                            overwrite=True)
 
-                if action == "Remove" or action == "Delete":
-                    db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))
-                    db.action('DELETE from pastissues WHERE BookID=? COLLATE NOCASE', (title,))
-                    db.action('DELETE from wanted where BookID=? COLLATE NOCASE', (title,))
-                    logger.info(f'Magazine {title} removed from database')
-                    passed += 1
-                elif action == "Reset":
-                    control_value_dict = {"Title": title}
-                    new_value_dict = {
-                        "LastAcquired": '',
-                        "IssueDate": '',
-                        "LatestCover": '',
-                        "IssueStatus": "Wanted"
-                    }
-                    db.upsert("magazines", new_value_dict, control_value_dict)
-                    logger.info(f'Magazine {title} details reset')
-                    passed += 1
-                elif action == 'Subscribe':
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        userid = cookie['ll_uid'].value
-                        res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
-                                       (userid, 'magazine', title))
-                        if res:
-                            logger.debug(f"User {userid} is already subscribed to {title}")
-                            failed += 1
-                        else:
-                            db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                                      (userid, 'magazine', title))
-                            logger.debug(f"Subscribe {userid} to magazine {title}")
-                            passed += 1
-                elif action == 'Unsubscribe':
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        userid = cookie['ll_uid'].value
-                        db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+            if action == "Remove" or action == "Delete":
+                db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))
+                db.action('DELETE from pastissues WHERE BookID=? COLLATE NOCASE', (title,))
+                db.action('DELETE from wanted where BookID=? COLLATE NOCASE', (title,))
+                logger.info(f'Magazine {title} removed from database')
+                passed += 1
+            elif action == "Reset":
+                control_value_dict = {"Title": title}
+                new_value_dict = {
+                    "LastAcquired": '',
+                    "IssueDate": '',
+                    "LatestCover": '',
+                    "IssueStatus": "Wanted"
+                }
+                db.upsert("magazines", new_value_dict, control_value_dict)
+                logger.info(f'Magazine {title} details reset')
+                passed += 1
+            elif action == 'Subscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
+                                   (userid, 'magazine', title))
+                    if res:
+                        logger.debug(f"User {userid} is already subscribed to {title}")
+                        failed += 1
+                    else:
+                        db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
                                   (userid, 'magazine', title))
-                        res = db.select('SELECT issueid from issues where title=?', (title, ))
-                        for iss in res:
-                            db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
-                                      (userid, 'magazine', iss['issueid']))
-                        logger.debug(f"Unsubscribe {userid} to magazine {title}")
-                    passed += 1
-        finally:
-            db.close()
+                        logger.debug(f"Subscribe {userid} to magazine {title}")
+                        passed += 1
+            elif action == 'Unsubscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                              (userid, 'magazine', title))
+                    res = db.select('SELECT issueid from issues where title=?', (title, ))
+                    for iss in res:
+                        db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                  (userid, 'magazine', iss['issueid']))
+                    logger.debug(f"Unsubscribe {userid} to magazine {title}")
+                passed += 1
+        db.close()
 
         logger.debug(f"{action.title()}: Pass {passed}, Fail {failed}")
 
@@ -6525,10 +6465,8 @@ class WebInterface:
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            bookdata = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
-        finally:
-            db.close()
+        bookdata = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
+        db.close()
         if bookdata:
             # start searchthreads
             mags = [{"bookid": bookdata['Title']}]
@@ -6560,44 +6498,42 @@ class WebInterface:
 
         self.validate_param("magazine title", title, ['<', '>', '='], 404)
         db = database.DBConnection()
-        try:
-            reject = None
-            if '~' in title:  # separate out the "reject words" list
-                reject = title.split('~', 1)[1].strip()
-                title = title.split('~', 1)[0].strip()
+        reject = None
+        if '~' in title:  # separate out the "reject words" list
+            reject = title.split('~', 1)[1].strip()
+            title = title.split('~', 1)[0].strip()
 
-            # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-            title = replace_all(title, lazylibrarian.DICTS.get('apostrophe_dict', {}))
-            title_exploded = title.split()
-            # replace symbols by words
-            new_title = []
-            for word in title_exploded:
-                if word == '&':
-                    word = 'and'
-                elif word == '+':
-                    word = 'and'
-                new_title.append(word)
-            title = ' '.join(new_title)
-            exists = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (title,))
-            if exists:
-                logger.debug(f"Magazine {title} already exists ({exists['Title']})")
-            else:
-                control_value_dict = {"Title": title}
-                new_value_dict = {
-                    "Regex": None,
-                    "Reject": reject,
-                    "Genre": "",
-                    "DateType": "",
-                    "Status": "Active",
-                    "MagazineAdded": today(),
-                    "IssueStatus": "Wanted"
-                }
-                db.upsert("magazines", new_value_dict, control_value_dict)
-                mags = [{"bookid": title}]
-                if CONFIG.get_bool('IMP_AUTOSEARCH'):
-                    self.start_magazine_search(mags)
-        finally:
-            db.close()
+        # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
+        title = replace_all(title, lazylibrarian.DICTS.get('apostrophe_dict', {}))
+        title_exploded = title.split()
+        # replace symbols by words
+        new_title = []
+        for word in title_exploded:
+            if word == '&':
+                word = 'and'
+            elif word == '+':
+                word = 'and'
+            new_title.append(word)
+        title = ' '.join(new_title)
+        exists = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (title,))
+        if exists:
+            logger.debug(f"Magazine {title} already exists ({exists['Title']})")
+        else:
+            control_value_dict = {"Title": title}
+            new_value_dict = {
+                "Regex": None,
+                "Reject": reject,
+                "Genre": "",
+                "DateType": "",
+                "Status": "Active",
+                "MagazineAdded": today(),
+                "IssueStatus": "Wanted"
+            }
+            db.upsert("magazines", new_value_dict, control_value_dict)
+            mags = [{"bookid": title}]
+            if CONFIG.get_bool('IMP_AUTOSEARCH'):
+                self.start_magazine_search(mags)
+        db.close()
         if kwargs.get('magfilter'):
             raise cherrypy.HTTPRedirect("magazines?mag_filter=" + kwargs.get('magfilter'))
         else:
@@ -7161,42 +7097,40 @@ class WebInterface:
         text = None
         if bookid:
             db = database.DBConnection()
-            try:
-                if bookid.startswith('A_'):
-                    cmd = "SELECT AuthorName,About,AuthorImg from authors WHERE authorid=?"
-                    res = db.match(cmd, (bookid[2:],))
-                elif bookid.startswith('CV') or bookid.startswith('CX'):
-                    try:
-                        comicid, issueid = bookid.split('_')
-                        cmd = ("SELECT Title as BookName,comicissues.Description as BookDesc,Cover as BookImg,"
-                               "Contributors from comics,comicissues where comics.comicid = comicissues.comicid "
-                               "and comics.comicid=? and issueid=?")
-                        res = db.match(cmd, (comicid, issueid))
-                    except ValueError:
-                        cmd = ("SELECT Title as BookName,Description as BookDesc,LatestCover as BookImg from comics "
-                               "where comicid=?")
-                        res = db.match(cmd, (bookid,))
-                else:
-                    cmd = "SELECT BookName,BookDesc,BookImg,AuthorID from books WHERE bookid=?"
+            if bookid.startswith('A_'):
+                cmd = "SELECT AuthorName,About,AuthorImg from authors WHERE authorid=?"
+                res = db.match(cmd, (bookid[2:],))
+            elif bookid.startswith('CV') or bookid.startswith('CX'):
+                try:
+                    comicid, issueid = bookid.split('_')
+                    cmd = ("SELECT Title as BookName,comicissues.Description as BookDesc,Cover as BookImg,"
+                           "Contributors from comics,comicissues where comics.comicid = comicissues.comicid "
+                           "and comics.comicid=? and issueid=?")
+                    res = db.match(cmd, (comicid, issueid))
+                except ValueError:
+                    cmd = ("SELECT Title as BookName,Description as BookDesc,LatestCover as BookImg from comics "
+                           "where comicid=?")
                     res = db.match(cmd, (bookid,))
-                if res:
-                    res = dict(res)
-                    text = res.get('BookDesc')
-                    if not text:
-                        text = res.get('About')
-                    contributors = res.get('Contributors')
-                    if contributors:
-                        text += '<br><br>' + contributors
-                    img = res.get('BookImg')
-                    if not img:
-                        img = res.get('AuthorImg')
-                    title = res.get('BookName')
-                    if not title:
-                        title = res.get('AuthorName')
-                    if 'AuthorID' in res:
-                        lastauthor = res['AuthorID']
-            finally:
-                db.close()
+            else:
+                cmd = "SELECT BookName,BookDesc,BookImg,AuthorID from books WHERE bookid=?"
+                res = db.match(cmd, (bookid,))
+            if res:
+                res = dict(res)
+                text = res.get('BookDesc')
+                if not text:
+                    text = res.get('About')
+                contributors = res.get('Contributors')
+                if contributors:
+                    text += '<br><br>' + contributors
+                img = res.get('BookImg')
+                if not img:
+                    img = res.get('AuthorImg')
+                title = res.get('BookName')
+                if not title:
+                    title = res.get('AuthorName')
+                if 'AuthorID' in res:
+                    lastauthor = res['AuthorID']
+            db.close()
         if not img:
             img = 'images/nocover.jpg'
         if not title:
@@ -7210,37 +7144,35 @@ class WebInterface:
         if '^' not in target:
             return ''
         db = database.DBConnection()
-        try:
-            status, rowid = target.split('^')
-            if status == 'Ignored':
-                match = db.match('select ScanResult from books WHERE bookid=?', (rowid,))
-                message = f'Reason: {match["ScanResult"]}<br>'
-            else:
-                cmd = ("select NZBurl,NZBtitle,NZBdate,NZBprov,Status,NZBsize,AuxInfo,NZBmode,DLResult,Source,"
-                       "DownloadID from wanted where rowid=?")
-                match = db.match(cmd, (rowid,))
-                dltype = match['AuxInfo']
-                if dltype not in ['eBook', 'AudioBook']:
-                    if not dltype:
-                        dltype = 'eBook'
-                    else:
-                        dltype = 'Magazine'
-                message = f"Title: {match['NZBtitle']}<br>"
-                message += f"Type: {match['NZBmode']} {dltype}<br>"
-                message += f"Date: {match['NZBdate']}<br>"
-                message += f"Size: {match['NZBsize']} Mb<br>"
-                message += f"Provider: {CONFIG.disp_name(match['NZBprov'])}<br>"
-                message += f"Downloader: {match['Source']}<br>"
-                message += f"DownloadID: {match['DownloadID']}<br>"
-                message += f"URL: {match['NZBurl']}<br>"
-                if status == 'Processed':
-                    message += f"File: {match['DLResult']}<br>"
-                elif status == 'Seeding':
-                    message += status
+        status, rowid = target.split('^')
+        if status == 'Ignored':
+            match = db.match('select ScanResult from books WHERE bookid=?', (rowid,))
+            message = f'Reason: {match["ScanResult"]}<br>'
+        else:
+            cmd = ("select NZBurl,NZBtitle,NZBdate,NZBprov,Status,NZBsize,AuxInfo,NZBmode,DLResult,Source,"
+                   "DownloadID from wanted where rowid=?")
+            match = db.match(cmd, (rowid,))
+            dltype = match['AuxInfo']
+            if dltype not in ['eBook', 'AudioBook']:
+                if not dltype:
+                    dltype = 'eBook'
                 else:
-                    message += f"Error: {match['DLResult']}<br>"
-        finally:
-            db.close()
+                    dltype = 'Magazine'
+            message = f"Title: {match['NZBtitle']}<br>"
+            message += f"Type: {match['NZBmode']} {dltype}<br>"
+            message += f"Date: {match['NZBdate']}<br>"
+            message += f"Size: {match['NZBsize']} Mb<br>"
+            message += f"Provider: {CONFIG.disp_name(match['NZBprov'])}<br>"
+            message += f"Downloader: {match['Source']}<br>"
+            message += f"DownloadID: {match['DownloadID']}<br>"
+            message += f"URL: {match['NZBurl']}<br>"
+            if status == 'Processed':
+                message += f"File: {match['DLResult']}<br>"
+            elif status == 'Seeding':
+                message += status
+            else:
+                message += f"Error: {match['DLResult']}<br>"
+        db.close()
         return message
 
     @cherrypy.expose
@@ -7268,34 +7200,49 @@ class WebInterface:
         if not rowid:
             return
         db = database.DBConnection()
-        try:
-            match = db.match('SELECT NZBtitle,Status,BookID,AuxInfo from wanted WHERE rowid=?', (rowid,))
-            logger.debug(f'Marking {match["Status"]} history item {match["NZBtitle"]} as Failed')
-            db.action("UPDATE wanted SET Status='Failed' WHERE rowid=?", (rowid,))
-            book_type = match['AuxInfo']
-            if book_type not in ['AudioBook', 'eBook']:
-                if not book_type:
-                    book_type = 'eBook'
-                else:
-                    book_type = 'Magazine'
-            if book_type == 'AudioBook':
-                db.action("UPDATE books SET audiostatus='Wanted' WHERE BookID=?", (match["BookID"],))
+        match = db.match('SELECT NZBtitle,Status,BookID,AuxInfo from wanted WHERE rowid=?', (rowid,))
+        logger.debug(f'Marking {match["Status"]} history item {match["NZBtitle"]} as Failed')
+        db.action("UPDATE wanted SET Status='Failed' WHERE rowid=?", (rowid,))
+        book_type = match['AuxInfo']
+        if book_type not in ['AudioBook', 'eBook']:
+            if not book_type:
+                book_type = 'eBook'
             else:
-                db.action("UPDATE books SET status='Wanted' WHERE BookID=?", (match["BookID"],))
-        finally:
-            db.close()
+                book_type = 'Magazine'
+        if book_type == 'AudioBook':
+            db.action("UPDATE books SET audiostatus='Wanted' WHERE BookID=?", (match["BookID"],))
+        else:
+            db.action("UPDATE books SET status='Wanted' WHERE BookID=?", (match["BookID"],))
+        db.close()
 
     @cherrypy.expose
     def clearhistory(self, status=None):
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
-        try:
-            if not status or status == 'all':
-                logger.info("Clearing all history")
+        if not status or status == 'all':
+            logger.info("Clearing all history")
+            # also reset the Snatched status in book table to Wanted and cancel any failed download task
+            # ONLY reset if status is still Snatched, as maybe a later task succeeded
+            status = "Snatched"
+            cmd = "SELECT BookID,AuxInfo,Source,DownloadID from wanted WHERE Status=?"
+            rowlist = db.select(cmd, (status,))
+            for book in rowlist:
+                if book['BookID'] != 'unknown':
+                    if book['AuxInfo'] == 'eBook':
+                        db.action("UPDATE books SET Status='Wanted' WHERE Bookid=? AND Status=?",
+                                  (book['BookID'], status))
+                    elif book['AuxInfo'] == 'AudioBook':
+                        db.action("UPDATE books SET AudioStatus='Wanted' WHERE Bookid=? AND AudioStatus=?",
+                                  (book['BookID'], status))
+                    if CONFIG.get_bool('DEL_FAILED'):
+                        delete_task(book['Source'], book['DownloadID'], True)
+            db.action("DELETE from wanted")
+        else:
+            logger.info(f"Clearing history where status is {status}")
+            if status == 'Snatched':
                 # also reset the Snatched status in book table to Wanted and cancel any failed download task
                 # ONLY reset if status is still Snatched, as maybe a later task succeeded
-                status = "Snatched"
                 cmd = "SELECT BookID,AuxInfo,Source,DownloadID from wanted WHERE Status=?"
                 rowlist = db.select(cmd, (status,))
                 for book in rowlist:
@@ -7306,29 +7253,10 @@ class WebInterface:
                         elif book['AuxInfo'] == 'AudioBook':
                             db.action("UPDATE books SET AudioStatus='Wanted' WHERE Bookid=? AND AudioStatus=?",
                                       (book['BookID'], status))
-                        if CONFIG.get_bool('DEL_FAILED'):
-                            delete_task(book['Source'], book['DownloadID'], True)
-                db.action("DELETE from wanted")
-            else:
-                logger.info(f"Clearing history where status is {status}")
-                if status == 'Snatched':
-                    # also reset the Snatched status in book table to Wanted and cancel any failed download task
-                    # ONLY reset if status is still Snatched, as maybe a later task succeeded
-                    cmd = "SELECT BookID,AuxInfo,Source,DownloadID from wanted WHERE Status=?"
-                    rowlist = db.select(cmd, (status,))
-                    for book in rowlist:
-                        if book['BookID'] != 'unknown':
-                            if book['AuxInfo'] == 'eBook':
-                                db.action("UPDATE books SET Status='Wanted' WHERE Bookid=? AND Status=?",
-                                          (book['BookID'], status))
-                            elif book['AuxInfo'] == 'AudioBook':
-                                db.action("UPDATE books SET AudioStatus='Wanted' WHERE Bookid=? AND AudioStatus=?",
-                                          (book['BookID'], status))
-                        if CONFIG.get_bool('DEL_FAILED'):
-                            delete_task(book['Source'], book['DownloadID'], True)
-                db.action('DELETE from wanted WHERE Status=?', (status,))
-        finally:
-            db.close()
+                    if CONFIG.get_bool('DEL_FAILED'):
+                        delete_task(book['Source'], book['DownloadID'], True)
+            db.action('DELETE from wanted WHERE Status=?', (status,))
+        db.close()
         raise cherrypy.HTTPRedirect("history")
 
     @cherrypy.expose
@@ -8557,6 +8485,7 @@ class WebInterface:
             return serve_file(myfile, mime_type(myfile), "attachment", name=name)
         else:
             logger.error(f"No file [{myfile}]")
+            return None
 
     # TELEMETRY ##########################################################
 

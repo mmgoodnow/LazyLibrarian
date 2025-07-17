@@ -41,23 +41,20 @@ from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, t
 
 
 def test_provider(name: str, host=None, api=None):
-    logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    try:
-        res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
+    res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
+    db.close()
+    if res:
+        testname = res['authorname']
+        testid = res['authorid']
+        res = db.match("SELECT bookname from books where authorid=? order by bookrate desc", (testid,))
         if res:
-            testname = res['authorname']
-            testid = res['authorid']
-            res = db.match("SELECT bookname from books where authorid=? order by bookrate desc", (testid,))
-            if res:
-                testbook = res['bookname']
-            else:
-                testbook = ''
+            testbook = res['bookname']
         else:
-            testname = "Agatha Christie"
-            testbook = "Poirot"
-    finally:
-        db.close()
+            testbook = ''
+    else:
+        testname = "Agatha Christie"
+        testbook = "Poirot"
 
     book = {'searchterm': testname, 'authorName': testname, 'library': 'eBook', 'bookid': '1',
             'bookName': testbook, 'bookSub': ''}
@@ -2119,12 +2116,16 @@ def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode
             logger.error(f'Error reading data from {host}: {result}')
 
         if not success:
-            # maybe the host doesn't support the search type
-            cancelled = cancel_search_type(search_type, result, provider)
-            if not cancelled:  # it was some other problem
-                BLOCKHANDLER.block_provider(provider['HOST'], result)
+            if '429' in result:
+                # too many requests...
+                BLOCKHANDLER.block_provider(provider['HOST'], "Too Many Requests", delay=30)
+            else:
+                # maybe the host doesn't support the search type
+                cancelled = cancel_search_type(search_type, result, provider)
+                if not cancelled:  # it was some other problem
+                    BLOCKHANDLER.block_provider(provider['HOST'], result)
 
-        if rootxml is not None:
+        if success and rootxml is not None:
             # to debug because of api
             logger.debug(f'Parsing results from <a href="{url}">{host}</a>')
             if rootxml.tag == 'error':
