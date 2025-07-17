@@ -29,6 +29,7 @@ class AppriseNotifier:
     @staticmethod
     def _send_apprise(event=None, message=None, url=None):
         logger = logging.getLogger(__name__)
+        commslogger = logging.getLogger('special.dlcomms')
         try:
             asset = AppriseAsset()
             asset.default_extension = ".png"
@@ -47,17 +48,21 @@ class AppriseNotifier:
             apobj.add(url)
         else:
             for item in CONFIG.providers('APPRISE'):
-                if event == notifyStrings[NOTIFY_DOWNLOAD] and item['DOWNLOAD']:
+                if event == notifyStrings[NOTIFY_DOWNLOAD] and item['DOWNLOAD'] and item['URL']:
                     apobj.add(item['URL'])
-                elif event == notifyStrings[NOTIFY_SNATCH] and item['SNATCH']:
+                elif event == notifyStrings[NOTIFY_SNATCH] and item['SNATCH'] and item['URL']:
                     apobj.add(item['URL'])
-                elif event == notifyStrings[NOTIFY_FAIL] and item['SNATCH']:
+                elif event == notifyStrings[NOTIFY_FAIL] and item['SNATCH'] and item['URL']:
                     apobj.add(item['URL'])
-                elif event == 'Test':
+                elif event == 'Test' and item['URL']:
                     apobj.add(item['URL'])
 
         if apobj is None:
-            logger.warning("Apprise notifier is not initialised")
+            commslogger.warning("Apprise notifier is not initialised")
+            return False
+
+        if not len(apobj):
+            commslogger.debug("Apprise has no matching notifiers configured")
             return False
 
         title = "LazyLibrarian"
@@ -91,16 +96,16 @@ class AppriseNotifier:
     def notify_snatch(self, title, fail=False):
         if APPRISE_CANLOAD:
             if fail:
-                self._notify(event=notifyStrings[NOTIFY_FAIL], message=title, url=None)
+                return self._notify(event=notifyStrings[NOTIFY_FAIL], message=title, url=None)
             else:
-                self._notify(event=notifyStrings[NOTIFY_SNATCH], message=title, url=None)
+                return self._notify(event=notifyStrings[NOTIFY_SNATCH], message=title, url=None)
         else:
             return True
 
     def notify_download(self, title):
         # noinspection PyUnresolvedReferences
         if APPRISE_CANLOAD:
-            self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
+            return self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
         else:
             return True
 
