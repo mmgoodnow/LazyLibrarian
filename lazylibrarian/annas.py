@@ -265,7 +265,7 @@ def parse_result(raw_content: Tag) -> SearchResult:
         file_info = extract_file_info(raw_file_info)
     else:
         file_info = ''
-    
+
     res = SearchResult(
         id=hashid,
         title=html_unescape(title),
@@ -342,6 +342,11 @@ def anna_search(book=None, test=False):
     logger = logging.getLogger(__name__)
     provider = "annas"
     # searchtype = 'eBook'
+    lang = CONFIG['ANNA_SEARCH_LANG'].split(',')[0].strip().upper()
+    if lang and len(lang) == 2:
+        language = Language.lang
+    else:
+        language = ''
 
     if BLOCKHANDLER.is_blocked(provider):
         if test:
@@ -380,9 +385,9 @@ def anna_search(book=None, test=False):
             cachelogger.debug(f"CacheHandler: Found CACHED response {hashfilename} for {book['searchterm']}")
         else:
             lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
-            hashfilename = annas_search(book['searchterm'])
+            hashfilename = annas_search(book['searchterm'], language=language)
     else:
-        hashfilename = annas_search(book['searchterm'])
+        hashfilename = annas_search(book['searchterm'], language=language)
 
     with open(hashfilename, 'r') as f:
         searchresults = json.load(f)

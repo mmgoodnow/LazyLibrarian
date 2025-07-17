@@ -283,6 +283,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('BOK', 'BOK_EMAIL', ''),
     ConfigStr('BOK', 'BOK_REMIX_USERID', ''),
     ConfigStr('BOK', 'BOK_REMIX_USERKEY', ''),
+    ConfigCSV('BOK', 'BOK_SEARCH_LANG', ''),  # comma separated upper case 2 letter language codes eg EN, ES, DE
     ConfigBool('BOK', 'BOK', 0),
     ConfigInt('BOK', 'BOK_DLPRIORITY', 0),
     ConfigInt('BOK', 'BOK_DLLIMIT', 5),
@@ -298,6 +299,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('ANNA', 'ANNA', 0),
     ConfigInt('ANNA', 'ANNA_DLPRIORITY', 0),
     ConfigInt('ANNA', 'ANNA_DLLIMIT', 0),
+    ConfigStr('ANNA', 'ANNA_SEARCH_LANG', 'ANY'),  # upper case 2 letter language code or ANY
     ConfigDownloadTypes('ANNA', 'ANNA_DLTYPES', 'E'),
     ConfigStr('LIME', 'LIME_HOST', 'https://www.limetorrents.cc'),
     ConfigBool('LIME', 'LIME', 0),
