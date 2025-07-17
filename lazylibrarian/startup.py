@@ -476,7 +476,7 @@ class StartupLazyLibrarian:
                     return res
                 except Exception as e:
                     self.logger.error(f'Failed to load {json_file}, {type(e).__name__} {str(e)}')
-        self.logger.error('No valid dicts.json file found')
+        self.logger.debug('No valid dicts.json file found, using defaults')
         return {"filename_dict": {'<': '', '>': '', '...': '', ' = ': ' ', '?': '', '$': 's', '|': '',
                                   ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
                                   '\\\\': '\\'},
@@ -485,7 +485,7 @@ class StartupLazyLibrarian:
 
     def build_monthtable(self, config: ConfigDict):
         seasons = {}
-        table = None;
+        table = None
         json_file = os.path.join(DIRS.DATADIR, 'seasons.json')
         if path_isfile(json_file):
             try:
