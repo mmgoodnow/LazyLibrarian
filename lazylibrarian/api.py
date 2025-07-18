@@ -262,6 +262,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'getauthorsfromol': (1, 'Scan your database and get all secondary authors from OpenLibrary'),
             'getpdftags': (0, '&id= Show embedded tags in a pdf issue file'),
             'setpdftags': (1, '&id= &tags= Set embedded tags in a pdf issue file'),
+            'listsecondaries': (0, 'list all authors that are not primary author of any book in the database'),
+            'deletesecondaries': (1, 'delete all secondary authors in the database')
             }
 
 
@@ -2914,4 +2916,22 @@ class Api(object):
             return
         self.data = write_pdf_tags(issuefile, title, issuedate, tags)
 
+    def _listsecondaries(self):
+        TELEMETRY.record_usage_data()
+        db = database.DBConnection()
+        res = db.select('select distinct authorid from bookauthors except select authorid from books')
+        self.data = {}
+        for item in res:
+            auth = db.match('select authorname from authors where authorid=?', (item['authorid'], ))
+            if auth:
+                self.data[item['authorid']] = auth['authorname']
 
+    def _deletesecondaries(self):
+        TELEMETRY.record_usage_data()
+        db = database.DBConnection()
+        res = db.select('select distinct authorid from bookauthors except select authorid from books')
+        cnt = 0
+        for item in res:
+            cnt += 1
+            db.action('delete from authors where authorid=?', (item['authorid'], ))
+        self.data = f"Removed {cnt} secondary authors"
