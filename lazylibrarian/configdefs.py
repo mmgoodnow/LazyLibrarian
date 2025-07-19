@@ -368,7 +368,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('LibraryScan', 'NO_LANG', 0),
     ConfigBool('LibraryScan', 'ISBN_LOOKUP', 1),
     ConfigBool('LibraryScan', 'IMP_IGNORE', 0),
-
+    ConfigBool('LibraryScan', 'CONTRIBUTING_AUTHORS', 1, onchange=ImportPrefs.contrib_changed),
     ConfigStr('PostProcess', 'CREATE_LINK', ''),
     ConfigFolder('PostProcess', 'EBOOK_DEST_FOLDER', '$Author/$Title'),
     ConfigStr('PostProcess', 'EBOOK_DEST_FILE', '$Title - $Author'),

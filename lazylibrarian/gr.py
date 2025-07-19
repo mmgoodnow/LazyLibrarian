@@ -978,26 +978,29 @@ class GoodReads:
                                 if update_value_dict:
                                     db.upsert("books", update_value_dict, control_value_dict)
 
-                                for contributor in contributors:
-                                    aid, anm, role = contributor
-                                    if aid != gr_id:  # skip primary author
-                                        if not role:
-                                            role = 'UNKNOWN'
-                                        else:
-                                            role = role.upper()
-                                        if role not in ROLE:
-                                            role = 'CONTRIBUTING'
-                                        reason = f"Contributor to {bookname}"
-                                        auth_id = lazylibrarian.importer.add_author_to_db(authorname=anm, refresh=False,
-                                                                                          authorid=aid, addbooks=False,
-                                                                                          reason=reason)
-                                        if auth_id:
-                                            db.action('INSERT into bookauthors (AuthorID, BookID, Role) '
-                                                      'VALUES (?, ?, ?)',
-                                                      (auth_id, bookid, ROLE[role]), suppress='UNIQUE')
-                                            lazylibrarian.importer.update_totals(auth_id)
-                                        else:
-                                            self.logger.debug(f"Unable to add {auth_id}")
+                                if CONFIG.get_bool('CONTRIBUTING_AUTHORS'):
+                                    for contributor in contributors:
+                                        aid, anm, role = contributor
+                                        if aid != gr_id:  # skip primary author
+                                            if not role:
+                                                role = 'UNKNOWN'
+                                            else:
+                                                role = role.upper()
+                                            if role not in ROLE:
+                                                role = 'CONTRIBUTING'
+                                            reason = f"Contributor to {bookname}"
+                                            auth_id = lazylibrarian.importer.add_author_to_db(authorname=anm,
+                                                                                              refresh=False,
+                                                                                              authorid=aid,
+                                                                                              addbooks=False,
+                                                                                              reason=reason)
+                                            if auth_id:
+                                                db.action('INSERT into bookauthors (AuthorID, BookID, Role) '
+                                                          'VALUES (?, ?, ?)',
+                                                          (auth_id, bookid, ROLE[role]), suppress='UNIQUE')
+                                                lazylibrarian.importer.update_totals(auth_id)
+                                            else:
+                                                self.logger.debug(f"Unable to add {auth_id}")
 
                                 if not existing:
                                     typ = 'Added'
@@ -1464,21 +1467,22 @@ class GoodReads:
                           (author_id, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
                 lazylibrarian.importer.update_totals(author_id)
 
-                contributors.pop(0)  # skip primary author
-                for entry in contributors:
-                    auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
-                                                                      authorid=entry[0], addbooks=False,
-                                                                      reason=f"Contributor to {bookname}")
-                    if auth_id:
-                        if entry[2] and entry[2].upper() in ROLE:
-                            role = ROLE[entry[2].upper()]
+                if CONFIG.get_bool('CONTRIBUTING_AUTHORS'):
+                    contributors.pop(0)  # skip primary author
+                    for entry in contributors:
+                        auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
+                                                                          authorid=entry[0], addbooks=False,
+                                                                          reason=f"Contributor to {bookname}")
+                        if auth_id:
+                            if entry[2] and entry[2].upper() in ROLE:
+                                role = ROLE[entry[2].upper()]
+                            else:
+                                role = ROLE['CONTRIBUTING']
+                            db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                      (auth_id, bookid, role), suppress='UNIQUE')
+                            lazylibrarian.importer.update_totals(auth_id)
                         else:
-                            role = ROLE['CONTRIBUTING']
-                        db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                                  (auth_id, bookid, role), suppress='UNIQUE')
-                        lazylibrarian.importer.update_totals(auth_id)
-                    else:
-                        self.logger.debug(f"Unable to add {auth_id}")
+                            self.logger.debug(f"Unable to add {auth_id}")
 
         finally:
             db.close()

@@ -82,8 +82,9 @@ class GoogleBooks:
                 elif api_value == 'intitle:':
                     searchterm = fullterm
                     if title:  # just search for title
-                        title = title.split(' (')[0]  # without any series info
-                        searchterm = title
+                        if ' (' in title:
+                            title = title.split(' (')[0]  # without any series info
+                            searchterm = title
                     # strip all ascii and non-ascii quotes/apostrophes
                     searchterm = strip_quotes(searchterm)
                     set_url += quote(make_utf8bytes(f"{api_value}\"{searchterm}\"")[0])
@@ -188,13 +189,10 @@ class GoogleBooks:
                             author_id = ''
                             if book['author']:
                                 db = database.DBConnection()
-                                try:
-                                    match = db.match(
-                                        'SELECT AuthorID FROM authors WHERE AuthorName=?', (book['author'],))
-                                    if match:
-                                        author_id = match['AuthorID']
-                                finally:
-                                    db.close()
+                                match = db.match('SELECT AuthorID FROM authors WHERE AuthorName=?', (book['author'],))
+                                if match:
+                                    author_id = match['AuthorID']
+                                db.close()
 
                             resultlist.append({
                                 'authorname': book['author'],
@@ -561,7 +559,7 @@ class GoogleBooks:
                                 db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                                           (authorid, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
 
-                                if 'contributors' in book:
+                                if CONFIG.get_bool('CONTRIBUTING_AUTHORS') and 'contributors' in book:
                                     for entry in book['contributors']:
                                         reason = f"Contributor to {bookname}"
                                         auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry,

@@ -429,14 +429,12 @@ class HardCover:
                 db.close()
         else:
             db = database.DBConnection()
-            try:
-                # No userid provided, could be an api call? use admin token
-                res = db.match("select hc_token from users where perms=65535 and hc_token is not null")
-                if res and res['hc_token']:
-                    self.apikey = res['hc_token']
-                    self.searchinglogger.debug(f"Using database token for admin")
-            finally:
-                db.close()
+            # No userid provided, could be an api call? use admin token
+            res = db.match("select hc_token from users where perms=65535 and hc_token is not null")
+            if res and res['hc_token']:
+                self.apikey = res['hc_token']
+                self.searchinglogger.debug(f"Using database token for admin")
+            db.close()
 
         #       user_id = result of whoami/userid
         self.HC_USERBOOKS = '''
@@ -830,7 +828,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             return resultlist
 
         queue.put(resultlist)
-
+        return None
 
     def find_results(self, searchterm=None, queue=None, refresh=False):
         """Search for books or authors in HardCover."""
@@ -913,7 +911,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 if not queue:
                     return resultlist
                 queue.put(resultlist)
-
 
             for book_data in resultbooks:
                 if 'users_count' in book_data:
@@ -1494,20 +1491,21 @@ query FindAuthor { authors_by_pk(id: [authorid])
                                   (authorid, bookdict['bookid'], ROLE['PRIMARY']), suppress='UNIQUE')
                         lazylibrarian.importer.update_totals(authorid)
 
-                        for entry in bookdict['contributing_authors']:
-                            reason = f"Contributor to {bookdict['title']}"
-                            auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1],
-                                                                              refresh=False,
-                                                                              authorid=entry[0],
-                                                                              addbooks=False,
-                                                                              reason=reason)
-                            if auth_id:
-                                # Add any others as contributing authors
-                                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                                          (auth_id, bookdict['bookid'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
-                                lazylibrarian.importer.update_totals(auth_id)
-                            else:
-                                logger.debug(f"Unable to add {auth_id}")
+                        if CONFIG.get_bool('CONTRIBUTING_AUTHORS'):
+                            for entry in bookdict['contributing_authors']:
+                                reason = f"Contributor to {bookdict['title']}"
+                                auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1],
+                                                                                  refresh=False,
+                                                                                  authorid=entry[0],
+                                                                                  addbooks=False,
+                                                                                  reason=reason)
+                                if auth_id:
+                                    # Add any others as contributing authors
+                                    db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                              (auth_id, bookdict['bookid'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
+                                    lazylibrarian.importer.update_totals(auth_id)
+                                else:
+                                    logger.debug(f"Unable to add {auth_id}")
 
                     # Leave alone if locked
                     if locked:
@@ -1879,17 +1877,18 @@ query FindAuthor { authors_by_pk(id: [authorid])
                           (auth_id, bookdict['bookid'], ROLE['PRIMARY']), suppress='UNIQUE')
                 lazylibrarian.importer.update_totals(auth_id)
 
-                for entry in bookdict['contributing_authors']:
-                    auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
-                                                                      authorid=entry[0], addbooks=False,
-                                                                      reason=f"Contributor to {bookdict['title']}")
-                    if auth_id:
-                        # Add any others as contributing authors
-                        db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                                  (auth_id, bookdict['bookid'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
-                        lazylibrarian.importer.update_totals(auth_id)
-                    else:
-                        self.logger.debug(f"Unable to add contributor {entry[1]} for {bookdict['title']}")
+                if CONFIG.get_bool('CONTRIBUTING_AUTHORS'):
+                    for entry in bookdict['contributing_authors']:
+                        auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
+                                                                          authorid=entry[0], addbooks=False,
+                                                                          reason=f"Contributor to {bookdict['title']}")
+                        if auth_id:
+                            # Add any others as contributing authors
+                            db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                                      (auth_id, bookdict['bookid'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
+                            lazylibrarian.importer.update_totals(auth_id)
+                        else:
+                            self.logger.debug(f"Unable to add contributor {entry[1]} for {bookdict['title']}")
 
                 # Handle series data if present
                 if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):

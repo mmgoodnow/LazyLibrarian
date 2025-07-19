@@ -26,12 +26,28 @@ import lazylibrarian
 from lazylibrarian.configenums import OnChangeReason
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
-# noinspection PyUnusedLocal
-
 
 class ImportPrefs:
     LANG_LIST = []
     SPLIT_LIST = []
+
+    @classmethod
+    def contrib_changed(cls, value: str, reason: OnChangeReason = OnChangeReason.SETTING):
+        """ Called automatically when CONFIG[CONTRIBUTING_AUTHORS] changes value """
+        logger = logging.getLogger(__name__)
+        if value != '1':
+            db = lazylibrarian.database.DBConnection()
+            res = db.select('select distinct authorid from bookauthors except select authorid from books')
+            cnt = 0
+            for item in res:
+                cnt += 1
+                db.action('delete from authors where authorid=?', (item['authorid'], ))
+            logger.debug(f"Disabled Contributing Authors: Removed {cnt} authors")
+        """ TODO circular import issue
+        else:
+            logger.debug(f"Started Contributing Authors background task")
+            threading.Thread(target=lazylibrarian.multiauth.get_authors_from_book_files, name='MULTIAUTH_BOOKFILES').start()
+        """
 
     @classmethod
     def lang_changed(cls, languages: str, reason: OnChangeReason = OnChangeReason.SETTING):

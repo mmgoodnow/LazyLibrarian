@@ -195,7 +195,7 @@ def serve_template(templatename, **kwargs):
                     res = {}
                     if ':' in values:
                         user, pwd = values.split(':', 1)
-                        res = db.match('SELECT * from users where UserName=? and Password=?', (user, pwd))
+                        res = db.match('SELECT * from users where UserName=? and Password=?', (user, md5_utf8(pwd)))
                 if not res and CONFIG.get_bool('PROXY_AUTH'):
                     logger.debug('Proxy Auth enabled')
                     user = cherrypy.request.headers.get(CONFIG.get_str('PROXY_AUTH_USER'))

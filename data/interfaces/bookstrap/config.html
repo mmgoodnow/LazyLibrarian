@@ -2158,6 +2158,14 @@
                     <span class="help-block">This will include details for other books by new authors found in wishlists or csv files,<br>
                       or when running libraryscan or manually importing a book by a new author</span>
                   </div>
+                  <div class="checkbox">
+                    <% checked = 'checked="checked"' if CONFIG['CONTRIBUTING_AUTHORS'] else '' %>
+                    <label for="contributing_authors" class="control-label">
+                      <input type="checkbox" id="contributing_authors" name="contributing_authors" value="1" ${checked} />
+                      Include all contributing authors for a book</label>
+                    <span class="help-block">This will import details for contributing authors,<br>
+                      not just the "primary" author of a book</span>
+                  </div>
                   <fieldset>
                   <legend>External Programs</legend>
                   <div class="form-group">
