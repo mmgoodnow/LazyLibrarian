@@ -21,7 +21,11 @@
 
 import logging
 import cherrypy
+import time
+from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.formatter import md5_utf8
+import lazylibrarian
 from html import escape
 
 from urllib.parse import quote
@@ -33,12 +37,19 @@ def check_credentials(username, password):
     """Verifies credentials for username and password.
     Returns None on success or a string describing the error on failure"""
     # Adapt to your needs
-    forms_user = cherrypy.request.config['auth.forms_username']
-    forms_pass = cherrypy.request.config['auth.forms_password']
-    if username == forms_user and password == forms_pass:
-        return None
+    if not CONFIG['USER_ACCOUNTS']:
+        forms_user = cherrypy.request.config['auth.forms_username']
+        forms_pass = cherrypy.request.config['auth.forms_password']
+        if username == forms_user and password == forms_pass:
+            return None
+        return "Incorrect username or password."
     else:
-        return u"Incorrect username or password."
+        db = database.DBConnection()
+        res = db.match('SELECT Password from users where UserName=?', (username,))
+        db.close()
+        if res and res['Password'] == md5_utf8(password):
+            return None
+        return "Incorrect username or password."
 
 
 # noinspection PyUnusedLocal
@@ -124,15 +135,36 @@ def all_of(*conditions):
 
 class AuthController(object):
     @staticmethod
-    def on_login(username):
+    def on_login(username, password):
         logger = logging.getLogger(__name__)
         """Called on successful login"""
-        logger.info(f'{username} successfully logged on.')
-        # not needed or used for Mylar currently
+        # create user cookie
+        db = database.DBConnection()
+        # if user accounts exist, or this user logged in before, find the user entry
+        res = db.match('SELECT UserID,Prefs from users where UserName=?', (username,))
+        if res:
+            logger.debug(f"{username} is a registered user")
+            # lazylibrarian.LOGINUSER = res['UserID']
+        elif not CONFIG['USER_ACCOUNTS']:  # and we haven't got a user entry for them...
+            db.upsert('users', {'Last_Login': str(int(time.time())),
+                                'Login_Count': 1,
+                                'UserID': pwd_generator(),
+                                'Name': username,
+                                'Password': md5_utf8(password),
+                                'Perms': lazylibrarian.perm_admin
+                                }, {'UserName': username})
+            logger.debug(f"{username} added as a new admin user")
+            res = db.match('SELECT UserID,Prefs from users where UserName=?', (username,))
+            # lazylibrarian.LOGINUSER = res['UserID']
+        logger.info(f'{username} successfully logged in.')
+        cherrypy.response.cookie['ll_uid'] = res['UserID']
+        cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+        db.close()
 
-    def on_logout(self, username):
+    @staticmethod
+    def on_logout(username):
         """Called on logout"""
-        # not needed or used for Mylar currently
+        lazylibrarian.webServe.clear_our_cookies()
 
     # noinspection PyUnusedLocal
     @staticmethod
@@ -167,9 +199,10 @@ class AuthController(object):
             # expiry = datetime.now() + (timedelta(days=30) if remember_me == '1' else timedelta(minutes=60))
             # cherrypy.session[SESSION_KEY] = {'user':    cherrypy.request.login,
             #                                 'expiry':  expiry}
-            self.on_login(current_username)
+            self.on_login(current_username, current_password)
             if CONFIG['HTTP_ROOT']:
                 from_page = f"{CONFIG['HTTP_ROOT']}/{from_page}"
+            print(from_page)
             raise cherrypy.HTTPRedirect(from_page or CONFIG['HTTP_ROOT'])
 
     @cherrypy.expose
