@@ -251,6 +251,7 @@ def validate_bookdict(bookdict):
         return rejected
 
     db = database.DBConnection()
+    # noinspection PyBroadException
     try:
         wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
         if 'All' not in wantedlanguages:
@@ -371,15 +372,14 @@ def validate_bookdict(bookdict):
             if CONFIG.get_bool('NO_PUBDATE'):
                 if not publish_date or publish_date == '0000':
                     rejected.append(['date', 'No publication date'])
+        db.close()
         return rejected
 
     except Exception:
         logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
         logger.error(f"{bookdict}")
-        return rejected
-
-    finally:
         db.close()
+        return rejected
 
 
 class HardCover:
@@ -733,6 +733,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 else:
                     # unexpected error code, short delay
                     delay = 60
+                # noinspection PyBroadException
                 try:
                     res = r.json()
                     msg = str(r.status_code)
@@ -1798,15 +1799,15 @@ query FindAuthor { authors_by_pk(id: [authorid])
         rejected = validate_bookdict(bookdict)
 
         if rejected:
-            if reason.startswith("Series:") or rejected[0] == 'name':
+            if reason.startswith("Series:") or rejected[0] == 'name' or 'title' not in bookdict:
                 return
             #
             # user has said they want this book, don't block for unwanted language etc.
             # Ignore book if adding as part of a series, else just warn and include it
             #
             title = bookdict['title']
-            lang = bookdict['languages']
-            bookdate = bookdict['publish_date']
+            lang = bookdict.get('languages', '')
+            bookdate = bookdict.get('publish_date', '')
             msg = ''
             if rejected[0] == 'name':
                 msg = f'Book {title} authorname invalid'

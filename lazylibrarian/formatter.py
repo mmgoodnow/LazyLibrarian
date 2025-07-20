@@ -43,10 +43,11 @@ class ImportPrefs:
                 cnt += 1
                 db.action('delete from authors where authorid=?', (item['authorid'], ))
             logger.debug(f"Disabled Contributing Authors: Removed {cnt} authors")
-        """ TODO circular import issue
+        """ TODO fix circular import issue
         else:
             logger.debug(f"Started Contributing Authors background task")
-            threading.Thread(target=lazylibrarian.multiauth.get_authors_from_book_files, name='MULTIAUTH_BOOKFILES').start()
+            threading.Thread(target=lazylibrarian.multiauth.get_authors_from_book_files, 
+                             name='MULTIAUTH_BOOKFILES').start()
         """
 
     @classmethod

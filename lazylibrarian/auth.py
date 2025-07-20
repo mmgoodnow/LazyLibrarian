@@ -144,7 +144,6 @@ class AuthController(object):
         res = db.match('SELECT UserID,Prefs from users where UserName=?', (username,))
         if res:
             logger.debug(f"{username} is a registered user")
-            # lazylibrarian.LOGINUSER = res['UserID']
         elif not CONFIG['USER_ACCOUNTS']:  # and we haven't got a user entry for them...
             db.upsert('users', {'Last_Login': str(int(time.time())),
                                 'Login_Count': 1,
@@ -155,7 +154,6 @@ class AuthController(object):
                                 }, {'UserName': username})
             logger.debug(f"{username} added as a new admin user")
             res = db.match('SELECT UserID,Prefs from users where UserName=?', (username,))
-            # lazylibrarian.LOGINUSER = res['UserID']
         logger.info(f'{username} successfully logged in.')
         cherrypy.response.cookie['ll_uid'] = res['UserID']
         cherrypy.response.cookie['ll_prefs'] = res['Prefs']
@@ -202,7 +200,6 @@ class AuthController(object):
             self.on_login(current_username, current_password)
             if CONFIG['HTTP_ROOT']:
                 from_page = f"{CONFIG['HTTP_ROOT']}/{from_page}"
-            print(from_page)
             raise cherrypy.HTTPRedirect(from_page or CONFIG['HTTP_ROOT'])
 
     @cherrypy.expose

@@ -77,26 +77,24 @@ def get_book_meta(fdir, reason="get_book_meta"):
                             break
         if bookid:
             db = database.DBConnection()
-            try:
-                cmd = ("SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID and "
-                       "books.BookID=?")
+            cmd = ("SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID and "
+                   "books.BookID=?")
+            existing_book = db.match(cmd, (bookid,))
+            if not existing_book:
+                if CONFIG['BOOK_API'] == "GoogleBooks":
+                    gb = GoogleBooks(bookid)
+                    gb.find_book(bookid, None, None, reason)
+                elif CONFIG['BOOK_API'] == "GoodReads":
+                    gr = GoodReads(bookid)
+                    gr.find_book(bookid, None, None, reason)
+                elif CONFIG['BOOK_API'] == "HardCover":
+                    hc = HardCover(bookid)
+                    hc.find_book(bookid, None, None, reason)
+                elif CONFIG['BOOK_API'] == "OpenLibrary":
+                    ol = OpenLibrary(bookid)
+                    ol.find_book(bookid, None, None, reason)
                 existing_book = db.match(cmd, (bookid,))
-                if not existing_book:
-                    if CONFIG['BOOK_API'] == "GoogleBooks":
-                        gb = GoogleBooks(bookid)
-                        gb.find_book(bookid, None, None, reason)
-                    elif CONFIG['BOOK_API'] == "GoodReads":
-                        gr = GoodReads(bookid)
-                        gr.find_book(bookid, None, None, reason)
-                    elif CONFIG['BOOK_API'] == "HardCover":
-                        hc = HardCover(bookid)
-                        hc.find_book(bookid, None, None, reason)
-                    elif CONFIG['BOOK_API'] == "OpenLibrary":
-                        ol = OpenLibrary(bookid)
-                        ol.find_book(bookid, None, None, reason)
-                    existing_book = db.match(cmd, (bookid,))
-            finally:
-                db.close()
+            db.close()
             if existing_book:
                 return existing_book['AuthorName'], existing_book['BookName']
         return "", ""
@@ -494,7 +492,10 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         if new_author:
             # we auto-added a new author but they don't have the book so we should remove them again
             db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
-    finally:
+        db.close()
+
+    except Exception as e:
+        logger.error(str(e))
         db.close()
 
     return 0, ''
@@ -737,6 +738,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         bookid = None
 
                         # if it's an epub or a mobi we can try to read metadata from it
+                        res = {}
                         if extn.lower() in [".epub", ".mobi"]:
                             book_filename = os.path.join(rootdir, files)
                             try:
@@ -762,12 +764,13 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         # just look for any .opf file in the current directory since we don't know
                         # LL preferred authorname/bookname at this point.
                         # Allow metadata in opf file to override book metadata as may be users pref
-                        res = {}
                         metafile = ''
                         try:
                             metafile = opf_file(rootdir)
                             if metafile:
-                                res = get_book_info(metafile)
+                                res2 = get_book_info(metafile)
+                                for item in res2:
+                                    res[item] = res2[item]
                         except Exception as e:
                             logger.error(f'get_book_info failed for {metafile}, {type(e).__name__} {str(e)}')
 
@@ -1109,6 +1112,22 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     if not check_status:
                                         logger.debug(f'Unable to find bookid {bookid} in database')
                                     else:
+                                        if CONFIG['CONTRIBUTING_AUTHORS'] and res and 'authors' in res:
+                                            authorlist = split_author_names(res['authors'])
+                                            for auth in authorlist:
+                                                if auth != check_status['AuthorID']:  # primary author already added
+                                                    aname, aid, added = (
+                                                        add_author_name_to_db(auth, addbooks=False,
+                                                                              reason=f"Contributor to "
+                                                                                     f"{check_status['BookName']}"))
+                                                    if aid:
+                                                        # Add any new authors as contributing authors
+                                                        db.action('INSERT into bookauthors (AuthorID, BookID, Role) '
+                                                                  'VALUES (?, ?, ?)',
+                                                                  (aid, check_status['BookID'], ROLE['CONTRIBUTING']),
+                                                                  suppress='UNIQUE')
+                                                        update_totals(aid)
+
                                         book_filename = None
                                         if library == 'eBook':
                                             if check_status['Status'] != 'Open':

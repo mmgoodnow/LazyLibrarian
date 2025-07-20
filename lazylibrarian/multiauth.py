@@ -1,13 +1,13 @@
-from lazylibrarian.librarysync import get_book_info
-from os.path import splitext
-from lazylibrarian import database, ROLE
-from lazylibrarian.cache import json_request
-from lazylibrarian.filesystem import path_isfile
-from lazylibrarian.hc import HardCover
-from lazylibrarian.formatter import get_list
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.importer import add_author_name_to_db, add_author_to_db, update_totals, get_preferred_author_name
 import logging
+from os.path import splitext
+
+from lazylibrarian import database, ROLE
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import path_isfile
+from lazylibrarian.formatter import get_list
+from lazylibrarian.hc import HardCover
+from lazylibrarian.importer import add_author_name_to_db, add_author_to_db, update_totals, get_preferred_author_name
+from lazylibrarian.librarysync import get_book_info
 
 
 def split_author_names(namelist):
@@ -78,7 +78,6 @@ def get_authors_from_hc():
 
 def get_authors_from_ol():
     logger = logging.getLogger(__name__)
-    searchinglogger = logging.getLogger('special.searching')
     newauthors = 0
     db = database.DBConnection()
     authors = db.select("SELECT ol_id,authorid,authorname from authors WHERE ol_id is not null")
@@ -107,9 +106,6 @@ def get_authors_from_book_files():
                 if not path_isfile(fname):
                     logger.error(f'Unable to find {fname}')
                 else:
-                    # Add what we currently have as primary author
-                    # db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                    #           (entry['AuthorID'], entry['BookID'], ROLE['PRIMARY']), suppress='UNIQUE')
                     res = []
                     try:
                         res = get_book_info(fname)
@@ -122,7 +118,7 @@ def get_authors_from_book_files():
                                     add_author_name_to_db(auth, addbooks=False,
                                                           reason=f"Contributor to {entry['BookName']}"))
                                 if authorid:
-                                    # Add any others as contributing authors
+                                    # Add any new authors as contributing authors
                                     db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                                               (authorid, entry['BookID'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
                                     newauthors += added
@@ -134,7 +130,7 @@ def get_authors_from_book_files():
                                             add_author_name_to_db(a_name, addbooks=False,
                                                                   reason=f"Contributor to {entry['BookName']}"))
                                         if authorid:
-                                            # Add any others as contributing authors
+                                            # Add any new authors as contributing authors
                                             db.action('INSERT into bookauthors (AuthorID, BookID, Role) '
                                                       'VALUES (?, ?, ?)',
                                                       (authorid, entry['BookID'], ROLE['CONTRIBUTING']),

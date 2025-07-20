@@ -174,11 +174,11 @@ def has_column(db, table, column):
 def db_upgrade(current_version: int, restartjobs: bool = False):
     logger = logging.getLogger(__name__)
     with open(syspath(DIRS.get_logfile('dbupgrade.log')), 'a') as upgradelog:
-        # noinspection PyBroadException
+        db_changes = 0
         db = database.DBConnection()
+        # noinspection PyBroadException
         try:
             db_version = get_db_version(db)
-
             check = db.match('PRAGMA integrity_check')
             if check and check[0]:
                 result = check[0]
@@ -188,7 +188,6 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
                     logger.error(f'Database integrity check: {result}')
                     # should probably abort now if result is not "ok"
 
-            db_changes = 0
             if db_version < current_version:
                 if db_version:
                     lazylibrarian.UPDATE_MSG = (f'Updating database to version {current_version}, '
@@ -340,6 +339,7 @@ def check_db(upgradelog=None):
     cnt = 0
     closefile = False
     db = database.DBConnection()
+    db_changes = 0
     try:
         if not upgradelog:
             upgradelog = open(DIRS.get_logfile('dbupgrade.log'), 'a')
@@ -808,12 +808,14 @@ def check_db(upgradelog=None):
         except Exception as e:
             msg = f'Error: {type(e).__name__} {str(e)}'
             logger.error(msg)
-    finally:
-        db.close()
-        if closefile:
-            upgradelog.close()
-        logger.info(f"Database check found {cnt} {plural(cnt, 'error')}")
-        lazylibrarian.UPDATE_MSG = ''
+    except Exception as e:
+        msg = f'Error: {type(e).__name__} {str(e)}'
+        logger.error(msg)
+    db.close()
+    if closefile:
+        upgradelog.close()
+    logger.info(f"Database check found {cnt} {plural(cnt, 'error')}")
+    lazylibrarian.UPDATE_MSG = ''
     return db_changes
 
 
@@ -1445,7 +1447,8 @@ def update_schema(db, upgradelog):
             # Add what we currently have as primary author
             db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                       (entry['AuthorID'], entry['BookID'], 1), suppress='UNIQUE')
-        threading.Thread(target=get_authors_from_book_files, name='MULTIAUTH_BOOKFILES').start()
+        if CONFIG['CONTRIBUTING_AUTHORS']:
+            threading.Thread(target=get_authors_from_book_files, name='MULTIAUTH_BOOKFILES').start()
 
     if changes:
         upgradelog.write(f"{time.ctime()} Changed: {changes}\n")
