@@ -5,7 +5,7 @@ import lazylibrarian
 from lazylibrarian import database, ROLE
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import path_isfile
-from lazylibrarian.formatter import split_author_names
+from lazylibrarian.formatter import split_author_names, get_list
 from lazylibrarian.hc import HardCover
 from lazylibrarian.importer import add_author_name_to_db, add_author_to_db, update_totals
 from lazylibrarian.librarysync import get_book_info
@@ -80,7 +80,7 @@ def get_authors_from_book_files():
                         if 'authors' not in res and 'creator' in res:
                             res['authors'] = [res['creator']]
                         if 'authors' in res:
-                            authorlist = split_author_names(res['authors'])
+                            authorlist = split_author_names(res['authors'], get_list(CONFIG['MULTI_AUTHOR_SPLIT']))
                             for auth in authorlist:
                                 authorname, authorid, added = (
                                     add_author_name_to_db(auth, addbooks=False,
@@ -92,7 +92,8 @@ def get_authors_from_book_files():
                                     newauthors += added
                                 elif res.get('type', '') == 'epub':
                                     # some epubs have author name in the title field
-                                    authorlist = split_author_names(res['title'])
+                                    authorlist = split_author_names(res['title'],
+                                                                    get_list(CONFIG['MULTI_AUTHOR_SPLIT']))
                                     for a_name in authorlist:
                                         authorname, authorid, added = (
                                             add_author_name_to_db(a_name, addbooks=False,

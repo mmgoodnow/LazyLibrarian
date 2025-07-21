@@ -71,10 +71,10 @@ def thread_name(name=None) -> str:
         return threading.current_thread().name
 
 
-def split_author_names(namelist):
+def split_author_names(namelist, splitlist):
     split_words = []
     # split on " and " or " & " or ", " etc.
-    for item in get_list(CONFIG['MULTI_AUTHOR_SPLIT']):
+    for item in splitlist:
         split_words.append(f' {item} ')
     split_words.append(', ')
     split_words.append(';')

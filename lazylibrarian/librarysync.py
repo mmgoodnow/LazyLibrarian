@@ -1113,7 +1113,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         logger.debug(f'Unable to find bookid {bookid} in database')
                                     else:
                                         if CONFIG['CONTRIBUTING_AUTHORS'] and res and 'authors' in res:
-                                            authorlist = split_author_names(res['authors'])
+                                            authorlist = split_author_names(res['authors'],
+                                                                            get_list(CONFIG['MULTI_AUTHOR_SPLIT']))
                                             for auth in authorlist:
                                                 if auth != check_status['AuthorID']:  # primary author already added
                                                     aname, aid, added = (

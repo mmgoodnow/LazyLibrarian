@@ -2839,7 +2839,7 @@ class Api(object):
         if 'names' not in kwargs:
             self.data = 'Missing parameter: names'
             return
-        self.data = split_author_names(kwargs['names'])
+        self.data = split_author_names(kwargs['names'], get_list(CONFIG['MULTI_AUTHOR_SPLIT']))
 
     def _getauthorsfrombookfiles(self, **kwargs):
         TELEMETRY.record_usage_data()
