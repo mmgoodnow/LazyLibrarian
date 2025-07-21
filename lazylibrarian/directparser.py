@@ -133,7 +133,7 @@ def direct_bok(book=None, prov=None, test=False):
         limit = 10
 
     try:
-        langs = CONFIG('BOK_SEARCH_LANG')
+        langs = CONFIG['BOK_SEARCH_LANG']
         if not langs:  # comma separated upper case 2 letter language codes eg EN, ES, DE
             langs = None
         searchresults = zlib.search(book['searchterm'], limit=limit, languages=langs)

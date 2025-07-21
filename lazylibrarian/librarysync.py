@@ -33,7 +33,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file,
                                       opf_file, get_directory, book_file)
 from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented, replace_all, strip_quotes,
-                                     split_title, now, make_unicode)
+                                     split_title, now, make_unicode, split_author_names)
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover

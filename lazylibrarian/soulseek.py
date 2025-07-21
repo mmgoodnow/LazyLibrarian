@@ -84,7 +84,10 @@ def slsk_search(book=None, searchtype='ebook', test=False):
             lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
             hashfilename = slsk.search(book['searchterm'], searchtype=searchtype)
     else:
-        hashfilename = slsk.search(book['searchterm'], searchtype=searchtype)
+        limit = 0
+        if test:
+            limit = 10
+        hashfilename = slsk.search(book['searchterm'], searchtype=searchtype, limit=limit)
 
     if not hashfilename:
         logger.error("Not connected to slskd")
@@ -156,7 +159,7 @@ class SLSKD:
             self.slskd = None
             self.logger.error(str(e))
 
-    def search(self, searchterm, searchtype='ebook'):
+    def search(self, searchterm, searchtype='ebook', limit=0):
         results = []
         if not self.slskd:
             self.logger.error("Not connected to slskd")
@@ -175,19 +178,33 @@ class SLSKD:
         while True:
             if self.slskd.searches.state(search['id'])['state'] != 'InProgress':
                 break
-            time.sleep(1)
+        time.sleep(4)
 
-        self.logger.info(f"Search returned results from "
-                         f"{len(self.slskd.searches.search_responses(search['id']))} users")
+        res = len(self.slskd.searches.search_responses(search['id']))
+        msg = f"Search returned results from {res} users"
+        if limit and limit < res:
+            msg += f". Limiting test to {limit}"
+        self.logger.info(msg)
+        user_count = 0
         try:
             for result in self.slskd.searches.search_responses(search['id']):
+                user_count += 1
+                if user_count > limit:
+                    break
                 username = result['username']
                 if username in self.ignored_users:
                     self.logger.info(f"Ignoring user {username}")
                 else:
-                    self.logger.info(f"Parsing result from user: {username}")
                     files = result['files']
+                    file_count = 0
+                    msg = f"Parsing result from user: {username}, {len(files)} results"
+                    if limit and limit < len(files):
+                        msg += f". Limiting test to {limit}"
+                    self.logger.info(msg)
                     for file in files:
+                        file_count += 1
+                        if file_count > limit:
+                            break
                         file_name = file['filename'].rsplit("\\", 1)[1]
                         if not CONFIG.is_valid_booktype(file_name, booktype=searchtype):
                             self.logger.debug(f"Rejecting {file_name}")

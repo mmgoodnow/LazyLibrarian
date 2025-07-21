@@ -210,6 +210,7 @@ def annas_search(
         "ext": file_type.value,
         "sort": order_by.value,
     }
+
     soup = html_parser(urljoin(CONFIG['ANNA_HOST'], "search"), params)
     raw_results = soup.find_all("a", class_="js-vim-focus")
     results = list(filter(lambda i: i is not None, map(parse_result, raw_results)))
@@ -343,10 +344,10 @@ def anna_search(book=None, test=False):
     provider = "annas"
     # searchtype = 'eBook'
     lang = CONFIG['ANNA_SEARCH_LANG'].split(',')[0].strip().upper()
-    if lang and len(lang) == 2:
-        language = Language.lang
+    if lang and lang in Language.__members__:
+        language = Language[lang]
     else:
-        language = ''
+        language = Language.ANY
 
     if BLOCKHANDLER.is_blocked(provider):
         if test:

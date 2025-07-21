@@ -1,49 +1,14 @@
 import logging
 from os.path import splitext
 
+import lazylibrarian
 from lazylibrarian import database, ROLE
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import path_isfile
-from lazylibrarian.formatter import get_list
+from lazylibrarian.formatter import split_author_names
 from lazylibrarian.hc import HardCover
-from lazylibrarian.importer import add_author_name_to_db, add_author_to_db, update_totals, get_preferred_author_name
+from lazylibrarian.importer import add_author_name_to_db, add_author_to_db, update_totals
 from lazylibrarian.librarysync import get_book_info
-
-
-def split_author_names(namelist):
-    split_words = []
-    # split on " and " or " & " or ", " etc.
-    for item in get_list(CONFIG['MULTI_AUTHOR_SPLIT']):
-        split_words.append(f' {item} ')
-    split_words.append(', ')
-    split_words.append(';')
-    split_words.append(' & ')
-    if isinstance(namelist, str):
-        namelist = [namelist]
-
-    authornames = []
-    for entry in namelist:
-        for token in split_words:
-            entry = entry.replace(token, '|')
-        names = entry.split('|')
-        for name in names:
-            name = name.strip()
-            if ' ' not in name:
-                # single word on its own isn't an authorname.
-                # Something like Robert & Gilles Néret Descharnes
-                # where we just have Robert
-                # or L.E. Modesitt, Jnr
-                # where we just have Jnr
-                # we should probably join them back up, but ignore for now
-                # don't know whether to join to preceding or following part
-                # location = names.index(name)
-                continue
-            else:
-                if name not in authornames:
-                    name, _ = get_preferred_author_name(name)
-                    if name not in authornames:
-                        authornames.append(name)
-    return authornames
 
 
 def get_authors_from_hc():
@@ -99,6 +64,9 @@ def get_authors_from_book_files():
     selection = db.select("SELECT BookFile,BookID,BookName,AuthorID,Status from books")
 
     for entry in selection:
+        if lazylibrarian.STOPTHREADS:
+            logger.debug("Multiauth aborted by STOPTHREADS")
+            return newauthors
         if entry['Status'] in ['Open', 'Have']:
             fname = entry['BookFile']
             extn = splitext(fname)[1]

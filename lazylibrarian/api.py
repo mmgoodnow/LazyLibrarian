@@ -42,7 +42,7 @@ from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, get_list, \
-    thread_name
+    thread_name, split_author_names
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
@@ -53,8 +53,7 @@ from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, upda
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
-from lazylibrarian.multiauth import (split_author_names, get_authors_from_hc, get_authors_from_ol,
-                                     get_authors_from_book_files)
+from lazylibrarian.multiauth import get_authors_from_hc, get_authors_from_ol, get_authors_from_book_files
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
@@ -973,20 +972,20 @@ class Api(object):
                 self.data = f"Missing parameter: {item}"
                 return
         db = database.DBConnection()
-        try:
-            res = db.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
-            if not res:
-                self.data = 'Invalid userid'
-                return
-            for provider in CONFIG.providers('RSS'):
-                if provider['DISPNAME'] == kwargs['feed']:
-                    if wishlist_type(provider['HOST']):
-                        db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
-                                  (kwargs['user'], 'feed', kwargs['feed']))
-                        self.data = 'OK'
-                        return
-        finally:
+        res = db.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
+        if not res:
+            self.data = 'Invalid userid'
             db.close()
+            return
+        for provider in CONFIG.providers('RSS'):
+            if provider['DISPNAME'] == kwargs['feed']:
+                if wishlist_type(provider['HOST']):
+                    db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
+                              (kwargs['user'], 'feed', kwargs['feed']))
+                    self.data = 'OK'
+                    db.close()
+                    return
+        db.close()
         self.data = 'Invalid feed'
         return
 
@@ -997,11 +996,9 @@ class Api(object):
                 self.data = f"Missing parameter: {item}"
                 return
         db = database.DBConnection()
-        try:
-            db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
-                      (kwargs['user'], 'feed', kwargs['feed']))
-        finally:
-            db.close()
+        db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
+                  (kwargs['user'], 'feed', kwargs['feed']))
+        db.close()
         self.data = 'OK'
         return
 
@@ -1395,30 +1392,28 @@ class Api(object):
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
         q += f"(BookDesc=\"\" or BookDesc is NULL{extra}) and books.AuthorID = authors.AuthorID"
         db = database.DBConnection()
-        try:
-            res = db.select(q)
-            descs = 0
-            cnt = 0
-            self.logger.debug(f"Checking description for {len(res)} {plural(len(res), 'book')}")
-            # ignore all errors except blocked (not found etc)
-            blocked = False
-            for item in res:
-                cnt += 1
-                isbn = item['BookISBN']
-                auth = item['AuthorName']
-                book = item['BookName']
-                data = get_gb_info(isbn, auth, book, expire=expire)
-                if data and data['desc']:
-                    descs += 1
-                    self.logger.debug(f"Updated description for {auth}:{book}")
-                    db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
-                elif data is None:  # error, see if it's because we are blocked
-                    if BLOCKHANDLER.is_blocked('googleapis'):
-                        blocked = True
-                    if blocked:
-                        break
-        finally:
-            db.close()
+        res = db.select(q)
+        descs = 0
+        cnt = 0
+        self.logger.debug(f"Checking description for {len(res)} {plural(len(res), 'book')}")
+        # ignore all errors except blocked (not found etc)
+        blocked = False
+        for item in res:
+            cnt += 1
+            isbn = item['BookISBN']
+            auth = item['AuthorName']
+            book = item['BookName']
+            data = get_gb_info(isbn, auth, book, expire=expire)
+            if data and data['desc']:
+                descs += 1
+                self.logger.debug(f"Updated description for {auth}:{book}")
+                db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
+            elif data is None:  # error, see if it's because we are blocked
+                if BLOCKHANDLER.is_blocked('googleapis'):
+                    blocked = True
+                if blocked:
+                    break
+        db.close()
         msg = f"Scanned {cnt} {plural(cnt, 'book')}, found {descs} new {plural(descs, 'description')} from {len(res)}"
         if blocked:
             msg += ': Access Blocked'
@@ -2058,25 +2053,24 @@ class Api(object):
         if not key:
             self.data = f"Invalid or disabled source [{source}]"
             return
-        try:
-            authordata = db.select(f"SELECT AuthorName from authors WHERE {key}='' or {key} is null")
-            api = None
-            res = {}
-            for author in authordata:
-                if source == 'GoodReads':
-                    api = GoodReads(author['AuthorName'])
-                elif source == 'OpenLibrary':
-                    api = OpenLibrary(author['AuthorName'])
-                elif source == 'HardCover':
-                    api = HardCover(author['AuthorName'])
-                if api:
-                    res = api.find_author_id()
-                if res.get('authorid'):
-                    db.action(f"update authors set {key}=? where authorname=?",
-                              (res.get('authorid'), author['AuthorName']))
-                    cnt += 1
-        finally:
-            db.close()
+
+        authordata = db.select(f"SELECT AuthorName from authors WHERE {key}='' or {key} is null")
+        api = None
+        res = {}
+        for author in authordata:
+            if source == 'GoodReads':
+                api = GoodReads(author['AuthorName'])
+            elif source == 'OpenLibrary':
+                api = OpenLibrary(author['AuthorName'])
+            elif source == 'HardCover':
+                api = HardCover(author['AuthorName'])
+            if api:
+                res = api.find_author_id()
+            if res.get('authorid'):
+                db.action(f"update authors set {key}=? where authorname=?",
+                          (res.get('authorid'), author['AuthorName']))
+                cnt += 1
+        db.close()
         self.data = f"Updated {source} authorid for {cnt} authors"
 
     def _findauthor(self, **kwargs):
@@ -2177,27 +2171,26 @@ class Api(object):
             if item not in kwargs:
                 self.data = f"Missing parameter: {item}"
                 return
+        db = database.DBConnection()
         try:
-            db = database.DBConnection()
-            try:
-                authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
-                if not authordata:
-                    self.data = f"No destination author [{kwargs['toid']}] in the database"
+            authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
+            if not authordata:
+                self.data = f"No destination author [{kwargs['toid']}] in the database"
+            else:
+                bookdata = db.match('SELECT AuthorID, BookName from books where BookID=?', (kwargs['id'],))
+                if not bookdata:
+                    self.data = f"No bookid [{kwargs['id']}] in the database"
                 else:
-                    bookdata = db.match('SELECT AuthorID, BookName from books where BookID=?', (kwargs['id'],))
-                    if not bookdata:
-                        self.data = f"No bookid [{kwargs['id']}] in the database"
-                    else:
-                        control_value_dict = {'BookID': kwargs['id']}
-                        new_value_dict = {'AuthorID': kwargs['toid']}
-                        db.upsert("books", new_value_dict, control_value_dict)
-                        update_totals(bookdata[0])  # we moved from here
-                        update_totals(kwargs['toid'])  # to here
-                        self.data = f"Moved book [{bookdata[1]}] to [{authordata[0]}]"
-            finally:
-                db.close()
+                    control_value_dict = {'BookID': kwargs['id']}
+                    new_value_dict = {'AuthorID': kwargs['toid']}
+                    db.upsert("books", new_value_dict, control_value_dict)
+                    update_totals(bookdata[0])  # we moved from here
+                    update_totals(kwargs['toid'])  # to here
+                    self.data = f"Moved book [{bookdata[1]}] to [{authordata[0]}]"
+            db.close()
             self.logger.debug(self.data)
         except Exception as e:
+            db.close()
             self.data = f"{type(e).__name__} {str(e)}"
 
     def _movebooks(self, **kwargs):
@@ -2206,29 +2199,28 @@ class Api(object):
             if item not in kwargs:
                 self.data = f"Missing parameter: {item}"
                 return
+
+        db = database.DBConnection()
         try:
-            db = database.DBConnection()
-            try:
-                q = 'SELECT bookid,books.authorid from books,authors where books.AuthorID = authors.AuthorID'
-                q += ' and authorname=?'
-                fromhere = db.select(q, (kwargs['fromname'],))
+            q = 'SELECT bookid,books.authorid from books,authors where books.AuthorID = authors.AuthorID'
+            q += ' and authorname=?'
+            fromhere = db.select(q, (kwargs['fromname'],))
 
-                tohere = db.match('SELECT authorid from authors where authorname=?', (kwargs['toname'],))
-                if not len(fromhere):
-                    self.data = f"No books by [{kwargs['fromname']}] in the database"
+            tohere = db.match('SELECT authorid from authors where authorname=?', (kwargs['toname'],))
+            if not len(fromhere):
+                self.data = f"No books by [{kwargs['fromname']}] in the database"
+            else:
+                if not tohere:
+                    self.data = f"No destination author [{kwargs['toname']}] in the database"
                 else:
-                    if not tohere:
-                        self.data = f"No destination author [{kwargs['toname']}] in the database"
-                    else:
-                        db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
-                        self.data = f"Moved {len(fromhere)} books from {kwargs['fromname']} to {kwargs['toname']}"
-                        update_totals(fromhere[0][1])  # we moved from here
-                        update_totals(tohere[0])  # to here
-            finally:
-                db.close()
-
+                    db.action('UPDATE books SET authorid=?, where authorname=?', (tohere[0], kwargs['fromname']))
+                    self.data = f"Moved {len(fromhere)} books from {kwargs['fromname']} to {kwargs['toname']}"
+                    update_totals(fromhere[0][1])  # we moved from here
+                    update_totals(tohere[0])  # to here
+            db.close()
             self.logger.debug(self.data)
         except Exception as e:
+            db.close()
             self.data = f"{type(e).__name__} {str(e)}"
 
     def _comicmeta(self, **kwargs):
@@ -2307,9 +2299,11 @@ class Api(object):
                     except IndexError:
                         followid = ''
                     db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, author['AuthorID']))
-        finally:
             db.close()
-        self.data = f"Added follow to {count} {plural(count, 'author')}"
+            self.data = f"Added follow to {count} {plural(count, 'author')}"
+        except Exception as e:
+            db.close()
+            self.data = f"{type(e).__name__} {str(e)}"
 
     def _hcsync(self, **kwargs):
         TELEMETRY.record_usage_data()

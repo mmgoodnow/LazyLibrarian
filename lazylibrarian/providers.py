@@ -41,9 +41,9 @@ from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, t
 
 
 def test_provider(name: str, host=None, api=None):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
     res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
-    db.close()
     if res:
         testname = res['authorname']
         testid = res['authorid']
@@ -55,6 +55,7 @@ def test_provider(name: str, host=None, api=None):
     else:
         testname = "Agatha Christie"
         testbook = "Poirot"
+    db.close()
 
     book = {'searchterm': testname, 'authorName': testname, 'library': 'eBook', 'bookid': '1',
             'bookName': testbook, 'bookSub': ''}

@@ -133,18 +133,16 @@ def get_next_run_time(target: str, minutes=0, action=SchedulerCommand.NONE) -> d
         minutes = 0
 
     db = database.DBConnection()
-    try:
-        columns = db.select('PRAGMA table_info(jobs)')
-        if not columns:  # no such table
-            lastrun = 0
+    columns = db.select('PRAGMA table_info(jobs)')
+    if not columns:  # no such table
+        lastrun = 0
+    else:
+        res = db.match('SELECT Finish from jobs WHERE Name=?', (target,))
+        if res and res['Finish']:
+            lastrun = res['Finish']
         else:
-            res = db.match('SELECT Finish from jobs WHERE Name=?', (target,))
-            if res and res['Finish']:
-                lastrun = res['Finish']
-            else:
-                lastrun = 0
-    finally:
-        db.close()
+            lastrun = 0
+    db.close()
 
     nextruntime = ''
     for job in SCHED.get_jobs():
@@ -272,7 +270,6 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
     if stopjob:
         logger.debug(f"Stop {target} job")
         SCHED.remove_job(target)
-        print('stopped')
     if startjob:
         method = startjob.get_method()
         if method:

@@ -43,12 +43,14 @@ class ImportPrefs:
                 cnt += 1
                 db.action('delete from authors where authorid=?', (item['authorid'], ))
             logger.debug(f"Disabled Contributing Authors: Removed {cnt} authors")
-        """ TODO fix circular import issue
+            lazylibrarian.SCAN_BOOKS = 0
         else:
-            logger.debug(f"Started Contributing Authors background task")
-            threading.Thread(target=lazylibrarian.multiauth.get_authors_from_book_files, 
-                             name='MULTIAUTH_BOOKFILES').start()
-        """
+            # circular import issue, set a flag and run from webserver instead
+            logger.debug("Set webserver flag for scan_books")
+            lazylibrarian.SCAN_BOOKS = 1
+            # logger.debug(f"Started Contributing Authors background task")
+            # threading.Thread(target=lazylibrarian.multiauth.get_authors_from_book_files,
+            # name='MULTIAUTH_BOOKFILES').start()
 
     @classmethod
     def lang_changed(cls, languages: str, reason: OnChangeReason = OnChangeReason.SETTING):
@@ -61,13 +63,48 @@ class ImportPrefs:
         cls.SPLIT_LIST = get_list(nosplits, ',')
 
 
-# noinspection PyDeprecation
 def thread_name(name=None) -> str:
     if name:
         threading.current_thread().name = name
         return name
     else:
         return threading.current_thread().name
+
+
+def split_author_names(namelist):
+    split_words = []
+    # split on " and " or " & " or ", " etc.
+    for item in get_list(CONFIG['MULTI_AUTHOR_SPLIT']):
+        split_words.append(f' {item} ')
+    split_words.append(', ')
+    split_words.append(';')
+    split_words.append(' & ')
+    if isinstance(namelist, str):
+        namelist = [namelist]
+
+    authornames = []
+    for entry in namelist:
+        for token in split_words:
+            entry = entry.replace(token, '|')
+        names = entry.split('|')
+        for name in names:
+            name = name.strip()
+            if ' ' not in name:
+                # single word on its own isn't an authorname.
+                # Something like Robert & Gilles Néret Descharnes
+                # where we just have Robert
+                # or L.E. Modesitt, Jnr
+                # where we just have Jnr
+                # we should probably join them back up, but ignore for now
+                # don't know whether to join to preceding or following part
+                # location = names.index(name)
+                continue
+            else:
+                if name not in authornames:
+                    name, _ = get_preferred_author_name(name)
+                    if name not in authornames:
+                        authornames.append(name)
+    return authornames
 
 
 def sanitize(name, is_folder=False):
