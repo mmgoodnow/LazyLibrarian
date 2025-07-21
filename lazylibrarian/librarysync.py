@@ -25,7 +25,7 @@ from xml.etree import ElementTree
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database
+from lazylibrarian import database, ROLE
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read, delete_empty_folders
 from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.cache import cache_img, ImageType
