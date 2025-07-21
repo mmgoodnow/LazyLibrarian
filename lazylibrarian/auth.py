@@ -23,6 +23,7 @@ import logging
 import cherrypy
 import time
 from lazylibrarian import database
+from lazylibrarian.common import pwd_generator
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import md5_utf8
 import lazylibrarian
