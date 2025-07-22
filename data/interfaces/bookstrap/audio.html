@@ -309,6 +309,16 @@
         else { submitFormAjax(); }
     }
 
+    var timer = 2000;
+    if( timer > 0 )
+        {
+            tm = setInterval( function () {
+                $.get('libraryscan_progress', function (data) {
+                    $("#myAlert").html(data);
+            });
+            }, timer );
+        }
+
     function submitFormAjax() {
         var form = document.getElementById("mark_books");
         var formData = new FormData(form);
