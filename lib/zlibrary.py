@@ -3,7 +3,7 @@ Copyright (c) 2023-2024 Bipinkrish
 This file is part of the Zlibrary-API by Bipinkrish
 Zlibrary-API / Zlibrary.py
 
-For more information, see: 
+For more information, see:
 https://github.com/bipinkrish/Zlibrary-API/
 """
 
@@ -30,9 +30,11 @@ class Zlibrary:
         self.__loggedin = False
         self.__headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/"
+                      "apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "accept-language": "en-US,en;q=0.9",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/110.0.0.0 Safari/537.36",
         }
         self.__cookies = {
             "siteLanguageV2": "en",
@@ -89,12 +91,24 @@ class Zlibrary:
         return self.__checkIDandKey(remix_userid, remix_userkey)
 
     def __makePostRequest(
-        self, url: str, data: dict = {}, override=False
+        self, url: str, data=None, override=False
     ) -> dict[str, str]:
+        if data is None:
+            data = {}
         if not self.isLoggedIn() and override is False:
             print("Not logged in")
-            return
+            return None
 
+        # Added for lazylibrarian, languages need to be passed as
+        # languages[0]=french languages[1]=english etc
+        # cant see how to do this automatically in requests
+        if 'languages' in data:
+            languages = data['languages'].split(',')
+            data.pop('languages')
+            cnt = 0
+            for item in languages:
+                data[f'languages[{cnt}]'] = item.lower().strip()
+                cnt += 1
         return requests.post(
             "https://" + self.__domain + url,
             data=data,
@@ -103,11 +117,13 @@ class Zlibrary:
         ).json()
 
     def __makeGetRequest(
-        self, url: str, params: dict = {}, cookies=None
+        self, url: str, params=None, cookies=None
     ) -> dict[str, str]:
+        if params is None:
+            params = {}
         if not self.isLoggedIn() and cookies is None:
             print("Not logged in")
-            return
+            return None
 
         return requests.get(
             "https://" + self.__domain + url,
@@ -292,6 +308,7 @@ class Zlibrary:
         res = requests.get(url, headers=self.__headers)
         if res.status_code == 200:
             return res.content
+        return None
 
     def getImage(self, book: dict[str, str]) -> requests.Response.content:
         return self.__getImageData(book["cover"])
@@ -305,7 +322,7 @@ class Zlibrary:
 
         try:
             filename += " (" + response["file"]["author"] + ")"
-        except:
+        except KeyError:
             pass
         finally:
             filename += "." + response["file"]["extension"]
@@ -317,6 +334,7 @@ class Zlibrary:
         res = requests.get(ddl, headers=headers)
         if res.status_code == 200:
             return filename, res.content
+        return '', ''
 
     def downloadBook(self, book: dict[str, str]) -> [(str, bytes), None]:
         return self.__getBookFile(book["id"], book["hash"])

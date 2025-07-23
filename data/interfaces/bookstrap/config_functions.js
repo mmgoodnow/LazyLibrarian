@@ -191,7 +191,8 @@
                 host = $("#" + prov.toLowerCase() + "_host").val();
                 let email = $("#" + prov.toLowerCase() + "_email").val();
                 let pass = $("#" + prov.toLowerCase() + "_pass").val();
-                api = email + ' : ' + pass
+                let langs = $("#" + prov.toLowerCase() + "_search_lang").val();
+                api = email + ' : ' + pass + ' : ' + langs
             }
             if ( prov.indexOf('gen_') === 0 ) {
                 host = $("#" + prov.toLowerCase() + "_host").val();

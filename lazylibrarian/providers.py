@@ -103,9 +103,10 @@ def test_provider(name: str, host=None, api=None):
         if host:
             CONFIG.set_str('BOK_HOST', host)
         if api:
-            email, pwd = api.split(' : ', 1)
+            email, pwd, langs = api.split(' : ')
             CONFIG.set_str('BOK_EMAIL', email)
             CONFIG.set_str('BOK_PASS', pwd)
+            CONFIG.set_str('BOK_SEARCH_LANG', langs)
         return direct_bok(book, prov=name, test=True), "ZLibrary"
 
     if name.startswith('rss_'):
