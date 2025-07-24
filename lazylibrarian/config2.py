@@ -297,6 +297,7 @@ class LLConfigHandler(ConfigDict):
                         count += add_to_parser(parser, sectionname, item)
                 except KeyError:
                     pass
+            array.ensure_empty_end_item()
         try:
             output = io.StringIO()
             parser.write(output)
@@ -550,7 +551,7 @@ class LLConfigHandler(ConfigDict):
         """ Update REDACTLIST after config changes """
 
         self.REDACTLIST = []
-        wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV', '_KEY']
+        wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV', '_KEY', 'ADMIN_', '_AUTH_']
         if self.get_bool('HOSTREDACT'):
             wordlist.append('_HOST')
         for key in self.config.keys():
