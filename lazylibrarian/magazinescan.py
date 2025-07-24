@@ -843,12 +843,7 @@ def rename_issue(issueid, tags=None):
                     db.close()
                     return '', msg
 
-    # if no magazine issues left in the folder, delete it
-    # (removes any trailing cover images, opf, ignorefile etc)
-    if not book_file(old_folder, booktype='mag', config=CONFIG, recurse=True):
-        logger.debug(f"Removing empty directory {old_folder}")
-        remove_dir(old_folder, remove_contents=True)
-
+    remove_if_empty(old_folder)
     # update issuefile in database
     new_filename = os.path.join(new_folder, new_name + extn)
     db.action("UPDATE issues SET IssueFile=? WHERE IssueID=?", (new_filename, issueid))
@@ -866,3 +861,16 @@ def rename_issue(issueid, tags=None):
     db.close()
     return new_filename, ''
 
+
+def remove_if_empty(foldername):
+    logger = logging.getLogger(__name__)
+    # if no magazine issues left in the folder, delete it
+    # (removes any trailing cover images, opf, ignorefile etc)
+    if not book_file(foldername, booktype='mag', config=CONFIG, recurse=True):
+        logger.debug(f"Removing empty directory {foldername}")
+        remove_dir(foldername, remove_contents=True)
+        parent = os.path.dirname(issuefolder)
+        # if parent folder is now empty, delete that too, issue might have been in an issue folder
+        if not book_file(parent, booktype='mag', config=CONFIG, recurse=True):
+            logger.debug(f"Removing empty parent directory {parent}")
+            remove_dir(parent, remove_contents=True)

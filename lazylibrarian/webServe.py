@@ -55,7 +55,7 @@ from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
     irc_dl_method
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
-    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, remove_dir
+    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, md5_utf8, date_format, check_year, \
     strip_quotes, format_author_name, check_float, \
@@ -69,7 +69,7 @@ from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, upda
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
-from lazylibrarian.magazinescan import get_dateparts, rename_issue
+from lazylibrarian.magazinescan import get_dateparts, rename_issue, remove_if_empty
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
@@ -5751,9 +5751,7 @@ class WebInterface:
 
             # if no magazine issues left in the folder, delete it
             # (removes any trailing cover images, opf etc)
-            if not book_file(old_path, booktype='mag', config=CONFIG, recurse=True):
-                logger.debug(f"Removing empty directory {old_path}")
-                remove_dir(old_path, remove_contents=True)
+            remove_if_empty(old_path)
 
             if mostrecentissue:
                 if mostrecentissue.isdigit() and str(issuenum).isdigit():
