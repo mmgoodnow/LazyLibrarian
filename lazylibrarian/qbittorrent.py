@@ -61,11 +61,12 @@ def get_name(hashid):
         return ''
 
     retries = 5
+    cat = CONFIG.get('QBITTORRENT_LABEL', None)
     while retries:
         # get_torrent(hashid) gets info on one torrent but doesn't return all the information
         # eg we are missing name, state, progress
-        # so get all torrents and then look for our hashid
-        torrents = qbclient.torrents()
+        # so get all of our torrents and then look for the hashid
+        torrents = qbclient.torrents(category=cat)
         for torrent in torrents:
             if torrent.get('hash') == hashid:
                 if torrent.get('name'):
@@ -85,9 +86,10 @@ def get_folder(hashid):
         return ''
 
     retries = 5
-    save_path = None
+    save_path = ''
+    cat = CONFIG.get('QBITTORRENT_LABEL', None)
     while retries:
-        torrents = qbclient.torrents()
+        torrents = qbclient.torrents(category=cat)
         for torrent in torrents:
             if torrent.get('hash') == hashid:
                 if torrent.get('save_path'):
@@ -116,7 +118,8 @@ def get_progress(hashid):
     if 'max_ratio_enabled' in preferences and 'max_ratio' in preferences:
         if preferences['max_ratio_enabled']:
             max_ratio = float(preferences['max_ratio'])
-    torrents = qbclient.torrents()
+    cat = CONFIG.get('QBITTORRENT_LABEL', None)
+    torrents = qbclient.torrents(category=cat)
     for torrent in torrents:
         if torrent.get('hash') == hashid:
             if 'state' in torrent:
@@ -150,7 +153,8 @@ def remove_torrent(hashid, remove_data=False):
     if not qbclient:
         return False
 
-    torrents = qbclient.torrents()
+    cat = CONFIG.get('QBITTORRENT_LABEL', None)
+    torrents = qbclient.torrents(category=cat)
     for torrent in torrents:
         if torrent.get('hash') == hashid:
             remove = True
