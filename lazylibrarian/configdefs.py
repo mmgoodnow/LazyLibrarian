@@ -57,6 +57,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('General', 'TOGGLES', 1),
     ConfigBool('General', 'SORT_DEFINITE', 0),
     ConfigBool('General', 'SORT_SURNAME', 0),
+    ConfigBool('General', 'SHOW_REASON', 0),
     ConfigBool('General', 'SHOW_GENRES', 0),
     ConfigBool('General', 'IGNORE_PAUSED', 0),
     ConfigBool('General', 'LAUNCH_BROWSER', 1),

@@ -115,6 +115,55 @@
             <a href="edit_author?authorid=${author['AuthorID']}"><small><i>Edit</i></small></a>
             %endif
             </h1>
+            %if CONFIG['SHOW_REASON']:
+              %if author['Reason']:
+              <%
+                reasonlist = author['Reason'].split()
+                match reasonlist[0].lower().strip(":"):
+                  case 'webserver': # manual search and add of author
+                    reasonstring = "Manual search"
+                  case 'wishlist': # added via wishlist rss search
+                    reasonstring = "Wishlist search " + reasonlist[1]
+                  case 'process_alternate': # added via import of alt folder
+                    reasonstring = f"Import {' '.join(reasonlist[1:])} from alternate folder"
+                  case 'ol.find_book':
+                    reasonstring = "OpenLibrary search"
+                  case 'ol_get_author_books':
+                    reasonstring = "OpenLibrary search"
+                  case 'gr.find_book':
+                    reasonstring = "GoodReads search"
+                  case 'gr_get_author_books':
+                    reasonstring = "GoodReads search"
+                  case 'hc.find_book':
+                    reasonstring = "HardCover search"
+                  case 'hc_get_author_books':
+                    reasonstring = "HardCover search"
+                  case 'gb.find_book':
+                    reasonstring = "GoogleBooks search"
+                  case 'gb_get_author_books':
+                    reasonstring = "GoogleBooks search"
+                  case 'import_csv':
+                    reasonstring = "CSV import"
+                  case 'sync_calibre_list':
+                    reasonstring = "Calibre Sync"
+                  case 'api': #by name, id, and refresh
+                    reasonstring = "API"
+                  case 'add':
+                    reasonstring = f"Import author of {' '.join(reasonlist[3:])}"
+                  case 'contributor':
+                    reasonstring = ' '.join(reasonlist)
+                  case 'series':
+                    reasonstring = "Search for series " + ' '.join(reasonlist[1:])
+                  case _:
+                    reasonstring = null
+              %>
+              %else:
+                reasonstring = "Book added before reason set"
+              %endif
+              %if reasonstring:
+              <p><b> Added by:</b> ${reasonstring}</p>
+              %endif
+            %endif
             %if author['AuthorDeath']:
             <p><b>Born:</b> ${author['AuthorBorn']}, <b>Died:</b> ${author['AuthorDeath']}</p>
             %else:
