@@ -5840,13 +5840,16 @@ class WebInterface:
 
     @cherrypy.expose
     def issues_progress(self):
+        current = '0'
+        total = '0'
+        percent = '0'
         try:
             current, total, percent = self.issues_data.split('/')
         except ValueError:
-            current = '0'
-            total = '0'
-            percent = '0'
-
+            try:
+                current, total, percent = lazylibrarian.magazinescan_data.split('/')
+            except ValueError:
+                pass
         bar = ('<div class="progress center-block" style="width: 70%;"><div class="progress-bar-info'
                f' progress-bar progress-bar-striped" role="progressbar aria-valuenow="{percent}"'
                f' aria-valuemin="0" aria-valuemax="100" style="width:{percent}%;">'

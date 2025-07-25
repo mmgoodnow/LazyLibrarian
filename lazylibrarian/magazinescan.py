@@ -285,6 +285,11 @@ def magazine_scan(title=None):
                         issue_id = create_id(f"{title} {issuedate}")
                         iss_entry = db.match('SELECT IssueFile,Cover from issues WHERE IssueID=?', (issue_id, ))
 
+                        if iss_entry and CONFIG['MAG_RENAME']:
+                            new_issuefile, msg = rename_issue(issue_id)
+                            if not msg:
+                                issuefile = new_issuefile
+
                         new_entry = False
                         myhash = uuid.uuid4().hex
                         if not iss_entry or iss_entry['IssueFile'] != issuefile:
@@ -869,7 +874,7 @@ def remove_if_empty(foldername):
     if not book_file(foldername, booktype='mag', config=CONFIG, recurse=True):
         logger.debug(f"Removing empty directory {foldername}")
         remove_dir(foldername, remove_contents=True)
-        parent = os.path.dirname(issuefolder)
+        parent = os.path.dirname(foldername)
         # if parent folder is now empty, delete that too, issue might have been in an issue folder
         if not book_file(parent, booktype='mag', config=CONFIG, recurse=True):
             logger.debug(f"Removing empty parent directory {parent}")
