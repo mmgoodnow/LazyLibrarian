@@ -346,6 +346,8 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         if word:
             dateparts.append(word)
 
+    if len(dateparts) == 8:  # remove the time offset
+        dateparts = dateparts[:7]
     if len(dateparts) == 7:  # Tue, 23 Aug 2016 17:33:26
         _, d, m, y, hh, mm, _ = dateparts
     elif len(dateparts) == 6:
