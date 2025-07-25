@@ -190,9 +190,9 @@ def magazine_scan(title=None):
                                             issuefolder = os.path.dirname(issuefile)
                                             parent = os.path.dirname(issuefolder)
                                             title = os.path.basename(parent)
-                                            logger.debug(f"Using {title}:{issuedate} from calibre parent folder")
+                                            logger.debug(f"Using {title}:{issuedate} from {issuefile} calibre parent folder")
                                         else:
-                                            logger.debug(f"Using {title}:{issuedate} from filename pattern match")
+                                            logger.debug(f"Using {title}:{issuedate} from filename {fname} pattern match")
                                 else:
                                     logger.debug(f"Pattern match failed for [{fname}]")
                         except Exception:

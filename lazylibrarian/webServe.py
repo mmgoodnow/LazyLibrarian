@@ -69,7 +69,7 @@ from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, upda
     get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
-from lazylibrarian.magazinescan import get_dateparts, rename_issue, remove_if_empty
+from lazylibrarian.magazinescan import get_dateparts, rename_issue, remove_if_empty, magazine_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
@@ -6401,6 +6401,9 @@ class WebInterface:
                                                                             issue["IssueID"],
                                                                             language=mag[0],
                                                                             overwrite=True)
+
+            if action == 'Scan':
+                magazine_scan(title)
 
             if action == "Remove" or action == "Delete":
                 db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))

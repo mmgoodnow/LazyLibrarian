@@ -231,8 +231,7 @@
                     $("#progressbar").html(data);
             });
                 $.get('issues_progress', function (data) {
-                    $("#myAlert").html('<div class="text-center">Scanning Magazine Issues<br></div>' +
-                                        '<div class="progress center-block" style="width: 90%;"><div class="progress-bar-info' + data);
+                    $("#myAlert").html('<div class="text-center">Scanning Magazine Issues<br></div>' + data);
             });
             }, timer );
         }
