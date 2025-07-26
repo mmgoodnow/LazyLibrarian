@@ -123,7 +123,7 @@
                   case 'webserver': # manual search and add of author
                     reasonstring = "Manual search"
                   case 'wishlist': # added via wishlist rss search
-                    reasonstring = "Wishlist search " + reasonlist[1]
+                    reasonstring = "Wishlist search " + ' '.join(reasonlist[1:])
                   case 'process_alternate': # added via import of alt folder
                     reasonstring = f"Import {' '.join(reasonlist[1:])} from alternate folder"
                   case 'ol.find_book':
