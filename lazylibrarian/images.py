@@ -1045,17 +1045,25 @@ def write_pdf_tags(srcfile, title, issue, tags=None):
         logger.error(f"Unable to read source file {srcfile}")
         return {}
 
-    src_pdf = PdfReader(srcfile)
-    if not src_pdf:
-        logger.error(f"Unable to read source file {src_pdf}")
+    try:
+        src_pdf = PdfReader(srcfile)
+    except Exception as e:
+        logger.error(f"{srcfile}:{e}")
         return {}
 
-    dst_pdf = PdfWriter(clone_from=src_pdf)
+    if not src_pdf:
+        logger.error(f"Unable to read source file {srcfile}")
+        return {}
+
+    try:
+        dst_pdf = PdfWriter(clone_from=src_pdf)
+    except Exception as e:
+        logger.error(f"{srcfile}:{e}")
+        return {}
     try:
         metadata = dict(src_pdf.metadata)
     except Exception as e:
-        logger.error(f"{srcfile}:{e}")
-        # no metadata found in source file
+        logger.debug(f"No metadata in {srcfile}:{e}")
         metadata = {}
 
     magname = title
