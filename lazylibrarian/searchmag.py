@@ -350,7 +350,7 @@ def search_magazines(mags=None, reset=False, backissues=False):
                             insert_table = "pastissues"
                             comp_date = 0
                             issuedate = "1970-01-01"  # provide a fake date for bad-date issues
-                            if dateparts['dbdate']:
+                            if dateparts.get('dbdate'):
                                 issuedate = dateparts['dbdate']
                                 control_date = results['IssueDate']
                                 logger.debug(f"Control date: [{control_date}]")

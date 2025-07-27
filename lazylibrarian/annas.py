@@ -403,6 +403,7 @@ def anna_search(book=None, test=False):
         size = str(size_in_bytes(item['size']))
         lang = item['language']
         dl = item['id']
+        title = title.split('\n')[0]
 
         if not author or not title or not size or not dl:
             removed += 1

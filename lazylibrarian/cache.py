@@ -341,7 +341,7 @@ class CacheRequest(ABC):
                         to_block = blk
                         break
                 if to_block:
-                    delay = 10
+                    delay = 30
                     self.logger.debug(f'Blocking {to_block} for {delay} seconds')
                     BLOCKHANDLER.replace_provider_entry(to_block, delay, msg)
                 return None, False
