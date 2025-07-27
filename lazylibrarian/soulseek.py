@@ -167,7 +167,7 @@ class SLSKD:
 
         try:
             search = self.slskd.searches.search_text(searchText=searchterm,
-                                                     searchTimeout=5000,
+                                                     searchTimeout=50000,
                                                      filterResponses=True,
                                                      maximumPeerQueueLength=50,
                                                      minimumPeerUploadSpeed=0)
@@ -176,9 +176,11 @@ class SLSKD:
             return ''
 
         while True:
-            if self.slskd.searches.state(search['id'])['state'] != 'InProgress':
+            state = self.slskd.searches.state(search['id'])['state']
+            if state != 'InProgress':
+                self.logger.debug(state)
                 break
-        time.sleep(4)
+            time.sleep(4)
 
         res = len(self.slskd.searches.search_responses(search['id']))
         msg = f"Search returned results from {res} users"
@@ -189,7 +191,7 @@ class SLSKD:
         try:
             for result in self.slskd.searches.search_responses(search['id']):
                 user_count += 1
-                if user_count > limit:
+                if limit and user_count > limit:
                     break
                 username = result['username']
                 if username in self.ignored_users:
@@ -203,7 +205,7 @@ class SLSKD:
                     self.logger.info(msg)
                     for file in files:
                         file_count += 1
-                        if file_count > limit:
+                        if limit and file_count > limit:
                             break
                         file_name = file['filename'].rsplit("\\", 1)[1]
                         if not CONFIG.is_valid_booktype(file_name, booktype=searchtype):
