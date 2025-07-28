@@ -397,6 +397,7 @@ def process_alternate(source_dir=None, library='eBook'):
 
         metadata = {}
         bookid = ''
+
         if "LL.(" in source_dir:
             bookid = source_dir.split("LL.(")[1].split(")")[0]
             db = database.DBConnection()
@@ -481,12 +482,6 @@ def process_alternate(source_dir=None, library='eBook'):
                     metadata['creator'] = author
                     metadata['title'] = book
                     metadata['narrator'] = id3r['narrator']
-
-        if 'title' not in metadata or 'creator' not in metadata:
-            author, book = get_book_meta(source_dir, "postprocess")
-            if author and book:
-                metadata['creator'] = author
-                metadata['title'] = book
 
         if 'title' in metadata and 'creator' in metadata:
             authorname = metadata['creator']
@@ -588,8 +583,17 @@ def process_alternate(source_dir=None, library='eBook'):
                         if imported:
                             bookid = match['bookid']
                             update_totals(authorid)
-            finally:
                 db.close()
+
+            except Exception as e:
+                db.close()
+                logger.error(f'Exception in process_alternate: {e}')
+                return False
+
+            if not bookid:
+                author, book, forced_bookid = get_book_meta(source_dir, "postprocess")
+                if process_book_from_dir(source_dir=source_dir, library=library, bookid=forced_bookid):
+                    return True
 
             if not bookid:
                 msg = f"{library} {bookname} by {authorname} not found in database"
@@ -1859,9 +1863,9 @@ def check_residual(download_dir):
     logger = logging.getLogger(__name__)
     loggerpostprocess = logging.getLogger('special.postprocess')
     db = database.DBConnection()
+    ppcount = 0
     try:
         skipped_extensions = get_list(CONFIG['SKIPPED_EXT'])
-        ppcount = 0
         downloads = listdir(download_dir)
         loggerpostprocess.debug(
             f"Scanning {len(downloads)} {plural(len(downloads), 'entry')} in {download_dir} for LL.(num)")
@@ -1907,7 +1911,9 @@ def check_residual(download_dir):
                     loggerpostprocess.debug(f"Skipping extn {entry}")
             else:
                 loggerpostprocess.debug(f"Skipping (no LL bookid) {entry}")
-    finally:
+        db.close()
+    except Exception as e:
+        logger.error(f"Exception in check_residual: {e}")
         db.close()
     return ppcount
 
@@ -2783,22 +2789,20 @@ def send_to_calibre(booktype, global_name, folder, data):
                 (booktype != "magazine" and not CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'))):
             # we can pass an opf with all the info, and a cover image
             db = database.DBConnection()
-            try:
-                if booktype in ['ebook', 'audiobook']:
-                    cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,"
-                           "BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors "
-                           "WHERE BookID=? and books.AuthorID = authors.AuthorID")
-                    data = db.match(cmd, (bookid,))
-                elif booktype == 'comic':
-                    cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
-                           "Publisher,Contributors from comics,comicissues WHERE "
-                           "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
-                    data = db.match(cmd, (issueid, bookid))
-                    bookid = f"{bookid}_{issueid}"
-                else:
-                    data = db.match("SELECT Language from magazines WHERE Title=? COLLATE NOCASE", (title,))
-            finally:
-                db.close()
+            if booktype in ['ebook', 'audiobook']:
+                cmd = ("SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,"
+                       "BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors "
+                       "WHERE BookID=? and books.AuthorID = authors.AuthorID")
+                data = db.match(cmd, (bookid,))
+            elif booktype == 'comic':
+                cmd = ("SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,comicissues.Cover,"
+                       "Publisher,Contributors from comics,comicissues WHERE "
+                       "comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?")
+                data = db.match(cmd, (issueid, bookid))
+                bookid = f"{bookid}_{issueid}"
+            else:
+                data = db.match("SELECT Language from magazines WHERE Title=? COLLATE NOCASE", (title,))
+            db.close()
 
             if not data:
                 logger.error(f'No data found for bookid {bookid}')
@@ -3477,44 +3481,43 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
     if 'Series_index' not in data:
         # no series details passed in data dictionary, look them up in db
         db = database.DBConnection()
-        try:
-            res = {}
-            if 'LT_WorkID' in data and data['LT_WorkID']:
-                cmd = "SELECT SeriesID,SeriesNum from member WHERE workid=?"
-                res = db.match(cmd, (data['LT_WorkID'],))
-            if not res and 'WorkID' in data and data['WorkID']:
-                cmd = "SELECT SeriesID,SeriesNum from member WHERE workid=?"
-                res = db.match(cmd, (data['WorkID'],))
-            if not res:
-                cmd = "SELECT SeriesID,SeriesNum from member WHERE bookid=?"
-                res = db.match(cmd, (bookid,))
+
+        res = {}
+        if 'LT_WorkID' in data and data['LT_WorkID']:
+            cmd = "SELECT SeriesID,SeriesNum from member WHERE workid=?"
+            res = db.match(cmd, (data['LT_WorkID'],))
+        if not res and 'WorkID' in data and data['WorkID']:
+            cmd = "SELECT SeriesID,SeriesNum from member WHERE workid=?"
+            res = db.match(cmd, (data['WorkID'],))
+        if not res:
+            cmd = "SELECT SeriesID,SeriesNum from member WHERE bookid=?"
+            res = db.match(cmd, (bookid,))
+        if res:
+            seriesid = res['SeriesID']
+            serieslist = get_list(res['SeriesNum'])
+            # might be "Book 3.5" or similar, just get the numeric part
+            while serieslist:
+                seriesnum = serieslist.pop()
+                try:
+                    _ = float(seriesnum)
+                    break
+                except ValueError:
+                    seriesnum = ''
+                    pass
+
+            if not seriesnum:
+                # couldn't figure out number, keep everything we got, could be something like "Book Two"
+                serieslist = res['SeriesNum']
+
+            cmd = "SELECT SeriesName from series WHERE seriesid=?"
+            res = db.match(cmd, (seriesid,))
             if res:
-                seriesid = res['SeriesID']
-                serieslist = get_list(res['SeriesNum'])
-                # might be "Book 3.5" or similar, just get the numeric part
-                while serieslist:
-                    seriesnum = serieslist.pop()
-                    try:
-                        _ = float(seriesnum)
-                        break
-                    except ValueError:
-                        seriesnum = ''
-                        pass
-
+                seriesname = res['SeriesName']
                 if not seriesnum:
-                    # couldn't figure out number, keep everything we got, could be something like "Book Two"
-                    serieslist = res['SeriesNum']
-
-                cmd = "SELECT SeriesName from series WHERE seriesid=?"
-                res = db.match(cmd, (seriesid,))
-                if res:
-                    seriesname = res['SeriesName']
-                    if not seriesnum:
-                        # add what we got to series name and set seriesnum to 1 so user can sort it out manually
-                        seriesname = f"{seriesname} {serieslist}"
-                        seriesnum = 1
-        finally:
-            db.close()
+                    # add what we got to series name and set seriesnum to 1 so user can sort it out manually
+                    seriesname = f"{seriesname} {serieslist}"
+                    seriesnum = 1
+        db.close()
 
     opfinfo = '<?xml version="1.0"  encoding="UTF-8"?>\n\
 <package version="2.0" xmlns="http://www.idpf.org/2007/opf" >\n\

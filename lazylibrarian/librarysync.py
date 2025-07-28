@@ -47,7 +47,7 @@ from lib.mobi import Mobi
 
 # noinspection PyBroadException
 def get_book_meta(fdir, reason="get_book_meta"):
-    # look for a bookid in a LL.() filename or a .desktop file and return author/title
+    # look for a bookid in a LL.() filename or a .desktop file and return author/title/bookid
     logger = logging.getLogger(__name__)
     loggerlibsync = logging.getLogger('special.libsync')
     bookid = ''
@@ -81,6 +81,7 @@ def get_book_meta(fdir, reason="get_book_meta"):
                    "books.BookID=?")
             existing_book = db.match(cmd, (bookid,))
             if not existing_book:
+                logger.debug(f"Searching {CONFIG['BOOK_API']} for {bookid}")
                 if CONFIG['BOOK_API'] == "GoogleBooks":
                     gb = GoogleBooks(bookid)
                     gb.find_book(bookid, None, None, reason)
@@ -96,12 +97,14 @@ def get_book_meta(fdir, reason="get_book_meta"):
                 existing_book = db.match(cmd, (bookid,))
             db.close()
             if existing_book:
-                return existing_book['AuthorName'], existing_book['BookName']
-        return "", ""
+                logger.debug(f"Found {existing_book['AuthorName']}:{existing_book['BookName']} for {bookid}")
+                return existing_book['AuthorName'], existing_book['BookName'], str(bookid)
+        logger.debug(f"No match for {bookid} at {CONFIG['BOOK_API']}")
+        return "", "", ""
 
     except Exception:
         logger.error(f'Error getting book meta: {traceback.format_exc()}')
-        return "", ""
+        return "", "", ""
 
 
 def get_book_info(fname):
@@ -736,6 +739,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         narrator = ""
                         extn = os.path.splitext(files)[1]
                         bookid = None
+                        forced_bookid = ''
 
                         # if it's an epub or a mobi we can try to read metadata from it
                         res = {}
@@ -820,7 +824,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                         if not author or not book:
                             # try for details from a special file
-                            author, book = get_book_meta(rootdir, reason="libraryscan")
+                            author, book, forced_bookid = get_book_meta(rootdir, reason="libraryscan")
 
                         # Failing anything better, just pattern match on filename
                         if pattern and (not author or not book):
@@ -1002,6 +1006,12 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 if bookid and mtype == "Ignored":
                                     logger.warning(
                                         f"Book {book} by {author} is marked Ignored in database, importing anyway")
+
+                                if not bookid and forced_bookid:
+                                    if lazylibrarian.postprocess.process_book_from_dir(source_dir=source_dir,
+                                                                                       library=library,
+                                                                                       bookid=forced_bookid):
+                                        bookid = forced_bookid
 
                                 if not bookid:
                                     # get author name from (grand)parent directory of this book directory
