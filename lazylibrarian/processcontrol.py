@@ -64,6 +64,22 @@ def get_process_memory() -> (bool, int):
         return False, 0
 
 
+def get_threads_cpu_percent(p, interval=0.1):
+    import threading
+    total_percent = p.cpu_percent(interval)
+    total_time = sum(p.cpu_times())
+    names = [n.name for n in [t for t in threading.enumerate()]]
+    percents = [total_percent * ((t.system_time + t.user_time)/total_time) for t in p.threads()]
+    return list(zip(names, percents))
+
+
+def get_threads():
+    if PSUTIL:
+        myproc = psutil.Process(os.getpid())
+        return get_threads_cpu_percent(myproc)
+    return {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Needs psutil module'}}
+
+
 def track_resource_usage(func):
     # decorator to show memory usage and running time of a function
     # to use, from lazylibrarian.processcontrol import track_resource_usage

@@ -60,7 +60,7 @@ from lazylibrarian.postprocess import process_dir, process_alternate, create_opf
     process_book_from_dir, process_mag_from_file, send_ebook_to_calibre, send_mag_issue_to_calibre, \
     send_comic_issue_to_calibre
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
-from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
+from lazylibrarian.processcontrol import get_cpu_use, get_process_memory, get_threads
 from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
@@ -1089,7 +1089,7 @@ class Api(object):
 
     def _showthreads(self):
         TELEMETRY.record_usage_data()
-        self.data = [n.name for n in [t for t in threading.enumerate()]]
+        self.data = get_threads()
 
     def _showmonths(self):
         TELEMETRY.record_usage_data()
