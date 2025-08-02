@@ -75,7 +75,7 @@ def check_auth(*args, **kwargs):
 cherrypy.tools.auth = cherrypy.Tool('before_handler', check_auth)
 
 
-def require(*conditions):
+def require_auth(*conditions):
     """A decorator that appends conditions to the auth.require config
     variable."""
 
@@ -156,14 +156,16 @@ class AuthController(object):
             logger.debug(f"{username} added as a new admin user")
             res = db.match('SELECT UserID,Prefs from users where UserName=?', (username,))
         logger.info(f'{username} successfully logged in.')
-        cherrypy.response.cookie['ll_uid'] = res['UserID']
-        cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+        # cherrypy.response.cookie['ll_uid'] = res['UserID']
+        # cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+        lazylibrarian.LOGINUSER = f"!{res['UserID']}"
         db.close()
 
     @staticmethod
     def on_logout(username):
         """Called on logout"""
         lazylibrarian.webServe.clear_our_cookies()
+        lazylibrarian.LOGINUSER = None
 
     # noinspection PyUnusedLocal
     @staticmethod
@@ -180,7 +182,6 @@ class AuthController(object):
     def login(self, current_username=None, current_password=None, remember_me='0', from_page="/", **kwargs):
         if current_username is None or current_password is None:
             return self.get_loginform("", from_page=from_page)
-
         error_msg = check_credentials(current_username, current_password)
         if error_msg:
             return self.get_loginform(current_username, error_msg, from_page)
@@ -200,7 +201,7 @@ class AuthController(object):
             #                                 'expiry':  expiry}
             self.on_login(current_username, current_password)
             if CONFIG['HTTP_ROOT']:
-                from_page = f"{CONFIG['HTTP_ROOT']}/{from_page}"
+                from_page = f"{CONFIG['HTTP_ROOT'].rstrip('/')}/{from_page}"
             raise cherrypy.HTTPRedirect(from_page or CONFIG['HTTP_ROOT'])
 
     @cherrypy.expose
