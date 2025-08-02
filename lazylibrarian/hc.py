@@ -2254,7 +2254,10 @@ query FindAuthor { authors_by_pk(id: [authorid])
                         self.logger.error(str(results['error']))
                     else:
                         stats['deletions_sent'] += 1
-                        book_title = book.get('BookName', 'Unknown Title')
+                        if 'BookName' in book and book['BookName']:
+                            book_title = book['BookName']
+                        else:
+                            book_title = 'Unknown Title'
                         deletion_details.append(book_title)
 
         # Send updates
