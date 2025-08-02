@@ -185,7 +185,7 @@ class SLSKD:
                 break
             if cnt and cnt % 10 == 0:
                 lazylibrarian.test_data = f"Soulseek searching<br>{cnt} seconds..."
-            if cnt > 100:
+            if cnt > 120:
                 break
             time.sleep(2)
             cnt += 2
