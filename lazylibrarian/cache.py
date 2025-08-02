@@ -410,6 +410,7 @@ class XMLCacheRequest(CacheRequest):
             try:
                 source = ElementTree.fromstring(result)
                 if not docache:
+                    self.cachelogger.debug(f"Returning {len(source)} bytes xml uncached")
                     return source, False
             except UnicodeEncodeError:
                 # sometimes we get utf-16 data labelled as utf-8
@@ -417,6 +418,7 @@ class XMLCacheRequest(CacheRequest):
                     result = result.decode('utf-16').encode('utf-8')
                     source = ElementTree.fromstring(result)
                     if not docache:
+                        self.cachelogger.debug(f"Returning {len(source)} bytes xml uncached")
                         return source, False
                 except (ElementTree.ParseError, UnicodeEncodeError, UnicodeDecodeError):
                     self.logger.error(f"Error parsing xml from {self.url}")
@@ -428,8 +430,11 @@ class XMLCacheRequest(CacheRequest):
         if source is not None:
             with open(syspath(filename), "wb") as cachefile:
                 cachefile.write(result)
+                self.cachelogger.debug(f"Cached {len(source)} bytes xml {filename}")
         else:
             self.logger.error(f"Error getting xml data from {self.url}")
+            if result:
+                self.logger.error(f"Result: {result[:40]}")
             return None, False
         return source, True
 
@@ -496,6 +501,7 @@ def clean_cache():
 
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    result = []
     try:
         db.upsert("jobs", {'Start': time.time()}, {'Name': 'CLEANCACHE'})
         result = [
@@ -545,10 +551,11 @@ def clean_cache():
             msg = f"Cleaned {old} old pastissues, kept {total - old}"
             result.append(msg)
             logger.debug(msg)
-    finally:
-        db.upsert("jobs", {'Finish': time.time()}, {'Name': 'CLEANCACHE'})
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
 
+    db.upsert("jobs", {'Finish': time.time()}, {'Name': 'CLEANCACHE'})
+    db.close()
     thread_name(threadname)
     return result
 
