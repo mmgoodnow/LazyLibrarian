@@ -206,6 +206,7 @@ def add_file(data, hashid, title, provider_options):
         return False, "Failed to login to qbittorrent"
 
     kwargs = get_args(provider_options)
+    loggerdlcomms.debug(f'{kwargs}')
     qbclient.download_from_file(data, **kwargs)
     count = 0
     while count < 10:
@@ -233,6 +234,7 @@ def add_torrent(link, hashid, provider_options):
 
     hashid = hashid.lower()
     kwargs = get_args(provider_options)
+    loggerdlcomms.debug(f'{kwargs}')
     qbclient.download_from_link(link, **kwargs)
     count = 0
     while count < 10:
