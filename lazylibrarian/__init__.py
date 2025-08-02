@@ -92,6 +92,7 @@ NEWUSER_MSG = ''
 NEWFILE_MSG = ''
 libraryscan_data = ''
 magazinescan_data = ''
+test_data = ''
 
 # user permissions
 perm_config = 1 << 0  # 1 access to config page

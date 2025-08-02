@@ -166,6 +166,7 @@ class SLSKD:
             return ''
 
         try:
+            self.logger.debug(f"Searching for {searchterm}")
             search = self.slskd.searches.search_text(searchText=searchterm,
                                                      searchTimeout=50000,
                                                      filterResponses=True,
@@ -175,13 +176,21 @@ class SLSKD:
             self.logger.error(f"Error searching slskd: {e}")
             return ''
 
+        lazylibrarian.test_data = "Waiting for SoulSeek<br>search to complete"
+        cnt = 0
         while True:
             state = self.slskd.searches.state(search['id'])['state']
             if state != 'InProgress':
                 self.logger.debug(state)
                 break
-            time.sleep(4)
+            if cnt and cnt % 10 == 0:
+                lazylibrarian.test_data = f"Soulseek searching<br>{cnt} seconds..."
+            if cnt > 100:
+                break
+            time.sleep(2)
+            cnt += 2
 
+        lazylibrarian.test_data = ''
         res = len(self.slskd.searches.search_responses(search['id']))
         msg = f"Search returned results from {res} users"
         if limit and limit < res:
@@ -207,36 +216,53 @@ class SLSKD:
                         file_count += 1
                         if limit and file_count > limit:
                             break
-                        file_name = file['filename'].rsplit("\\", 1)[1]
+                        try:
+                            file_dir, file_name = file['filename'].rsplit("\\", 1)
+                            if slskd_version_check(self.version):
+                                directory = self.slskd.users.directory(username=username, directory=file_dir)[0]
+                            else:
+                                directory = self.slskd.users.directory(username=username, directory=file_dir)
+                        except Exception as e:
+                            self.logger.warning(str(e))
+                            continue
+
                         if not CONFIG.is_valid_booktype(file_name, booktype=searchtype):
                             self.logger.debug(f"Rejecting {file_name}")
                         else:
-                            file_size = file['size']
-                            file_dir = file['filename'].rsplit("\\", 1)[0]
-                            try:
-                                if slskd_version_check(self.version):
-                                    directory = self.slskd.users.directory(username=username, directory=file_dir)[0]
-                                else:
-                                    directory = self.slskd.users.directory(username=username, directory=file_dir)
-                            except Exception as e:
-                                self.logger.warning(str(e))
-                                continue
                             # some users dump all their books in one folder so directory is huge
                             # we exclude these users as we don't want all their books
                             if searchtype == 'ebook' and directory['fileCount'] > 10:  # multiple formats, opf, jpg
                                 self.ignored_users.append(username)
-                            else:
-                                for i in range(0, len(directory['files'])):
-                                    directory['files'][i]['filename'] = (file_dir + "\\" +
-                                                                         directory['files'][i]['filename'])
-                                data = {
-                                    "dir": file_dir.split("\\")[-1],
-                                    "filename": file_name,
-                                    "username": username,
-                                    "directory": directory,
-                                    "size": file_size
-                                }
-                                results.append(data)
+                                self.logger.debug(f"Ignoring user: {username}, {directory['fileCount']} ebook files")
+                                break
+                            if searchtype == 'audio' and directory['fileCount'] > 50:
+                                self.ignored_users.append(username)
+                                self.logger.debug(f"Ignoring user: {username}, {directory['fileCount']} audio files")
+                                break
+
+                            # Parse the directory['files'] and only include the filetypes we want
+                            # Include opf, jpg  adjust directory['fileCount'] to match
+                            new_dir = {}
+                            for item in directory:
+                                if item != 'files':
+                                    new_dir[item] = directory[item]
+                            new_files = []
+                            for item in directory['files']:
+                                extn = os.path.splitext(file_name)[1].lstrip('.')
+                                if CONFIG.is_valid_booktype(file_name, booktype=searchtype) or extn in ['opf', 'jpg']:
+                                    item['filename'] = file_dir + "\\" + item['filename']
+                                    new_files.append(item)
+                            new_dir['fileCount'] = len(new_files)
+                            new_dir['files'] = new_files
+                            data = {
+                                "dir": file_dir.split("\\")[-1],
+                                "filename": file_name,
+                                "username": username,
+                                "directory": new_dir,
+                                "size": file['size'],
+                            }
+                            results.append(data)
+
                     self.logger.info(f"Finished processing user: {username}")
             self.logger.info(f"Processed results from {len(self.slskd.searches.search_responses(search['id']))} users")
         except Exception as e:
