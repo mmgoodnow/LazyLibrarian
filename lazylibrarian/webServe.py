@@ -38,7 +38,7 @@ import lazylibrarian
 from lazylibrarian import database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, \
     grsync, hc, ROLE
-from lazylibrarian.auth import AuthController
+from lazylibrarian.auth import AuthController, require_auth
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
@@ -126,7 +126,6 @@ def serve_template(templatename, **kwargs):
     thread_name("WEBSERVER")
     logger = logging.getLogger(__name__)
     loggeradmin = logging.getLogger('special.admin')
-
     interface_dir = os.path.join(str(DIRS.PROG_DIR), 'data', 'interfaces')
     template_dir = os.path.join(str(interface_dir), CONFIG['HTTP_LOOK'])
     if not path_isdir(template_dir):
@@ -168,16 +167,21 @@ def serve_template(templatename, **kwargs):
             db = database.DBConnection()
 
             if lazylibrarian.LOGINUSER:
+                formauth = lazylibrarian.LOGINUSER.startswith('!')
+                lazylibrarian.LOGINUSER = lazylibrarian.LOGINUSER.strip('!')
                 res = db.match('SELECT * from users where UserID=?', (lazylibrarian.LOGINUSER,))
                 if res:
                     cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
                     userid = lazylibrarian.LOGINUSER
-                    logger.debug(f"Auto-login for {res['UserName']}")
-                    lazylibrarian.SHOWLOGOUT = 0
+                    if formauth:
+                        logger.debug(f"Auth-login for {res['UserName']}")
+                    else:
+                        logger.debug(f"Auto-login for {res['UserName']}")
+                        # lazylibrarian.SHOWLOGOUT = 0
                     db.action("UPDATE users SET Last_Login=?,Login_Count=? WHERE UserID=?",
                               (str(int(time.time())), int(res['Login_Count']) + 1, res['UserID']))
                 else:
-                    logger.debug(f"Auto-login failed for userid {lazylibrarian.LOGINUSER}")
+                    logger.debug(f"Login failed for userid {lazylibrarian.LOGINUSER}")
                     clear_our_cookies()
                 lazylibrarian.LOGINUSER = None
 
@@ -312,7 +316,7 @@ def serve_template(templatename, **kwargs):
                 userprefs = check_int(cookie['ll_prefs'].value, 0)
 
             if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-                if not CONFIG.get_bool('USER_ACCOUNTS') and CONFIG.get_str('auth_type') == 'FORM':
+                if CONFIG.get_str('auth_type') == 'FORM' and not CONFIG.get_bool('USER_ACCOUNTS'):
                     templatename = "formlogin.html"
                 else:
                     templatename = "login.html"
@@ -439,10 +443,12 @@ class WebInterface:
         raise cherrypy.HTTPError(403, msg)
 
     @cherrypy.expose
+    @require_auth()
     def index(self):
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
+    @require_auth()
     def authors(self):
         title = 'Authors'
         if lazylibrarian.IGNORED_AUTHORS:
@@ -453,6 +459,7 @@ class WebInterface:
         return serve_template(templatename="index.html", title=title, redirect=title.lower())
 
     @cherrypy.expose
+    @require_auth()
     def home(self):
         logger = logging.getLogger(__name__)
         home = CONFIG.get_str('HOMEPAGE')
@@ -471,6 +478,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
+    @require_auth()
     def profile(self):
         title = 'User Profile'
         cookie = cherrypy.request.cookie
@@ -518,6 +526,7 @@ class WebInterface:
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_index(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
@@ -660,6 +669,7 @@ class WebInterface:
     # USERS ############################################################
 
     @cherrypy.expose
+    @require_auth()
     def help(self):
         cookie = cherrypy.request.cookie
         if cookie and 'll_template' in list(cookie.keys()):
@@ -692,6 +702,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("https://lazylibrarian.gitlab.io/")
 
     @cherrypy.expose
+    @require_auth()
     def logout(self):
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -702,15 +713,18 @@ class WebInterface:
             db.action('UPDATE users SET prefs=? where UserID=?', (userprefs, cookie['ll_uid'].value))
             db.close()
         clear_our_cookies()
-        # cherrypy.lib.sessions.expire()
+        lazylibrarian.LOGINUSER = None
+        cherrypy.lib.sessions.expire()
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
+    @require_auth()
     def user_register(self):
         self.label_thread("REGISTER")
         return serve_template(templatename="register.html", title="User Registration / Contact form")
 
     @cherrypy.expose
+    @require_auth()
     def user_update(self, **kwargs):
         if 'password' in kwargs and 'password2' in kwargs and kwargs['password']:
             if kwargs['password'] != kwargs['password2']:
@@ -811,10 +825,12 @@ class WebInterface:
         return "No changes made"
 
     @cherrypy.expose
+    @require_auth()
     def user_login(self, **kwargs):
         # anti-phishing
         # block ip address if over 3 failed usernames in a row.
         # don't count attempts older than 24 hrs
+        print(11)
         logger = logging.getLogger(__name__)
         self.label_thread("LOGIN")
         limit = int(time.time()) - 1 * 60 * 60
@@ -882,6 +898,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def user_contact(self, **kwargs):
         self.label_thread('USERCONTACT')
         logger = logging.getLogger(__name__)
@@ -905,6 +922,7 @@ class WebInterface:
             return "No message sent, no return email address"
 
     @cherrypy.expose
+    @require_auth()
     def user_admin(self):
         self.label_thread('USERADMIN')
         db = database.DBConnection()
@@ -915,6 +933,7 @@ class WebInterface:
         return serve_template(templatename="users.html", title="Manage User Accounts", users=users)
 
     @cherrypy.expose
+    @require_auth()
     def update_feeds(self, **kwargs):
         logger = logging.getLogger(__name__)
         if 'value' in kwargs and kwargs['value'] == '':
@@ -951,6 +970,7 @@ class WebInterface:
         return f"Changed {cnt} {plural(cnt, 'feed')}"
 
     @cherrypy.expose
+    @require_auth()
     def user_feeds(self, **kwargs):
         logger = logging.getLogger(__name__)
         user = kwargs['user']
@@ -981,6 +1001,7 @@ class WebInterface:
         return json.dumps({'feeds': '', 'value': ''})
 
     @cherrypy.expose
+    @require_auth()
     def admin_delete(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_admin)
         db = database.DBConnection()
@@ -1007,6 +1028,7 @@ class WebInterface:
             db.close()
 
     @cherrypy.expose
+    @require_auth()
     def get_user_profile(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_admin)
         db = database.DBConnection()
@@ -1036,6 +1058,7 @@ class WebInterface:
         return res
 
     @cherrypy.expose
+    @require_auth()
     def admin_users(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_admin)
         logger = logging.getLogger(__name__)
@@ -1209,6 +1232,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def password_reset(self, **kwargs):
         self.label_thread('PASSWORD_RESET')
         logger = logging.getLogger(__name__)
@@ -1251,11 +1275,13 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def generatepwd(self):
         return pwd_generator()
 
     # SERIES ############################################################
     @cherrypy.expose
+    @require_auth()
     def remove_series(self, seriesid):
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
@@ -1269,6 +1295,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("series")
 
     @cherrypy.expose
+    @require_auth()
     def edit_series(self, seriesid):
         logger = logging.getLogger(__name__)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -1300,6 +1327,7 @@ class WebInterface:
             raise cherrypy.HTTPError(404, f"Series {seriesid} not found")
 
     @cherrypy.expose
+    @require_auth()
     def series_update(self, seriesid='', **kwargs):
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
@@ -1338,6 +1366,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("series")
 
     @cherrypy.expose
+    @require_auth()
     def refresh_series(self, seriesid):
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_force)
@@ -1349,6 +1378,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"series_members?seriesid={seriesid}&ignored=False")
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_series(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
@@ -1492,6 +1522,7 @@ class WebInterface:
             return mydict
 
     @cherrypy.expose
+    @require_auth()
     def series(self, authorid=None, which_status=None):
         self.check_permitted(lazylibrarian.perm_series)
         title = "Series"
@@ -1510,6 +1541,7 @@ class WebInterface:
                               whichStatus=which_status)
 
     @cherrypy.expose
+    @require_auth()
     def series_members(self, seriesid, ignored=False):
         self.check_permitted(lazylibrarian.perm_series)
         db = database.DBConnection()
@@ -1589,6 +1621,7 @@ class WebInterface:
                               members=rows, series=series, multi=multi, ignored=ignored, email=email)
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def mark_series_ajax(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
@@ -1723,6 +1756,7 @@ class WebInterface:
     # CONFIG ############################################################
 
     @cherrypy.expose
+    @require_auth()
     def save_filters(self):
         self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
@@ -1732,6 +1766,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def save_users(self):
         self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
@@ -1741,6 +1776,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def load_filters(self):
         self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
@@ -1750,6 +1786,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def load_users(self):
         self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('WEBSERVER')
@@ -1759,6 +1796,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def config(self):
         self.label_thread('CONFIG')
         http_look_dir = os.path.join(DIRS.PROG_DIR, 'data' + os.path.sep + 'interfaces')
@@ -1839,6 +1877,7 @@ class WebInterface:
         return serve_template(templatename="config.html", title="Settings", config=config)
 
     @cherrypy.expose
+    @require_auth()
     def config_update(self, **kwargs):
         """ Update config based on settings in the UI """
         logger = logging.getLogger(__name__)
@@ -2057,6 +2096,7 @@ class WebInterface:
     # SEARCH ############################################################
 
     @cherrypy.expose
+    @require_auth()
     def search(self, searchfor, btnsearch=None):
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger('special.searching')
@@ -2120,6 +2160,7 @@ class WebInterface:
     # AUTHOR ############################################################
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def mark_authors_ajax(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
@@ -2208,6 +2249,7 @@ class WebInterface:
         }
 
     @cherrypy.expose
+    @require_auth()
     def author_page(self, authorid, book_lang=None, library='eBook', ignored=False, book_filter=''):
         global lastauthor
         self.check_permitted(lazylibrarian.perm_ebook + lazylibrarian.perm_audio)
@@ -2270,6 +2312,7 @@ class WebInterface:
             book_filter=book_filter)
 
     @cherrypy.expose
+    @require_auth()
     def set_author(self, authorid, status):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
@@ -2291,22 +2334,27 @@ class WebInterface:
             raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
 
     @cherrypy.expose
+    @require_auth()
     def pause_author(self, authorid):
         self.set_author(authorid, 'Paused')
 
     @cherrypy.expose
+    @require_auth()
     def want_author(self, authorid):
         self.set_author(authorid, 'Wanted')
 
     @cherrypy.expose
+    @require_auth()
     def resume_author(self, authorid):
         self.set_author(authorid, 'Active')
 
     @cherrypy.expose
+    @require_auth()
     def ignore_author(self, authorid):
         self.set_author(authorid, 'Ignored')
 
     @cherrypy.expose
+    @require_auth()
     def remove_author(self, authorid):
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
@@ -2324,6 +2372,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
+    @require_auth()
     def refresh_author(self, authorid):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -2344,6 +2393,7 @@ class WebInterface:
             raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
 
     @cherrypy.expose
+    @require_auth()
     def follow_author(self, authorid):
         # empty GRfollow is not-yet-used, zero means manually unfollowed so sync leaves it alone
         logger = logging.getLogger(__name__)
@@ -2369,6 +2419,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
+    @require_auth()
     def unfollow_author(self, authorid):
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
@@ -2391,6 +2442,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
+    @require_auth()
     def library_scan_author(self, authorid, **kwargs):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -2465,6 +2517,7 @@ class WebInterface:
             raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
 
     @cherrypy.expose
+    @require_auth()
     def add_author(self, authorname):
         self.check_permitted(lazylibrarian.perm_search)
         threading.Thread(target=add_author_name_to_db, name='ADDAUTHOR',
@@ -2473,6 +2526,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
+    @require_auth()
     def add_author_id(self, authorid, authorname=''):
         self.check_permitted(lazylibrarian.perm_search)
         threading.Thread(target=add_author_to_db, name='ADDAUTHORID',
@@ -2481,6 +2535,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_auth(self):
         if lazylibrarian.IGNORED_AUTHORS:  # show ignored/paused ones, or active/wanted ones
             lazylibrarian.IGNORED_AUTHORS = False
@@ -2489,6 +2544,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_primary(self, authorid=None):
         if lazylibrarian.PRIMARY_AUTHORS:  # show primary ones, or all
             lazylibrarian.PRIMARY_AUTHORS = False
@@ -2499,6 +2555,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_my_auth(self):
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -2509,6 +2566,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_my_series(self):
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -2519,6 +2577,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("series")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_my_feeds(self):
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -2529,6 +2588,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_my_a_feeds(self):
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -2539,6 +2599,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("audio")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_my_mags(self):
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -2549,6 +2610,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("magazines")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_my_comics(self):
         userprefs = 0
         cookie = cherrypy.request.cookie
@@ -2561,6 +2623,7 @@ class WebInterface:
     # BOOKS #############################################################
 
     @cherrypy.expose
+    @require_auth()
     def booksearch(self, author=None, title=None, bookid=None, action=''):
         self.check_permitted(lazylibrarian.perm_search)
         self.label_thread('BOOKSEARCH')
@@ -2589,12 +2652,14 @@ class WebInterface:
                               searchterm + '"', bookid=bookid, results=results, library=library)
 
     @cherrypy.expose
+    @require_auth()
     def count_providers(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         count = CONFIG.total_active_providers()
         return f"Searching {count} providers, please wait..."
 
     @cherrypy.expose
+    @require_auth()
     def snatch_book(self, bookid=None, mode=None, provider=None, url=None, size=None, library=None, title=''):
         self.check_permitted(lazylibrarian.perm_download)
         logger = logging.getLogger(__name__)
@@ -2652,6 +2717,7 @@ class WebInterface:
             raise cherrypy.HTTPError(404, f"BookID {bookid} not found")
 
     @cherrypy.expose
+    @require_auth()
     def audio(self, booklang=None, book_filter=''):
         self.check_permitted(lazylibrarian.perm_audio)
         user = 0
@@ -2674,6 +2740,7 @@ class WebInterface:
                               languages=languages, booklang=booklang, user=user, email=email, book_filter=book_filter)
 
     @cherrypy.expose
+    @require_auth()
     def books(self, booklang=None, book_filter=''):
         self.check_permitted(lazylibrarian.perm_ebook)
         user = 0
@@ -2695,6 +2762,7 @@ class WebInterface:
                               languages=languages, booklang=booklang, user=user, email=email, book_filter=book_filter)
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_books(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         rows = []
@@ -3081,6 +3149,7 @@ class WebInterface:
         lst.sort(key=sort_key, reverse=reverse)
 
     @cherrypy.expose
+    @require_auth()
     def add_book(self, bookid=None, authorid=None, library=None):
         self.check_permitted(lazylibrarian.perm_search)
         if library == 'eBook':
@@ -3151,6 +3220,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
+    @require_auth()
     def start_book_search(self, books=None, library=None, force=False):
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
@@ -3172,6 +3242,7 @@ class WebInterface:
             logger.debug("BookSearch called with no books")
 
     @cherrypy.expose
+    @require_auth()
     def search_for_book(self, bookid=None, library=None):
         author_id = ''
         db = database.DBConnection()
@@ -3192,6 +3263,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
+    @require_auth()
     def request_book(self, **kwargs):
         self.label_thread('REQUEST_BOOK')
         logger = logging.getLogger(__name__)
@@ -3258,36 +3330,42 @@ class WebInterface:
                               title=title, message=msg, timer=timer)
 
     @cherrypy.expose
+    @require_auth()
     def serve_comic(self, feedid=None):
         logger = logging.getLogger(__name__)
         logger.debug(f"Serve Comic [{feedid}]")
         return self.serve_item(feedid, "comic")
 
     @cherrypy.expose
+    @require_auth()
     def serve_img(self, feedid=None):
         logger = logging.getLogger(__name__)
         logger.debug(f"Serve Image [{feedid}]")
         return self.serve_item(feedid, "img")
 
     @cherrypy.expose
+    @require_auth()
     def serve_book(self, feedid=None):
         logger = logging.getLogger(__name__)
         logger.debug(f"Serve Book [{feedid}]")
         return self.serve_item(feedid, "book")
 
     @cherrypy.expose
+    @require_auth()
     def serve_audio(self, feedid=None):
         logger = logging.getLogger(__name__)
         logger.debug(f"Serve Audio [{feedid}]")
         return self.serve_item(feedid, "audio")
 
     @cherrypy.expose
+    @require_auth()
     def serve_issue(self, feedid=None):
         logger = logging.getLogger(__name__)
         logger.debug(f"Serve Issue [{feedid}]")
         return self.serve_item(feedid, "issue")
 
     @cherrypy.expose
+    @require_auth()
     def serve_item(self, feedid, ftype):
         logger = logging.getLogger(__name__)
         userid = feedid[:10]
@@ -3434,10 +3512,12 @@ class WebInterface:
         return None
 
     @cherrypy.expose
+    @require_auth()
     def send_book(self, bookid=None, library=None, redirect=None, booktype=None):
         return self.open_book(bookid=bookid, library=library, redirect=redirect, booktype=booktype, email=True)
 
     @cherrypy.expose
+    @require_auth()
     def open_book(self, bookid=None, library=None, redirect=None, booktype=None, email=False):
         logger = logging.getLogger(__name__)
         loggeradmin = logging.getLogger('special.admin')
@@ -3630,6 +3710,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
+    @require_auth()
     def edit_author(self, authorid=None, images=False):
         self.label_thread('EDIT_AUTHOR')
         logger = logging.getLogger(__name__)
@@ -3655,6 +3736,7 @@ class WebInterface:
     # noinspection PyUnusedLocal
     # kwargs needed for passing utf8 hidden input
     @cherrypy.expose
+    @require_auth()
     def author_update(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
                       editordata='', manual='0', aka='', **kwargs):
         self.check_permitted(lazylibrarian.perm_edit)
@@ -3781,6 +3863,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
 
     @cherrypy.expose
+    @require_auth()
     def edit_book(self, bookid=None, library='eBook', images=False):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         logger = logging.getLogger(__name__)
@@ -3848,6 +3931,7 @@ class WebInterface:
             return None
 
     @cherrypy.expose
+    @require_auth()
     def book_update(self, bookname='', bookid='', booksub='', bookgenre='', booklang='', bookdate='',
                     manual='0', authorname='', cover='', newid='', editordata='', bookisbn='', workid='',
                     **kwargs):
@@ -4130,6 +4214,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def mark_books_ajax(self, authorid=None, seriesid=None, action=None, redirect=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
@@ -4370,6 +4455,7 @@ class WebInterface:
     # WALL #########################################################
 
     @cherrypy.expose
+    @require_auth()
     def mag_wall(self, title=''):
         self.label_thread('MAGWALL')
         cmd = "SELECT IssueFile,IssueID,IssueDate,Title,Cover from issues"
@@ -4416,6 +4502,7 @@ class WebInterface:
             columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
+    @require_auth()
     def comic_wall(self, comicid=None):
         self.label_thread('COMICWALL')
         cmd = ("SELECT IssueFile,IssueID,comics.ComicID,Title,Cover from comicissues,comics WHERE "
@@ -4462,6 +4549,7 @@ class WebInterface:
             columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
+    @require_auth()
     def book_wall(self, have='0'):
         self.label_thread('BOOKWALL')
         if have == '1':
@@ -4507,6 +4595,7 @@ class WebInterface:
             columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
+    @require_auth()
     def author_wall(self, have='1'):
         self.label_thread('AUTHORWALL')
         cmd = "SELECT Status,AuthorImg,AuthorID,AuthorName,HaveBooks,TotalBooks from authors "
@@ -4545,6 +4634,7 @@ class WebInterface:
             columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
+    @require_auth()
     def audio_wall(self):
         self.label_thread('AUDIOWALL')
         db = database.DBConnection()
@@ -4582,6 +4672,7 @@ class WebInterface:
             columns=CONFIG.get_int('WALL_COLUMNS'))
 
     @cherrypy.expose
+    @require_auth()
     def wall_columns(self, redirect=None, count=None, have=0, title=''):
         title = title.split(' (')[0].replace(' ', '+')
         columns = check_int(CONFIG.get_int('WALL_COLUMNS'), 6)
@@ -4612,6 +4703,7 @@ class WebInterface:
     # COMICS #########################################################
 
     @cherrypy.expose
+    @require_auth()
     def edit_comic(self, comicid=None):
         self.label_thread('EDIT_COMIC')
         logger = logging.getLogger(__name__)
@@ -4628,6 +4720,7 @@ class WebInterface:
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
+    @require_auth()
     def comic_update(self, comicid='', new_name='', new_id='', aka='', editordata='', **kwargs):
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_edit)
@@ -4673,6 +4766,7 @@ class WebInterface:
             raise cherrypy.HTTPError(404, f"Comic ID {comicid} not found")
 
     @cherrypy.expose
+    @require_auth()
     def search_for_comic(self, comicid=None):
         self.check_permitted(lazylibrarian.perm_search)
         db = database.DBConnection()
@@ -4687,6 +4781,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
+    @require_auth()
     def start_comic_search(self, comicid=None):
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
@@ -4700,6 +4795,7 @@ class WebInterface:
             logger.debug("ComicSearch called with no comic ID")
 
     @cherrypy.expose
+    @require_auth()
     def comics(self, comic_filter=''):
         self.check_permitted(lazylibrarian.perm_comics)
         cookie = cherrypy.request.cookie
@@ -4716,6 +4812,7 @@ class WebInterface:
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_comics(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
@@ -4827,6 +4924,7 @@ class WebInterface:
         return mydict
 
     @cherrypy.expose
+    @require_auth()
     def comic_scan(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -4854,6 +4952,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
+    @require_auth()
     def comicissue_page(self, comicid):
         global lastcomic
         logger = logging.getLogger(__name__)
@@ -4896,6 +4995,7 @@ class WebInterface:
                               firstpage=firstpage)
 
     @cherrypy.expose
+    @require_auth()
     def open_comic(self, comicid=None, issueid=None):
         self.check_permitted(lazylibrarian.perm_download)
         logger = logging.getLogger(__name__)
@@ -4942,6 +5042,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect(f"comicissue_page?comicid={comicid}")
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_comic_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0,
                          sSortDir_0="desc", sSearch="", **kwargs):
@@ -5025,6 +5126,7 @@ class WebInterface:
         return mydict
 
     @cherrypy.expose
+    @require_auth()
     def find_comic(self, title=None, **kwargs):
         # search for a comic title and produce a list of likely matches
         # noinspection PyGlobalUndefined
@@ -5071,6 +5173,7 @@ class WebInterface:
                 raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
+    @require_auth()
     def add_comic(self, comicid=None, **kwargs):
         # add a comic from a list in comicresults.html
         global comicresults
@@ -5124,6 +5227,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
+    @require_auth()
     def mark_comics(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
@@ -5199,6 +5303,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
+    @require_auth()
     def mark_comic_issues(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
@@ -5265,6 +5370,7 @@ class WebInterface:
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_mags(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
@@ -5384,6 +5490,7 @@ class WebInterface:
         return mydict
 
     @cherrypy.expose
+    @require_auth()
     def magazines(self, mag_filter=''):
         self.check_permitted(lazylibrarian.perm_magazines)
         db = database.DBConnection()
@@ -5407,6 +5514,7 @@ class WebInterface:
                               covercount=covers, user=user, email=email, mag_filter=mag_filter)
 
     @cherrypy.expose
+    @require_auth()
     def edit_mag(self, mag=None):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.label_thread('EDIT_MAG')
@@ -5427,6 +5535,7 @@ class WebInterface:
 
     # noinspection PyBroadException
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def magazine_update_ajax(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -5516,6 +5625,7 @@ class WebInterface:
         }
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
@@ -5620,6 +5730,7 @@ class WebInterface:
         return mydict
 
     @cherrypy.expose
+    @require_auth()
     def edit_issue(self, issueid=None):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         logger = logging.getLogger(__name__)
@@ -5639,6 +5750,7 @@ class WebInterface:
             return None
 
     @cherrypy.expose
+    @require_auth()
     def issue_update(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.check_permitted(lazylibrarian.perm_edit)
@@ -5784,6 +5896,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"issue_page?title={quote(redirect)}&response={response}")
 
     @cherrypy.expose
+    @require_auth()
     def issue_page(self, title, response=''):
         global lastmagazine
         self.check_permitted(lazylibrarian.perm_magazines)
@@ -5839,6 +5952,10 @@ class WebInterface:
         return False
 
     @cherrypy.expose
+    def test_progress(self):
+        return lazylibrarian.test_data
+
+    @cherrypy.expose
     def issues_progress(self):
         current = '0'
         total = '0'
@@ -5885,6 +6002,7 @@ class WebInterface:
         return bar
 
     @cherrypy.expose
+    @require_auth()
     def past_issues(self, mag=None, **kwargs):
         self.check_permitted(lazylibrarian.perm_magazines)
         if not mag or mag == 'None':
@@ -5898,6 +6016,7 @@ class WebInterface:
             templatename="manageissues.html", title=title, issues=[], whichStatus=which_status, mag=mag)
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_past_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc",
                         sSearch="", **kwargs):
@@ -5973,10 +6092,12 @@ class WebInterface:
         return mydict
 
     @cherrypy.expose
+    @require_auth()
     def send_mag(self, bookid=None):
         return self.open_mag(bookid=bookid, email=True)
 
     @cherrypy.expose
+    @require_auth()
     def open_mag(self, bookid=None, email=False):
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_download)
@@ -6025,6 +6146,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect(f"issue_page?title={quote(bookid)}")
 
     @cherrypy.expose
+    @require_auth()
     def mark_past_issues(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
@@ -6097,6 +6219,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("past_issues")
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def mark_issues_ajax(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
@@ -6331,6 +6454,7 @@ class WebInterface:
             return False
 
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def mark_magazines_ajax(self, action=None, **args):
         self.check_permitted(lazylibrarian.perm_status)
@@ -6473,6 +6597,7 @@ class WebInterface:
         }
 
     @cherrypy.expose
+    @require_auth()
     def search_for_mag(self, bookid=None):
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
@@ -6489,6 +6614,7 @@ class WebInterface:
             raise cherrypy.HTTPError(404, f"Magazine {bookid} not found")
 
     @cherrypy.expose
+    @require_auth()
     def start_magazine_search(self, mags=None):
         self.check_permitted(lazylibrarian.perm_search)
         logger = logging.getLogger(__name__)
@@ -6502,6 +6628,7 @@ class WebInterface:
             logger.debug("MagazineSearch called with no magazines")
 
     @cherrypy.expose
+    @require_auth()
     def add_magazine(self, title=None, **kwargs):
         self.check_permitted(lazylibrarian.perm_magazines)
         logger = logging.getLogger(__name__)
@@ -6554,6 +6681,7 @@ class WebInterface:
     # UPDATES ###########################################################
 
     @cherrypy.expose
+    @require_auth()
     def check_for_updates(self):
         self.check_permitted(lazylibrarian.perm_force)
         self.label_thread('UPDATES')
@@ -6583,6 +6711,7 @@ class WebInterface:
         return f"LazyLibrarian is {message}"
 
     @cherrypy.expose
+    @require_auth()
     def force_update(self):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -6593,6 +6722,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
+    @require_auth()
     def update(self):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -6607,6 +6737,7 @@ class WebInterface:
     # IMPORT/EXPORT #####################################################
 
     @cherrypy.expose
+    @require_auth()
     def library_scan(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -6635,6 +6766,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
+    @require_auth()
     def magazine_scan(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -6663,6 +6795,7 @@ class WebInterface:
             raise cherrypy.HTTPRedirect("magazines")
 
     @cherrypy.expose
+    @require_auth()
     def include_alternate(self, library='eBook'):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -6677,6 +6810,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"manage?library={library}")
 
     @cherrypy.expose
+    @require_auth()
     def import_issues(self, title=None):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
@@ -6695,6 +6829,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(f"issue_page?title={quote(title)}")
 
     @cherrypy.expose
+    @require_auth()
     def import_alternate(self, library='eBook'):
         self.check_permitted(lazylibrarian.perm_force)
         self.validate_param("library name", library, ['<', '>', '='], 404)
@@ -6781,6 +6916,7 @@ class WebInterface:
         return res.encode('UTF-8')
 
     @cherrypy.expose
+    @require_auth()
     def import_csv(self, library=''):
         self.check_permitted(lazylibrarian.perm_force)
         self.validate_param("library name", library, ['<', '>', '='], 404)
@@ -6804,6 +6940,7 @@ class WebInterface:
         return message
 
     @cherrypy.expose
+    @require_auth()
     def export_csv(self, library=''):
         self.check_permitted(lazylibrarian.perm_force)
         self.validate_param("library name", library, ['<', '>', '='], 404)
@@ -6815,6 +6952,7 @@ class WebInterface:
     # JOB CONTROL #######################################################
 
     @cherrypy.expose
+    @require_auth()
     def shutdown(self):
         self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('SHUTDOWN')
@@ -6826,6 +6964,7 @@ class WebInterface:
                               message=message, timer=0)
 
     @cherrypy.expose
+    @require_auth()
     def restart(self):
         self.check_permitted(lazylibrarian.perm_admin)
         self.label_thread('RESTART')
@@ -6836,6 +6975,7 @@ class WebInterface:
                               message=message, timer=50)
 
     @cherrypy.expose
+    @require_auth()
     def show_jobs(self):
         self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -6847,6 +6987,7 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def show_apprise(self):
         self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -6866,6 +7007,7 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def show_stats(self):
         self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -6877,12 +7019,14 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def restart_jobs(self):
         self.check_permitted(lazylibrarian.perm_admin)
         restart_jobs(command=SchedulerCommand.RESTART)
         # return self.show_jobs()
 
     @cherrypy.expose
+    @require_auth()
     def stop_jobs(self):
         self.check_permitted(lazylibrarian.perm_admin)
         restart_jobs(command=SchedulerCommand.STOP)
@@ -6891,6 +7035,7 @@ class WebInterface:
     # LOGGING ###########################################################
 
     @cherrypy.expose
+    @require_auth()
     def clear_log(self):
         self.check_permitted(lazylibrarian.perm_admin)
         logger = logging.getLogger(__name__)
@@ -6899,12 +7044,14 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("logs")
 
     @cherrypy.expose
+    @require_auth()
     def toggle_detailed_logs(self):
         detail = CONFIG.get_bool('DETAILEDUILOG')
         CONFIG.set_bool('DETAILEDUILOG', not detail)
         raise cherrypy.HTTPRedirect("logs")
 
     @cherrypy.expose
+    @require_auth()
     def delete_logs(self):
         self.check_permitted(lazylibrarian.perm_admin)
         logger = logging.getLogger(__name__)
@@ -6913,6 +7060,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("logs")
 
     @cherrypy.expose
+    @require_auth()
     def get_support_zip(self):
         # Save the redacted log and config to a zipfile
         self.label_thread('SAVELOG')
@@ -6924,18 +7072,21 @@ class WebInterface:
         # raise cherrypy.HTTPRedirect("logs")
 
     @cherrypy.expose
+    @require_auth()
     def log_header(self):
         # Return the log header info
         result = log_header()
         return result
 
     @cherrypy.expose
+    @require_auth()
     def logs(self):
         self.check_permitted(lazylibrarian.perm_logs)
         return serve_template(templatename="logs.html", title="Log", lineList=[])  # lazylibrarian.LOGLIST)
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_log(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         # kwargs is used by datatables to pass params
@@ -6968,12 +7119,14 @@ class WebInterface:
     # HISTORY ###########################################################
 
     @cherrypy.expose
+    @require_auth()
     def history(self):
         self.check_permitted(lazylibrarian.perm_history)
         return serve_template(templatename="history.html", title="History", history=[])
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
+    @require_auth()
     @cherrypy.tools.json_out()
     def get_history(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         rows = []
@@ -7101,6 +7254,7 @@ class WebInterface:
         return mydict
 
     @cherrypy.expose
+    @require_auth()
     def bookdesc(self, bookid=None):
         # noinspection PyGlobalUndefined
         global lastauthor
@@ -7152,6 +7306,7 @@ class WebInterface:
         return img + '^' + title + '^' + text
 
     @cherrypy.expose
+    @require_auth()
     def dlinfo(self, target=None):
         if '^' not in target:
             return ''
@@ -7188,6 +7343,7 @@ class WebInterface:
         return message
 
     @cherrypy.expose
+    @require_auth()
     def deletehistory(self, rowid=None):
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
@@ -7206,6 +7362,7 @@ class WebInterface:
                 db.close()
 
     @cherrypy.expose
+    @require_auth()
     def markhistory(self, rowid=None):
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
@@ -7228,6 +7385,7 @@ class WebInterface:
         db.close()
 
     @cherrypy.expose
+    @require_auth()
     def clearhistory(self, status=None):
         self.check_permitted(lazylibrarian.perm_edit)
         logger = logging.getLogger(__name__)
@@ -7272,6 +7430,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect("history")
 
     @cherrypy.expose
+    @require_auth()
     def ol_api_changed(self, **kwargs):
         # ol_api is true/false, not an api key
         if kwargs['status']:
@@ -7284,6 +7443,7 @@ class WebInterface:
         return kwargs['status']
 
     @cherrypy.expose
+    @require_auth()
     def hc_api_changed(self, **kwargs):
         # hc_api is true/false, not an api key
         if kwargs['status']:
@@ -7296,6 +7456,7 @@ class WebInterface:
         return kwargs['status']
 
     @cherrypy.expose
+    @require_auth()
     def gr_api_changed(self, **kwargs):
         self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GR_API', kwargs['gr_api'])
@@ -7305,6 +7466,7 @@ class WebInterface:
         return kwargs['gr_api']
 
     @cherrypy.expose
+    @require_auth()
     def gb_api_changed(self, **kwargs):
         self.validate_param("googlebooks api", kwargs['gb_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GB_API', kwargs['gb_api'])
@@ -7314,6 +7476,7 @@ class WebInterface:
         return kwargs['gb_api']
 
     @cherrypy.expose
+    @require_auth()
     def testprovider(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("TESTPROVIDER")
@@ -7351,6 +7514,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def clearblocked(self):
         self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -7362,6 +7526,7 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def showblocked(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         logger = logging.getLogger(__name__)
@@ -7371,6 +7536,7 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def cleardownloads(self):
         self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -7391,6 +7557,7 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def showdownloads(self):
         self.check_permitted(lazylibrarian.perm_admin)
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -7411,6 +7578,7 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def sync_to_calibre(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'CalSync' in [n.name for n in [t for t in threading.enumerate()]]:
@@ -7427,6 +7595,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def sync_to_hardcover(self, confirmed=False, readonly=False, ignore=False):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.label_thread('WEB-HCSYNC')
@@ -7445,6 +7614,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def sync_to_goodreads(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.label_thread('WEB-GRSYNC')
@@ -7453,6 +7623,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def grauth_step1(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'gr_api' in kwargs:
@@ -7466,6 +7637,7 @@ class WebInterface:
         return res
 
     @cherrypy.expose
+    @require_auth()
     def grauth_step2(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         ga = grsync.GrAuth()
@@ -7475,6 +7647,7 @@ class WebInterface:
         return res
 
     @cherrypy.expose
+    @require_auth()
     def test_hcauth(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7491,6 +7664,7 @@ class WebInterface:
         return res
 
     @cherrypy.expose
+    @require_auth()
     def test_grauth(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7526,11 +7700,13 @@ class WebInterface:
     # NOTIFIERS #########################################################
 
     @cherrypy.expose
+    @require_auth()
     def twitter_step1(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         return notifiers.twitter_notifier._get_authorization()
 
     @cherrypy.expose
+    @require_auth()
     def twitter_step2(self, key):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if key:
@@ -7544,6 +7720,7 @@ class WebInterface:
             return "No Key provided"
 
     @cherrypy.expose
+    @require_auth()
     def test_twitter(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7554,6 +7731,7 @@ class WebInterface:
             return "Error sending tweet"
 
     @cherrypy.expose
+    @require_auth()
     def test_android_pn(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7586,6 +7764,7 @@ class WebInterface:
             return "Test AndroidPN notice failed"
 
     @cherrypy.expose
+    @require_auth()
     def test_boxcar(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7608,6 +7787,7 @@ class WebInterface:
             return "Boxcar notification failed"
 
     @cherrypy.expose
+    @require_auth()
     def test_pushbullet(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7635,6 +7815,7 @@ class WebInterface:
             return "Pushbullet notification failed"
 
     @cherrypy.expose
+    @require_auth()
     def test_pushover(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7672,6 +7853,7 @@ class WebInterface:
             return "Pushover notification failed"
 
     @cherrypy.expose
+    @require_auth()
     def test_telegram(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7699,6 +7881,7 @@ class WebInterface:
             return "Test Telegram notice failed"
 
     @cherrypy.expose
+    @require_auth()
     def test_prowl(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7726,6 +7909,7 @@ class WebInterface:
             return "Test Prowl notice failed"
 
     @cherrypy.expose
+    @require_auth()
     def test_growl(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7753,6 +7937,7 @@ class WebInterface:
             return "Test Growl notice failed"
 
     @cherrypy.expose
+    @require_auth()
     def test_slack(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7780,6 +7965,7 @@ class WebInterface:
             return "Slack notification successful"
 
     @cherrypy.expose
+    @require_auth()
     def test_custom(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7802,6 +7988,7 @@ class WebInterface:
             return "Custom notification successful"
 
     @cherrypy.expose
+    @require_auth()
     def test_email(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -7874,10 +8061,12 @@ class WebInterface:
         return a.fetch_data
 
     @cherrypy.expose
+    @require_auth()
     def generate_ro_api(self):
         return self.generate_api(ro=True)
 
     @cherrypy.expose
+    @require_auth()
     def generate_api(self, ro=False):
         logger = logging.getLogger(__name__)
         api_key = hashlib.sha224(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[0:32]
@@ -7904,6 +8093,7 @@ class WebInterface:
         return False
 
     @cherrypy.expose
+    @require_auth()
     def force_process(self, source=None):
         logger = logging.getLogger(__name__)
         if 'POSTPROCESSOR' not in [n.name for n in [t for t in threading.enumerate()]]:
@@ -7916,6 +8106,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect('index')
 
     @cherrypy.expose
+    @require_auth()
     def force_wish(self, source=None):
         logger = logging.getLogger(__name__)
         if CONFIG.use_wishlist():
@@ -7927,6 +8118,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect('index')
 
     @cherrypy.expose
+    @require_auth()
     def force_search(self, source=None, title=None):
         self.validate_param("search title", title, ['<', '>', '='], 404)
         logger = logging.getLogger(__name__)
@@ -7964,6 +8156,7 @@ class WebInterface:
         raise cherrypy.HTTPRedirect(source)
 
     @cherrypy.expose
+    @require_auth()
     def manage(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_managebooks)
         types = []
@@ -7985,6 +8178,7 @@ class WebInterface:
                               books=[], types=types, library=library, whichStatus=which_status)
 
     @cherrypy.expose
+    @require_auth()
     def test_deluge(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8081,6 +8275,7 @@ class WebInterface:
             return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_sabnzbd(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8126,6 +8321,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_nzbget(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8163,6 +8359,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_transmission(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8198,6 +8395,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_qbittorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8238,6 +8436,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_utorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8278,6 +8477,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_rtorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8316,6 +8516,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_synology(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
@@ -8351,6 +8552,7 @@ class WebInterface:
         return msg
 
     @cherrypy.expose
+    @require_auth()
     def test_ffmpeg(self, **kwargs):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -8385,6 +8587,7 @@ class WebInterface:
             return f"ffmpeg -version failed: {type(e).__name__} {str(e)}"
 
     @cherrypy.expose
+    @require_auth()
     def test_ebook_convert(self, **kwargs):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -8404,6 +8607,7 @@ class WebInterface:
             return f"ebook-convert --version failed: {type(e).__name__} {str(e)}"
 
     @cherrypy.expose
+    @require_auth()
     def test_calibredb(self, **kwargs):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -8415,6 +8619,7 @@ class WebInterface:
         return calibre_test()
 
     @cherrypy.expose
+    @require_auth()
     def test_preprocessor(self, **kwargs):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
@@ -8502,16 +8707,19 @@ class WebInterface:
     # TELEMETRY ##########################################################
 
     @cherrypy.expose
+    @require_auth()
     def get_telemetry_data(self, **kwargs):
         send_config = kwargs['send_config']
         send_usage = kwargs['send_usage']
         return TELEMETRY.get_data_for_ui_preview(send_config, send_usage)
 
     @cherrypy.expose
+    @require_auth()
     def reset_telemetry_usage_data(self):
         return TELEMETRY.clear_usage_data()
 
     @cherrypy.expose
+    @require_auth()
     def submit_telemetry_data(self, **kwargs):
         server = kwargs['server']
         send_config = kwargs['send_config']
@@ -8520,16 +8728,19 @@ class WebInterface:
         return result
 
     @cherrypy.expose
+    @require_auth()
     def test_telemetry_server(self, **kwargs):
         return TELEMETRY.test_server(kwargs['server'])
 
     @cherrypy.expose
+    @require_auth()
     def set_current_tabs(self, **kwargs):
         if 'config_tab' in kwargs:
             CONFIG.set_from_ui('CONFIG_TAB_NUM', check_int(kwargs['config_tab'], 1))
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
+    @require_auth()
     def enable_telemetry(self, **kwargs):
         CONFIG.set_bool('TELEMETRY_ENABLE', True)
         CONFIG.set_int('TELEMETRY_INTERVAL', 6)

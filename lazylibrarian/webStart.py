@@ -162,7 +162,7 @@ def initialize(options=None):
             # 'tools.proxy.local': 'X-Forwarded-For' or 'X-Real-IP' # this is for caddy
             'tools.proxy.local': CONFIG['PROXY_LOCAL']
         })
-    if not options['user_accounts'] and options['http_pass'] != "":
+    if options['http_pass'] != "" and not options['user_accounts']:
         logger.info(f"Web server {options['authentication']} authentication is enabled, "
                     f"username is '{options['http_user']}'")
         if options['authentication'] == 'FORM':
@@ -180,10 +180,9 @@ def initialize(options=None):
                 'tools.auth.on': True,
                 'auth.forms_username': options['http_user'],
                 'auth.forms_password': options['http_pass'],
-                # Set all pages to require authentication.
+                # Set all pages to require authentication with 'auth.require': []
                 # You can also set auth requirements on a per-method basis by
-                # using the @require() decorator on the methods in webserve.py
-                'auth.require': []
+                # using the @require_auth() decorator on the methods in webserve.py
             })
         elif options['authentication'] == 'BASIC':
             conf['/'].update({
