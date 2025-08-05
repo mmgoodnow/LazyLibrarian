@@ -718,6 +718,7 @@ def name_vars(bookid, abridged=''):
         SerYear is the publication year of the first book in the series or empty string
         Language is the language(s) if known or empty string
         """
+    loggermatching = logging.getLogger('special.matching')
     mydict = {}
     seriesnum = ''
     seriesname = ''
