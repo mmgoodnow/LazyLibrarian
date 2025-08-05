@@ -31,6 +31,7 @@ except ImportError:
     TinyTag = None
 
 
+# noinspection PyUnusedLocal
 def id3read(filename):
     logger = logging.getLogger(__name__)
     loggerlibsync = logging.getLogger('special.libsync')
@@ -50,9 +51,13 @@ def id3read(filename):
         logger.warning(f"TinyTag:unsupported [{filename}]")
         return mydict
 
-    # noinspection PyBroadException
     try:
         id3r = TinyTag.get(filename)
+    except Exception as e:
+        logger.debug(str(e))
+        return mydict
+
+    try:
         artist = id3r.artist
         composer = id3r.composer
         album = id3r.album
@@ -92,6 +97,8 @@ def id3read(filename):
             composer = ''
 
         db = database.DBConnection()
+        author = ''
+        narrator = ''
         try:
             # Commonly used tags, eg plex:
             # ARTIST  Author or Author, Narrator
@@ -134,8 +141,10 @@ def id3read(filename):
                     author = albumartist
                 elif composer:
                     author = composer
-        finally:
             db.close()
+        except Exception as e:
+            db.close()
+            logger.debug(str(e))
 
         if author and type(author) is list:
             lst = ', '.join(author)
@@ -403,7 +412,7 @@ def audio_rename(bookid, rename=False, playlist=False):
     if rename:
         if '$Part' not in CONFIG['AUDIOBOOK_DEST_FILE']:
             logger.error("Unable to rename, no $Part in AUDIOBOOK_DEST_FILE")
-            return
+            return ''
         if '$Title' not in CONFIG['AUDIOBOOK_DEST_FILE'] and \
                 '$SortTitle' not in CONFIG['AUDIOBOOK_DEST_FILE']:
             logger.error("Unable to rename, no $Title or $SortTitle in AUDIOBOOK_DEST_FILE")
@@ -712,7 +721,6 @@ def name_vars(bookid, abridged=''):
     mydict = {}
     seriesnum = ''
     seriesname = ''
-    loggermatching = logging.getLogger('special.matching')
     db = database.DBConnection()
     try:
         if bookid == 'test':
@@ -866,7 +874,8 @@ def name_vars(bookid, abridged=''):
                 mydict['Title'] = ''
                 mydict['SortAuthor'] = ''
                 mydict['SortTitle'] = ''
-    finally:
+        db.close()
+    except Exception:
         db.close()
 
     mydict['FolderName'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FOLDER'],

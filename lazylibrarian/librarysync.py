@@ -817,10 +817,10 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                             if CONFIG.is_valid_booktype(files, 'audiobook'):
                                 filename = os.path.join(rootdir, files)
                                 id3tags = id3read(filename)
-                                author = id3tags['author']
-                                book = id3tags['title']
+                                author = id3tags.get('author')
+                                book = id3tags.get('title')
                                 if not narrator:
-                                    narrator = id3tags['narrator']
+                                    narrator = id3tags.get('narrator')
 
                         if not author or not book:
                             # try for details from a special file

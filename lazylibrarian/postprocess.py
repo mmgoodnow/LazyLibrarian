@@ -472,16 +472,16 @@ def process_alternate(source_dir=None, library='eBook'):
                 return False
             if not metadata:
                 id3r = id3read(new_book)
-                author = id3r['author']
-                book = id3r['title']
+                author = id3r.get('author')
+                book = id3r.get('title')
                 # use album instead of title if it is set
-                if 'album' in id3r and id3r['album']:
+                if 'album' in id3r and id3r.get('album'):
                     book = id3r['album']
 
                 if author and book:
                     metadata['creator'] = author
                     metadata['title'] = book
-                    metadata['narrator'] = id3r['narrator']
+                    metadata['narrator'] = id3r.get('narrator')
 
         if 'title' in metadata and 'creator' in metadata:
             authorname = metadata['creator']

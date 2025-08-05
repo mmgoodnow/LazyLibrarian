@@ -252,6 +252,7 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
     return part_durations, highest_bitrate
 
 
+# noinspection PyUnusedLocal
 def get_metatags(bookid, bookfile, authorname, bookname, source_file):
     db = database.DBConnection()
     match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
@@ -263,32 +264,19 @@ def get_metatags(bookid, bookfile, authorname, bookname, source_file):
 
     if match:
         id3r = id3read(source_file)
-        if not match['Narrator'] and id3r['narrator']:
+        if not match['Narrator'] and id3r.get('narrator'):
             db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
-        # noinspection PyUnusedLocal
-        artist = id3r['artist']
-        # noinspection PyUnusedLocal
-        composer = id3r['composer']
-        # noinspection PyUnusedLocal
-        album_artist = id3r['albumartist']
-        # noinspection PyUnusedLocal
-        album = id3r['album']
-        # title = id3r.title
-        # "unused" locals are used in eval() statement below
-        # noinspection PyUnusedLocal
-        comment = id3r['comment']
-        # noinspection PyUnusedLocal
+        artist = id3r.get('artist')
+        composer = id3r.get('composer')
+        album_artist = id3r.get('albumartist')
+        album = id3r.get('album')
+        comment = id3r.get('comment')
         author = authorname
-        # noinspection PyUnusedLocal
         media_type = "Audiobook"
-        # noinspection PyUnusedLocal
         genre = match['BookGenre']
-        # noinspection PyUnusedLocal
         description = match['BookDesc']
-        # noinspection PyUnusedLocal
         date = match['BookDate']
         if date == '0000':
-            # noinspection PyUnusedLocal
             date = ''
         if match['SeriesDisplay']:
             series = match['SeriesDisplay'].split('<br>')[0].strip()
