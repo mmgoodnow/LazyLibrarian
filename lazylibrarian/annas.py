@@ -202,6 +202,7 @@ def annas_search(
     order_by: OrderBy = OrderBy.MOST_RELEVANT,
 ) -> str:
 
+    logger = logging.getLogger(__name__)
     if not query.strip():
         raise ValueError("query can not be empty")
     params = {
@@ -211,7 +212,12 @@ def annas_search(
         "sort": order_by.value,
     }
 
-    soup = html_parser(urljoin(CONFIG['ANNA_HOST'], "search"), params)
+    try:
+        soup = html_parser(urljoin(CONFIG['ANNA_HOST'], "search"), params)
+    except Exception as e:
+        logger.error(f"{e}")
+        return None
+
     raw_results = soup.find_all("a", class_="js-vim-focus")
     results = list(filter(lambda i: i is not None, map(parse_result, raw_results)))
     myhash = md5_utf8(query)
@@ -389,6 +395,9 @@ def anna_search(book=None, test=False):
             hashfilename = annas_search(book['searchterm'], language=language)
     else:
         hashfilename = annas_search(book['searchterm'], language=language)
+
+    if not hashfilename:
+        return [], ''
 
     with open(hashfilename, 'r') as f:
         searchresults = json.load(f)
