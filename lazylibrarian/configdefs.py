@@ -284,7 +284,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('BOK', 'BOK_EMAIL', ''),
     ConfigStr('BOK', 'BOK_REMIX_USERID', ''),
     ConfigStr('BOK', 'BOK_REMIX_USERKEY', ''),
-    ConfigCSV('BOK', 'BOK_SEARCH_LANG', ''),  # comma separated upper case 2 letter language codes eg EN, ES, DE
+    ConfigCSV('BOK', 'BOK_SEARCH_LANG', ''),  # comma separated language names
     ConfigBool('BOK', 'BOK', 0),
     ConfigInt('BOK', 'BOK_DLPRIORITY', 0),
     ConfigInt('BOK', 'BOK_DLLIMIT', 5),
