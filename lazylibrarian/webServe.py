@@ -714,7 +714,6 @@ class WebInterface:
             db.close()
         clear_our_cookies()
         lazylibrarian.LOGINUSER = None
-        cherrypy.lib.sessions.expire()
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
@@ -830,7 +829,6 @@ class WebInterface:
         # anti-phishing
         # block ip address if over 3 failed usernames in a row.
         # don't count attempts older than 24 hrs
-        print(11)
         logger = logging.getLogger(__name__)
         self.label_thread("LOGIN")
         limit = int(time.time()) - 1 * 60 * 60
@@ -1858,6 +1856,19 @@ class WebInterface:
 
         # Don't pass the whole config, no need to pass the
         # lazylibrarian.globals
+        months = {}
+        cnt = 0
+        for item in lazylibrarian.MONTHNAMES[0]:
+            months[cnt] = ', '.join(item)
+            cnt += 1
+        seasons = {}
+        for item in lazylibrarian.SEASONS:
+            value = lazylibrarian.SEASONS.get(item)
+            if value not in seasons:
+                seasons[value] = item
+            else:
+                seasons[value] = f"{seasons[value]}, {item}"
+
         namevars = name_vars('test')
         testvars = {}
         for item in namevars:
@@ -1869,6 +1880,8 @@ class WebInterface:
             "magazines_list": mags_list,
             "comics_list": comics_list,
             "namevars": testvars,
+            "seasons": seasons,
+            "months": months,
             "updated": time.ctime(CONFIG.get_int('GIT_UPDATED'))
         }
         for item in CONFIG.config.values():
@@ -1967,6 +1980,58 @@ class WebInterface:
                 json.dump(newdict, f, indent=4)
             logger.debug("Applying genre changes")
             check_db()
+
+        # months lists
+        new_months = []
+        x = range(13)
+        for month_num in x:
+            key = f"month_{month_num}"
+            month_names = kwargs[key]
+            new_months.append(get_list(month_names))
+        if new_months != lazylibrarian.MONTHNAMES[0]:
+            logger.debug("MONTHNAMES has changed")
+            # validate the table looks correct, same number of entries per row
+            valid = True
+            length = len(new_months[0])  # number of language entries
+            if length % 2:  # must be even, short and long for each language
+                valid = False
+            if valid:
+                for item in new_months:
+                    if len(item) != length:
+                        valid = False
+                        break
+
+            if not valid:
+                logger.debug("New MONTHNAMES is not valid, ignoring")
+            else:
+                json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
+                with open(json_file, 'w', encoding='utf-8') as f:
+                    json.dump(new_months, f, ensure_ascii=False)
+
+                # Create a second copy of the monthnames without accents and lowercased to speed up matching
+                cleantable = []
+                for lyne in new_months:
+                    cleanlyne = []
+                    for item in lyne:
+                        cleanlyne.append(unaccented(item).lower().strip('.'))
+                    cleantable.append(cleanlyne)
+
+                lazylibrarian.MONTHNAMES = [new_months, cleantable]
+
+        # now the season dictionary
+        new_seasons = {}
+        for key in kwargs:
+            if key.startswith('season_'):
+                season_names = kwargs[key]
+                season_value = check_int(key.split('_')[1], 0)
+                for item in get_list(season_names):
+                    new_seasons[item] = season_value
+        if new_seasons != lazylibrarian.SEASONS:
+            logger.debug("SEASONS has changed")
+            lazylibrarian.SEASONS = new_seasons.copy()
+            json_file = os.path.join(DIRS.DATADIR, 'seasons.json')
+            with open(json_file, 'w', encoding='utf-8') as f:
+                json.dump(lazylibrarian.SEASONS, f, ensure_ascii=False)
 
         # now the config file entries
         for key, item in CONFIG.config.items():
