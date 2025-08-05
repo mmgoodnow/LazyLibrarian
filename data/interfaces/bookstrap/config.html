@@ -6,6 +6,7 @@
     from lazylibrarian.config2 import CONFIG
     from lazylibrarian.logconfig import LOGCONFIG
     from lazylibrarian.notifiers import APPRISE_VER
+    from lazylibrarian import MONTHNAMES, SEASONS
 %>
 <%def name="headerIncludes()">
 <div id="subhead_container">
@@ -51,10 +52,11 @@
         <li role="presentation" id="6" aria-controls="notifications"><a role="tab" data-toggle="tab" aria-controls="notifications" href="#notifications">Notifications</a></li>
         <li role="presentation" id="7" aria-controls="capabilities"><a role="tab" data-toggle="tab" aria-controls="capabilities" href="#capabilities">Categories</a></li>
         <li role="presentation" id="8" aria-controls="filters"><a role="tab" data-toggle="tab" aria-controls="filters" href="#filters">Filters</a></li>
+        <li role="presentation" id="9" aria-controls="languages"><a role="tab" data-toggle="tab" aria-controls="languages" href="#languages">Languages</a></li>
         %if CONFIG['SHOW_GENRES']:
-        <li role="presentation" id="9" aria-controls="genres"><a role="tab" data-toggle="tab" aria-controls="genres" href="#genres">Genres</a></li>
+        <li role="presentation" id="10" aria-controls="genres"><a role="tab" data-toggle="tab" aria-controls="genres" href="#genres">Genres</a></li>
         %endif
-        <li role="presentation" id="10" aria-controls="telemetry"><a role="tab" data-toggle="tab" aria-controls="telemetry" href="#telemetry">Telemetry</a></li>
+        <li role="presentation" id="11" aria-controls="telemetry"><a role="tab" data-toggle="tab" aria-controls="telemetry" href="#telemetry">Telemetry</a></li>
         </ul>
         <div class="tab-content">
           <div role="tabpanel" class="tab-pane" id="webinterface">
@@ -619,7 +621,7 @@
           <div role="tabpanel" class="tab-pane" id="importoptions">
             <div class="configtable">
               <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-6">
                 <fieldset>
                   <legend>Information Sources</legend>
                   <div class="form-group">
@@ -712,11 +714,6 @@
                   <div class="form-group">
                     <label for="gb_api" class="control-label">GoogleBooks API:</label>
                     <input type="text" id="gb_api" name="gb_api" value="${CONFIG['GB_API']}" class="form-control">
-                  </div>
-                  <div class="form-group">
-                    <label for="gb_country" class="control-label">GoogleBooks Country:</label>
-                    <input type="text" id="gb_country" name="gb_country" value="${CONFIG['GB_COUNTRY']}" class="form-control">
-                    <span class="help-block">Two letter country code for geographically restricted content e.g: US GB ES</span>
                   </div>
                   </fieldset>
                   <fieldset id="gr_options">
@@ -815,7 +812,7 @@
                   %endif
                 </fieldset>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <fieldset>
                   <legend>File Formats</legend>
                   %if CONFIG['EBOOK_TAB']:
@@ -906,52 +903,6 @@
                       <input type="checkbox" id="delaysearch" name="delaysearch" value="1" ${checked} />
                       Increase delay for previously failed searches</label>
                   </div>
-                </fieldset>
-              </div>
-              <div class="col-md-4">
-                <fieldset>
-                  <legend>Language</legend>
-                  <div class="form-group">
-                    <label for="imp_preflang" class="control-label">Import languages:</label>
-                    <input type="text" id="imp_preflang" name="imp_preflang" value="${CONFIG['IMP_PREFLANG']}" class="form-control" placeholder="Import Languages">
-                    <span class="help-block">Comma separated country shortcodes:<br/>
-                      GoodReads e.g: eng, en-US, spa, ita<br/>
-                      GoogleBooks e.g: en, es, it<br/>
-                      Default: en, eng, en-US<br/>
-                      Try adding "Unknown" to list if GoodReads is missing results, or "All" if you don't want to check for language</span>
-                  </div>
-                  <div class="form-group">
-                    <label for="imp_monthlang" class="control=label">Languages for month names:</label>
-                    <input type="text" id="imp_monthlang" name="imp_monthlang" value="${CONFIG['IMP_MONTHLANG']}" class="form-control" placeholder="Languages for month names">
-                    <span class="help-block">Comma separated language codes for magazine issues:<br/>
-                      e.g: fr_FR.utf8, es_ES.utf8<br/>
-                      English month names are preloaded<br/>Changes to this setting require a restart</span>
-                  </div>
-                  <legend>Display Date Formats</legend>
-                    <div class="row">
-                   <div class="col-md-6">
-                    <label for="date_format" class="control=label">Author Dates:</label>
-                    <input type="text" id="author_date_format" name="author_date_format" value="${CONFIG['AUTHOR_DATE_FORMAT']}" class="form-control" placeholder="Format for author born/died dates (where available)">
-                   </div>
-                   <div class="col-md-6">
-                    <label for="date_format" class="control=label">Added Dates:</label>
-                    <input type="text" id="date_format" name="date_format" value="${CONFIG['DATE_FORMAT']}" class="form-control" placeholder="Format for column dates">
-                   </div>
-                   <div class="col-md-6">
-                    <label for="iss_format" class="control=label">Issue Dates:</label>
-                    <input type="text" id="iss_format" name="iss_format" value="${CONFIG['ISS_FORMAT']}" class="form-control" placeholder="Format for issue dates">
-                  </div>
-                   <div class="col-md-6">
-                    <label for="date_lang" class="control=label">Date Language:</label>
-                    <select id="date_lang" name="date_lang" class="form-control">
-                      %for date_lang in list(dict.fromkeys(lazylibrarian.MONTHNAMES[0][0])):
-                        <% selected = 'selected="selected"' if date_lang == CONFIG['DATE_LANG'] else '' %>
-                        <option value="${date_lang}" ${selected}>${date_lang}</option>
-                      %endfor
-                    </select>
-                  </div>
-                  </div>
-                  <span class="help-block">$d Day of the month as a number<br>$D Day of the month as a number if not 01<br>$b Month as abbreviated name<br>$B Month as full name<br>$m Month as a number<br>$y	Year without century<br>$Y	Year with century<br>eg $Y-$m-$d</span>
                 </fieldset>
               </div>
             </div>
@@ -1859,12 +1810,6 @@
                         </span>
                       </div>
                       <div class="input-group">
-                        <span class="input-group-addon">Search Languages</span>
-                        <input type="text" placeholder="eg EN or DE" id="anna_search_lang" name="anna_search_lang" value="${CONFIG['ANNA_SEARCH_LANG']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="ANNA Language">
-                        </span>
-                      </div>
-                      <div class="input-group">
                         <span class="input-group-addon">Priority</span>
                         <input type="number" id="anna_dlpriority" name="anna_dlpriority" value="${CONFIG['ANNA_DLPRIORITY']}" class="form-control" placeholder="0">
                         <span class="input-group-addon">Types</span>
@@ -1910,12 +1855,6 @@
                         <span class="input-group-addon">Remix_Key</span>
                         <input type="text" placeholder="Remix userkey" id="bok_remix_userkey" name="bok_remix_userkey" value="${CONFIG['BOK_REMIX_USERKEY']}" class="form-control">
                         <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Remix userid">
-                        </span>
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Search Languages</span>
-                        <input type="text" placeholder="eg spanish, german" id="bok_search_lang" name="bok_search_lang" value="${CONFIG['BOK_SEARCH_LANG']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="BOK Language">
                         </span>
                       </div>
                       <div class="input-group">
@@ -2331,22 +2270,6 @@
               </div>
               <div class="col-md-4">
                 <fieldset>
-                  <legend>Name Formatting</legend>
-                  <div class="form-group">
-                    <label for="name_postfix">Author Name suffix</label>
-                    <input type="text" id="name_postfix" name="name_postfix" value="${CONFIG['NAME_POSTFIX']}" class="form-control" placeholder="eg snr, jnr">
-                    <span class="help-block">Comma separated list of suffixes to ignore when showing surname first</span>
-                  </div>
-                  <div class="form-group">
-                    <label for="name_postfix">Definite Articles</label>
-                    <input type="text" id="name_definite" name="name_definite" value="${CONFIG['NAME_DEFINITE']}" class="form-control" placeholder="eg The, A, Les">
-                    <span class="help-block">Comma separated list of definite articles for sorting titles</span>
-                  </div>
-                  <div class="form-group">
-                    <label for="name_postfix">Non-splitting titles</label>
-                    <input type="text" id="imp_nosplit" name="imp_nosplit" value="${CONFIG['IMP_NOSPLIT']}" class="form-control" placeholder="eg Doctor Who">
-                    <span class="help-block">Comma separated list of prefixes and (items in braces) to ignore when splitting titles</span>
-                  </div>
                   <legend>Filename Formatting</legend>
                     <span class="help-block">Note: Calibre may override ebook folder and filename patterns</span>
                   <div class="form-group">
@@ -3557,27 +3480,12 @@
                 <br>
                 %if CONFIG['MAG_TAB']:
                 <div class="col-md-6">
-                <legend>Magazine Reject/Allow Lists (all titles)</legend>
-                <div class="form-group">
-                  <input type="text" id="reject_mags" name="reject_mags" value="${CONFIG['REJECT_MAGS']}" class="form-control" placeholder="Reject word list">
-                  <span class="help-block">Comma separated list of words to reject in titles and filenames:<br/>
-                  </span>
-                </div>
-                <div class="form-group">
-                  <input type="text" id="issue_nouns" name="issue_nouns" value="${CONFIG['ISSUE_NOUNS']}" class="form-control" placeholder="Allowed issue identifiers">
-                  <span class="help-block">Comma separated list of words allowed for issues:<br/>
-                  </span>
-                </div>
-                <div class="form-group">
-                  <input type="text" id="volume_nouns" name="volume_nouns" value="${CONFIG['VOLUME_NOUNS']}" class="form-control" placeholder="Allowed volume identifiers">
-                  <span class="help-block">Comma separated list of words allowed for volumes:<br/>
-                  </span>
-                </div>
-                <div class="form-group">
-                  <input type="text" id="mag_nouns" name="mag_nouns" value="${CONFIG['MAG_NOUNS']}" class="form-control" placeholder="Allowed in magazine titles">
-                  <span class="help-block">Comma separated list of words allowed in magazine titles:<br/>
-                  </span>
-                </div>
+                  <legend>Magazine Reject/Allow Lists (all titles)</legend>
+                  <div class="form-group">
+                    <input type="text" id="reject_mags" name="reject_mags" value="${CONFIG['REJECT_MAGS']}" class="form-control" placeholder="Reject word list">
+                    <span class="help-block">Comma separated list of words to reject in titles and filenames:<br/>
+                    </span>
+                  </div>
                 </div>
                 %endif
                 %if CONFIG['COMIC_TAB']:
@@ -3695,6 +3603,126 @@
                 %endif
             </div>
             <br>
+          </div>
+        </div>
+        <div role="tabpanel" class="tab-pane" id="languages">
+          <div class="configtable">
+            <div class="row">
+              <div class="col-md-6">
+                <fieldset>
+                  <legend>Language</legend>
+                  <div class="form-group">
+                    <label for="imp_preflang" class="control-label">Import languages:</label>
+                    <input type="text" id="imp_preflang" name="imp_preflang" value="${CONFIG['IMP_PREFLANG']}" class="form-control" placeholder="Import Languages">
+                    <span class="help-block">Comma separated country shortcodes:<br/>
+                      GoodReads e.g: eng, en-US, spa, ita<br/>
+                      GoogleBooks e.g: en, es, it<br/>
+                      Default: en, eng, en-US<br/>
+                      Try adding "Unknown" to list if GoodReads is missing results, or "All" if you don't want to check for language</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="gb_country" class="control-label">GoogleBooks Country:</label>
+                    <input type="text" id="gb_country" name="gb_country" value="${CONFIG['GB_COUNTRY']}" class="form-control">
+                    <span class="help-block">Two letter country code for geographically restricted content e.g: US GB ES</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="imp_monthlang" class="control=label">Languages for month names:</label>
+                    <input type="text" id="imp_monthlang" name="imp_monthlang" value="${CONFIG['IMP_MONTHLANG']}" class="form-control" placeholder="Languages for month names">
+                    <span class="help-block">Comma separated language codes for magazine issues:<br/>
+                      e.g: fr_FR.utf8, es_ES.utf8<br/>
+                      English month names are preloaded<br/>Changes to this setting require a restart</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="anna_search_lang" class="control=label">Annas Archive Search Language:</label>
+                    <input type="text" placeholder="eg EN or DE" id="anna_search_lang" name="anna_search_lang" value="${CONFIG['ANNA_SEARCH_LANG']}" class="form-control">
+                    <span class="help-block">Single language code for Annas Archive:<br/>e.g: EN or DE or ANY<br/></span>
+                  </div>
+                  <div class="form-group">
+                    <label for="bok_search_lang" class="control=label">Z-Library Search Languages:</label>
+                    <input type="text" placeholder="eg spanish, german" id="bok_search_lang" name="bok_search_lang" value="${CONFIG['BOK_SEARCH_LANG']}" class="form-control">
+                    <span class="help-block">Comma separated languages for ZLibrary:<br/>e.g: spanish, german<br/></span>
+                  </div>
+                  <legend>Display Date Formats</legend>
+                   <div class="form-group">
+                    <label for="date_format" class="control=label">Author Dates:</label>
+                    <input type="text" id="author_date_format" name="author_date_format" value="${CONFIG['AUTHOR_DATE_FORMAT']}" class="form-control" placeholder="Format for author born/died dates (where available)">
+                   </div>
+                   <div class="form-group">
+                    <label for="date_format" class="control=label">Added Dates:</label>
+                    <input type="text" id="date_format" name="date_format" value="${CONFIG['DATE_FORMAT']}" class="form-control" placeholder="Format for column dates">
+                   </div>
+                   <div class="form-group">
+                    <label for="iss_format" class="control=label">Issue Dates:</label>
+                    <input type="text" id="iss_format" name="iss_format" value="${CONFIG['ISS_FORMAT']}" class="form-control" placeholder="Format for issue dates">
+                   </div>
+                   <div class="form-group">
+                    <label for="date_lang" class="control=label">Date Language:</label>
+                    <select id="date_lang" name="date_lang" class="form-control">
+                      %for date_lang in list(dict.fromkeys(lazylibrarian.MONTHNAMES[0][0])):
+                        <% selected = 'selected="selected"' if date_lang == CONFIG['DATE_LANG'] else '' %>
+                        <option value="${date_lang}" ${selected}>${date_lang}</option>
+                      %endfor
+                    </select>
+                  </div>
+                  <span class="help-block">$d Day of the month as a number<br>$D Day of the month as a number if not 01<br>$b Month as abbreviated name<br>$B Month as full name<br>$m Month as a number<br>$y  Year without century<br>$Y  Year with century<br>eg $Y-$m-$d</span>
+                </fieldset>
+                  <legend>Name Formatting</legend>
+                  <div class="form-group">
+                    <label for="name_postfix">Author Name suffix</label>
+                    <input type="text" id="name_postfix" name="name_postfix" value="${CONFIG['NAME_POSTFIX']}" class="form-control" placeholder="eg snr, jnr">
+                    <span class="help-block">Comma separated list of suffixes to ignore when showing surname first</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="name_postfix">Definite Articles</label>
+                    <input type="text" id="name_definite" name="name_definite" value="${CONFIG['NAME_DEFINITE']}" class="form-control" placeholder="eg The, A, Les">
+                    <span class="help-block">Comma separated list of definite articles for sorting titles</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="name_postfix">Non-splitting titles</label>
+                    <input type="text" id="imp_nosplit" name="imp_nosplit" value="${CONFIG['IMP_NOSPLIT']}" class="form-control" placeholder="eg Doctor Who">
+                    <span class="help-block">Comma separated list of prefixes and (items in braces) to ignore when splitting titles</span>
+                  </div>
+              </div>
+              <div class="col-md-6">
+                <fieldset>
+                  <legend>Season Names</legend>
+                  %for season in config['seasons']:
+                    <div class="input-group">
+                      <label for="season_${season}" class="input-group-addon">Month &nbsp ${f'{str(season).zfill(2)}'}</label>
+                      <input type="text" id="season_${season}" name="season_${season}" value="${config['seasons'].get(season)}" class="form-control">
+                    </div>
+                  %endfor
+                </fieldset>
+                <br>
+                <fieldset>
+                  <legend>Month Names</legend>
+                  %for month in config['months']:
+                    <div class="input-group">
+                      %if month == 0:
+                        <label for="month_${month}" class="input-group-addon">Languages</label>
+                      %endif
+                      %if month > 0:
+                        <label for="month_${month}" class="input-group-addon">Month &nbsp&nbsp ${str(month).zfill(2)}</label>
+                      %endif
+                      <input type="text" id="month_${month}" name="month_${month}" value="${config['months'].get(month)}" class="form-control">
+                    </div>
+                  %endfor
+                </fieldset>
+                  <br>
+                  <div class="form-group">
+                    <label for="date_format" class="control=label">Issue Number Identifiers:</label>
+                    <input type="text" id="issue_nouns" name="issue_nouns" value="${CONFIG['ISSUE_NOUNS']}" class="form-control" placeholder="Allowed issue identifiers">
+                  </div>
+                  <div class="form-group">
+                    <label for="date_format" class="control=label">Volume Number Identifiers:</label>
+                    <input type="text" id="volume_nouns" name="volume_nouns" value="${CONFIG['VOLUME_NOUNS']}" class="form-control" placeholder="Allowed volume identifiers">
+                  </div>
+                  <div class="form-group">
+                    <label for="date_format" class="control=label">Words allowed in magazine titles:</label>
+                    <input type="text" id="mag_nouns" name="mag_nouns" value="${CONFIG['MAG_NOUNS']}" class="form-control" placeholder="Allowed in magazine titles">
+                  </div>
+              </div>
+            </div>
           </div>
         </div>
         <div role="tabpanel" class="tab-pane" id="genres">
