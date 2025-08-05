@@ -82,12 +82,9 @@ def slsk_search(book=None, searchtype='ebook', test=False):
             cachelogger.debug(f"CacheHandler: Found CACHED response {hashfilename} for {book['searchterm']}")
         else:
             lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
-            hashfilename = slsk.search(book['searchterm'], searchtype=searchtype)
+            hashfilename = slsk.search(book['searchterm'], searchtype=searchtype, test=test)
     else:
-        limit = 0
-        if test:
-            limit = 10
-        hashfilename = slsk.search(book['searchterm'], searchtype=searchtype, limit=limit)
+        hashfilename = slsk.search(book['searchterm'], searchtype=searchtype, test=test)
 
     if not hashfilename:
         logger.error("Not connected to slskd")
@@ -159,7 +156,7 @@ class SLSKD:
             self.slskd = None
             self.logger.error(str(e))
 
-    def search(self, searchterm, searchtype='ebook', limit=0):
+    def search(self, searchterm, searchtype='ebook', test=False):
         results = []
         if not self.slskd:
             self.logger.error("Not connected to slskd")
@@ -183,8 +180,8 @@ class SLSKD:
             if state != 'InProgress':
                 self.logger.debug(state)
                 break
-            if cnt and cnt % 10 == 0:
-                lazylibrarian.test_data = f"Soulseek searching<br>{cnt} seconds..."
+
+            lazylibrarian.test_data = f"Soulseek searching<br>{cnt} seconds..."
             if cnt > 120:
                 break
             time.sleep(2)
@@ -193,8 +190,10 @@ class SLSKD:
         lazylibrarian.test_data = ''
         res = len(self.slskd.searches.search_responses(search['id']))
         msg = f"Search returned results from {res} users"
-        if limit and limit < res:
-            msg += f". Limiting test to {limit}"
+        limit = 0
+        if test:
+            limit = 10
+            msg += f'Limiting test to {limit}'
         self.logger.info(msg)
         user_count = 0
         try:
@@ -207,14 +206,11 @@ class SLSKD:
                     self.logger.info(f"Ignoring user {username}")
                 else:
                     files = result['files']
-                    file_count = 0
                     msg = f"Parsing result from user: {username}, {len(files)} results"
-                    if limit and limit < len(files):
-                        msg += f". Limiting test to {limit}"
                     self.logger.info(msg)
+                    rejects = 0
                     for file in files:
-                        file_count += 1
-                        if limit and file_count > limit:
+                        if username in self.ignored_users:
                             break
                         try:
                             file_dir, file_name = file['filename'].rsplit("\\", 1)
@@ -227,43 +223,53 @@ class SLSKD:
                             continue
 
                         if not CONFIG.is_valid_booktype(file_name, booktype=searchtype):
-                            self.logger.debug(f"Rejecting {file_name}")
+                            rejects += 1  # self.logger.debug(f"Rejecting {file_name}")
+                            if rejects > 20:
+                                self.logger.debug(f"Ignoring {username}, too many rejects")
+                                self.ignored_users.append(username)
+                                break
                         else:
-                            # some users dump all their books in one folder so directory is huge
-                            # we exclude these users as we don't want all their books
-                            if searchtype == 'ebook' and directory['fileCount'] > 10:  # multiple formats, opf, jpg
-                                self.ignored_users.append(username)
-                                self.logger.debug(f"Ignoring user: {username}, {directory['fileCount']} ebook files")
-                                break
-                            if searchtype == 'audio' and directory['fileCount'] > 50:
-                                self.ignored_users.append(username)
-                                self.logger.debug(f"Ignoring user: {username}, {directory['fileCount']} audio files")
-                                break
-
-                            # Parse the directory['files'] and only include the filetypes we want
+                            # Parse the directory['files'] and only include the files we want
                             # Include opf, jpg  adjust directory['fileCount'] to match
                             new_dir = {}
                             for item in directory:
                                 if item != 'files':
                                     new_dir[item] = directory[item]
                             new_files = []
+                            extns = []
                             for item in directory['files']:
-                                extn = os.path.splitext(file_name)[1].lstrip('.')
-                                if CONFIG.is_valid_booktype(file_name, booktype=searchtype) or extn in ['opf', 'jpg']:
-                                    item['filename'] = file_dir + "\\" + item['filename']
-                                    new_files.append(item)
-                            new_dir['fileCount'] = len(new_files)
-                            new_dir['files'] = new_files
-                            data = {
-                                "dir": file_dir.split("\\")[-1],
-                                "filename": file_name,
-                                "username": username,
-                                "directory": new_dir,
-                                "size": file['size'],
-                            }
-                            results.append(data)
+                                title, extn = os.path.splitext(item['filename'])
+                                extn = extn.lstrip('.').lower()
+                                if extn in extns:  # reject if multiple files of the same type
+                                    new_files = []
+                                    self.logger.debug(f"Rejecting {title}, multiple {extn}")
+                                    self.ignored_users.append(username)
+                                    break
+                                extns.append(extn)
+                                title = title.lower()
+                                if (CONFIG.is_valid_booktype(item['filename'], booktype=searchtype) or
+                                        extn in ['opf', 'jpg']):
+                                    accept = True
+                                    for word in get_list(searchterm):
+                                        if word.lower() not in title:
+                                            accept = False
+                                            break
+                                    if accept or title in ['metadata', 'cover']:
+                                        item['filename'] = file_dir + "\\" + item['filename']
+                                        new_files.append(item)
+                            if new_files:
+                                new_dir['fileCount'] = len(new_files)
+                                new_dir['files'] = new_files
+                                data = {
+                                    "dir": file_dir.split("\\")[-1],
+                                    "filename": file_name,
+                                    "username": username,
+                                    "directory": new_dir,
+                                    "size": file['size'],
+                                }
+                                results.append(data)
 
-                    self.logger.info(f"Finished processing user: {username}")
+                    self.logger.info(f"Finished processing user: {username}, rejected {rejects}")
             self.logger.info(f"Processed results from {len(self.slskd.searches.search_responses(search['id']))} users")
         except Exception as e:
             self.logger.error(f"Error getting responses: {e}")
