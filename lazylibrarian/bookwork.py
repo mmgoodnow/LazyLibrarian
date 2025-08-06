@@ -99,6 +99,7 @@ def set_book_authors(book):
                           (authorid, book['bookid'], role), suppress='UNIQUE')
                 newrefs += 1
     except Exception as e:
+        logger = logging.getLogger(__name__)
         logger.error(f"Error parsing authorlist for {book['bookname']}: {type(e).__name__} {str(e)}")
 
     db.close()
@@ -1307,29 +1308,6 @@ def get_book_pubdate(bookid, refresh=False):
                 bookdate = book['date']
         return bookdate, in_cache
 
-
-def thinglang(isbn):
-    # try searching librarything for a language code using the isbn
-    # if no language found, librarything return value is "invalid" or "unknown"
-    # librarything returns plain text, not xml
-    logger = logging.getLogger(__name__)
-    logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
-    book_url = '/'.join([CONFIG['LT_URL'], f"api/thinglang.php?isbn={isbn}"])
-    proxies = proxy_list()
-    booklang = ''
-    try:
-        librarything_wait()
-        timeout = CONFIG.get_int('HTTP_TIMEOUT')
-        r = requests.get(book_url, timeout=timeout, proxies=proxies)
-        resp = r.text
-        if '!DOCTYPE html' in resp:
-            logger.debug("Librarything returned html for language")
-        else:
-            logger.debug(f"LibraryThing reports language [{resp}] for {isbn}")
-            if 'invalid' not in resp and 'unknown' not in resp and '<' not in resp:
-                booklang = resp
-        return booklang
-
     except Exception as e:
         logger.error(f"{type(e).__name__} finding language: {str(e)}")
         return ''
@@ -1373,11 +1351,6 @@ def isbnlang(isbn):
                     book_language = match['lang']
                     cache_hit = True
                     logger.debug(f"Found cached language [{book_language}] for  {isbnhead}")
-            if not book_language:
-                book_language = thinglang(isbn)
-                thing_hit = True
-                if book_language:
-                    db.action('insert into languages values (?, ?)', (isbnhead, book_language))
     except Exception as e:
         logger.error(str(e))
     db.close()
