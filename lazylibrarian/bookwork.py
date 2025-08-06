@@ -17,14 +17,11 @@ import threading
 import time
 import traceback
 from urllib.parse import quote_plus, quote, urlencode
-
-import requests
 from rapidfuzz import fuzz
 
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
-from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, \
@@ -99,7 +96,6 @@ def set_book_authors(book):
                           (authorid, book['bookid'], role), suppress='UNIQUE')
                 newrefs += 1
     except Exception as e:
-        logger = logging.getLogger(__name__)
         logger.error(f"Error parsing authorlist for {book['bookname']}: {type(e).__name__} {str(e)}")
 
     db.close()
@@ -1307,10 +1303,6 @@ def get_book_pubdate(bookid, refresh=False):
             if book['date']:
                 bookdate = book['date']
         return bookdate, in_cache
-
-    except Exception as e:
-        logger.error(f"{type(e).__name__} finding language: {str(e)}")
-        return ''
 
 
 def isbnlang(isbn):
