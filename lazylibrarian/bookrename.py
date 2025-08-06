@@ -141,11 +141,10 @@ def id3read(filename):
                     author = albumartist
                 elif composer:
                     author = composer
-            db.close()
         except Exception as e:
-            db.close()
             logger.debug(str(e))
 
+        db.close()
         if author and type(author) is list:
             lst = ', '.join(author)
             logger.debug(f"id3reader author list [{lst}]")
@@ -419,12 +418,10 @@ def audio_rename(bookid, rename=False, playlist=False):
             return ''
 
     db = database.DBConnection()
-    try:
-        cmd = ('select AuthorName,BookName,AudioFile from books,authors where '
-               'books.AuthorID = authors.AuthorID and bookid=?')
-        exists = db.match(cmd, (bookid,))
-    finally:
-        db.close()
+    cmd = ('select AuthorName,BookName,AudioFile from books,authors where '
+           'books.AuthorID = authors.AuthorID and bookid=?')
+    exists = db.match(cmd, (bookid,))
+    db.close()
     if exists:
         book_filename = exists['AudioFile']
         if book_filename:
@@ -565,12 +562,10 @@ def stripspaces(pathname):
 def book_rename(bookid):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
-    try:
-        cmd = ('select AuthorName,BookName,BookFile from books,authors where '
-               'books.AuthorID = authors.AuthorID and bookid=?')
-        exists = db.match(cmd, (bookid,))
-    finally:
-        db.close()
+    cmd = ('select AuthorName,BookName,BookFile from books,authors where '
+           'books.AuthorID = authors.AuthorID and bookid=?')
+    exists = db.match(cmd, (bookid,))
+    db.close()
 
     if not exists:
         msg = f"Invalid bookid in book_rename {bookid}"
@@ -875,9 +870,10 @@ def name_vars(bookid, abridged=''):
                 mydict['Title'] = ''
                 mydict['SortAuthor'] = ''
                 mydict['SortTitle'] = ''
-        db.close()
-    except Exception:
-        db.close()
+
+    except Exception as e:
+        loggermatching.debug(str(e))
+    db.close()
 
     mydict['FolderName'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FOLDER'],
                                                             mydict)))
