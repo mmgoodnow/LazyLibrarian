@@ -224,7 +224,7 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
             part_durations.append([part[0], 0])
         except Exception as e:
             logger.error(f"{type(e).__name__}: {str(e)}")
-            return False
+            return part_durations, highest_bitrate
 
     if part_durations:
         part_durations.sort(key=lambda x: x[0])
@@ -455,7 +455,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         if not write_metadata(source_file, metadata_file):
             return False
 
-        part_durations, highest_bitrate = read_part_durations(bookfolder, parts, metadata_file, duration_file)
+        _, highest_bitrate = read_part_durations(bookfolder, parts, metadata_file, duration_file)
 
         params = [ffmpeg]
 
@@ -467,7 +467,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         options = get_list(ffmpeg_options)
         if '-b:a' in options:
             config_bitrate = check_int(''.join(c for c in options[options.index('-b:a') + 1] if c.isdigit()), 128)
-            if highest_bitrate < config_bitrate:
+            if highest_bitrate and highest_bitrate < config_bitrate:
                 options[options.index('-b:a') + 1] = f"{highest_bitrate}k"
                 logger.debug(f"Dropping output bitrate to {highest_bitrate}k")
         params.extend(options)
