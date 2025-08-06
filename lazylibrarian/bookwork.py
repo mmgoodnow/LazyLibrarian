@@ -12,7 +12,6 @@
 
 
 import logging
-import os
 import re
 import threading
 import time
@@ -27,8 +26,7 @@ from lazylibrarian import database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
-from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
+from lazylibrarian.formatter import plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, \
     split_title
 from lazylibrarian.processcontrol import get_info_on_caller
@@ -37,6 +35,8 @@ from lazylibrarian.processcontrol import get_info_on_caller
 def set_all_book_authors():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    totalauthors = 0
+    totalrefs = 0
     try:
         db.action('drop table if exists bookauthors')
         db.action('create table bookauthors (AuthorID TEXT, BookID TEXT, Role TEXT, UNIQUE (AuthorID, BookID, Role))')
@@ -44,66 +44,64 @@ def set_all_book_authors():
         for item in books:
             db.action('insert into bookauthors (AuthorID, BookID, Role) values (?, ?, ?)',
                       (item['AuthorID'], item['BookID'], ''), suppress='UNIQUE')
-        totalauthors = 0
-        totalrefs = 0
         books = db.select('select bookid,bookname,authorid from books where workpage is not null and workpage != ""')
         for book in books:
             newauthors, newrefs = set_book_authors(book)
             totalauthors += newauthors
             totalrefs += newrefs
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+    db.close()
     msg = f"Added {totalauthors} new authors to database, {totalrefs} new bookauthors"
     logger.debug(msg)
     return totalauthors, totalrefs
 
 
 def set_book_authors(book):
+    logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    newauthors = 0
+    newrefs = 0
     try:
-        newauthors = 0
-        newrefs = 0
-        try:
-            authorlist = get_book_authors(book['bookid'])
-            for author in authorlist:
-                role = ''
-                if 'id' in author:
-                    # it's a goodreads data source
-                    authorname = author['name']
-                    exists = db.match('select authorid from authors where authorid=?', (author['id'],))
-                    if 'role' in author:
-                        role = author['role']
-                else:
-                    # it's a librarything data source
-                    authorname = format_author_name(author['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-                    exists = db.match('select authorid from authors where authorname=?', (authorname,))
-                    if 'type' in author:
-                        authtype = author['type']
-                        if authtype in ['primary author', 'main author', 'secondary author']:
-                            role = authtype
-                        elif author['role'] in ['Author', '&mdash;'] and author['work'] == 'all editions':
-                            role = 'Author'
-                if exists:
-                    authorid = exists['authorid']
-                else:
-                    # try to add new author to database by name
-                    reason = f"set_book_authors: {book['bookname']}"
-                    authorname, authorid, new = lazylibrarian.importer.add_author_name_to_db(authorname,
-                                                                                             refresh=False,
-                                                                                             addbooks=False,
-                                                                                             reason=reason,
-                                                                                             title=book['bookname'])
-                    if new and authorid:
-                        newauthors += 1
-                if authorid:
-                    db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                              (authorid, book['bookid'], role), suppress='UNIQUE')
-                    newrefs += 1
-        except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error parsing authorlist for {book['bookname']}: {type(e).__name__} {str(e)}")
-    finally:
-        db.close()
+        authorlist = get_book_authors(book['bookid'])
+        for author in authorlist:
+            role = ''
+            if 'id' in author:
+                # it's a goodreads data source
+                authorname = author['name']
+                exists = db.match('select authorid from authors where authorid=?', (author['id'],))
+                if 'role' in author:
+                    role = author['role']
+            else:
+                # it's a librarything data source
+                authorname = format_author_name(author['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
+                exists = db.match('select authorid from authors where authorname=?', (authorname,))
+                if 'type' in author:
+                    authtype = author['type']
+                    if authtype in ['primary author', 'main author', 'secondary author']:
+                        role = authtype
+                    elif author['role'] in ['Author', '&mdash;'] and author['work'] == 'all editions':
+                        role = 'Author'
+            if exists:
+                authorid = exists['authorid']
+            else:
+                # try to add new author to database by name
+                reason = f"set_book_authors: {book['bookname']}"
+                authorname, authorid, new = lazylibrarian.importer.add_author_name_to_db(authorname,
+                                                                                         refresh=False,
+                                                                                         addbooks=False,
+                                                                                         reason=reason,
+                                                                                         title=book['bookname'])
+                if new and authorid:
+                    newauthors += 1
+            if authorid:
+                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
+                          (authorid, book['bookid'], role), suppress='UNIQUE')
+                newrefs += 1
+    except Exception as e:
+        logger.error(f"Error parsing authorlist for {book['bookname']}: {type(e).__name__} {str(e)}")
+
+    db.close()
     return newauthors, newrefs
 
 
@@ -151,9 +149,9 @@ def set_series(serieslist=None, bookid=None, reason=""):
         Return how many api hits and the original publication date if known """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    api_hits = 0
+    originalpubdate = ''
     try:
-        api_hits = 0
-        originalpubdate = ''
         newserieslist = []
         if bookid:
             # delete any old series-member entries
@@ -239,8 +237,10 @@ def set_series(serieslist=None, bookid=None, reason=""):
 
                 db.action("INSERT INTO seriesauthors ('SeriesID', 'AuthorID') VALUES (?, ?)",
                           (seriesid, authorid), suppress='UNIQUE')
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+
+    db.close()
     return api_hits, originalpubdate
 
 
@@ -249,13 +249,15 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
         defaults are passed in as newbook or newauthor status """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    new_status = ''
+    new_astatus = ''
+    bookname = bookid
     try:
         match = db.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
         if not match:
+            db.close()
             return default, adefault
 
-        new_status = ''
-        new_astatus = ''
         authorid = match['AuthorID']
         bookname = match['BookName']
         threadname = thread_name()
@@ -288,8 +290,9 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
                     match = db.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
                     msg = f"[{threadname}] Author ({match['AuthorName']}) is {authstatus}"
                     db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+    db.close()
 
     if new_status:
         default = new_status
@@ -304,17 +307,18 @@ def delete_empty_series():
     """ remove any series from series table that have no entries in member table, return how many deleted """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    count = 0
     try:
         series = db.select('SELECT SeriesID,SeriesName from series')
-        count = 0
         for item in series:
             match = db.match('SELECT BookID from member where SeriesID=?', (item['SeriesID'],))
             if not match:
                 logger.info(f"Deleting empty series {item['SeriesName']}:{item['SeriesID']}")
                 count += 1
                 db.action('DELETE from series where SeriesID=?', (item['SeriesID'],))
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+    db.close()
     return count
 
 
@@ -324,6 +328,7 @@ def set_work_id(books=None):
         Paginate requests to reduce api hits """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    counter = 0
     try:
         pages = []
         if books:
@@ -352,7 +357,6 @@ def set_work_id(books=None):
                 if page:
                     pages.append(page)
 
-        counter = 0
         params = {"key": CONFIG['GR_API']}
         for page in pages:
             url = '/'.join([CONFIG['GR_URL'], f"book/id_to_work_id/{page}?{urlencode(params)}"])
@@ -379,8 +383,9 @@ def set_work_id(books=None):
 
             except Exception as e:
                 logger.error(f"{type(e).__name__} parsing id_to_work_id page: {str(e)}")
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+    db.close()
 
     msg = f"Updated {counter} {plural(counter, 'id')}"
     logger.debug(f"set_work_id complete: {msg}")
@@ -398,207 +403,6 @@ def librarything_wait():
         logger.debug(f"LibraryThing sleep {sleep_time:.3f}, total {lazylibrarian.TIMERS['SLEEP_LT']:.3f}")
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_LT'] = time_now
-
-
-# Feb 2018 librarything have disabled "whatwork"
-# might only be temporary, but for now disable looking for new workpages
-# and do not expire cached ones
-NEW_WHATWORK = False
-LAST_NEW = 0
-
-
-def get_bookwork(bookid=None, reason='', seriesid=None):
-    """ return the contents of the LibraryThing workpage for the given bookid, or seriespage if seriesID given
-        preferably from the cache. If not already cached, cache the results
-        Return None if no workpage/seriespage available """
-    global NEW_WHATWORK, LAST_NEW
-    logger = logging.getLogger(__name__)
-    if not bookid and not seriesid:
-        logger.error("get_bookwork - No bookID or seriesID")
-        return None
-
-    db = database.DBConnection()
-    try:
-        if bookid:
-            cmd = ("select BookName,AuthorName,BookISBN from books,authors where bookID=? or books.gr_id=? and "
-                   "books.AuthorID = authors.AuthorID")
-            cache_location = "WorkCache"
-            item = db.match(cmd, (bookid, bookid))
-        else:
-            cmd = "select SeriesName from series where SeriesID=?"
-            cache_location = "SeriesCache"
-            item = db.match(cmd, (seriesid,))
-    finally:
-        db.close()
-
-    if item:
-        cache_location = os.path.join(DIRS.CACHEDIR, cache_location)
-        if bookid:
-            workfile = os.path.join(cache_location, f"{str(bookid)}.html")
-        else:
-            workfile = os.path.join(cache_location, f"{str(seriesid)}.html")
-
-        # does the workpage need to expire? For now only expire if it was an error page
-        # (small file) or a series page as librarything might get better info over time, more series members etc
-        if path_isfile(workfile):
-            if seriesid or os.path.getsize(syspath(workfile)) < 500:
-                cache_modified_time = os.stat(syspath(workfile)).st_mtime
-                time_now = time.time()
-                expiry = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
-                if cache_modified_time < time_now - expiry:
-                    # Cache entry is too old, delete it
-                    if NEW_WHATWORK:
-                        remove_file(workfile)
-
-        if path_isfile(workfile):
-            # use cached file if possible to speed up refreshactiveauthors and librarysync re-runs
-            lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-            if bookid:
-                if reason:
-                    logger.debug(f"get_bookwork: Returning Cached entry for {bookid} {reason}")
-                else:
-                    logger.debug(f"get_bookwork: Returning Cached workpage for {bookid}")
-            else:
-                logger.debug(f"get_bookwork: Returning Cached seriespage for {item['seriesName']}")
-
-            with open(syspath(workfile), "r", errors="backslashreplace") as cachefile:
-                source = cachefile.read()
-            return source
-        else:
-            lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
-            if not NEW_WHATWORK:
-                # don't nag. Show message no more than every 12 hrs
-                timenow = int(time.time())
-                if check_int(LAST_NEW, 0) + 43200 < timenow:
-                    logger.warning("New WhatWork is disabled")
-                    LAST_NEW = timenow
-                return None
-            if bookid:
-                title = safe_unicode(item['BookName'])
-                author = safe_unicode(item['AuthorName'])
-                url = '/'.join(
-                    [CONFIG['LT_URL'], f'api/whatwork.php?author={quote_plus(author)}&title={quote_plus(title)}'])
-            else:
-                seriesname = safe_unicode(item['seriesName'])
-                url = '/'.join([CONFIG['LT_URL'], f'series/{quote_plus(seriesname)}'])
-
-            librarything_wait()
-            result, success = fetch_url(url)
-            if bookid and success:
-                # noinspection PyBroadException
-                try:
-                    workpage = result.split('<link>')[1].split('</link>')[0]
-                    librarything_wait()
-                    result, success = fetch_url(workpage)
-                except Exception:
-                    try:
-                        errmsg = result.split('<error>')[1].split('</error>')[0]
-                    except IndexError:
-                        errmsg = "Unknown Error"
-                    # if no workpage link, try isbn instead
-                    if item['BookISBN']:
-                        url = '/'.join([CONFIG['LT_URL'],
-                                        f"api/whatwork.php?isbn={item['BookISBN']}"])
-                        librarything_wait()
-                        result, success = fetch_url(url)
-                        if success:
-                            # noinspection PyBroadException
-                            try:
-                                workpage = result.split('<link>')[1].split('</link>')[0]
-                                librarything_wait()
-                                result, success = fetch_url(workpage)
-                            except Exception:
-                                # no workpage link found by isbn
-                                try:
-                                    errmsg = result.split('<error>')[1].split('</error>')[0]
-                                except IndexError:
-                                    errmsg = "Unknown Error"
-                                # still cache if whatwork returned a result without a link, so we don't keep retrying
-                                logger.debug(f"Librarything: [{errmsg}] for ISBN {item['BookISBN']}")
-                                success = True
-                    else:
-                        # still cache if whatwork returned a result without a link, so we don't keep retrying
-                        msg = f"Librarything: [{errmsg}] for "
-                        logger.debug(f"{msg + item['AuthorName']} {item['BookName']}")
-                        success = True
-            if success:
-                with open(syspath(workfile), "w") as cachefile:
-                    cachefile.write(result)
-                    if bookid:
-                        logger.debug(f"get_bookwork: Caching workpage for {workfile}")
-                    else:
-                        logger.debug(f"get_bookwork: Caching series page for {workfile}")
-                    # return None if we got an error page back
-                    if '</request><error>' in result:
-                        return None
-                return result
-            else:
-                if bookid:
-                    logger.debug(f"get_bookwork: Unable to cache workpage, got {result}")
-                else:
-                    logger.debug(f"get_bookwork: Unable to cache series page, got {result}")
-            return None
-    else:
-        if bookid:
-            logger.debug(f'Get Book Work - Invalid bookID [{bookid}]')
-        else:
-            logger.debug(f'Get Book Work - Invalid seriesID [{seriesid}]')
-        return None
-
-
-def set_work_pages():
-    """ the workpage link for any books that don't already have one """
-    global LAST_NEW
-    logger = logging.getLogger(__name__)
-    db = database.DBConnection()
-    try:
-        cmd = ("select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4 "
-               "and books.AuthorID = authors.AuthorID")
-        books = db.select(cmd)
-        if books:
-            logger.debug(f"Setting WorkPage for {len(books)} {plural(len(books), 'book')}")
-            counter = 0
-            for book in books:
-                bookid = book['BookID']
-                worklink = get_work_page(bookid)
-                if worklink:
-                    control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"WorkPage": worklink}
-                    db.upsert("books", new_value_dict, control_value_dict)
-                    counter += 1
-                else:
-                    if check_int(LAST_NEW, 0) + 43200 < time.time():
-                        logger.debug(f"No WorkPage found for {book['AuthorName']}: {book['BookName']}")
-                    if worklink is None:
-                        break
-            msg = f"Updated {counter} {plural(counter, 'page')}"
-            logger.debug(f"set_work_pages complete: {msg}")
-        else:
-            msg = 'No missing WorkPages'
-            logger.debug(msg)
-    finally:
-        db.close()
-
-    return msg
-
-
-def get_work_page(bookid=None):
-    """ return the URL of the LibraryThing workpage for the given bookid
-        or an empty string if no workpage available """
-    logger = logging.getLogger(__name__)
-    if not bookid:
-        logger.error("get_work_page - No bookID")
-        return ''
-    work = get_bookwork(bookid, "Workpage")
-    if work is None:
-        return None
-    if work:
-        try:
-            page = work.split('og:url')[1].split('="')[1].split('"')[0]
-        except IndexError:
-            return ''
-        return page
-    return ''
 
 
 def get_all_series_authors():
@@ -631,7 +435,7 @@ def get_all_series_authors():
 
 
 def get_book_authors(bookid):
-    """ Get a list of authors contributing to a book from the goodreads bookpage or the librarything bookwork file """
+    """ Get a list of authors contributing to a book from the goodreads bookpage  """
     logger = logging.getLogger(__name__)
     authorlist = []
     if CONFIG['BOOK_API'] == 'GoodReads':
@@ -665,29 +469,6 @@ def get_book_authors(bookid):
                 author['role'] = role
             if author:
                 authorlist.append(author)
-    else:
-        data = get_bookwork(bookid, "Authors")
-        if data:
-            try:
-                data = data.split('otherauthors_container')[1].split('</table>')[0].split('<table')[1].split('>', 1)[1]
-            except IndexError:
-                data = ''
-
-        authorlist = []
-        if data and 'Work?' in data:
-            try:
-                rows = data.split('<tr')
-                for row in rows[2:]:
-                    author = {}
-                    col = row.split('<td>')
-                    author['name'] = col[1].split('">')[1].split('<')[0]
-                    author['role'] = col[2].split('<')[0]
-                    author['type'] = col[3].split('<')[0]
-                    author['work'] = col[4].split('<')[0]
-                    author['status'] = col[5].split('<')[0]
-                    authorlist.append(author)
-            except IndexError:
-                logger.debug(f'Error parsing authorlist for {bookid}')
     return authorlist
 
 
@@ -1051,8 +832,9 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
                         if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
                             logger.debug(f'Error in series table for series {seriesid}')
             logger.debug(f"{source} found {len(results)} members for {seriesname}")
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+    db.close()
     first = False
     filtered = []
     for item in results:
@@ -1332,30 +1114,6 @@ def get_work_series(bookid=None, source='GR', reason=""):
                     seriesnum = clean_name(seriesnum)
                     serieslist.append((f"HC{seriesid}", seriesnum, seriesname))
                     ensure_series_in_db(f"HC{seriesid}", seriesname, bookid, reason)
-    else:
-        work = get_bookwork(bookid, "Series")
-        if work:
-            try:
-                slist = work.split('<h3><b>Series:')[1].split('</h3>')[0].split('<a href="/series/')
-                for item in slist[1:]:
-                    try:
-                        series = item.split('">')[1].split('</a>')[0]
-                        if series and '(' in series:
-                            seriesnum = series.split('(')[1].split(')')[0].strip()
-                            series = series.split(' (')[0].strip()
-                        else:
-                            seriesnum = ''
-                            series = series.strip()
-                        seriesname = clean_name(series, '&/')
-                        seriesnum = clean_name(seriesnum)
-                        if seriesname:
-                            serieslist.append(('', seriesnum, seriesname))
-                            # don't have a seriesid yet
-                            # ensure_series_in_db(seriesid, seriesname, bookid, reason)
-                    except IndexError:
-                        pass
-            except IndexError:
-                pass
 
     return serieslist
 
@@ -1620,8 +1378,9 @@ def isbnlang(isbn):
                 thing_hit = True
                 if book_language:
                     db.action('insert into languages values (?, ?)', (isbnhead, book_language))
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+    db.close()
     return book_language, cache_hit, thing_hit
 
 
@@ -1634,6 +1393,7 @@ def isbn_from_words(words):
         res = db.match("SELECT ISBN from isbn WHERE Words=?", (words,))
         if res:
             logger.debug(f'Found cached ISBN for {words}')
+            db.close()
             return res['ISBN']
 
         baseurl = "http://www.google.com/search?q=ISBN+"
@@ -1656,6 +1416,7 @@ def isbn_from_words(words):
                 item = item.replace('-', '').replace(' ', '')
             if len(item) == 13:
                 db.action("INSERT into isbn (Words, ISBN) VALUES (?, ?)", (words, item))
+                db.close()
                 return item
 
         res = re_isbn10.findall(content)
@@ -1665,9 +1426,11 @@ def isbn_from_words(words):
                 item = item.replace('-', '').replace(' ', '')
             if len(item) == 10:
                 db.action("INSERT into isbn (Words, ISBN) VALUES (?, ?)", (words, item))
+                dv.close()
                 return item
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
+    db.close()
 
     logger.debug(f'No valid ISBN found for {words}')
     return None

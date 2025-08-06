@@ -24,7 +24,6 @@ import tempfile
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.bookwork import get_bookwork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes, \
     sort_definite, get_list
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file, safe_move
@@ -200,6 +199,7 @@ def get_author_images():
     """ Try to get an author image for all authors without one"""
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    msg = ''
     try:
         cmd = ("select AuthorID, AuthorName from authors where (instr(AuthorImg, 'nophoto') > 0 or "
                "AuthorImg is null) and Manual is not '1'")
@@ -228,8 +228,9 @@ def get_author_images():
         else:
             msg = 'No missing author images'
             logger.debug(msg)
-    finally:
-        db.close()
+    except Exception as e:
+        logger.debug(str(e))
+    db.close()
     return msg
 
 
@@ -238,6 +239,7 @@ def get_book_covers():
 
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    msg = ''
     try:
         cmd = ("select BookID,BookImg from books where instr(BookImg,'nocover') > 0 "
                "or instr(BookImg, 'nophoto') > 0 and Manual is not '1'")
@@ -262,8 +264,9 @@ def get_book_covers():
         else:
             msg = 'No missing book covers'
             logger.debug(msg)
-    finally:
-        db.close()
+    except Exception as e:
+        logger.debug(str(e))
+    db.close()
     return msg
 
 
@@ -298,13 +301,12 @@ def get_book_cover(bookid=None, src=None, ignore=''):
         Try 1. Local file cached from goodreads/googlebooks when book was imported
             2. cover.jpg if we have the book
             3. LibraryThing cover image (if you have a dev key)
-            4. LibraryThing whatwork (if available)
             5. Goodreads search (if book was imported from goodreads)
             6. OpenLibrary image
             7. Google isbn search (if google has a link to book for sale)
             8. Google images search (if lazylibrarian config allows)
 
-        src = cache, cover, goodreads, librarything, whatwork, googleisbn, openlibrary, googleimage
+        src = cache, cover, goodreads, librarything, googleisbn, openlibrary, googleimage
         ignore = list of sources to skip
         Return None if no cover available. """
     logger = logging.getLogger(__name__)
@@ -386,36 +388,6 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                         return coverlink, 'librarything'
                 else:
                     logger.debug(f"No isbn for {bookid}")
-            if src:
-                return None, src
-
-        # see if librarything workpage has a cover
-        if NEW_WHATWORK and (not src or src == 'whatwork' and 'whatwork' not in ignore):
-            work = get_bookwork(bookid, "Cover")
-            if work and 'whatwork' not in ignore:
-                try:
-                    img = work.split('workCoverImage')[1].split('="')[1].split('"')[0]
-                    if img:
-                        coverlink = cache_bookimg(img, bookid, src, suffix='_ww', imgid=imgid)
-                        if coverlink:
-                            return coverlink, 'whatwork'
-                    else:
-                        logger.debug(f"No image found in work page for {bookid}")
-                except IndexError:
-                    logger.debug(f"workCoverImage not found in work page for {bookid}")
-
-                try:
-                    img = work.split('og:image')[1].split('="')[1].split('"')[0]
-                    if img:
-                        coverlink = cache_bookimg(img, bookid, src, suffix='_ww', imgid=imgid)
-                        if coverlink:
-                            return coverlink, 'whatwork'
-                    else:
-                        logger.debug(f"No image found in work page for {bookid}")
-                except IndexError:
-                    logger.debug(f"og:image not found in work page for {bookid}")
-            else:
-                logger.debug(f"No work page for {bookid}")
             if src:
                 return None, src
 
@@ -693,6 +665,7 @@ def create_mag_covers(refresh=False):
         logger.info('Cover creation is disabled in config')
         return ''
     db = database.DBConnection()
+    cnt = 0
     try:
         #  <> '' ignores empty string or NULL
         issues = db.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
@@ -700,7 +673,6 @@ def create_mag_covers(refresh=False):
             logger.info(f"Creating covers for {len(issues)} {plural(len(issues), 'issue')}")
         else:
             logger.info(f"Checking covers for {len(issues)} {plural(len(issues), 'issue')}")
-        cnt = 0
         for item in issues:
             try:
                 maginfo = db.match("SELECT CoverPage from magazines WHERE Title=?", (item['Title'],))
@@ -708,8 +680,10 @@ def create_mag_covers(refresh=False):
                 cnt += 1
             except Exception as why:
                 logger.warning(f"Unable to create cover for {item['IssueFile']}, {type(why).__name__} {str(why)}")
-    finally:
-        db.close()
+    except Exception as e:
+        logger.debug(str(e))
+
+    db.close()
     logger.info("Cover creation completed")
     if refresh:
         return f"Created covers for {cnt} {plural(cnt, 'issue')}"

@@ -28,7 +28,7 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
-from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
+from lazylibrarian.bookwork import get_work_series, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
     set_work_id, get_gb_info, set_genres, genre_filter, get_book_pubdate, add_series_members
 from lazylibrarian.cache import cache_img, clean_cache, ImageType
@@ -161,7 +161,6 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'listIgnoredAuthors': (0, 'list all authors in the database marked ignored'),
             'listIgnoredBooks': (0, 'list all books in the database marked ignored'),
             'listIgnoredSeries': (0, 'list all series in the database marked ignored'),
-            'listMissingWorkpages': (0, 'list all books with errorpage or no workpage'),
             'searchBook': (1, '&id= [&wait] [&type=eBook/AudioBook] search for one book by BookID'),
             'searchItem': (1, '&item= get search results for an item (author, title, isbn)'),
             'showStats': (0, '[&json] show database statistics'),
@@ -176,7 +175,6 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'getSeriesMembers': (0, '&id= [&name=] [&refresh] Get list of series members using SeriesID, '
                                     'including paused/ignored series if refresh'),
             'getSeriesAuthors': (1, '&id= Get all authors for a series and import them'),
-            'getWorkPage': (0, '&id= Get url of Librarything BookWork using BookID'),
             'getBookCovers': (1, '[&wait] Check all books for cached cover and download one if missing'),
             'getBookAuthors': (0, '&id= Get list of authors associated with this book'),
             'cleanCache': (1, '[&wait] Clean unused and expired files from the LazyLibrarian caches'),
@@ -184,9 +182,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'setNoDesc': (1, '[&refresh] Set descriptions for all books, include "No Description" entries on refresh'),
             'setNoGenre': (1, '[&refresh] Set book genre for all books without one, include "Unknown" '
                               'entries on refresh'),
-            'setWork_Pages': (1, '[&wait] Set the WorkPages links in the database'),
-            'setAllBookSeries': (1, '[&wait] Set the series details from goodreads or librarything workpages'),
-            'setAllBookAuthors': (1, '[&wait] Set all authors for all books from book workpages'),
+            'setAllBookSeries': (1, '[&wait] Set the series details from goodreads'),
+            'setAllBookAuthors': (1, '[&wait] Set all authors for all books'),
             'setWorkID': (1, '[&wait] [&bookids] Set WorkID for all books that dont have one, or bookids'),
             'importAlternate': (1, '[&wait] [&dir=] [&library=] Import ebooks/audiobooks from named or '
                                    'alternate folder and any subfolders'),
@@ -1528,22 +1525,6 @@ class Api(object):
         q = 'SELECT AuthorID,AuthorName from authors where Status="Ignored"'
         self.data = self._dic_from_query(q)
 
-    def _listmissingworkpages(self):
-        TELEMETRY.record_usage_data()
-        # first the ones with no workpage
-        q = 'SELECT BookID from books where length(WorkPage) < 4'
-        res = self._dic_from_query(q)
-        # now the ones with an error page
-        cache = os.path.join(DIRS.CACHEDIR, "WorkCache")
-        if path_isdir(cache):
-            for cached_file in listdir(cache):
-                target = os.path.join(cache, cached_file)
-                if path_isfile(target):
-                    if os.path.getsize(syspath(target)) < 500 and '.' in cached_file:
-                        bookid = cached_file.split('.')[0]
-                        res.append({"BookID": bookid})
-        self.data = res
-
     def _getauthor(self, **kwargs):
         TELEMETRY.record_usage_data()
         self.id = kwargs.get('id')
@@ -1938,13 +1919,6 @@ class Api(object):
             self.data = clean_cache()
         else:
             threading.Thread(target=clean_cache, name='API-CLEANCACHE', args=[]).start()
-
-    def _setworkpages(self, **kwargs):
-        TELEMETRY.record_usage_data()
-        if 'wait' in kwargs:
-            self.data = set_work_pages()
-        else:
-            threading.Thread(target=set_work_pages, name='API-SETWORKPAGES', args=[]).start()
 
     def _setworkid(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2475,14 +2449,6 @@ class Api(object):
             self.data = 'Missing parameter: source'
         else:
             self.data = get_work_series(self.id, kwargs.get('source'), reason="API get_work_series")
-
-    def _getworkpage(self, **kwargs):
-        TELEMETRY.record_usage_data()
-        self.id = kwargs.get('id')
-        if not self.id:
-            self.data = 'Missing parameter: id'
-        else:
-            self.data = get_work_page(self.id)
 
     def _getbookcover(self, **kwargs):
         TELEMETRY.record_usage_data()

@@ -23,7 +23,7 @@ from rapidfuzz import fuzz
 
 import lazylibrarian
 from lazylibrarian import database, ROLE
-from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
+from lazylibrarian.bookwork import get_work_series, delete_empty_series, \
     set_series, get_status, google_book_dict, isbnlang, is_set_or_part
 from lazylibrarian.cache import json_request
 from lazylibrarian.config2 import CONFIG
@@ -602,10 +602,6 @@ class GoogleBooks:
                                         f"[{existing['ScanResult']}]")
                                     update_value_dict["ScanResult"] = f"bookdate {book['date']} is now valid"
 
-                                worklink = get_work_page(bookid)
-                                if worklink:
-                                    update_value_dict["WorkPage"] = worklink
-
                                 if update_value_dict:
                                     db.upsert("books", update_value_dict, control_value_dict)
 
@@ -831,10 +827,5 @@ class GoogleBooks:
                     self.logger.debug(f'Updated series: {bookid} [{serieslist}]')
                 set_series(serieslist, bookid, reason=reason)
 
-            worklink = get_work_page(bookid)
-            if worklink:
-                control_value_dict = {"BookID": bookid}
-                new_value_dict = {"WorkPage": worklink}
-                db.upsert("books", new_value_dict, control_value_dict)
         finally:
             db.close()

@@ -20,7 +20,7 @@ from rapidfuzz import fuzz
 
 import lazylibrarian
 from lazylibrarian import database, ROLE
-from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
+from lazylibrarian.bookwork import get_work_series, delete_empty_series, \
     set_series, get_status, isbn_from_words, isbnlang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter, is_set_or_part
 from lazylibrarian.cache import gr_xml_request
@@ -971,10 +971,6 @@ class GoodReads:
                                         link = cache_bookimg(bookimg, bookid, 'gr')
                                         update_value_dict["BookImg"] = link
 
-                                    worklink = get_work_page(bookid)
-                                    if worklink:
-                                        update_value_dict["WorkPage"] = worklink
-
                                 if update_value_dict:
                                     db.upsert("books", update_value_dict, control_value_dict)
 
@@ -1456,12 +1452,6 @@ class GoodReads:
                     set_series(serieslist, bookid, reason=reason)
 
                 set_genres(get_list(bookgenre, ','), bookid)
-
-                worklink = get_work_page(bookid)
-                if worklink:
-                    control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"WorkPage": worklink}
-                    db.upsert("books", new_value_dict, control_value_dict)
 
                 db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                           (author_id, bookid, ROLE['PRIMARY']), suppress='UNIQUE')

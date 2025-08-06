@@ -41,7 +41,7 @@ from lazylibrarian import database, notifiers, versioncheck, magazinescan, comic
 from lazylibrarian.auth import AuthController, require_auth
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import name_vars
-from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
+from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb, get_calibre_id
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
@@ -3965,8 +3965,6 @@ class WebInterface:
                            'googleisbn', 'bing', 'googleimage']
                 if CONFIG['HC_API']:
                     sources.append('hardcover')
-                if NEW_WHATWORK:
-                    sources.append('whatwork')
                 for source in sources:
                     cover, _ = get_book_cover(bookid, source)
                     if cover:
@@ -4100,8 +4098,6 @@ class WebInterface:
                     covertype = ''
                     if cover == 'librarything':
                         covertype = '_lt'
-                    elif cover == 'whatwork':
-                        covertype = '_ww'
                     elif cover == 'goodreads':
                         covertype = '_gr'
                     elif cover == 'openlibrary':

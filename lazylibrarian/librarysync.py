@@ -27,7 +27,6 @@ from rapidfuzz import fuzz
 import lazylibrarian
 from lazylibrarian import database, ROLE
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read, delete_empty_folders
-from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file,
@@ -1282,9 +1281,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
             if len(remiss):
                 lazylibrarian.libraryscan_data = (f'<div class="alert alert-danger">'
                                                   f'Failed to match {len(remiss)}<br></div>')
-            # On full library scans, check for missing workpages
-            set_work_pages()
-            # and books with unknown language
+            # On full library scans, check for books with unknown language
             nolang = db.match(
                 "select count(*) as counter from Books where status='Open' and BookLang='Unknown'")
             nolang = nolang['counter']
