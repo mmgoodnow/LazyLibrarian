@@ -504,7 +504,7 @@ class StartupLazyLibrarian:
                 with open(syspath(json_file)) as json_data:
                     table = json.load(json_data)
                 mlist = ''
-                # list alternate entries as each language is in twice (long and short month names)
+                # only print alternate entries as each language is in twice (long and short month names)
                 for item in table[0][::2]:
                     mlist += f"{item} "
                 self.logger.debug(f'Loaded monthnames.json : {mlist}')
@@ -593,6 +593,9 @@ class StartupLazyLibrarian:
                     except Exception as e:
                         self.logger.warning(f"Unable to get a list of alternatives, {type(e).__name__} {str(e)}")
                     self.logger.debug(f"Set locale back to entry state {current_locale}")
+
+                with open(json_file, 'w', encoding='utf-8') as f:
+                    json.dump(table, f, ensure_ascii=False)
 
         # Create a second copy of the monthnames without accents and lowercased to speed up matching
         cleantable = []
