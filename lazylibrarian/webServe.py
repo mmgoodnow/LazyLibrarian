@@ -6343,8 +6343,15 @@ class WebInterface:
 
                     if action == 'tag' and issuefile:
                         logger.debug(f"Tagging {issuefile}")
+                        entry = db.match('SELECT Language,Genre FROM magazines where Title=?', (title,))
+                        genres = entry[1]
+                        tags = {}
+                        cnt = 1
+                        for item in get_list(genres):
+                            tags[f'/Genre_{cnt}'] = item
+                            cnt += 1
                         try:
-                            res = write_pdf_tags(issuefile, title, issue['IssueDate'])
+                            res = write_pdf_tags(issuefile, title, issue['IssueDate'], tags)
                         except Exception as e:
                             logger.error(f"Failed to tag {issuefile}: {e}")
                             res = False
@@ -6354,7 +6361,6 @@ class WebInterface:
                             passed += 1
                             if CONFIG.get_bool('IMP_MAGOPF'):
                                 logger.debug(f"Writing opf for {issuefile}")
-                                entry = db.match('SELECT Language FROM magazines where Title=?', (title,))
                                 _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
                                                                                 issue['IssueDate'], item,
                                                                                 language=entry[0],
@@ -6567,15 +6573,21 @@ class WebInterface:
 
             if action == 'tag':
                 issues = db.select('SELECT * from issues WHERE Title=?', (title,))
-                mag = db.match('SELECT Language FROM magazines where Title=?', (title,))
+                mag = db.match('SELECT Language,Genre FROM magazines where Title=?', (title,))
                 total_items += len(issues)
                 for issue in issues:
                     logger.debug(f"Tagging {issue['IssueFile']}")
                     current_item += 1
                     current_percent = int(current_item * 100 / total_items)
                     lazylibrarian.magazinescan_data = f"{current_item}/{total_items}/{current_percent}"
+                    genres = mag[1]
+                    tags = {}
+                    cnt = 1
+                    for item in get_list(genres):
+                        tags[f'/Genre_{cnt}'] = item
+                        cnt += 1
                     try:
-                        res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"])
+                        res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"], tags)
                     except Exception as e:
                         logger.error(f"Failed to tag {issue['IssueFile']}: {e}")
                         res = False

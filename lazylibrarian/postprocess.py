@@ -3012,6 +3012,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     title = data.get('Title', '')
     issuedate = data.get('IssueDate', '')
     mode = data.get('NZBmode', '')
+    mag_genres = ''
 
     if booktype == 'ebook' and CONFIG.get_bool('ONE_FORMAT'):
         booktype_list = get_list(CONFIG['EBOOK_TYPE'])
@@ -3062,14 +3063,15 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         elif booktype == 'magazine':
             db = database.DBConnection()
             try:
-                res = db.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))
+                res = db.match("SELECT CoverPage,Genre from magazines WHERE Title=?", (bookid,))
             finally:
                 db.close()
             cover = 0
             if res:
                 cover = check_int(res['CoverPage'], 0)
+                mag_genres = res.get('Genre', '')
             success, msg = preprocess_magazine(pp_path, cover=cover, tag=CONFIG.get_bool('TAG_PDF'),
-                                               title=bookid, issue=issuedate)
+                                               title=bookid, issue=issuedate, genres=mag_genres)
             if not success:
                 return False, msg, pp_path
 
@@ -3105,6 +3107,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             (booktype == 'comic' and CONFIG.get_bool('IMP_CALIBRE_COMIC'))):
         data['bestformat'] = bestformat
         data['cover'] = cover
+        data['mag_genres'] = mag_genres
         return send_to_calibre(booktype, global_name, pp_path, data)
 
     # we are copying the files ourselves
