@@ -5662,6 +5662,8 @@ class WebInterface:
                         logger.debug(f"Remove result: {res} [{err}] {rc}")
                         dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
                         data = dict(dbentry)
+                        magentry = db.match('SELECT Genre from magazines WHERE Title=?', (data['Title'],))
+                        data['mag_genres'] = magentry['Genre']
                         res, filename, pp_path = send_mag_issue_to_calibre(data)
                         logger.debug(f"Add result: {res}")
                         if res and filename:
@@ -5917,6 +5919,8 @@ class WebInterface:
                     logger.debug(f"Remove result: {res} [{err}] {rc}")
                     dbentry = db.match('SELECT * from issues WHERE IssueID=?', (issue['IssueID'],))
                     data = dict(dbentry)
+                    magentry = db.match('SELECT Genre from magazines WHERE Title=?', (data['Title'],))
+                    data['mag_genres'] = magentry['Genre']
                     res, filename, pp_path = send_mag_issue_to_calibre(data)
                     logger.debug(f"Add result: {res}")
                     if res and filename:

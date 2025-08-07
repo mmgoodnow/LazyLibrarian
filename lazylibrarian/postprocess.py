@@ -2669,6 +2669,7 @@ def send_to_calibre(booktype, global_name, folder, data):
     issuedate = data.get('IssueDate', '')  # magazine issueid
     coverpage = data.get('cover', '')
     bestformat = data.get('bestformat', '')
+    mag_genres = data.get('mag_genres')
 
     logger = logging.getLogger(__name__)
     try:
@@ -2747,8 +2748,12 @@ def send_to_calibre(booktype, global_name, folder, data):
                 authors = 'magazines'
                 global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, get_dateparts(issuedate))
 
+            tags = 'Magazine'
+            if mag_genres:
+                tags = f"{tags}, {mag_genres}"
+
             params = [magfile, '--duplicates', '--authors', authors, '--series', title,
-                      '--title', global_name, '--tags', 'Magazine']
+                      '--title', global_name, '--tags', tags]
             if jpgfile:
                 image = ['--cover', jpgfile]
                 params.extend(image)
@@ -2842,6 +2847,8 @@ def send_to_calibre(booktype, global_name, folder, data):
                 if CONFIG.get_bool('OPF_TAGS'):
                     if booktype == 'magazine':
                         tags = 'Magazine'
+                        if mag_genres:
+                            tags = f"{tags}, {mag_genres}"
                     if booktype == 'ebook':
                         if CONFIG.get_bool('GENRE_TAGS') and data['BookGenre']:
                             tags = data['BookGenre']
