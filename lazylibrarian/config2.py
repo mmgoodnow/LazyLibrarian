@@ -639,7 +639,7 @@ class LLConfigHandler(ConfigDict):
     def use_direct(self) -> int:
         """ Returns number of enabled direct book providers """
         count = self.count_in_use('GEN')
-        for item in ['BOK', 'ANNA']:
+        for item in ['BOK', 'ANNA', 'SLSK']:
             if self.get_bool(item) and not BLOCKHANDLER.is_blocked(item):
                 count += 1
         return count

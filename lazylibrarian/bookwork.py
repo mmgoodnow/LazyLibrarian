@@ -807,27 +807,6 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
                             results.append([item[0], item[1], item[2], item[4], book[0], '', '', '', book[1]])
                         else:
                             results.append([item[0], item[1], item[2], item[4], '', '', '', '', ''])
-            if not results:
-                data = get_bookwork(None, "SeriesPage", seriesid)
-                if data:
-                    try:
-                        table = data.split('class="worksinseries"')[1].split('</table>')[0]
-                        rows = table.split('<tr')
-                        for row in rows:
-                            if 'href=' in row:
-                                booklink = row.split('href="')[1]
-                                bookname = booklink.split('">')[1].split('<')[0]
-                                # booklink = booklink.split('"')[0]
-                                try:
-                                    authorlink = row.split('href="')[2]
-                                    authorname = authorlink.split('">')[1].split('<')[0]
-                                    order = row.split('class="order">')[1].split('<')[0]
-                                    results.append([order, bookname, authorname, '', '', '', '', '', ''])
-                                except IndexError:
-                                    logger.debug(f'Incomplete data in series table for series {seriesid}')
-                    except IndexError:
-                        if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
-                            logger.debug(f'Error in series table for series {seriesid}')
             logger.debug(f"{source} found {len(results)} members for {seriesname}")
     except Exception as e:
         logger.error(str(e))

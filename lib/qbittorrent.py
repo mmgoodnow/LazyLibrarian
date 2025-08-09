@@ -3,6 +3,7 @@
 import json
 from typing import Optional
 import requests
+from lazylibrarian.common import proxy_list
 
 
 class WrongCredentials(Exception):
@@ -45,7 +46,7 @@ class Client:
         self._url = url + "api/v2/"
         self._verify = verify
         self._timeout = timeout
-
+        self._proxies = proxy_list()
         self._max_attempts_on_403 = max_attempts_on_403
 
         self._session = None
@@ -156,6 +157,7 @@ class Client:
 
         kwargs["verify"] = self._verify
         kwargs["timeout"] = self._timeout
+        kwargs["proxies"] = self._proxies
         if method == "get":
             request = self._session.get(final_url, **kwargs)
         else:
@@ -194,6 +196,17 @@ class Client:
         login = self._session.post(
             self._url + "auth/login",
             data={"username": self.username, "password": self.password},
+            verify=self._verify,
+        )
+        if login.text == "Ok.":
+            return
+
+        # attempt to fix a seedbox/nginx reverse proxy issue
+        parts = self._url.split('://')
+        host = f"{parts[0]}://{self.username}:{self.password}@{parts[1]}"
+        login = self._session.post(
+            host + "auth/login",
+            data={},
             verify=self._verify,
         )
         if login.text == "Ok.":
@@ -357,9 +370,9 @@ class Client:
 
             """
 
-            def __init__(self, url, prefs, auth, session):
+            def __init__(self, url, preferences, auth, session):
                 self.url = url
-                self.prefs = prefs
+                self.prefs = preferences
                 self._is_authenticated = auth
                 self.session = session
 

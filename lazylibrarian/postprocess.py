@@ -2669,6 +2669,7 @@ def send_to_calibre(booktype, global_name, folder, data):
     issuedate = data.get('IssueDate', '')  # magazine issueid
     coverpage = data.get('cover', '')
     bestformat = data.get('bestformat', '')
+    mag_genres = data.get('mag_genres')
 
     logger = logging.getLogger(__name__)
     try:
@@ -2747,8 +2748,13 @@ def send_to_calibre(booktype, global_name, folder, data):
                 authors = 'magazines'
                 global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, get_dateparts(issuedate))
 
+            tags = 'Magazine'
+            if CONFIG.get_bool('TEST_TAGS'):
+                if mag_genres:
+                    tags = f"{tags}, {mag_genres}"
+
             params = [magfile, '--duplicates', '--authors', authors, '--series', title,
-                      '--title', global_name, '--tags', 'Magazine']
+                      '--title', global_name, '--tags', tags]
             if jpgfile:
                 image = ['--cover', jpgfile]
                 params.extend(image)
@@ -2842,6 +2848,9 @@ def send_to_calibre(booktype, global_name, folder, data):
                 if CONFIG.get_bool('OPF_TAGS'):
                     if booktype == 'magazine':
                         tags = 'Magazine'
+                        if CONFIG.get_bool('TEST_TAGS'):
+                            if mag_genres:
+                                tags = f"{tags}, {mag_genres}"
                     if booktype == 'ebook':
                         if CONFIG.get_bool('GENRE_TAGS') and data['BookGenre']:
                             tags = data['BookGenre']
@@ -3005,6 +3014,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     title = data.get('Title', '')
     issuedate = data.get('IssueDate', '')
     mode = data.get('NZBmode', '')
+    mag_genres = ''
 
     if booktype == 'ebook' and CONFIG.get_bool('ONE_FORMAT'):
         booktype_list = get_list(CONFIG['EBOOK_TYPE'])
@@ -3055,14 +3065,15 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         elif booktype == 'magazine':
             db = database.DBConnection()
             try:
-                res = db.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))
+                res = db.match("SELECT CoverPage,Genre from magazines WHERE Title=?", (bookid,))
             finally:
                 db.close()
             cover = 0
             if res:
                 cover = check_int(res['CoverPage'], 0)
+                mag_genres = res.get('Genre', '')
             success, msg = preprocess_magazine(pp_path, cover=cover, tag=CONFIG.get_bool('TAG_PDF'),
-                                               title=bookid, issue=issuedate)
+                                               title=bookid, issue=issuedate, genres=mag_genres)
             if not success:
                 return False, msg, pp_path
 
@@ -3098,6 +3109,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             (booktype == 'comic' and CONFIG.get_bool('IMP_CALIBRE_COMIC'))):
         data['bestformat'] = bestformat
         data['cover'] = cover
+        data['mag_genres'] = mag_genres
         return send_to_calibre(booktype, global_name, pp_path, data)
 
     # we are copying the files ourselves

@@ -776,6 +776,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 if label:
                     transmission.set_label(download_id, label)
                 tor_title = transmission.get_torrent_name(download_id)
+                logger.debug(f"{tor_title}: Folder is {transmission.get_torrent_folder(download_id)}")
 
         if CONFIG.get_bool('TOR_DOWNLOADER_SYNOLOGY') and CONFIG.get_bool('USE_SYNOLOGY') and \
                 CONFIG['SYNOLOGY_HOST']:

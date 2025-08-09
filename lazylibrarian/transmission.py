@@ -28,6 +28,15 @@ rpc_version = 0
 tr_version = 0
 
 
+def move_torrent(torrentid, directory):
+    logger = logging.getLogger(__name__)
+    method = 'torrent-set-location'
+    arguments = {'ids': [torrentid], 'location': directory, 'move': True}
+    logger.debug(f'move_torrent args({arguments})')
+    _, _ = torrent_action(method, arguments)
+    return True
+
+
 def add_torrent(link, directory=None, metainfo=None, provider_options=None):
     logger = logging.getLogger(__name__)
     method = 'torrent-add'
