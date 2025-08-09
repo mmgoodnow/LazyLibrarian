@@ -53,7 +53,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('General', 'SERIES_TAB', 1),
     ConfigBool('General', 'AUDIO_TAB', 1),
     ConfigBool('General', 'EBOOK_TAB', 1),
-    ConfigRangedInt('General', 'CONFIG_TAB_NUM', 1, 1, 10),
+    ConfigRangedInt('General', 'CONFIG_TAB_NUM', 1, 1, 11),
     ConfigBool('General', 'TOGGLES', 1),
     ConfigBool('General', 'SORT_DEFINITE', 0),
     ConfigBool('General', 'SORT_SURNAME', 0),
