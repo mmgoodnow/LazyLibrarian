@@ -40,7 +40,7 @@ from lazylibrarian.common import log_header, create_support_zip, get_readinglist
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, get_list, \
     thread_name, split_author_names
 from lazylibrarian.gb import GoogleBooks
@@ -53,8 +53,8 @@ from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, upda
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
-from lazylibrarian.multiauth import get_authors_from_hc, get_authors_from_ol, get_authors_from_book_files
 from lazylibrarian.manualbook import search_item
+from lazylibrarian.multiauth import get_authors_from_hc, get_authors_from_ol, get_authors_from_book_files
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
     process_book_from_dir, process_mag_from_file, send_ebook_to_calibre, send_mag_issue_to_calibre, \
@@ -1158,7 +1158,7 @@ class Api(object):
                     self.data = f'Missing parameter: {item}'
                     return
             preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0), tag=True,
-                                title=kwargs['title'], issue=kwargs['issue'])
+                                title=kwargs['title'], issue=kwargs['issue'], genres=kwargs.get('genres', ''))
         else:
             preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0))
         self.data = 'OK'

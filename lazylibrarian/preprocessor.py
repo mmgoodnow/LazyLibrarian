@@ -529,7 +529,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     return True
 
 
-def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue=''):
+def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue='', genres=''):
     logger = logging.getLogger(__name__)
     logger.debug(f"Preprocess magazine {bookfolder} cover={cover}")
     try:
@@ -585,8 +585,12 @@ def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue=''):
             coverswap(srcfile, cover)
 
         if tag:
-            # write a default set of tags
-            _ = write_pdf_tags(srcfile, title, issue, None)
+            tags = {}
+            cnt = 1
+            for item in get_list(genres):
+                tags[f'/Genre_{cnt}'] = item
+                cnt += 1
+            _ = write_pdf_tags(srcfile, title, issue, tags)
 
         safe_move(srcfile, original)
         _ = setperm(original)

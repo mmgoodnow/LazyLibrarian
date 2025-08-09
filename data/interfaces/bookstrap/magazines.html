@@ -155,7 +155,7 @@
                                 arr.forEach(function (item, index) {
                                     genres = genres + ' <a href=\'magazines?mag_filter=' + item.trim() + '\'">' + item.trim() + '</a>';
                                     });
-                                btn = btn + '<br><i><small>[' + genres + ']</i></small>'
+                                btn = btn + '<br><i><small>[' + genres.trim() + ']</i></small>'
                             }
                             return btn
                         ;} },

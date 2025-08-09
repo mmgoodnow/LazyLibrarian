@@ -572,56 +572,65 @@ def iterate_over_znab_sites(book=None, search_type=None):
         CONFIG.save_config_and_backup_old(section='Capabilities')
 
     last_used = []
-    for provider in CONFIG.providers('NEWZNAB'):
-        dispname = provider['DISPNAME']
-        if not dispname:
-            dispname = provider['HOST']
-        iterateproviderslogger.debug(f"DLTYPES: {dispname}: {bool(provider['ENABLED'])} {provider['DLTYPES']}")
-        if provider['ENABLED'] and search_type:
-            ignored = False
-            if BLOCKHANDLER.is_blocked(provider['HOST']):
-                logger.debug(f'{dispname} is BLOCKED')
-                ignored = True
-            elif "book" in search_type and 'E' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for eBook")
-                ignored = True
-            elif "audio" in search_type and 'A' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for AudioBook")
-                ignored = True
-            elif "mag" in search_type and 'M' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for Magazine")
-                ignored = True
-            elif "comic" in search_type and 'C' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for Comic")
-                ignored = True
-            if not ignored:
-                if provider.get_int('APILIMIT'):
-                    if 'APICOUNT' in provider:
-                        res = provider.get_int('APICOUNT')
-                    else:
-                        res = 0
-                    if res >= provider.get_int('APILIMIT'):
-                        BLOCKHANDLER.block_provider(provider['HOST'],
-                                                    f"Reached Daily API limit ({provider['APILIMIT']})",
-                                                    delay=seconds_to_midnight())
-                    else:
-                        provider.set_int('APICOUNT', res + 1)
+    api_count = []
+    try:
+        for prov in CONFIG.providers('NEWZNAB'):
+            provider = deepcopy(prov)
+            dispname = provider['DISPNAME']
+            if not dispname:
+                dispname = provider['HOST']
+            iterateproviderslogger.debug(f"DLTYPES: {dispname}: {bool(provider['ENABLED'])} {provider['DLTYPES']}")
+            if provider['ENABLED'] and search_type:
+                ignored = False
+                if BLOCKHANDLER.is_blocked(provider['HOST']):
+                    logger.debug(f'{dispname} is BLOCKED')
+                    ignored = True
+                elif "book" in search_type and 'E' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for eBook")
+                    ignored = True
+                elif "audio" in search_type and 'A' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for AudioBook")
+                    ignored = True
+                elif "mag" in search_type and 'M' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for Magazine")
+                    ignored = True
+                elif "comic" in search_type and 'C' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for Comic")
+                    ignored = True
+                if not ignored:
+                    if provider.get_int('APILIMIT'):
+                        if 'APICOUNT' in provider:
+                            res = provider.get_int('APICOUNT')
+                        else:
+                            res = 0
+                        if res >= provider.get_int('APILIMIT'):
+                            BLOCKHANDLER.block_provider(provider['HOST'],
+                                                        f"Reached Daily API limit ({provider['APILIMIT']})",
+                                                        delay=seconds_to_midnight())
+                        else:
+                            api_count.append([prov, res + 1])
 
-                if not BLOCKHANDLER.is_blocked(provider['HOST']):
-                    ratelimit = provider.get_int('RATELIMIT')
-                    if ratelimit:
-                        if provider.get_int('LASTUSED') > 0:
-                            delay = provider.get_int('LASTUSED') + ratelimit - time.time()
-                            if delay > 0:
-                                time.sleep(delay)
-                        last_used.append([provider, int(time.time())])
+                    if not BLOCKHANDLER.is_blocked(provider['HOST']):
+                        ratelimit = provider.get_int('RATELIMIT')
+                        if ratelimit:
+                            if provider.get_int('LASTUSED') > 0:
+                                delay = provider.get_int('LASTUSED') + ratelimit - time.time()
+                                if delay > 0:
+                                    time.sleep(delay)
+                            last_used.append([prov, int(time.time())])
 
-                    providers += 1
-                    logger.debug(f'Querying provider {dispname}')
-                    resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
+                        providers += 1
+                        logger.debug(f'Querying provider {dispname}')
+                        resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
+    except RuntimeError:
+        logger.debug(f"Error iterating newznab")
+
     for item in last_used:
         logger.debug(f"Updating LASTUSED for {item[0]['NAME']}")
         item[0].set_int('LASTUSED', item[1])
+    for item in api_count:
+        logger.debug(f"Updating APICOUNT for {item[0]['NAME']}")
+        item[0].set_int('APICOUNT', item[1])
 
     caps_changed = []
     # can't update while iterating so copy and update after
@@ -639,57 +648,65 @@ def iterate_over_znab_sites(book=None, search_type=None):
         CONFIG.save_config_and_backup_old(section='Capabilities')
 
     last_used = []
-    for provider in CONFIG.providers('TORZNAB'):
-        dispname = provider['DISPNAME']
-        if not dispname:
-            dispname = provider['HOST']
-        iterateproviderslogger.debug(f"DLTYPES: {dispname}: {bool(provider['ENABLED'])} {provider['DLTYPES']}")
-        if provider['ENABLED'] and search_type:
-            ignored = False
-            if BLOCKHANDLER.is_blocked(provider['HOST']):
-                logger.debug(f'{dispname} is BLOCKED')
-                ignored = True
-            elif 'book' in search_type and 'E' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for eBook")
-                ignored = True
-            elif "audio" in search_type and 'A' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for AudioBook")
-                ignored = True
-            elif "mag" in search_type and 'M' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for Magazine")
-                ignored = True
-            elif "comic" in search_type and 'C' not in provider['DLTYPES']:
-                logger.debug(f"Ignoring {dispname} for Comic")
-                ignored = True
-            if not ignored:
-                if provider.get_int('APILIMIT'):
-                    if 'APICOUNT' in provider:
-                        res = provider.get_int('APICOUNT')
-                    else:
-                        res = 0
-                    if res >= provider.get_int('APILIMIT'):
-                        BLOCKHANDLER.block_provider(provider['HOST'],
-                                                    f"Reached Daily API limit ({provider['APILIMIT']})",
-                                                    delay=seconds_to_midnight())
-                    else:
-                        provider.set_int('APICOUNT', res + 1)
+    api_count = []
+    try:
+        for prov in CONFIG.providers('TORZNAB'):
+            provider = deepcopy(prov)
+            dispname = provider['DISPNAME']
+            if not dispname:
+                dispname = provider['HOST']
+            iterateproviderslogger.debug(f"DLTYPES: {dispname}: {bool(provider['ENABLED'])} {provider['DLTYPES']}")
+            if provider['ENABLED'] and search_type:
+                ignored = False
+                if BLOCKHANDLER.is_blocked(provider['HOST']):
+                    logger.debug(f'{dispname} is BLOCKED')
+                    ignored = True
+                elif 'book' in search_type and 'E' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for eBook")
+                    ignored = True
+                elif "audio" in search_type and 'A' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for AudioBook")
+                    ignored = True
+                elif "mag" in search_type and 'M' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for Magazine")
+                    ignored = True
+                elif "comic" in search_type and 'C' not in provider['DLTYPES']:
+                    logger.debug(f"Ignoring {dispname} for Comic")
+                    ignored = True
+                if not ignored:
+                    if provider.get_int('APILIMIT'):
+                        if 'APICOUNT' in provider:
+                            res = provider.get_int('APICOUNT')
+                        else:
+                            res = 0
+                        if res >= provider.get_int('APILIMIT'):
+                            BLOCKHANDLER.block_provider(provider['HOST'],
+                                                        f"Reached Daily API limit ({provider['APILIMIT']})",
+                                                        delay=seconds_to_midnight())
+                        else:
+                            api_count.append([prov, res + 1])
 
-                if not BLOCKHANDLER.is_blocked(provider['HOST']):
-                    ratelimit = provider.get_int('RATELIMIT')
-                    if ratelimit:
-                        if provider.get_int('LASTUSED') > 0:
-                            delay = provider.get_int('LASTUSED') + ratelimit - time.time()
-                            if delay > 0:
-                                time.sleep(delay)
-                        last_used.append([provider, int(time.time())])
+                    if not BLOCKHANDLER.is_blocked(provider['HOST']):
+                        ratelimit = provider.get_int('RATELIMIT')
+                        if ratelimit:
+                            if provider.get_int('LASTUSED') > 0:
+                                delay = provider.get_int('LASTUSED') + ratelimit - time.time()
+                                if delay > 0:
+                                    time.sleep(delay)
+                            last_used.append([prov, int(time.time())])
 
-                    providers += 1
-                    logger.debug(f'Querying provider {dispname}')
-                    resultslist += newznab_plus(book, provider, search_type, "torznab")[1]
+                        providers += 1
+                        logger.debug(f'Querying provider {dispname}')
+                        resultslist += newznab_plus(book, provider, search_type, "torznab")[1]
+    except RuntimeError:
+        logger.debug(f"Error iterating torznab")
 
     for item in last_used:
         logger.debug(f"Updating LASTUSED for {item[0]['NAME']}")
         item[0].set_int('LASTUSED', item[1])
+    for item in api_count:
+        logger.debug(f"Updating APICOUNT for {item[0]['NAME']}")
+        item[0].set_int('APICOUNT', item[1])
 
     return resultslist, providers
 
@@ -766,34 +783,37 @@ def iterate_over_direct_sites(book=None, search_type=None):
             book['searchterm'] = bookname
         else:
             book['searchterm'] = f"{authorname} {bookname}"
-
-    for prov in CONFIG.providers('GEN'):
-        iterateproviderslogger.debug(f"DLTYPES: {prov['NAME']}: {prov['ENABLED']} {prov['DLTYPES']}")
-        if prov.get_bool('ENABLED'):
-            ignored = False
-            if BLOCKHANDLER.is_blocked(prov['NAME']):
-                logger.debug(f"{prov['NAME']} is BLOCKED")
-                ignored = True
-            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in prov['DLTYPES']:
-                logger.debug(f"Ignoring {prov['NAME']} for eBook")
-                ignored = True
-            elif "audio" in search_type and 'A' not in prov['DLTYPES']:
-                logger.debug(f"Ignoring {prov['NAME']} for AudioBook")
-                ignored = True
-            elif "mag" in search_type and 'M' not in prov['DLTYPES']:
-                logger.debug(f"Ignoring {prov['NAME']} for Magazine")
-                ignored = True
-            elif "comic" in search_type and 'C' not in prov['DLTYPES']:
-                logger.debug(f"Ignoring {prov['NAME']} for Comic")
-                ignored = True
-            if not ignored:
-                logger.debug(f"Querying {prov['NAME']}")
-                results, error = direct_gen(book, prov['NAME'])
-                if error:
-                    BLOCKHANDLER.block_provider(prov['NAME'], error)
-                else:
-                    resultslist += results
-                    providers += 1
+    try:
+        for provider in CONFIG.providers('GEN'):
+            prov = deepcopy(provider)
+            iterateproviderslogger.debug(f"DLTYPES: {prov['NAME']}: {prov['ENABLED']} {prov['DLTYPES']}")
+            if prov.get_bool('ENABLED'):
+                ignored = False
+                if BLOCKHANDLER.is_blocked(prov['NAME']):
+                    logger.debug(f"{prov['NAME']} is BLOCKED")
+                    ignored = True
+                elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in prov['DLTYPES']:
+                    logger.debug(f"Ignoring {prov['NAME']} for eBook")
+                    ignored = True
+                elif "audio" in search_type and 'A' not in prov['DLTYPES']:
+                    logger.debug(f"Ignoring {prov['NAME']} for AudioBook")
+                    ignored = True
+                elif "mag" in search_type and 'M' not in prov['DLTYPES']:
+                    logger.debug(f"Ignoring {prov['NAME']} for Magazine")
+                    ignored = True
+                elif "comic" in search_type and 'C' not in prov['DLTYPES']:
+                    logger.debug(f"Ignoring {prov['NAME']} for Comic")
+                    ignored = True
+                if not ignored:
+                    logger.debug(f"Querying {prov['NAME']}")
+                    results, error = direct_gen(book, prov['NAME'])
+                    if error:
+                        BLOCKHANDLER.block_provider(prov['NAME'], error)
+                    else:
+                        resultslist += results
+                        providers += 1
+    except RuntimeError:
+        logger.debug(f"Error iterating gen")
 
     prov = 'BOK'
     if CONFIG[prov]:

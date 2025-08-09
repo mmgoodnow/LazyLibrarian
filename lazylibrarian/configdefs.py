@@ -53,7 +53,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('General', 'SERIES_TAB', 1),
     ConfigBool('General', 'AUDIO_TAB', 1),
     ConfigBool('General', 'EBOOK_TAB', 1),
-    ConfigRangedInt('General', 'CONFIG_TAB_NUM', 1, 1, 10),
+    ConfigRangedInt('General', 'CONFIG_TAB_NUM', 1, 1, 11),
     ConfigBool('General', 'TOGGLES', 1),
     ConfigBool('General', 'SORT_DEFINITE', 0),
     ConfigBool('General', 'SORT_SURNAME', 0),
@@ -540,6 +540,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('Preprocess', 'SWAP_COVERPAGE', 0),
     ConfigBool('Preprocess', 'TAG_PDF', 0),
     ConfigInt('Preprocess', 'SHRINK_MAG', 0),
+    ConfigBool('Testing', 'TEST_TAGS', 0),
     ConfigInt('Testing', 'Unpersisted_test', 2, persist=False)
 ]
 
