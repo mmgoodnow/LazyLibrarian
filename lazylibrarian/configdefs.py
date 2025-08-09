@@ -540,6 +540,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('Preprocess', 'SWAP_COVERPAGE', 0),
     ConfigBool('Preprocess', 'TAG_PDF', 0),
     ConfigInt('Preprocess', 'SHRINK_MAG', 0),
+    ConfigBool('Experimental', 'TEST_TAGS', 0)
     ConfigInt('Testing', 'Unpersisted_test', 2, persist=False)
 ]
 

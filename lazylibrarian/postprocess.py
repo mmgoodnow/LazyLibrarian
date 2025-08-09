@@ -2749,8 +2749,9 @@ def send_to_calibre(booktype, global_name, folder, data):
                 global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, get_dateparts(issuedate))
 
             tags = 'Magazine'
-            if mag_genres:
-                tags = f"{tags}, {mag_genres}"
+            if CONFIG.get_bool('TEST_TAGS'):
+                if mag_genres:
+                    tags = f"{tags}, {mag_genres}"
 
             params = [magfile, '--duplicates', '--authors', authors, '--series', title,
                       '--title', global_name, '--tags', tags]
@@ -2847,8 +2848,9 @@ def send_to_calibre(booktype, global_name, folder, data):
                 if CONFIG.get_bool('OPF_TAGS'):
                     if booktype == 'magazine':
                         tags = 'Magazine'
-                        if mag_genres:
-                            tags = f"{tags}, {mag_genres}"
+                        if CONFIG.get_bool('TEST_TAGS'):
+                            if mag_genres:
+                                tags = f"{tags}, {mag_genres}"
                     if booktype == 'ebook':
                         if CONFIG.get_bool('GENRE_TAGS') and data['BookGenre']:
                             tags = data['BookGenre']
