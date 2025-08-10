@@ -759,7 +759,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             directory = CONFIG['TRANSMISSION_DIR']
             if label and not directory.endswith(label):
                 directory = os.path.join(directory, label)
-            directory = os.path.join(directory, clean_name(tor_title))
+
             if torrent:
                 logger.debug(f"Sending {tor_title} data to Transmission:{directory}")
                 # transmission needs b64encoded metainfo to be unicode, not bytes
@@ -776,7 +776,22 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 if label:
                     transmission.set_label(download_id, label)
                 tor_title = transmission.get_torrent_name(download_id)
-                logger.debug(f"{tor_title}: Folder is {transmission.get_torrent_folder(download_id)}")
+                tor_folder = transmission.get_torrent_folder(download_id)
+                tor_files = transmission.get_torrent_files(download_id)
+                logger.debug(f"{tor_title}: Folder is {tor_folder}")
+                filenames = []
+                for entry in tor_files:
+                    filenames.append(entry['name'])
+                logger.debug(f"Filenames: {', '.join(filenames)}")
+                in_subdir = True
+                for fname in filenames:
+                    if not fname.startswith(tor_title + os.sep):
+                        in_subdir = False
+                        break
+                if filenames and not in_subdir:
+                    directory = os.path.join(tor_folder, tor_title)
+                    logger.debug(f"{tor_title}: Moving torrent to {directory}")
+                    transmission.move_torrent(download_id, directory)
 
         if CONFIG.get_bool('TOR_DOWNLOADER_SYNOLOGY') and CONFIG.get_bool('USE_SYNOLOGY') and \
                 CONFIG['SYNOLOGY_HOST']:

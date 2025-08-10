@@ -161,13 +161,13 @@ def get_torrent_files(torrentid):  # uses hashid
                 return response['arguments']['torrents'][0]['files']
         else:
             logger.debug('get_torrent_files: No response from transmission')
-            return ''
+            return []
 
         retries -= 1
         if retries:
             time.sleep(5)
 
-    return ''
+    return []
 
 
 def get_torrent_progress(torrentid):  # uses hashid
