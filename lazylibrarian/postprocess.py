@@ -190,7 +190,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             opffile = f"{basename}.opf"
             remove_file(opffile)
             _ = create_mag_opf(dest_file, title, issuenum, issueid,
-                               language=entry['Language'], overwrite=True)
+                               language=entry['Language'], genres=entry['Genre'], overwrite=True)
         if CONFIG['IMP_AUTOADDMAG']:
             dest_path = os.path.dirname(dest_file)
             process_auto_add(dest_path, booktype='mag')
@@ -1422,7 +1422,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             else:
                                 older = False
 
-                            maginfo = db.match("SELECT CoverPage,Language from magazines WHERE Title=?",
+                            maginfo = db.match("SELECT CoverPage,Language,Genre from magazines WHERE Title=?",
                                                (book['BookID'],))
                             # create a thumbnail cover for the new issue
                             if CONFIG.get_bool('SWAP_COVERPAGE'):
@@ -1463,7 +1463,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 logger.debug('create_mag_opf is disabled')
                             else:
                                 _ = create_mag_opf(dest_file, book['BookID'], book['AuxInfo'], issueid,
-                                                   language=maginfo['Language'], overwrite=True)
+                                                   language=maginfo['Language'], genres=maginfo['Genre'],
+                                                   overwrite=True)
                             if CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 process_auto_add(dest_path, booktype='mag')
@@ -2807,7 +2808,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                 data = db.match(cmd, (issueid, bookid))
                 bookid = f"{bookid}_{issueid}"
             else:
-                data = db.match("SELECT Language from magazines WHERE Title=? COLLATE NOCASE", (title,))
+                data = db.match("SELECT Language,Genre from magazines WHERE Title=? COLLATE NOCASE", (title,))
             db.close()
 
             if not data:
@@ -2830,7 +2831,8 @@ def send_to_calibre(booktype, global_name, folder, data):
                         logger.debug('create_mag_opf is disabled')
                     else:
                         opfpath, our_opf = create_mag_opf(folder, title, issuedate, issueid,
-                                                          language=data['Language'], overwrite=True)
+                                                          language=data['Language'], genres=mag_genres,
+                                                          overwrite=True)
                 # calibre likes "metadata.opf"
                 opffile = os.path.basename(opfpath)
                 if opffile != 'metadata.opf':
@@ -3248,10 +3250,11 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 logger.debug('create_mag_opf is disabled')
             else:
                 db = database.DBConnection()
-                entry = db.match('SELECT Language FROM magazines where Title=? COLLATE NOCASE', (title,))
+                entry = db.match('SELECT Language,Genre FROM magazines where Title=? COLLATE NOCASE', (title,))
                 if entry:
                     _, _ = create_mag_opf(pp_path, title, issuedate, issueid,
-                                          language=entry["Language"], overwrite=True)
+                                          language=entry["Language"], genres=mag_genres,
+                                          overwrite=True)
                 db.close()
 
     if firstfile:
@@ -3403,7 +3406,7 @@ def create_comic_opf(pp_path, data, global_name, overwrite=False):
     return create_opf(pp_path, data, global_name, overwrite=overwrite)
 
 
-def create_mag_opf(issuefile, title, issue, issue_id, language='en', overwrite=False):
+def create_mag_opf(issuefile, title, issue, issue_id, language='en', genres='', overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
     logger = logging.getLogger(__name__)
 
@@ -3456,6 +3459,7 @@ def create_mag_opf(issuefile, title, issue, issue_id, language='en', overwrite=F
         'Series': title,
         'Series_index': issue,
         'Scheme': 'lazylibrarian',
+        'BookGenre': genres,
     }  # type: dict
     # noinspection PyTypeChecker
     return create_opf(dest_path, data, global_name, overwrite=overwrite)
