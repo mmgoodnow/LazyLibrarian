@@ -6364,6 +6364,7 @@ class WebInterface:
                                 _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
                                                                                 issue['IssueDate'], item,
                                                                                 language=entry[0],
+                                                                                genres=genres,
                                                                                 overwrite=True)
                     if action == 'coverswap' and issuefile:
                         coverfile = None
@@ -6601,6 +6602,7 @@ class WebInterface:
                                                                             issue["IssueDate"],
                                                                             issue["IssueID"],
                                                                             language=mag[0],
+                                                                            genres=genres,
                                                                             overwrite=True)
 
             if action == 'Scan':
