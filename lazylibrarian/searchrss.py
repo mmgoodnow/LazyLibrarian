@@ -61,12 +61,12 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
             auth_status = auth_res['Status']
         else:
             auth_status = 'Unknown'
-        # not wanted if _any_ series the book is part of is paused/ignored
+        # not wanted if _any_ series the book is part of is ignored (changed, was paused/ignored)
         cmd = "SELECT SeriesName,Status from series,member where series.SeriesID=member.SeriesID and member.BookID=?"
         series = db.select(cmd, (bookid,))
         reject_series = None
         for ser in series:
-            if ser['Status'] in ['Paused', 'Ignored']:
+            if ser['Status'] in ['Ignored']:
                 reject_series = {"Name": ser['SeriesName'], "Status": ser['Status']}
                 break
         # not wanted if currently have book or already marked wanted
@@ -82,8 +82,8 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
                 new_value_dict = {"Requester": f"{book['dispname']} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
-        elif auth_status in ['Ignored', 'Paused'] and auth_res['Updated'] < search_start:
-            # not wanted if author is ignored or paused
+        elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
+            # not wanted if author is ignored (changed, was paused/ignored)
             logger.info(f'Found book {bookname}, but author is "{auth_status}"')
         elif reject_series and auth_res['Updated'] < search_start:
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
@@ -114,11 +114,13 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
                 new_value_dict = {"AudioRequester": f"{book['dispname']} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
-        elif auth_status in ['Ignored', 'Paused'] and auth_res['Updated'] < search_start:
+        elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
+            # not wanted if author is ignored (changed, was paused/ignored)
             logger.info(f'Found book {bookname}, but author is "{auth_status}"')
         elif reject_series and auth_res['Updated'] < search_start:
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
         elif audio_status == 'Wanted':
+            # still wanted...
             logger.info(f'Found audiobook {bookname} by {authorname}, marking as "Wanted"')
             control_value_dict = {"BookID": bookid}
             new_value_dict = {"AudioStatus": "Wanted"}
