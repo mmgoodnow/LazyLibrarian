@@ -9,7 +9,7 @@
 <style>
 h1 {text-align: center;}
 </style>
-<form accept-charset="UTF-8" action="user_login" method="post">
+<form accept-charset="UTF-8">
 <h1><img src="${img}" alt="" style="width:5%;">
 LazyLibrarian User Login</h1>
 <div class="container">
@@ -27,7 +27,7 @@ LazyLibrarian User Login</h1>
           </div>
         </div>
         <div class="col-md-12">
-          <button type="submit" value="login" name="login" id="login" class="btn btn-primary btn-block btn-lg btn-inverse">Login</button>
+          <button type="button" value="login" name="login" id="login" class="btn btn-primary btn-block btn-lg btn-inverse">Login</button>
         </div>
         <div class="col-sm-6 col-sm-offset-3">
           <h4 id="message">${lazylibrarian.LOGIN_MSG}</h4>
@@ -58,7 +58,7 @@ LazyLibrarian User Login</h1>
         $('#login').on('click', function(e) {
             var password = $.trim($("#password").val());
             var username = $.trim($("#username").val());
-            $.get('user_login', {'username': username, 'password': password},
+            $.post('user_login', {'username': username, 'password': password},
                 function(data) {
                 if (data){
                 bootbox.dialog({
