@@ -3073,7 +3073,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             cover = 0
             if res:
                 cover = check_int(res['CoverPage'], 0)
-                mag_genres = res.get('Genre', '')
+                mag_genres = res['Genre'] if res['Genre'] else ''
             success, msg = preprocess_magazine(pp_path, cover=cover, tag=CONFIG.get_bool('TAG_PDF'),
                                                title=bookid, issue=issuedate, genres=mag_genres)
             if not success:
