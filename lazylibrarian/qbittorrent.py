@@ -14,7 +14,7 @@ import os
 import time
 import logging
 from lazylibrarian.config2 import CONFIG
-from lib.qbittorrent import Client
+from lib.qbittorrent import Client, WrongCredentials
 
 
 def get_client():
@@ -25,7 +25,12 @@ def get_client():
     if CONFIG['QBITTORRENT_PORT']:
         url += ':' + CONFIG['QBITTORRENT_PORT']
 
-    qb = Client(url, CONFIG['QBITTORRENT_USER'], CONFIG['QBITTORRENT_PASS'])
+    try:
+        qb = Client(url, CONFIG['QBITTORRENT_USER'], CONFIG['QBITTORRENT_PASS'])
+    except WrongCredentials:
+        logger.debug("qBittorrent reports Wrong Credentials")
+        return None
+
     if not qb.api_version:
         logger.debug("Failed to login to qBittorrent")
         return None
@@ -186,8 +191,10 @@ def remove_torrent(hashid, remove_data=False):
 def check_link():
     """ Check we can talk to qbittorrent"""
     try:
+        qb_api = ''
         qbclient = get_client()
-        qb_api = qbclient.api_version
+        if qbclient:
+            qb_api = qbclient.api_version
         if qb_api:
             qb_version = qbclient.qbittorrent_version
             return f"qBittorrent login successful, api: {qb_api} version: {qb_version}"
