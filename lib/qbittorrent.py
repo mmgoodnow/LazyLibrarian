@@ -193,20 +193,13 @@ class Client:
         """
         self._session = requests.Session()
 
+        if not (self.username and self.password):
+            # anonymous login, whitelisted ip or localhost
+            return
+
         login = self._session.post(
             self._url + "auth/login",
             data={"username": self.username, "password": self.password},
-            verify=self._verify,
-        )
-        if login.text == "Ok.":
-            return
-
-        # attempt to fix a seedbox/nginx reverse proxy issue
-        parts = self._url.split('://')
-        host = f"{parts[0]}://{self.username}:{self.password}@{parts[1]}"
-        login = self._session.post(
-            host + "auth/login",
-            data={},
             verify=self._verify,
         )
         if login.text == "Ok.":

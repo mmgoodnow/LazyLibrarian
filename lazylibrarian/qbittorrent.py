@@ -197,8 +197,10 @@ def remove_torrent(hashid, remove_data=False):
 def check_link():
     """ Check we can talk to qbittorrent"""
     try:
+        qb_api = ''
         qbclient = get_client()
-        qb_api = qbclient.api_version
+        if qbclient:
+            qb_api = qbclient.api_version
         if qb_api:
             qb_version = qbclient.qbittorrent_version
             return f"qBittorrent login successful, api: {qb_api} version: {qb_version}"
