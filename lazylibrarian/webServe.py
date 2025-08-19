@@ -1909,8 +1909,8 @@ class WebInterface:
                 if email and not is_valid_email(email):
                     adminmsg += 'Contact email looks invalid, please check<br>'
 
-                if CONFIG['HTTP_USER'] != '':
-                    adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
+                # if CONFIG['HTTP_USER'] != '':
+                #     adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
 
                 admin = db.match("SELECT password from users where name='admin'")
                 if admin:

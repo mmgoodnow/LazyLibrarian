@@ -82,6 +82,8 @@ def search_book(books=None, library=None):
     """
     TELEMETRY.record_usage_data('Search/Book')
     logger = logging.getLogger(__name__)
+    loggersearching = logging.getLogger('special.searching')
+
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -114,6 +116,7 @@ def search_book(books=None, library=None):
             # The user has added new books
             if library:
                 logger.debug(f"Searching for {len(books)} {plural(len(books), library)}")
+                loggersearching.debug(f"{books}")
             for book in books:
                 if not book['bookid'] in ['booklang', 'library', 'ignored']:
                     cmd = ("SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus "
