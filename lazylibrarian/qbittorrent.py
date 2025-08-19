@@ -14,18 +14,29 @@ import os
 import time
 import logging
 from lazylibrarian.config2 import CONFIG
-from lib.qbittorrent import Client
+from lib.qbittorrent import Client, WrongCredentials
 
 
 def get_client():
     logger = logging.getLogger(__name__)
-    url = CONFIG['QBITTORRENT_HOST']
-    if not url.startswith("http"):
-        url = "http://" + url
-    if CONFIG['QBITTORRENT_PORT']:
-        url += ':' + CONFIG['QBITTORRENT_PORT']
 
-    qb = Client(url, CONFIG['QBITTORRENT_USER'], CONFIG['QBITTORRENT_PASS'])
+    host = CONFIG['QBITTORRENT_HOST']
+    port = CONFIG.get_int('QBITTORRENT_PORT')
+    if not host.startswith("http://") and not host.startswith("https://"):
+        host = f"http://{host}"
+    host = host.rstrip('/')
+
+    if CONFIG['QBITTORRENT_BASE']:
+        url = f"{host}:{port}/{CONFIG['QBITTORRENT_BASE'].strip('/')}"
+    else:
+        url = f"{host}:{port}"
+
+    try:
+        qb = Client(url, CONFIG['QBITTORRENT_USER'], CONFIG['QBITTORRENT_PASS'])
+    except WrongCredentials:
+        logger.debug("qBittorrent reports Wrong Credentials")
+        return None
+
     if not qb.api_version:
         logger.debug("Failed to login to qBittorrent")
         return None
