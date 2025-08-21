@@ -36,6 +36,9 @@ def get_client():
     except WrongCredentials:
         logger.debug("qBittorrent reports Wrong Credentials")
         return None
+    except Exception as e:
+        logger.debug(f"qBittorrent Error: {e}")
+        return None
 
     if not qb.api_version:
         logger.debug("Failed to login to qBittorrent")
