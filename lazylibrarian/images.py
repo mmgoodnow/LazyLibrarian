@@ -25,7 +25,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes, \
-    sort_definite, get_list
+    sort_definite, get_list, is_valid_type
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file, safe_move
 from lazylibrarian.cache import cache_img, fetch_url, ImageType
 from lazylibrarian.blockhandler import BLOCKHANDLER
@@ -798,9 +798,14 @@ def shrink_mag(issuefile, dpi=0):
 def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
     logger = logging.getLogger(__name__)
-    if not CONFIG.get_bool('IMP_MAGCOVER') or not pagenum:
-        logger.warning(f'No cover required for {issuefile}')
-        return ''
+    if is_valid_type(issuefile, extensions=get_list(CONFIG['MAG_TYPE'])):
+        if not CONFIG.get_bool('IMP_MAGCOVER') or not pagenum:
+            logger.warning(f'No cover required for {issuefile}')
+            return ''
+    if is_valid_type(issuefile, extensions=get_list(CONFIG['COMIC_TYPE'])):
+        if not CONFIG.get_bool('IMP_COMICCOVER'):
+            logger.warning(f'No cover required for {issuefile}')
+            return ''
     if not issuefile or not path_isfile(issuefile):
         logger.warning(f'No issuefile {issuefile}')
         return ''

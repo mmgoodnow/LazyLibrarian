@@ -92,7 +92,7 @@ class RarFileImplementation(object):
                 raise IncorrectRARPassword
         accum = []
         source = iter(stdoutdata.splitlines())
-        line = b''   
+        line = b''
         while line.find(b'RAR ') == -1:
             line = next(source)
         signature = line
@@ -114,7 +114,7 @@ class RarFileImplementation(object):
                 self.comment = '\n'.join(accum[:-1])
             else:
                 self.comment = None
-        elif signature.find(b"RAR 5") > -1 or signature.find(b"RAR 6") > -1:
+        elif signature.find(b"RAR 5") > -1 or signature.find(b"RAR 6") > -1 or signature.find(b"RAR 7") > -1:
             rar_executable_version = 5
             line = next(source)
             while not line.startswith(b'Archive:'):
@@ -128,7 +128,7 @@ class RarFileImplementation(object):
                 self.comment = None
         else:
             raise UnpackerNotInstalled(
-                b"Unsupported RAR version, expected 4.x, 5.x or 6.x, found: "
+                b"Unsupported RAR version, expected 4.x to 7.x, found: "
                 + signature)
 
     def escaped_password(self):
