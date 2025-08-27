@@ -30,7 +30,7 @@ from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import get_work_series, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
-    set_work_id, get_gb_info, set_genres, genre_filter, get_book_pubdate, add_series_members
+    set_work_id, get_gb_info, set_genres, genre_filter, get_book_pubdate, add_series_members, isbn_from_words
 from lazylibrarian.cache import cache_img, clean_cache, ImageType
 from lazylibrarian.calibre import sync_calibre_list, calibre_list, delete_from_calibre
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
@@ -259,7 +259,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'getpdftags': (0, '&id= Show embedded tags in a pdf issue file'),
             'setpdftags': (1, '&id= &tags= Set embedded tags in a pdf issue file'),
             'listsecondaries': (0, 'list all authors that are not primary author of any book in the database'),
-            'deletesecondaries': (1, 'delete all secondary authors in the database')
+            'deletesecondaries': (1, 'delete all secondary authors in the database'),
+            'isbnwords': (0, 'find an isbn for a title')
             }
 
 
@@ -2895,3 +2896,11 @@ class Api(object):
             cnt += 1
             db.action('delete from authors where authorid=?', (item['authorid'], ))
         self.data = f"Removed {cnt} secondary authors"
+
+    def _isbnwords(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'words' not in kwargs:
+            self.data = 'Missing parameter: words'
+            return
+        self.data = isbn_from_words(kwargs['words'])
+
