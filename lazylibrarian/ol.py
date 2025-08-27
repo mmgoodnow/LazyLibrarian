@@ -21,7 +21,7 @@ from rapidfuzz import fuzz
 import lazylibrarian
 from lazylibrarian import database, ROLE
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
-    isbnlang, is_set_or_part
+    isbnlang, is_set_or_part, delete_empty_series
 from lazylibrarian.cache import json_request, html_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
@@ -703,6 +703,7 @@ class OpenLibrary:
                                 break
 
                         if not CONFIG['IMP_IGNORE']:
+                            reason = str(rejected)
                             fatal = True
 
                         if not fatal:
@@ -1202,7 +1203,6 @@ class OpenLibrary:
                     if not rejected:
                         db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                                   (authorid, key, ROLE['PRIMARY']), suppress='UNIQUE')
-                        lazylibrarian.importer.update_totals(authorid)
 
                         # add any additional contributing authors
                         # ol gives us a list of names and a list of keys
@@ -1235,6 +1235,8 @@ class OpenLibrary:
                 else:
                     next_page = False
 
+            lazylibrarian.importer.update_totals(authorid)
+            delete_empty_series()
             cmd = ("SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=? and "
                    "Status != 'Ignored' order by BookDate DESC")
             lastbook = db.match(cmd, (authorid,))

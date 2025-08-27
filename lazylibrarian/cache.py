@@ -45,7 +45,7 @@ class ImageType(Enum):
     TEST = 'test'
 
 
-service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary', 'hardcover']
+service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary', 'hardcover', 'dnb.de']
 
 
 def gr_api_sleep():
@@ -98,7 +98,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True
     url = make_unicode(url)
 
     for blk in service_blocked:
-        if blk in url and BLOCKHANDLER.is_blocked(blk):
+        if blk in url and BLOCKHANDLER.is_blocked(blk.split('.')[0]):
             return 'Blocked', False
 
     if headers is None:

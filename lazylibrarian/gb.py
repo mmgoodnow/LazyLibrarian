@@ -435,6 +435,7 @@ class GoogleBooks:
                                     break
 
                             if not CONFIG['IMP_IGNORE']:
+                                reason = str(rejected)
                                 fatal = True
 
                             if not fatal:
@@ -571,7 +572,6 @@ class GoogleBooks:
                                             db.action('INSERT into bookauthors (AuthorID, BookID, Role)'
                                                       ' VALUES (?, ?, ?)',
                                                       (auth_id, bookid, ROLE['CONTRIBUTING']), suppress='UNIQUE')
-                                            lazylibrarian.importer.update_totals(auth_id)
 
                                 serieslist = []
                                 if book['series']:
@@ -619,6 +619,7 @@ class GoogleBooks:
                 pass
 
             delete_empty_series()
+            lazylibrarian.importer.update_totals(authorid)
             self.logger.debug(
                 f"[{authorname}] The Google Books API was hit {api_hits} {plural(api_hits, 'time')}"
                 f" to populate book list")

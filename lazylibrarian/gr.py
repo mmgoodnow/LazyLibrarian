@@ -795,6 +795,7 @@ class GoodReads:
                                     break
 
                             if not CONFIG['IMP_IGNORE']:
+                                reason = str(rejected)
                                 fatal = True
 
                             if not fatal:
@@ -916,7 +917,6 @@ class GoodReads:
                                 db.upsert("books", new_value_dict, control_value_dict)
                                 db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
                                           (authorid, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
-                                lazylibrarian.importer.update_totals(authorid)
 
                                 set_genres(get_list(bookgenre, ','), bookid)
 
@@ -1037,6 +1037,7 @@ class GoodReads:
 
             self.verify_ids(authorid)
             delete_empty_series()
+            lazylibrarian.importer.update_totals(authorid)
             cmd = ("SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=? AND "
                    "Status != 'Ignored' order by BookDate DESC")
             lastbook = db.match(cmd, (authorid,))
