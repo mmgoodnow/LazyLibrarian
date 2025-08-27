@@ -3,6 +3,7 @@
 import json
 from typing import Optional
 import requests
+import urllib3
 from lazylibrarian.common import proxy_list
 
 
@@ -45,7 +46,7 @@ class Client:
 
         self._url = url + "api/v2/"
         self._verify = verify
-        self._timeout = timeout
+        self._timeout = urllib3.util.Timeout(connect=2.0, read=7.0)
         self._proxies = proxy_list()
         self._max_attempts_on_403 = max_attempts_on_403
 

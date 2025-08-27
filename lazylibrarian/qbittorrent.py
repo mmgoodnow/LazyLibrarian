@@ -22,7 +22,7 @@ def get_client():
 
     host = CONFIG['QBITTORRENT_HOST']
     port = CONFIG.get_int('QBITTORRENT_PORT')
-    if not host.startswith("http://") and not host.startswith("https://"):
+    if not host.startswith("http"):
         host = f"http://{host}"
     host = host.strip('/')
 
