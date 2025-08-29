@@ -22,6 +22,7 @@ from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import database
+from lazylibrarian.bookrename import stripspaces
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory, remove_dir, book_file
@@ -190,9 +191,11 @@ def magazine_scan(title=None):
                                             issuefolder = os.path.dirname(issuefile)
                                             parent = os.path.dirname(issuefolder)
                                             title = os.path.basename(parent)
-                                            logger.debug(f"Using {title}:{issuedate} from {issuefile} calibre parent folder")
+                                            logger.debug(f"Using {title}:{issuedate} from {issuefile} "
+                                                         f"calibre parent folder")
                                         else:
-                                            logger.debug(f"Using {title}:{issuedate} from filename {fname} pattern match")
+                                            logger.debug(f"Using {title}:{issuedate} from filename {fname} "
+                                                         f"pattern match")
                                 else:
                                     logger.debug(f"Pattern match failed for [{fname}]")
                         except Exception:
@@ -454,7 +457,7 @@ def get_dateparts(title_or_issue, datetype=''):
     # These are the ones we can currently match...
     # 1 MonthName MonthName YYYY (bi-monthly just use first month as date)
     # 2 nn, MonthName YYYY  where nn is an assumed issue number (use issue OR month with/without year)
-    # 3 DD MonthName YYYY (daily, weekly, bi-weekly, monthly)
+    # 3 DD MonthName YYYY or DD MM YYYY (daily, weekly, bi-weekly, monthly)
     # 4 MonthName YYYY (monthly)
     # 5 MonthName DD YYYY or MonthName DD, YYYY (daily, weekly, bi-weekly, monthly)
     # 6 YYYY MM DD or YYYY MonthName DD (daily, weekly, bi-weekly, monthly)
@@ -645,6 +648,8 @@ def get_dateparts(title_or_issue, datetype=''):
                     month = month2num(words[pos + 1])
                     if not month:
                         month = check_int(words[pos + 1], 0)
+                        if month > 12:
+                            month = 0
                     if month:
                         if pos + 2 < len(words):
                             day = check_int(re.sub(r"\D", "", words[pos + 2]), 0)
@@ -708,13 +713,33 @@ def get_dateparts(title_or_issue, datetype=''):
                 pos += 1
 
         # nn YYYY issue number without "Nr" before it, or YYYY nn
+        # or DD MM YYYY (datestyle 3) or MM DD YYYY
         if not dateparts['style'] and dateparts['year']:
             pos = 1
             while pos < len(words):
                 if check_year(words[pos]):
                     if words[pos - 1].isdigit():
-                        dateparts['issue'] = int(words[pos - 1])
-                        dateparts['style'] = 12
+                        if pos > 1 and words[pos - 2].isdigit():
+                            m = int(words[pos - 1])
+                            d = int(words[pos - 2])
+                            # Most monthly magazines are 1st of the month
+                            # so if one of the numbers is 1 and the other is < 13
+                            # assume day 1 of month.
+                            # Otherwise if only one of the numbers is < 13 assume that's month
+                            if m == 1 and d < 13:
+                                m = d
+                                d = 1
+                            if m < 13:
+                                dateparts['months'] = [m]
+                                dateparts['day'] = d
+                                dateparts['style'] = 3
+                            elif d < 13:
+                                dateparts['months'] = [d]
+                                dateparts['day'] = m
+                                dateparts['style'] = 3
+                        if not dateparts['style']:
+                            dateparts['issue'] = int(words[pos - 1])
+                            dateparts['style'] = 12
                         break
                     elif pos + 1 < len(words) and words[pos + 1].isdigit():
                         dateparts['issue'] = int(words[pos + 1])
