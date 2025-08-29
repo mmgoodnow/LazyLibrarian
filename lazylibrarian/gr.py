@@ -812,7 +812,7 @@ class GoodReads:
                             reason = entryreason
 
                         if fatal:
-                            self.logger.debug(f"Rejected {bookid} {reason}")
+                            self.logger.debug(f"Rejected {bookid}:{reason}:{rejected}")
                         else:
                             cmd = ("SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,"
                                    "OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?")
