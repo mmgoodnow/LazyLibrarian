@@ -477,6 +477,9 @@ def audio_rename(bookid, rename=False, playlist=False):
             logger.error(msg)
             return ''
 
+    if not rename:
+        dest_path = old_path
+
     if playlist:
         try:
             playlist = open(os.path.join(dest_path, 'playlist.ll'), "w")
