@@ -15,6 +15,7 @@
 import json
 import logging
 import os
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -218,7 +219,7 @@ def annas_search(
         logger.error(f"{e}")
         return None
 
-    raw_results = soup.find_all("a", class_="js-vim-focus")
+    raw_results = soup.select("div[class*='pt-3'][class*='border-b']")
     results = list(filter(lambda i: i is not None, map(parse_result, raw_results)))
     myhash = md5_utf8(query)
     cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache")
@@ -244,34 +245,71 @@ def annas_search(
 
 def parse_result(raw_content: Tag) -> SearchResult:
     try:
-        title = raw_content.find("h3").text.strip()
-    except AttributeError:
+        link = raw_content.find("a", class_="js-vim-focus")
+        if not link:
+            return None
+        
+        title = link.text.strip()
+        hashid = link.get("href", "").split("md5/")[-1]
+        if not hashid:
+            return None
+            
+    except (AttributeError, IndexError):
         return None
 
-    authors = raw_content.find("div", class_="max-lg:text-sm") or ''
-    if authors:
-        authors = authors.text
-    publish_info = raw_content.find("div", class_="max-lg:text-xs") or ''
-    if publish_info:
-        publish_info = publish_info.text
-        publisher, publish_date = extract_publish_info(publish_info)
-    else:
-        publish_date = ''
-        publisher = ''
+    # Extract author from fallback cover
+    authors = ''
+    author_div = raw_content.find("div", class_="text-amber-900")
+    if author_div:
+        authors = author_div.get("data-content", "")
+
+    # Extract file info from metadata div
+    file_info = FileInfo("", "", "")
+    metadata_div = raw_content.find("div", class_="text-gray-800")
+    if not metadata_div:
+        for div in raw_content.find_all("div"):
+            if "✅" in div.text:
+                metadata_div = div
+                break
+    
+    if metadata_div:
+        metadata_text = metadata_div.text
+        
+        lang_match = re.search(r'([A-Za-z]+)\s*\[([a-z]{2})\]', metadata_text)
+        language = lang_match.group(2) if lang_match else ""
+        
+        size_match = re.search(r'(\d+\.?\d*\s*[MKG]B)', metadata_text)
+        size = size_match.group(1) if size_match else ""
+        
+        format_match = re.search(r'·\s*(PDF|EPUB|MOBI|AZW3|FB2|TXT|DJVU|CBR|CBZ|RTF|LIT|DOC|DOCX|HTML|HTM|LRF|MHT|ZIP|RAR)\s*·', metadata_text, re.IGNORECASE)
+        extension = format_match.group(1).lower() if format_match else ""
+        
+        file_info = FileInfo(extension, size, language)
+    
+    # Fallback: extract extension from file path
+    if not file_info.extension:
+        file_path_div = raw_content.find("div", class_="text-gray-500")
+        if file_path_div:
+            file_path = file_path_div.text.strip()
+            if "." in file_path:
+                file_info = FileInfo(file_path.split(".")[-1].lower(), file_info.size, file_info.language)
+
+    publisher = ''
+    publish_date = ''
+    
+    if metadata_div and metadata_div.text:
+        metadata_text = metadata_div.text
+        year_match = re.search(r'·\s*(\d{4})\s*·', metadata_text)
+        if year_match:
+            publish_date = year_match.group(1)
+    
+    thumbnail = ''
     try:
-        thumbnail = raw_content.find("img").get("src") or ''
+        img = raw_content.find("img")
+        if img:
+            thumbnail = img.get("src", "")
     except AttributeError:
         thumbnail = ''
-    hashid = raw_content.get("href").split("md5/")[-1]
-
-    raw_file_info = raw_content.find(
-        "div", class_="text-gray-500"
-    )
-    if raw_file_info:
-        raw_file_info = raw_file_info.text
-        file_info = extract_file_info(raw_file_info)
-    else:
-        file_info = ''
 
     res = SearchResult(
         id=hashid,
@@ -423,7 +461,7 @@ def anna_search(book=None, test=False):
             results.append({
                 'bookid': book['bookid'],
                 'tor_prov': provider,
-                'tor_title': f"{title}{extn}",
+                'tor_title': f"{title}.{extn}",
                 'tor_url': dl,
                 'tor_size': size,
                 'tor_type': 'direct',
