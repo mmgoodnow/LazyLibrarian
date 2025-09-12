@@ -124,11 +124,9 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             return False
 
         global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, dateparts)
-        if not global_name.endswith(extn):
-            global_name = f"{global_name}.{extn}"
         tempdir = tempfile.mkdtemp()
         try:
-            _ = safe_copy(source_file, os.path.join(tempdir, global_name))
+            _ = safe_copy(source_file, os.path.join(tempdir, f"{global_name}.{extn}"))
         except Exception as e:
             logger.warning(f"Failed to copy source file: {str(e)}")
             return False
