@@ -282,9 +282,10 @@ def get_latest_version():
     # if GIT install return latest on current branch
     # if nonGIT install return latest from master
     created_at = ''
-    if CONFIG['INSTALL_TYPE'] in ['git', 'source', 'package', 'docker']:
+    install_type = CONFIG['INSTALL_TYPE'].split(' ')[0].lower()
+    if install_type in ['git', 'source', 'package', 'docker']:
         latest_version, created_at = get_latest_version_from_git()
-    elif CONFIG['INSTALL_TYPE'] in ['win']:
+    elif install_type == 'win':
         latest_version = 'WINDOWS INSTALL'
     else:
         latest_version = 'UNKNOWN INSTALL'
