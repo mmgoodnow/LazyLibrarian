@@ -630,6 +630,7 @@
                     ol_selected = ''
                     gr_selected = ''
                     hc_selected = ''
+                    dnb_selected = ''
                     if CONFIG['BOOK_API'] == "GoodReads":
                         gr_selected = 'selected="selected"'
                     elif CONFIG['BOOK_API'] == "GoogleBooks":
@@ -638,6 +639,8 @@
                         ol_selected = 'selected="selected"'
                     elif CONFIG['BOOK_API'] == "HardCover":
                         hc_selected = 'selected="selected"'
+                    elif CONFIG['BOOK_API'] == "DNB":
+                        dnb_selected = 'selected="selected"'
                     %>
                     <label for="book_api" class="control-label">Primary Information Source</label>
                     <select id="book_api" name="book_api" class="form-control">
@@ -650,6 +653,9 @@
                       %if CONFIG['OL_API']:
                         <option value = "OpenLibrary" ${ol_selected}>OpenLibrary</option>
                       %endif
+                      %if CONFIG['DNB_API']:
+                        <option value = "DNB" ${dnb_selected}>Deutsche Nationalbibliothek</option>
+                      %endif
                       %if CONFIG['HC_API']:
                         <option value = "HardCover" ${hc_selected}>HardCover</option>
                       %endif
@@ -659,7 +665,7 @@
                     <% checked = 'checked="checked"' if CONFIG['MULTI_SOURCE'] else '' %>
                     <label for="multi_source">
                       <input type="checkbox" id="multi_source" name="multi_source" value="1" ${checked} />
-                      Use multiple sources for book information
+                      Use multiple sources for book/author information
                     </label>
                   </div>
                   <fieldset id="ol_options">
@@ -669,6 +675,16 @@
                     <label for="ol_api">
                       <input type="checkbox" id="ol_api" name="ol_api" value="1" ${checked} />
                       Enable OpenLibrary api for book/author information
+                    </label>
+                  </div>
+                  </fieldset>
+                  <fieldset id="dnb_options">
+                  <label class="control-label">Deutsche Nationalbibliothek API:</label>
+                  <div class="checkbox">
+                    <% checked = 'checked="checked"' if CONFIG['DNB_API'] else '' %>
+                    <label for="ol_api">
+                      <input type="checkbox" id="dnb_api" name="dnb_api" value="1" ${checked} />
+                      Enable Deutsche Nationalbibliothek api for book information
                     </label>
                   </div>
                   </fieldset>

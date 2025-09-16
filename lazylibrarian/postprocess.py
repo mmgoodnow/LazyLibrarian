@@ -39,13 +39,12 @@ from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibredb, get_calibre_id
 from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, \
-    setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory, walk, \
-    copy_tree, remove_dir
+from lazylibrarian.filesystem import (DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file,
+                                      listdir, setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file,
+                                      jpg_file, book_file, get_directory, walk, copy_tree, remove_dir)
 from lazylibrarian.formatter import unaccented, plural, now, today, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, sanitize, thread_name
-from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
 from lazylibrarian.images import create_mag_cover
@@ -122,9 +121,10 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         if not dest_path or not make_dirs(dest_path):
             logger.error(f'Unable to create destination directory {dest_path}')
             return False
-
+        # logger.warning(f"{title}:{dateparts}")
         global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, dateparts)
         tempdir = tempfile.mkdtemp()
+        # logger.warning(f"{tempdir}:{global_name}")
         try:
             _ = safe_copy(source_file, os.path.join(tempdir, f"{global_name}.{extn}"))
         except Exception as e:
@@ -233,18 +233,8 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
         book = db.match('SELECT * from books where BookID=?', (bookid,))
         if not book:
             logger.warning(f"Bookid [{bookid}] not found in database, trying to add...")
-            if CONFIG['BOOK_API'] == "GoodReads":
-                gr_id = GoodReads(bookid)
-                gr_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
-            elif CONFIG['BOOK_API'] == "GoogleBooks":
-                gb_id = GoogleBooks(bookid)
-                gb_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
-            elif CONFIG['BOOK_API'] == "OpenLibrary":
-                ol_id = OpenLibrary(bookid)
-                ol_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
-            elif CONFIG['BOOK_API'] == "HardCover":
-                hc_id = HardCover(bookid)
-                hc_id.find_book(bookid, None, None, f"Added by book_from_dir {source_dir}")
+            api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+            api.add_bookid_to_db(bookid, None, None, f"Added by book_from_dir {source_dir}")
             # see if it's there now...
             book = db.match('SELECT * from books where BookID=?', (bookid,))
         db.close()
@@ -498,25 +488,25 @@ def process_alternate(source_dir=None, library='eBook'):
                     # try goodreads/openlibrary preferred authorname
                     if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
                         logger.debug(f"Checking OpenLibrary for [{authorname}]")
-                        ol = OpenLibrary(authorname)
+                        ol = OpenLibrary()
                         try:
-                            author_gr = ol.find_author_id()
+                            author_gr = ol.find_author_id(authorname=authorname)
                         except Exception as e:
                             author_gr = {}
                             logger.warning(f"No author id for [{authorname}] {type(e).__name__}")
                     elif CONFIG['BOOK_API'] in ['HardCover']:
                         logger.debug(f"Checking HardCover for [{authorname}]")
-                        hc = HardCover(authorname)
+                        hc = HardCover()
                         try:
-                            author_gr = hc.find_author_id()
+                            author_gr = hc.find_author_id(authorname=authorname, title=bookname)
                         except Exception as e:
                             author_gr = {}
                             logger.warning(f"No author id for [{authorname}] {type(e).__name__}")
                     else:
                         logger.debug(f"Checking GoodReads for [{authorname}]")
-                        gr = GoodReads(authorname)
+                        gr = GoodReads()
                         try:
-                            author_gr = gr.find_author_id()
+                            author_gr = gr.find_author_id(authorname=authorname, title=bookname)
                         except Exception as e:
                             author_gr = {}
                             logger.warning(f"No author id for [{authorname}] {type(e).__name__}")
@@ -553,7 +543,7 @@ def process_alternate(source_dir=None, library='eBook'):
 
                 if authorid and not bookid:
                     # new book, or new author where we didn't want to load their back catalog
-                    searchterm = (f"{unaccented(bookname, only_ascii=False)} <ll> "
+                    searchterm = (f"{unaccented(bookname, only_ascii=False)}<ll>"
                                   f"{unaccented(authorname, only_ascii=False)}")
                     match = {}
                     results = search_for(searchterm)
@@ -566,7 +556,7 @@ def process_alternate(source_dir=None, library='eBook'):
                         newtitle, _, _ = split_title(authorname, bookname)
                         if newtitle != bookname:
                             bookname = newtitle
-                            searchterm = (f"{unaccented(bookname, only_ascii=False)} <ll> "
+                            searchterm = (f"{unaccented(bookname, only_ascii=False)}<ll>"
                                           f"{unaccented(authorname, only_ascii=False)}")
                             results = search_for(searchterm)
                             for result in results:
@@ -1256,7 +1246,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         book = highest[2]  # type: dict
                     if match and match >= CONFIG.get_int('DLOAD_RATIO'):
                         logger.debug(f"Found match ({round(match, 2)}%): {pp_path} for {booktype} {book['NZBtitle']}")
-                        cmd = ("SELECT AuthorName,BookName,books.gr_id,books.ol_id,books.gb_id,books.hc_id "
+                        cmd = ("SELECT AuthorName,BookName,books.gr_id,books.ol_id,books.gb_id,books.hc_id,dnb_id "
                                "from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID")
                         data = db.match(cmd, (book['BookID'],))
                         if data:  # it's ebook/audiobook
@@ -1267,6 +1257,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             gb_id = data['gb_id']
                             ol_id = data['ol_id']
                             hc_id = data['hc_id']
+                            dnb_id = data['dnb_id']
 
                             namevars = name_vars(book['BookID'])
                             if booktype == 'AudioBook' and get_directory('Audio'):
@@ -1281,7 +1272,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             global_name = namevars['BookFile']
                             global_name = sanitize(global_name)
                             data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': book['BookID'],
-                                    'gr_id': gr_id, 'gb_id': gb_id, 'ol_id': ol_id, 'hc_id': hc_id}
+                                    'gr_id': gr_id, 'gb_id': gb_id, 'ol_id': ol_id, 'hc_id': hc_id, 'dnb_id': dnb_id}
                         else:
                             data = db.match('SELECT * from magazines WHERE Title=?', (book['BookID'],))
                             if data:  # it's a magazine
@@ -2713,6 +2704,8 @@ def send_to_calibre(booktype, global_name, folder, data):
                 identifier = f"goodreads:{bookid}"
             elif data.get('gb_id') == bookid:
                 identifier = f"google:{bookid}"
+            elif data.get('dnb_id') == bookid:
+                identifier = f"dnb:{bookid}"
         elif booktype == 'comic':
             if bookid.startswith('CV'):
                 identifier = f"ComicVine:{bookid[2:]}"
@@ -3035,6 +3028,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     else:  # mag, comic or audiobook or multi-format book
         match = False
         for fname in listdir(pp_path):
+            # logger.warning(fname)
             if CONFIG.is_valid_booktype(fname, booktype=booktype):
                 match = True
                 break

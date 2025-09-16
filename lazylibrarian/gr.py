@@ -34,9 +34,7 @@ from lazylibrarian.images import cache_bookimg, get_book_cover
 class GoodReads:
     # https://www.goodreads.com/api/
 
-    def __init__(self, name=None):
-        self.name = make_unicode(name)
-        # self.type = type
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.loggersearching = logging.getLogger('special.searching')
         if not CONFIG['GR_API']:
@@ -51,9 +49,9 @@ class GoodReads:
             searchtitle = ''
             searchauthorname = ''
 
-            if ' <ll> ' in searchterm:  # special token separates title from author
-                searchtitle, searchauthorname = searchterm.split(' <ll> ')
-                searchterm = searchterm.replace(' <ll> ', ' ')
+            if '<ll>' in searchterm:  # special token separates title from author
+                searchtitle, searchauthorname = searchterm.split('<ll>')
+                searchterm = searchterm.replace('<ll>', ' ')
                 searchtitle = searchtitle.split(' (')[0]  # without any series info
 
             url = quote_plus(make_utf8bytes(searchterm)[0])
@@ -264,8 +262,8 @@ class GoodReads:
         except Exception:
             self.logger.error(f'Unhandled exception in GR.find_results: {traceback.format_exc()}')
 
-    def find_author_id(self, refresh=False):
-        author = self.name
+    def find_author_id(self, authorname='', title='', refresh=False):
+        author = authorname
         if '<ll>' in author:
             author, _ = author.split('<ll>')
         author = format_author_name(unaccented(author, only_ascii='_'),
@@ -293,10 +291,10 @@ class GoodReads:
             return {}
 
         # In spite of how this looks, goodreads only returns one result, even if there are multiple matches
-        # we just have to hope we get the right one. eg search for "James Lovelock" returns "James E. Lovelock"
+        # we just have to hope we get the right one. e.g. search for "James Lovelock" returns "James E. Lovelock"
         # who only has one book listed under googlebooks, the rest are under "James Lovelock"
         # goodreads has all his books under "James E. Lovelock". Can't come up with a good solution yet.
-        # For now we'll have to let the user handle this by selecting/adding the author manually
+        # For now, we'll have to let the user handle this by selecting/adding the author manually
         for res in resultxml:
             authorid = res.attrib.get("id")
             authorname = res.find('name').text
@@ -312,7 +310,7 @@ class GoodReads:
             self.logger.debug(f"Fuzz failed: {round(match, 2)} [{author}][{authorname}]")
         return {}
 
-    def get_author_info(self, authorid=None):
+    def get_author_info(self, authorid=None, authorname=None):
 
         url = '/'.join([CONFIG['GR_URL'],
                         f"author/show/{authorid}.xml?{urlencode(self.params)}"])
@@ -775,7 +773,7 @@ class GoodReads:
                                         if not match['gr_id']:
                                             cmd = "UPDATE books SET gr_id=? WHERE BookID=?"
                                             db.action(cmd, (bookid, match['BookID']))
-                                        rejected.append(['bookid', f"Got {bookid} under bookid {match['BookID']}"])
+                                        rejected.append(['bookid', f"Duplicate title {bookname} ({bookid}/{match['BookID']})"])
 
                         fatal = False
                         reason = ''
@@ -1201,7 +1199,7 @@ class GoodReads:
         finally:
             db.close()
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
+    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.add_bookid'):
         url = '/'.join([CONFIG['GR_URL'], f"book/show/{bookid}?{urlencode(self.params)}"])
         try:
             self.loggersearching.debug(url)
@@ -1226,7 +1224,7 @@ class GoodReads:
         if not book_language:
             book_language = "Unknown"
         #
-        # user has said they want this book, don't block for unwanted language etc
+        # user has said they want this book, don't block for unwanted language etc.
         # Ignore book if adding as part of a series, else just warn and include it
         #
         valid_langs = get_list(CONFIG['IMP_PREFLANG'])
@@ -1326,8 +1324,8 @@ class GoodReads:
                     self.logger.debug(f"{authorname}: Changing authorid from {authorid} to {match['AuthorID']}")
                     author = {'authorid': match['AuthorID'], 'authorname': authorname}
                 else:
-                    gr = GoodReads(authorname)
-                    author = gr.find_author_id()
+                    gr = GoodReads()
+                    author = gr.find_author_id(authorname=authorname)
             if author:
                 author_id = author['authorid']
                 match = db.match('SELECT * from authors WHERE AuthorID=?', (author_id,))

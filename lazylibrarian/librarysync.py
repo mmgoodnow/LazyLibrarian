@@ -33,13 +33,9 @@ from lazylibrarian.filesystem import (DIRS, path_exists, path_isdir, path_isfile
                                       opf_file, get_directory, book_file)
 from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented, replace_all, strip_quotes,
                                      split_title, now, make_unicode, split_author_names)
-from lazylibrarian.gb import GoogleBooks
-from lazylibrarian.gr import GoodReads
-from lazylibrarian.hc import HardCover
 from lazylibrarian.images import img_id
 from lazylibrarian.importer import (update_totals, add_author_name_to_db, search_for, collate_nopunctuation,
                                     title_translates)
-from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.preprocessor import preprocess_audio
 from lib.mobi import Mobi
 
@@ -81,18 +77,8 @@ def get_book_meta(fdir, reason="get_book_meta"):
             existing_book = db.match(cmd, (bookid,))
             if not existing_book:
                 logger.debug(f"Searching {CONFIG['BOOK_API']} for {bookid}")
-                if CONFIG['BOOK_API'] == "GoogleBooks":
-                    gb = GoogleBooks(bookid)
-                    gb.find_book(bookid, None, None, reason)
-                elif CONFIG['BOOK_API'] == "GoodReads":
-                    gr = GoodReads(bookid)
-                    gr.find_book(bookid, None, None, reason)
-                elif CONFIG['BOOK_API'] == "HardCover":
-                    hc = HardCover(bookid)
-                    hc.find_book(bookid, None, None, reason)
-                elif CONFIG['BOOK_API'] == "OpenLibrary":
-                    ol = OpenLibrary(bookid)
-                    ol.find_book(bookid, None, None, reason)
+                api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+                api.add_bookid_to_db(bookid, None, None, reason)
                 existing_book = db.match(cmd, (bookid,))
             db.close()
             if existing_book:
@@ -236,6 +222,8 @@ def get_book_info(fname):
                             res['hc_id'] = txt
                         elif attrib[k] == 'GOOGLE':
                             res['gb_id'] = txt
+                        elif attrib[k] == 'DNB':
+                            res['dnb_id'] = txt
         n += 1
     if len(authors):
         res['creator'] = authors[0]
@@ -730,10 +718,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         isbn = ""
                         book = ""
                         author = ""
-                        gr_id = ""
-                        gb_id = ""
-                        ol_id = ""
-                        hc_id = ""
                         publisher = ""
                         narrator = ""
                         extn = os.path.splitext(files)[1]
@@ -804,6 +788,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                             if 'hc_id' in res:
                                 hc_id = res['hc_id']
                                 ident = f"HC: {hc_id}"
+                            if 'dnb_id' in res:
+                                dnb_id = res['dnb_id']
+                                ident = f"DN: {dnb_id}"
                             logger.debug(
                                 f"file meta [{isbn}] [{language}] [{author}] [{book}] [{ident}] [{publisher}] "
                                 f"[{narrator}]")
@@ -904,22 +891,14 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # author exists, check if this book by this author is in our database
                                 # metadata might have quotes in book name
                                 # some books might be stored under a different author name
-                                # eg books by multiple authors, books where author is "writing as"
+                                # e.g. books by multiple authors, books where author is "writing as"
                                 # or books we moved to "merge" authors
                                 book = strip_quotes(book)
 
                                 # If we have a valid ID, use that
-                                bookid = ''
                                 mtype = ''
                                 match = None
-                                if gr_id and CONFIG['BOOK_API'] == "GoodReads":
-                                    bookid = gr_id
-                                elif gb_id and CONFIG['BOOK_API'] == "GoogleBooks":
-                                    bookid = gb_id
-                                elif ol_id and CONFIG['BOOK_API'] == "OpenLibrary":
-                                    bookid = ol_id
-                                elif hc_id and CONFIG['BOOK_API'] == "HardCover":
-                                    bookid = hc_id
+                                bookid = eval(lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['book_key'])
                                 if bookid:
                                     match = db.match('SELECT AuthorID,Status FROM books where BookID=?',
                                                      (bookid,))
@@ -962,19 +941,13 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         bookid = oldbookid
                                         logger.warning(
                                             f"Metadata bookid [{bookid}] not found in database, trying to add...")
-                                        if CONFIG['BOOK_API'] == "GoodReads" and gr_id:
-                                            finder = GoodReads(gr_id)
-                                            finder.find_book(gr_id, None, None, "Added by gr librarysync")
-                                        elif CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
-                                            finder = GoogleBooks(gb_id)
-                                            finder.find_book(gb_id, None, None, "Added by gb librarysync")
-                                        elif CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
-                                            finder = OpenLibrary(ol_id)
-                                            finder.find_book(ol_id, None, None, "Added by ol librarysync")
-                                        elif CONFIG['BOOK_API'] == "HardCover" and hc_id:
-                                            finder = HardCover(hc_id)
-                                            finder.find_book(hc_id, None, None, "Added by hc librarysync")
 
+                                        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+                                        book_id = eval(lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['book_id'])
+                                        if book_id:
+                                            src = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']
+                                            api.add_bookid_to_db(book_id, None, None, f"Added by {src}"
+                                                                 f" librarysync")
                                     if bookid:
                                         # see if it's there now...
                                         match = db.match('SELECT AuthorID,BookName,Status from books where BookID=?',
@@ -1007,7 +980,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         f"Book {book} by {author} is marked Ignored in database, importing anyway")
 
                                 if not bookid and forced_bookid:
-                                    if lazylibrarian.postprocess.process_book_from_dir(source_dir=source_dir,
+                                    if lazylibrarian.postprocess.process_book_from_dir(source_dir=rootdir,
                                                                                        library=library,
                                                                                        bookid=forced_bookid):
                                         bookid = forced_bookid
@@ -1019,7 +992,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                     if ' ' not in newauthorname:
                                         newauthorname = os.path.basename(os.path.dirname(rootdir))
                                     newauthorname = make_unicode(newauthorname)
-                                    # calibre replaces trailing periods with _ eg Smith Jr. -> Smith Jr_
+                                    # calibre replaces trailing periods with _ e.g. Smith Jr. -> Smith Jr_
                                     if newauthorname.endswith('_'):
                                         newauthorname = f"{newauthorname[:-1]}."
                                     if author.lower() != newauthorname.lower():
@@ -1038,21 +1011,17 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 if not bookid:
                                     sources = [CONFIG['BOOK_API']]
                                     if CONFIG.get_bool('MULTI_SOURCE'):
-                                        # Either original source doesn't have the book or it didn't match language prefs
-                                        # or it's under a different author (pseudonym, series continuation author)
+                                        # Either original source doesn't have the book, or it didn't match language
+                                        # prefs, or it's under another author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
-                                        if "OpenLibrary" not in sources and CONFIG['OL_API']:
-                                            sources.append("OpenLibrary")
-                                        if "HardCover" not in sources and CONFIG['HC_API']:
-                                            sources.append("HardCover")
-                                        if "GoodReads" not in sources and CONFIG['GR_API']:
-                                            sources.append("GoodReads")
-                                        if "GoogleBooks" not in sources and CONFIG['GB_API']:
-                                            sources.append("GoogleBooks")
+                                        info_sources = lazylibrarian.INFOSOURCES
+                                        for source in info_sources:
+                                            if info_sources[source] not in sources and info_sources[source]['enabled']:
+                                                sources.append(info_sources[source])
 
                                     searchresults = []
                                     for source in sources:
-                                        searchresults += search_for(f"{book} <ll> {author}", source)
+                                        searchresults += search_for(f"{book}<ll>{author}", source)
 
                                     sortedlist = sorted(searchresults,
                                                         key=lambda x: (x['highest_fuzz'], x['bookrate_count']),
@@ -1093,15 +1062,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             logger.debug(f"{bookid} [{bookauthor}] matched on rescan for {booktitle}")
                                         else:
                                             logger.debug(f"Adding {bookid} [{bookauthor}] on rescan for {booktitle}")
-                                            if source == 'OpenLibrary':
-                                                src_id = OpenLibrary(bookid)
-                                            elif source == 'GoodReads':
-                                                src_id = GoodReads(bookid)
-                                            elif source == 'HardCover':
-                                                src_id = HardCover(bookid)
-                                            else:
-                                                src_id = GoogleBooks(bookid)
-                                            src_id.find_book(bookid, reason=f"Librarysync {source} rescan {bookauthor}")
+                                            api = lazylibrarian.INFOSOURCES[source]['class']
+                                            api.add_bookid_to_db(bookid, reason=f"Librarysync {source} "
+                                                                                f"rescan {bookauthor}")
                                             if language and language != "Unknown":
                                                 # set language from book metadata
                                                 logger.debug(f"Setting language from metadata {booktitle} : {language}")

@@ -24,14 +24,14 @@ from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_in
     isbnlang, is_set_or_part, delete_empty_series
 from lazylibrarian.cache import json_request, html_request
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
+from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, format_author_name, \
     get_list, make_utf8bytes, plural, unaccented, replace_all, today, date_format, thread_name
 from lazylibrarian.images import cache_bookimg, get_book_cover
 
 
 class OpenLibrary:
     # https://openlibrary.org/developers/api
-    def __init__(self, name=''):
+    def __init__(self):
         self.OL_SEARCH = '/'.join([CONFIG['OL_URL'], "search.json?"])
         self.OL_AUTHOR = '/'.join([CONFIG['OL_URL'], "authors/"])
         self.OL_ISBN = '/'.join([CONFIG['OL_URL'], "isbn/"])
@@ -40,7 +40,6 @@ class OpenLibrary:
         self.LT_NSERIES = '/'.join([CONFIG['LT_URL'], 'nseries/'])
         self.LT_SERIES = '/'.join([CONFIG['LT_URL'], 'series/'])
         self.LT_WORK = '/'.join([CONFIG['LT_URL'], "work/"])
-        self.name = make_unicode(name)
         self.lt_cache = False
         self.logger = logging.getLogger(__name__)
         self.searchinglogger = logging.getLogger('special.searching')
@@ -58,9 +57,9 @@ class OpenLibrary:
             next_page = True
             loop_count = 1
 
-            if ' <ll> ' in searchterm:  # special token separates title from author
-                searchtitle, searchauthorname = searchterm.split(' <ll> ')
-                searchterm = searchterm.replace(' <ll> ', ' ')
+            if '<ll>' in searchterm:  # special token separates title from author
+                searchtitle, searchauthorname = searchterm.split('<ll>')
+                searchterm = searchterm.replace('<ll>', ' ')
                 searchtitle = searchtitle.split(' (')[0]  # without any series info
 
             self.logger.debug(f'Now searching OpenLibrary API with searchterm: {searchterm}')
@@ -186,13 +185,10 @@ class OpenLibrary:
         except Exception:
             self.logger.error(f'Unhandled exception in OL.find_results: {traceback.format_exc()}')
 
-    def find_author_id(self, refresh=False):
-        authorname = self.name.replace('#', '').replace('/', '_')
-        self.logger.debug(f"Getting OL author id for {authorname}, refresh={refresh}")
-        title = ''
-        if '<ll>' in authorname:
-            authorname, title = authorname.split('<ll>')
+    def find_author_id(self, authorname='', title='', refresh=False):
+        authorname = authorname.replace('#', '').replace('/', '_')
         authorname = format_author_name(authorname, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
+        self.logger.debug(f"Getting OL author id for {authorname}, refresh={refresh}")
         if title:
             authorbooks, in_cache = json_request(
                 f"{self.OL_SEARCH}author={quote_plus(authorname)}&title={quote_plus(title)}", use_cache=not refresh)
@@ -208,7 +204,7 @@ class OpenLibrary:
                     key = book.get('author_key')[0]
                     if key:
                         key = key.split('/')[-1]
-                    res = self.get_author_info(key)
+                    res = self.get_author_info(key, authorname)
                     if res and res['authorname'] != authorname:
                         res['aka'] = authorname
                     return res
@@ -226,13 +222,13 @@ class OpenLibrary:
                     key = book.get('author_key')[0]
                     if key:
                         key = key.split('/')[-1]
-                    res = self.get_author_info(key, refresh=refresh)
+                    res = self.get_author_info(key, authorname, refresh=refresh)
                     if res and res['authorname'] != authorname:
                         res['aka'] = authorname
                     return res
         return {}
 
-    def get_author_info(self, authorid=None, refresh=False):
+    def get_author_info(self, authorid=None, authorname=None, refresh=False):
         self.logger.debug(f"Getting OL author info for {authorid}, refresh={refresh}")
         authorinfo, in_cache = json_request(f"{self.OL_AUTHOR + authorid}.json", use_cache=not refresh)
         if not authorinfo:
@@ -620,7 +616,7 @@ class OpenLibrary:
                         # might have been merged from another authorid or inherited from goodreads?
                         # Should probably use the one with the "best" info but since we don't know
                         # which that is, keep the old one which is already linked to other db tables
-                        # but allow info (dates etc) to be updated
+                        # but allow info (dates etc.) to be updated
                         if key != exists['BookID']:
                             self.logger.debug(
                                 f"Rejecting bookid {key} for [{auth_name}][{title}] already got {exists['BookID']}")
@@ -1296,7 +1292,7 @@ class OpenLibrary:
         finally:
             db.close()
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.find_book'):
+    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.add_bookid'):
         self.logger.debug(f"bookstatus={bookstatus}, audiostatus={audiostatus}")
         url = f"{self.OL_WORK + bookid}.json"
         try:
@@ -1333,7 +1329,7 @@ class OpenLibrary:
             publish_date = date_format(workinfo.get('publish_date', ''), context=title, datelang=CONFIG['DATE_LANG'])
             lang = "Unknown"
             #
-            # user has said they want this book, don't block for unwanted language etc
+            # user has said they want this book, don't block for unwanted language etc.
             # Ignore book if adding as part of a series, else just warn and include it
             #
             valid_langs = get_list(CONFIG['IMP_PREFLANG'])
@@ -1413,7 +1409,7 @@ class OpenLibrary:
                         auth_id = lazylibrarian.importer.add_author_name_to_db(authorname=auth_name,
                                                                                refresh=False,
                                                                                addbooks=False,
-                                                                               reason=f"ol.find_book {bookid}")
+                                                                               reason=f"ol.add_bookid {bookid}")
                         # authorid may have changed on importing
                         match = db.match('SELECT AuthorName,AuthorID from authors '
                                          'WHERE AuthorID=? or ol_id=?', (auth_id, auth_id))
@@ -1482,7 +1478,7 @@ class OpenLibrary:
                 # ol work page doesn't give us enough info on secondary authors
                 # we can get the data later when the primary author is refreshed using ol_search
             except Exception:
-                self.logger.error(f'Unhandled exception in OL.find_book: {traceback.format_exc()}')
+                self.logger.error(f'Unhandled exception in OL.add_bookid_to_db: {traceback.format_exc()}')
             finally:
                 db.close()
             self.logger.info(f"{title} by {authorname} added to the books database, {bookstatus}/{audiostatus}")

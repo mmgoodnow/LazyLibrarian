@@ -404,8 +404,8 @@ def get_book_cover(bookid=None, src=None, ignore=''):
         # see if hardcover has a cover
         if not src or src == 'hardcover' and 'hardcover' not in ignore:
             if item['hc_id']:
-                h_c = lazylibrarian.hc.HardCover(item['hc_id'])
-                bookdict, _ = h_c.get_bookdict(item['hc_id'])
+                h_c = lazylibrarian.hc.HardCover()
+                bookdict, _ = h_c.get_bookdict_for_bookid(item['hc_id'])
                 img = bookdict.get('cover')
                 if img:
                     coverlink = cache_bookimg(img, bookid, src, suffix='_hc', imgid=imgid)
@@ -945,7 +945,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 except ImportError:
                     interface = ""
             try:
-                if interface == 'wand':
+                if interface == 'wand' and wand_image:
                     generator = "wand interface"
                     with wand_image(filename=f"{issuefile}[{str(check_int(pagenum, 1) - 1)}]") as img:
                         img.save(filename=coverfile)

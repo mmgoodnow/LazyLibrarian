@@ -165,7 +165,7 @@ def path_islink(name: str) -> bool:
 WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
 
 
-def syspath(path: str, prefix: bool = True) -> str:
+def syspath(path: [str, bytes], prefix: bool = True) -> str:
     """Convert a path for use by the operating system. In particular,
     paths on Windows must receive a magic prefix and must be converted
     to Unicode before they are sent to the OS. To disable the magic
@@ -424,6 +424,7 @@ def safe_move(src, dst, action='move'):
         return dst
 
     logger = logging.getLogger(__name__)
+    logger.debug(f"{action}:[{src}]:[{dst}]")
     while action:  # might have more than one problem...
         try:
             if action == 'copy':
@@ -443,7 +444,6 @@ def safe_move(src, dst, action='move'):
 
         except (IOError, OSError) as err:  # both needed for different python versions
             if err.errno == 22:  # bad mode or filename
-                logger.debug(f"src=[{src}] dst=[{dst}]")
                 drive, path = os.path.splitdrive(dst)
                 logger.debug(f"drive=[{drive}] path=[{path}]")
                 # strip some characters windows can't handle

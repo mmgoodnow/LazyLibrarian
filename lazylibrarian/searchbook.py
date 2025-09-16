@@ -82,8 +82,8 @@ def search_book(books=None, library=None):
     """
     TELEMETRY.record_usage_data('Search/Book')
     logger = logging.getLogger(__name__)
-    loggersearching = logging.getLogger('special.searching')
-
+    searchinglogger = logging.getLogger('special.searching')
+    searchinglogger.debug(f"search_book: {books}")
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -118,7 +118,8 @@ def search_book(books=None, library=None):
                 logger.debug(f"Searching for {len(books)} {plural(len(books), library)}")
                 loggersearching.debug(f"{books}")
             for book in books:
-                if not book['bookid'] in ['booklang', 'library', 'ignored']:
+                print(type(book), book)
+                if book['bookid'] not in ['booklang', 'library', 'ignored']:
                     cmd = ("SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus "
                            "from books,authors WHERE BookID=? AND books.AuthorID = authors.AuthorID")
                     results = db.select(cmd, (book['bookid'],))

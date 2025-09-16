@@ -58,11 +58,7 @@ from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, pat
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, md5_utf8, date_format, check_year, \
-    strip_quotes, format_author_name, check_float, \
-    thread_name
-from lazylibrarian.gb import GoogleBooks
-from lazylibrarian.gr import GoodReads
-from lazylibrarian.hc import HardCover
+    strip_quotes, format_author_name, check_float, thread_name
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, \
     img_id, write_pdf_tags, read_pdf_tags
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
@@ -72,7 +68,6 @@ from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import get_dateparts, rename_issue, remove_if_empty, magazine_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
@@ -91,12 +86,11 @@ lastauthor = ''
 lastmagazine = ''
 lastcomic = ''
 
-api_sources = [  # source, authorid, bookid
-                ['HardCover', 'hc_id', 'hc_id'],
-                ['OpenLibrary', 'ol_id', 'ol_id'],
-                ['GoodReads', 'gr_id', 'gr_id'],
-                ['GoogleBooks', 'AuthorID', 'gb_id'],
-            ]
+api_sources = []
+info_sources = lazylibrarian.INFOSOURCES
+for item in info_sources:
+    # source, authorid, bookid
+    api_sources.append([info_sources[item], info_sources[item]['author_key'], info_sources[item]['book_key']])
 
 
 def clear_mako_cache(userid=0):
@@ -490,34 +484,34 @@ class WebInterface:
                 if user:
                     subs = db.select('SELECT Type,WantID from subscribers WHERE UserID=?', (cookie['ll_uid'].value,))
                     subscriptions = ''
-                    for item in subs:
+                    for itm in subs:
                         if subscriptions:
                             subscriptions += '\n'
                         item_name = ''
-                        if item['Type'] == 'author':
-                            res = db.match('SELECT AuthorName from authors WHERE authorid=?', (item['WantID'],))
+                        if itm['Type'] == 'author':
+                            res = db.match('SELECT AuthorName from authors WHERE authorid=?', (itm['WantID'],))
                             if res:
                                 item_name = f"({res['AuthorName']})"
-                        elif item['Type'] == 'series':
-                            res = db.match('SELECT SeriesName from series WHERE seriesid=?', (item['WantID'],))
+                        elif itm['Type'] == 'series':
+                            res = db.match('SELECT SeriesName from series WHERE seriesid=?', (itm['WantID'],))
                             if res:
                                 item_name = f"({res['SeriesName']})"
-                        elif item['Type'] == 'comic':
+                        elif itm['Type'] == 'comic':
                             try:
-                                comicid, issueid = item['WantID'].split('_')
+                                comicid, issueid = itm['WantID'].split('_')
                             except ValueError:
                                 comicid = ''
                             if comicid:
                                 res = db.match('SELECT Title from comics WHERE comicid=?', (comicid,))
                                 if res:
                                     item_name = f"({res['Title']})"
-                        subscriptions += f'{item["Type"]} {item["WantID"]} {item_name}'
+                        subscriptions += f'{itm["Type"]} {itm["WantID"]} {item_name}'
                     user = dict(user)
                     if not user['Theme']:
                         user['Theme'] = ''
                     themelist = ['Default']
-                    for item in lazylibrarian.BOOKSTRAP_THEMELIST:
-                        themelist.append('bookstrap_' + item)
+                    for itm in lazylibrarian.BOOKSTRAP_THEMELIST:
+                        themelist.append('bookstrap_' + itm)
                     return serve_template(templatename="profile.html", title=title, user=user, subs=subscriptions,
                                           typelist=get_list(CONFIG['EBOOK_TYPE']), themelist=themelist)
             finally:
@@ -674,21 +668,21 @@ class WebInterface:
         cookie = cherrypy.request.cookie
         if cookie and 'll_template' in list(cookie.keys()):
             template = cookie['ll_template'].value
-            for item in [['index.html', 'overview'],
-                         ['books.html', 'ebooks'],
-                         ['series.html', 'series'],
-                         ['audio.html', 'audiobooks'],
-                         ['magazines.html', 'magazines'],
-                         ['managebooks.html', 'manage'],
-                         ['history.html', 'history'],
-                         ['logs.html', 'logs'],
-                         ['config.html', 'config_menus'],
-                         ['author.html', 'authors'],
-                         ['issues.html', 'magazine_detail'],
-                         ['users.html', 'config_users'],
-                         ]:
-                if template == item[0]:
-                    page = item[1]
+            for itm in [['index.html', 'overview'],
+                        ['books.html', 'ebooks'],
+                        ['series.html', 'series'],
+                        ['audio.html', 'audiobooks'],
+                        ['magazines.html', 'magazines'],
+                        ['managebooks.html', 'manage'],
+                        ['history.html', 'history'],
+                        ['logs.html', 'logs'],
+                        ['config.html', 'config_menus'],
+                        ['author.html', 'authors'],
+                        ['issues.html', 'magazine_detail'],
+                        ['users.html', 'config_users'],
+                        ]:
+                if template == itm[0]:
+                    page = itm[1]
                     if template == 'config.html':
                         if 'configTab' in list(cookie.keys()):
                             tab = check_int(cookie['configTab'].value, 1)
@@ -835,8 +829,8 @@ class WebInterface:
         lazylibrarian.USER_BLOCKLIST[:] = [x for x in lazylibrarian.USER_BLOCKLIST if x[1] > limit]
         remote_ip = cherrypy.request.remote.ip
         cnt = 0
-        for item in lazylibrarian.USER_BLOCKLIST:
-            if item[0] == remote_ip:
+        for itm in lazylibrarian.USER_BLOCKLIST:
+            if itm[0] == remote_ip:
                 cnt += 1
         if cnt >= 3:
             msg = f"IP address [{remote_ip}] is blocked"
@@ -878,8 +872,8 @@ class WebInterface:
         elif res:
             # anti-phishing. Block user if 3 failed passwords in a row.
             cnt = 0
-            for item in lazylibrarian.USER_BLOCKLIST:
-                if item[0] == username:
+            for itm in lazylibrarian.USER_BLOCKLIST:
+                if itm[0] == username:
                     cnt += 1
             if cnt >= 2:
                 msg = "Too many failed attempts. Reset password or retry after 1 hour"
@@ -902,11 +896,11 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         remote_ip = cherrypy.request.remote.ip
         msg = f'IP: {remote_ip}\n'
-        for item in kwargs:
-            if kwargs[item]:
-                line = f"{item}: {unaccented(kwargs[item], only_ascii=False)}\n"
+        for itm in kwargs:
+            if kwargs[itm]:
+                line = f"{itm}: {unaccented(kwargs[itm], only_ascii=False)}\n"
             else:
-                line = f"{item}: \n"
+                line = f"{itm}: \n"
             msg += line
         if 'email' in kwargs and kwargs['email']:
             result = notifiers.email_notifier.notify_message('Message from LazyLibrarian User',
@@ -941,10 +935,10 @@ class WebInterface:
         value = get_list(kwargs.pop('value[]', ''))
         cnt = 0
         db = database.DBConnection()
-        for item in kwargs:
-            if '[text]' in item:
-                feedname = kwargs[item]
-                feednum = kwargs.get(item.replace('[text]', '[value]'), '')
+        for itm in kwargs:
+            if '[text]' in itm:
+                feedname = kwargs[itm]
+                feednum = kwargs.get(itm.replace('[text]', '[value]'), '')
                 if feedname and feednum:
                     res = db.match('SELECT * from subscribers WHERE Type=? and UserID=? and WantID=?',
                                    ("feed", user, feedname))
@@ -986,8 +980,8 @@ class WebInterface:
                 if wishtype:
                     cnt += 1
                     subscribed = False
-                    for item in feeds:
-                        if item['WantID'] == provider['DISPNAME']:
+                    for itm in feeds:
+                        if itm['WantID'] == provider['DISPNAME']:
                             subscribed = True
                             break
                     feedlist.append({'text': provider['DISPNAME'], 'value': str(cnt)})
@@ -1012,8 +1006,8 @@ class WebInterface:
                     if perm & 1:
                         count = 0
                         perms = db.select('SELECT Perms from users')
-                        for item in perms:
-                            val = check_int(item['Perms'], 0)
+                        for itm in perms:
+                            val = check_int(itm['Perms'], 0)
                             if val & lazylibrarian.perm_config:
                                 count += 1
                         if count < 2:
@@ -1036,11 +1030,11 @@ class WebInterface:
             cnt = db.match('select count(*) as counter from sent_file where UserID=?', (match['userid'],))
             last_login = check_int(match['Last_Login'], 0)
             subscriptions = ''
-            for item in subs:
-                if item['Type'] != 'ebook':
+            for itm in subs:
+                if itm['Type'] != 'ebook':
                     if subscriptions:
                         subscriptions += '\n'
-                    subscriptions += f'{item["Type"]} {item["WantID"]}'
+                    subscriptions += f'{itm["Type"]} {itm["WantID"]}'
             res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
                               'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
                               'sendto': match['SendTo'], 'booktype': match['BookType'], 'userid': match['UserID'],
@@ -1211,8 +1205,8 @@ class WebInterface:
                     if oldperm & 1 and not newperm & 1:
                         count = 0
                         perms = db.select('SELECT Perms from users')
-                        for item in perms:
-                            val = check_int(item['Perms'], 0)
+                        for itm in perms:
+                            val = check_int(itm['Perms'], 0)
                             if val & 1:
                                 count += 1
                         if count < 2:
@@ -1313,8 +1307,8 @@ class WebInterface:
             memberdata = db.select(cmd, (seriesid,))
             # sort properly by seriesnum as sqlite doesn't (yet) have natural sort
             members = []
-            for item in memberdata:
-                members.append(dict(item))
+            for itm in memberdata:
+                members.append(dict(itm))
             self.natural_sort(members, key=lambda y: y['SeriesNum'] if y['SeriesNum'] is not None else '')
             db.close()
             return serve_template(templatename="editseries.html", title="Edit Series", config=seriesdata,
@@ -1560,11 +1554,11 @@ class WebInterface:
         # is it a multi-author series?
         multi = "False"
         authorid = ''
-        for item in members:
+        for itm in members:
             if not authorid:
-                authorid = item['AuthorID']
+                authorid = itm['AuthorID']
             else:
-                if not authorid == item['AuthorID']:
+                if not authorid == itm['AuthorID']:
                     multi = "True"
                     break
 
@@ -1660,8 +1654,8 @@ class WebInterface:
                         if not members:
                             failed += 1
                         else:
-                            for item in members:
-                                bookid = item['bookid']
+                            for itm in members:
+                                bookid = itm['bookid']
                                 if action == "Unread":
                                     to_read.discard(bookid)
                                     have_read.discard(bookid)
@@ -1858,21 +1852,21 @@ class WebInterface:
         # lazylibrarian.globals
         months = {}
         cnt = 0
-        for item in lazylibrarian.MONTHNAMES[0]:
-            months[cnt] = ', '.join(item)
+        for itm in lazylibrarian.MONTHNAMES[0]:
+            months[cnt] = ', '.join(itm)
             cnt += 1
         seasons = {}
-        for item in lazylibrarian.SEASONS:
-            value = lazylibrarian.SEASONS.get(item)
+        for itm in lazylibrarian.SEASONS:
+            value = lazylibrarian.SEASONS.get(itm)
             if value not in seasons:
-                seasons[value] = item
+                seasons[value] = itm
             else:
-                seasons[value] = f"{seasons[value]}, {item}"
+                seasons[value] = f"{seasons[value]}, {itm}"
 
         namevars = name_vars('test')
         testvars = {}
-        for item in namevars:
-            testvars[item] = namevars[item].replace(' ', '&nbsp;')
+        for itm in namevars:
+            testvars[itm] = namevars[itm].replace(' ', '&nbsp;')
         config = {
             "http_look_list": http_look_list,
             "apprise_list": apprise_list,
@@ -1884,9 +1878,9 @@ class WebInterface:
             "months": months,
             "updated": time.ctime(CONFIG.get_int('GIT_UPDATED'))
         }
-        for item in CONFIG.config.values():
-            if isinstance(item, ConfigBool):
-                item.reset_read_count()  # Reset read counts as we use this to determine which settings have changed
+        for itm in CONFIG.config.values():
+            if isinstance(itm, ConfigBool):
+                itm.reset_read_count()  # Reset read counts as we use this to determine which settings have changed
         return serve_template(templatename="config.html", title="Settings", config=config)
 
     @cherrypy.expose
@@ -1908,9 +1902,6 @@ class WebInterface:
 
                 if email and not is_valid_email(email):
                     adminmsg += 'Contact email looks invalid, please check<br>'
-
-                # if CONFIG['HTTP_USER'] != '':
-                #     adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
 
                 admin = db.match("SELECT password from users where name='admin'")
                 if admin:
@@ -1938,10 +1929,10 @@ class WebInterface:
             genre_changes += 'parts '
         # now the replacements
         genredict = {}
-        for item in kwargs:
-            if item.startswith('genrereplace['):
-                mykey = make_unicode(item.split('[')[1].split(']')[0])
-                myval = make_unicode(kwargs.get(item, ''))
+        for itm in kwargs:
+            if itm.startswith('genrereplace['):
+                mykey = make_unicode(itm.split('[')[1].split(']')[0])
+                myval = make_unicode(kwargs.get(itm, ''))
                 if myval:
                     genredict[mykey] = myval
 
@@ -1996,8 +1987,8 @@ class WebInterface:
             if length % 2:  # must be even, short and long for each language
                 valid = False
             if valid:
-                for item in new_months:
-                    if len(item) != length:
+                for itm in new_months:
+                    if len(itm) != length:
                         valid = False
                         break
 
@@ -2012,8 +2003,8 @@ class WebInterface:
                 cleantable = []
                 for lyne in new_months:
                     cleanlyne = []
-                    for item in lyne:
-                        cleanlyne.append(unaccented(item).lower().strip('.'))
+                    for itm in lyne:
+                        cleanlyne.append(unaccented(itm).lower().strip('.'))
                     cleantable.append(cleanlyne)
 
                 lazylibrarian.MONTHNAMES = [new_months, cleantable]
@@ -2024,8 +2015,8 @@ class WebInterface:
             if key.startswith('season_'):
                 season_names = kwargs[key]
                 season_value = check_int(key.split('_')[1], 0)
-                for item in get_list(season_names):
-                    new_seasons[item] = season_value
+                for itm in get_list(season_names):
+                    new_seasons[itm] = season_value
         if new_seasons != lazylibrarian.SEASONS:
             logger.debug("SEASONS has changed")
             lazylibrarian.SEASONS = new_seasons.copy()
@@ -2034,7 +2025,7 @@ class WebInterface:
                 json.dump(lazylibrarian.SEASONS, f, ensure_ascii=False)
 
         # now the config file entries
-        for key, item in CONFIG.config.items():
+        for key, itm in CONFIG.config.items():
             if key.lower() in kwargs:
                 value = kwargs[key.lower()]
                 # validate entries here...
@@ -2057,8 +2048,8 @@ class WebInterface:
                         logger.warning(f"Invalid Token: Key {key} changed to {value}")
                 CONFIG.set_from_ui(key, value)
             else:
-                if isinstance(item, ConfigBool) and item.get_read_count() > 0:
-                    item.set_from_ui(False)  # Set other items to False that we've seen (i.e. are shown)
+                if isinstance(itm, ConfigBool) and itm.get_read_count() > 0:
+                    itm.set_from_ui(False)  # Set other items to False that we've seen (i.e. are shown)
         CONFIG.ensure_valid_homepage()
 
         magazines = db.select('SELECT * from magazines')
@@ -2184,10 +2175,10 @@ class WebInterface:
         else:
             authid_key = 'AuthorID'
             bookid_key = 'BookID'
-            for item in api_sources:
-                if CONFIG['BOOK_API'] == item[0]:
-                    authid_key = item[1]
-                    bookid_key = item[2]
+            for itm in api_sources:
+                if CONFIG['BOOK_API'] == itm[0]:
+                    authid_key = itm[1]
+                    bookid_key = itm[2]
                     break
 
             db = database.DBConnection()
@@ -2199,19 +2190,19 @@ class WebInterface:
                 db.close()
 
             authorlist = []
-            for item in authorids:
-                if item['AuthorID']:
-                    authorlist.append(item['AuthorID'])
+            for itm in authorids:
+                if itm['AuthorID']:
+                    authorlist.append(itm['AuthorID'])
             authorlist = list(set(authorlist))
             loadlist = []
-            for item in loadingauthorids:
-                if item['AuthorID']:
-                    loadlist.append(item['AuthorID'])
+            for itm in loadingauthorids:
+                if itm['AuthorID']:
+                    loadlist.append(itm['AuthorID'])
             loadlist = list(set(loadlist))
             booklist = []
-            for item in booksearch:
-                if item['BookID']:
-                    booklist.append(item['BookID'])
+            for itm in booksearch:
+                if itm['BookID']:
+                    booklist.append(itm['BookID'])
             booklist = list(set(booklist))
             # we don't know if searchfor is an author, book or isbn
             searchresults = search_for(searchfor, CONFIG['BOOK_API'])
@@ -2544,12 +2535,12 @@ class WebInterface:
                 if exists:
                     author_name = matchname
                 matchname = unaccented(matchname).lower()
-                for item in listdir(libdir):
-                    match = fuzz.ratio(format_author_name(unaccented(item),
+                for itm in listdir(libdir):
+                    match = fuzz.ratio(format_author_name(unaccented(itm),
                                                           get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
                     if match >= CONFIG.get_int('NAME_RATIO'):
-                        authordir = os.path.join(libdir, item)
-                        loggerfuzz.debug(f"Fuzzy match folder {round(match, 2)}% {item} for {author_name}")
+                        authordir = os.path.join(libdir, itm)
+                        loggerfuzz.debug(f"Fuzzy match folder {round(match, 2)}% {itm} for {author_name}")
                         # Add this name variant as an aka if not already there?
                         break
 
@@ -3248,26 +3239,12 @@ class WebInterface:
             author_id = match['AuthorID']
             update_totals(author_id)
         else:
-            if CONFIG['BOOK_API'] == "GoogleBooks":
-                gb = GoogleBooks(bookid)
-                t = threading.Thread(target=gb.find_book, name='GB-BOOK',
-                                     args=[bookid, ebook_status, audio_status, "Added by user"])
-                t.start()
-            elif CONFIG['BOOK_API'] == "GoodReads":
-                gr = GoodReads(bookid)
-                t = threading.Thread(target=gr.find_book, name='GR-BOOK',
-                                     args=[bookid, ebook_status, audio_status, "Added by user"])
-                t.start()
-            elif CONFIG['BOOK_API'] == "HardCover":
-                h_c = HardCover(bookid)
-                t = threading.Thread(target=h_c.find_book, name='HC-BOOK',
-                                     args=[bookid, ebook_status, audio_status, "Added by user"])
-                t.start()
-            else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
-                ol = OpenLibrary(bookid)
-                t = threading.Thread(target=ol.find_book, name='OL-BOOK',
-                                     args=[bookid, ebook_status, audio_status, "Added by user"])
-                t.start()
+
+            api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+            t = threading.Thread(target=api.add_bookid_to_db(bookid=bookid),
+                                 name=f"{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}-BOOK",
+                                 args=[bookid, ebook_status, audio_status, "Added by user"])
+            t.start()
             t.join(timeout=10)  # 10 s to add book before redirect
         db.close()
 
@@ -3348,11 +3325,11 @@ class WebInterface:
 
                 remote_ip = cherrypy.request.remote.ip
                 msg = f'IP: {remote_ip}\n'
-                for item in kwargs:
-                    if kwargs[item]:
-                        line = f"{item}: {unaccented(kwargs[item], only_ascii=False)}\n"
+                for itm in kwargs:
+                    if kwargs[itm]:
+                        line = f"{itm}: {unaccented(kwargs[itm], only_ascii=False)}\n"
                     else:
-                        line = f"{item}: \n"
+                        line = f"{itm}: \n"
                     msg += line
 
                 types = []
@@ -3550,10 +3527,10 @@ class WebInterface:
                 myfile = res['BookFile']
                 fname, extn = os.path.splitext(myfile)
                 types = []
-                for item in get_list(CONFIG['EBOOK_TYPE']):
-                    target = fname + '.' + item
+                for itm in get_list(CONFIG['EBOOK_TYPE']):
+                    target = fname + '.' + itm
                     if path_isfile(target):
-                        types.append(item)
+                        types.append(itm)
 
                 # serve user preferred type if available, or system preferred type
                 if preftype and preftype in types:
@@ -3608,9 +3585,9 @@ class WebInterface:
             preftype = booktype
 
         bookid_key = 'BookID'
-        for item in api_sources:
-            if CONFIG['BOOK_API'] == item[0]:
-                bookid_key = item[2]
+        for itm in api_sources:
+            if CONFIG['BOOK_API'] == itm[0]:
+                bookid_key = itm[2]
                 break
 
         cmd = (f"SELECT BookFile,AudioFile,AuthorName,BookName from books,authors WHERE books.{bookid_key}=? or "
@@ -3686,13 +3663,13 @@ class WebInterface:
                                     msg += "email"
                                 else:
                                     msg += "download"
-                                item = 1
+                                itm = 1
                                 partlist = ''
-                                while item <= cnt:
+                                while itm <= cnt:
                                     if partlist:
                                         partlist += ' '
-                                    partlist += str(item)
-                                    item += 1
+                                    partlist += str(itm)
+                                    itm += 1
                                     partlist += ' zip'
                                     if singlefile and path_isfile(singlefile):
                                         partlist += ' whole'
@@ -3714,10 +3691,10 @@ class WebInterface:
                     if bookfile and path_isfile(bookfile):
                         fname, _ = os.path.splitext(bookfile)
                         types = []
-                        for item in get_list(CONFIG['EBOOK_TYPE']):
-                            target = fname + '.' + item
+                        for itm in get_list(CONFIG['EBOOK_TYPE']):
+                            target = fname + '.' + itm
                             if path_isfile(target):
-                                types.append(item)
+                                types.append(itm)
                         logger.debug(f'Preftype:{preftype} Available:{str(types)}')
                         if preftype and len(types):
                             if preftype in types:
@@ -3725,10 +3702,10 @@ class WebInterface:
                             else:
                                 msg = f"{book_name}<br> Not available as {preftype}, only "
                                 typestr = ''
-                                for item in types:
+                                for itm in types:
                                     if typestr:
                                         typestr += ' '
-                                    typestr += item
+                                    typestr += itm
                                 msg += typestr
                                 return serve_template(templatename="choosetype.html",
                                                       title="Not Available", pop_message=msg,
@@ -3742,10 +3719,10 @@ class WebInterface:
                             else:
                                 msg += "download"
                             typestr = ''
-                            for item in types:
+                            for itm in types:
                                 if typestr:
                                     typestr += ' '
-                                typestr += item
+                                typestr += itm
                             return serve_template(templatename="choosetype.html",
                                                   title="Choose Type", pop_message=msg,
                                                   pop_types=typestr, bookid=bookid,
@@ -3790,8 +3767,8 @@ class WebInterface:
                 res = get_author_image(authorid=authorid, refresh=False, max_num=5)
                 if res and path_isdir(res):
                     basedir = res.replace(DIRS.DATADIR, '').lstrip('/')
-                    for item in listdir(res):
-                        photos.append([item, os.path.join(basedir, item)])
+                    for itm in listdir(res):
+                        photos.append([itm, os.path.join(basedir, itm)])
             return serve_template(templatename="editauthor.html", title="Edit Author", config=data,
                                   images=photos)
         else:
@@ -3982,11 +3959,11 @@ class WebInterface:
                 replaces = []
             subs = []
 
-            for item in replaces:
+            for itm in replaces:
                 # remove ones that are duplicated in bookdata, don't want two fields editing the same item
                 # can't modify replaces list while iterating so make a new list
-                if item[0] not in ['title', 'creator', 'ISBN', 'date', 'description']:
-                    subs.append(item)
+                if itm[0] not in ['title', 'creator', 'ISBN', 'date', 'description']:
+                    subs.append(itm)
             return serve_template(templatename="editbook.html", title="Edit Book", config=bookdata,
                                   seriesdict=seriesdict, authors=authors, covers=covers, replaces=subs, series=series)
         else:
@@ -4167,25 +4144,25 @@ class WebInterface:
                             s_name = clean_name(s_name, '&/')
                             s_num = kwargs['series[new][number]']
                             new_list.append(['', s_num, s_name])
-                    for item in old_series:
-                        old_list.append([item['SeriesID'], item['SeriesNum'], item['SeriesName']])
+                    for itm in old_series:
+                        old_list.append([itm['SeriesID'], itm['SeriesNum'], itm['SeriesName']])
 
                     debug_msg = f"Old series list for {bookid}: {old_list}"
                     logger.debug(debug_msg)
                     clean_list = []
-                    for item in new_list:
-                        if item[1]:
-                            clean_list.append(item)
+                    for itm in new_list:
+                        if itm[1]:
+                            clean_list.append(itm)
                     new_list = clean_list
 
                     debug_msg = f"New series list for {bookid}: {new_list}"
                     logger.debug(debug_msg)
                     series_changed = False
-                    for item in old_list:
-                        if item[1:] not in [i[1:] for i in new_list]:
+                    for itm in old_list:
+                        if itm[1:] not in [i[1:] for i in new_list]:
                             series_changed = True
-                    for item in new_list:
-                        if item[1:] not in [i[1:] for i in old_list]:
+                    for itm in new_list:
+                        if itm[1:] not in [i[1:] for i in old_list]:
                             series_changed = True
                     if not series_changed:
                         logger.debug("No series changes")
@@ -4207,25 +4184,25 @@ class WebInterface:
 
                     if opf_template:
                         subs = []
-                        for item in replaces:
-                            if item[0] == 'title':
-                                subs.append((item[0], bookname))
-                            elif item[0] == 'creator':
-                                subs.append((item[0], authorname))
-                            elif item[0] == 'ISBN':
-                                subs.append((item[0], bookisbn))
-                            elif item[0] == 'date':
-                                subs.append((item[0], bookdate))
-                            elif item[0] == 'description':
-                                subs.append((item[0], editordata))
-                            elif item[0] in kwargs:
-                                if item[1] != kwargs[item[0]]:
-                                    edited += item[0] + ' '
-                                    subs.append((item[0], kwargs[item[0]]))
+                        for itm in replaces:
+                            if itm[0] == 'title':
+                                subs.append((itm[0], bookname))
+                            elif itm[0] == 'creator':
+                                subs.append((itm[0], authorname))
+                            elif itm[0] == 'ISBN':
+                                subs.append((itm[0], bookisbn))
+                            elif itm[0] == 'date':
+                                subs.append((itm[0], bookdate))
+                            elif itm[0] == 'description':
+                                subs.append((itm[0], editordata))
+                            elif itm[0] in kwargs:
+                                if itm[1] != kwargs[itm[0]]:
+                                    edited += itm[0] + ' '
+                                    subs.append((itm[0], kwargs[itm[0]]))
                                 else:
-                                    subs.append((item[0], item[1]))
+                                    subs.append((itm[0], itm[1]))
                             else:
-                                subs.append((item[0], item[1]))
+                                subs.append((itm[0], itm[1]))
 
                         if edited:
                             new_opf = opf_write(opf_template, subs)
@@ -4632,25 +4609,25 @@ class WebInterface:
             title = f"{title} (Top {len(results)})"
         ret = []
         for result in results:
-            item = dict(result)
-            if not item['BookLink']:
-                item['BookLink'] = ''
-            elif item['BookLink'].startswith('/works/OL'):
-                item['BookLink'] = CONFIG['OL_URL'] + item['BookLink']
+            itm = dict(result)
+            if not itm['BookLink']:
+                itm['BookLink'] = ''
+            elif itm['BookLink'].startswith('/works/OL'):
+                itm['BookLink'] = CONFIG['OL_URL'] + itm['BookLink']
 
-            if not item.get('BookImg') or not item['BookImg'].startswith('cache/'):
-                item['BookImg'] = 'images/nocover.jpg'
+            if not itm.get('BookImg') or not itm['BookImg'].startswith('cache/'):
+                itm['BookImg'] = 'images/nocover.jpg'
             else:
-                fname, extn = os.path.splitext(item['BookImg'])
+                fname, extn = os.path.splitext(itm['BookImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
-                    item['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                    itm['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 else:
-                    imgfile = os.path.join(DIRS.CACHEDIR, item['BookImg'][6:])
+                    imgfile = os.path.join(DIRS.CACHEDIR, itm['BookImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['BookImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
-            ret.append(item)
+                        itm['BookImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+            ret.append(itm)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
             columns=CONFIG.get_int('WALL_COLUMNS'))
@@ -4676,20 +4653,20 @@ class WebInterface:
 
         ret = []
         for result in results:
-            item = dict(result)
-            if not item.get('AuthorImg') or not item['AuthorImg'].startswith('cache/'):
-                item['AuthorImg'] = 'images/nocover.jpg'
+            itm = dict(result)
+            if not itm.get('AuthorImg') or not itm['AuthorImg'].startswith('cache/'):
+                itm['AuthorImg'] = 'images/nocover.jpg'
             else:
-                fname, extn = os.path.splitext(item['AuthorImg'])
+                fname, extn = os.path.splitext(itm['AuthorImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
-                    item['AuthorImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                    itm['AuthorImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 else:
-                    imgfile = os.path.join(DIRS.CACHEDIR, item['AuthorImg'][6:])
+                    imgfile = os.path.join(DIRS.CACHEDIR, itm['AuthorImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['AuthorImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
-            ret.append(item)
+                        itm['AuthorImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+            ret.append(itm)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
             columns=CONFIG.get_int('WALL_COLUMNS'))
@@ -4714,20 +4691,20 @@ class WebInterface:
             title = f"{title} (Top {len(results)})"
         ret = []
         for result in results:
-            item = dict(result)
-            if not item.get('BookImg') or not item['BookImg'].startswith('cache/'):
-                item['BookImg'] = 'images/nocover.jpg'
+            itm = dict(result)
+            if not itm.get('BookImg') or not itm['BookImg'].startswith('cache/'):
+                itm['BookImg'] = 'images/nocover.jpg'
             else:
-                fname, extn = os.path.splitext(item['BookImg'])
+                fname, extn = os.path.splitext(itm['BookImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
-                    item['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+                    itm['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                 else:
-                    imgfile = os.path.join(DIRS.CACHEDIR, item['BookImg'][6:])
+                    imgfile = os.path.join(DIRS.CACHEDIR, itm['BookImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['BookImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
-            ret.append(item)
+                        itm['BookImg'] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
+            ret.append(itm)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
             columns=CONFIG.get_int('WALL_COLUMNS'))
@@ -5206,24 +5183,24 @@ class WebInterface:
             else:
                 cvres = cv_identify(title, best=False)
                 if title.startswith('CV'):
-                    for item in cvres:
-                        item['fuzz'] = fuzz.token_sort_ratio(title, item['seriesid'])
-                        comicresults.append(item)
+                    for itm in cvres:
+                        itm['fuzz'] = fuzz.token_sort_ratio(title, itm['seriesid'])
+                        comicresults.append(itm)
                 else:
                     cxres = cx_identify(title, best=False)
                     words = name_words(title)
                     titlewords = ' '.join(title_words(words))
-                    for item in cvres:
-                        item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
-                        comicresults.append(item)
-                    for item in cxres:
-                        item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
-                        comicresults.append(item)
+                    for itm in cvres:
+                        itm['fuzz'] = fuzz.token_sort_ratio(titlewords, itm['title'])
+                        comicresults.append(itm)
+                    for itm in cxres:
+                        itm['fuzz'] = fuzz.token_sort_ratio(titlewords, itm['title'])
+                        comicresults.append(itm)
                     comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
                 comicids = db.select("SELECT ComicID from comics")
                 comiclist = []
-                for item in comicids:
-                    comiclist.append(item['ComicID'])
+                for itm in comicids:
+                    comiclist.append(itm['ComicID'])
                 return serve_template(templatename="comicresults.html", title="Comics",
                                       results=comicresults, comicids=comiclist)
             db.close()
@@ -5256,20 +5233,20 @@ class WebInterface:
             logger.debug(f"Comic {exists['Title']} already exists ({exists['comicid']})")
         else:
             try:
-                for item in comicresults:
-                    if item['seriesid'] == comicid:
+                for itm in comicresults:
+                    if itm['seriesid'] == comicid:
                         aka = ''
-                        akares = cv_identify(item['title'])
+                        akares = cv_identify(itm['title'])
                         if not akares:
-                            akares = cx_identify(item['title'])
+                            akares = cx_identify(itm['title'])
                         if akares and akares[3]['seriesid'] != comicid:
                             aka = akares[3]['seriesid']
                         db.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
                                   'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
                                   'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                  (comicid, item['title'], 'Active', now(), None,
-                                   now(), None, 'Wanted', None, item['searchterm'], item['start'],
-                                   item['first'], item['last'], item['publisher'], item['link'], aka))
+                                  (comicid, itm['title'], 'Active', now(), None,
+                                   now(), None, 'Wanted', None, itm['searchterm'], itm['start'],
+                                   itm['first'], itm['last'], itm['publisher'], itm['link'], aka))
                         match = True
                         break
             except NameError:
@@ -5294,15 +5271,15 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         args.pop('book_table_length', None)
-        for item in args:
+        for itm in args:
             if action == "Paused" or action == "Active":
-                control_value_dict = {"ComicID": item}
+                control_value_dict = {"ComicID": itm}
                 new_value_dict = {"Status": action}
                 db.upsert("comics", new_value_dict, control_value_dict)
-                logger.info(f'Status of comic {item} changed to {action}')
+                logger.info(f'Status of comic {itm} changed to {action}')
             if action == "Delete":
-                issues = db.select('SELECT IssueFile from comicissues WHERE ComicID=?', (item,))
-                logger.debug(f'Deleting comic {item} from disc')
+                issues = db.select('SELECT IssueFile from comicissues WHERE ComicID=?', (itm,))
+                logger.debug(f'Deleting comic {itm} from disc')
                 issuedir = ''
                 for issue in issues:  # delete all issues of this comic
                     result = self.delete_issue(issue['IssueFile'])
@@ -5320,14 +5297,14 @@ class WebInterface:
                         logger.debug(f'Comic directory {magdir} deleted from disc')
                     except OSError:
                         logger.debug(f'Comic directory {magdir} is not empty')
-                    logger.info(f'Comic {item} deleted from disc')
+                    logger.info(f'Comic {itm} deleted from disc')
 
             if action == "Remove" or action == "Delete":
-                db.action('DELETE from comics WHERE ComicID=?', (item,))
-                db.action('DELETE from wanted where BookID=?', (item,))
-                logger.info(f'Comic {item} removed from database')
+                db.action('DELETE from comics WHERE ComicID=?', (itm,))
+                db.action('DELETE from wanted where BookID=?', (itm,))
+                logger.info(f'Comic {itm} removed from database')
             if action == "Reset":
-                control_value_dict = {"ComicID": item}
+                control_value_dict = {"ComicID": itm}
                 new_value_dict = {
                     "LastAcquired": '',
                     "LatestIssue": '',
@@ -5335,31 +5312,31 @@ class WebInterface:
                     "IssueStatus": "Wanted"
                 }
                 db.upsert("comics", new_value_dict, control_value_dict)
-                logger.info(f'Comic {item} details reset')
+                logger.info(f'Comic {itm} details reset')
 
             if action == 'Subscribe':
                 cookie = cherrypy.request.cookie
                 if cookie and 'll_uid' in list(cookie.keys()):
                     userid = cookie['ll_uid'].value
                     res = db.match("SELECT * from subscribers WHERE UserID=? and Type=? and WantID=?",
-                                   (userid, 'comic', item))
+                                   (userid, 'comic', itm))
                     if res:
-                        logger.debug(f"User {userid} is already subscribed to {item}")
+                        logger.debug(f"User {userid} is already subscribed to {itm}")
                     else:
                         db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                                  (userid, 'comic', item))
-                        logger.debug(f"Subscribe {userid} to comic {item}")
+                                  (userid, 'comic', itm))
+                        logger.debug(f"Subscribe {userid} to comic {itm}")
             if action == 'Unsubscribe':
                 cookie = cherrypy.request.cookie
                 if cookie and 'll_uid' in list(cookie.keys()):
                     userid = cookie['ll_uid'].value
                     db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
-                              (userid, 'comic', item))
-                    res = db.select('SELECT issueid from comicissues where comicid=?', (item, ))
+                              (userid, 'comic', itm))
+                    res = db.select('SELECT issueid from comicissues where comicid=?', (itm,))
                     for iss in res:
                         db.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
                                   (userid, 'comic', iss['issueid']))
-                    logger.debug(f"Unsubscribe {userid} to comic {item}")
+                    logger.debug(f"Unsubscribe {userid} to comic {itm}")
         db.close()
         raise cherrypy.HTTPRedirect("comics")
 
@@ -5371,8 +5348,8 @@ class WebInterface:
         db = database.DBConnection()
         args.pop('book_table_length', None)
         comicid = None
-        for item in args:
-            comicid, issueid = item.split('_')
+        for itm in args:
+            comicid, issueid = itm.split('_')
             cmd = ("SELECT IssueFile,Title,comics.ComicID from comics,comicissues WHERE "
                    "comics.ComicID = comicissues.ComicID and comics.ComicID=? and IssueID=?")
             issue = db.match(cmd, (comicid, issueid))
@@ -5874,9 +5851,9 @@ class WebInterface:
         if issue["IssueDate"] != issuenum:
             edited += 'Date/Num '
         new_tags = {}
-        for item in kwargs:
-            if item.startswith('tags_/'):
-                new_tags[item[5:]] = kwargs[item]
+        for itm in kwargs:
+            if itm.startswith('tags_/'):
+                new_tags[itm[5:]] = kwargs[itm]
         try:
             old_tags = eval(kwargs['tagdata'])
         except SyntaxError:
@@ -6234,19 +6211,19 @@ class WebInterface:
             else:
                 title = db.select('SELECT * from pastissues WHERE NZBurl=? OR NZBurl=?', (nzburl, nzburl2))
 
-            for item in title:
-                nzburl = item['NZBurl']
+            for itm in title:
+                nzburl = itm['NZBurl']
                 if action == 'Remove':
                     db.action('DELETE from pastissues WHERE NZBurl=?', (nzburl,))
-                    logger.debug(f'Item {item["NZBtitle"]} removed from past issues')
+                    logger.debug(f'Item {itm["NZBtitle"]} removed from past issues')
                     maglist.append({'nzburl': nzburl})
                 elif action == 'Wanted':
-                    bookid = item['BookID']
-                    nzbprov = item['NZBprov']
-                    nzbtitle = item['NZBtitle']
-                    nzbmode = item['NZBmode']
-                    nzbsize = item['NZBsize']
-                    auxinfo = item['AuxInfo']
+                    bookid = itm['BookID']
+                    nzbprov = itm['NZBprov']
+                    nzbtitle = itm['NZBtitle']
+                    nzbmode = itm['NZBmode']
+                    nzbsize = itm['NZBsize']
+                    auxinfo = itm['AuxInfo']
                     maglist.append({
                         'bookid': bookid,
                         'nzbprov': nzbprov,
@@ -6270,7 +6247,7 @@ class WebInterface:
 
                 elif action in ['Ignored', 'Skipped']:
                     db.action('UPDATE pastissues set status=? WHERE NZBurl=?', (action, nzburl))
-                    logger.debug(f'Item {item["NZBtitle"]} marked {action} in past issues')
+                    logger.debug(f'Item {itm["NZBtitle"]} marked {action} in past issues')
                     maglist.append({'nzburl': nzburl})
         db.close()
 
@@ -6298,19 +6275,19 @@ class WebInterface:
         if action:
             total_items = len(args)
             current_item = 0
-            for item in args:
+            for itm in args:
                 if not lazylibrarian.MARK_ISSUES:
                     break
                 current_item += 1
                 current_percent = int(current_item * 100 / total_items)
                 self.issues_data = f"{current_item}/{total_items}/{current_percent}"
-                issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (item,))
+                issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (itm,))
                 if issue:
                     issue = dict(issue)
                     title = issue['Title']
                     issuefile = issue['IssueFile']
                     if not issuefile or not path_exists(issuefile):
-                        logger.error(f"No IssueFile found for IssueID {item}")
+                        logger.error(f"No IssueFile found for IssueID {itm}")
                         issuefile = None
 
                     if 'reCover' in action and issuefile:
@@ -6339,7 +6316,7 @@ class WebInterface:
                             passed += 1
                         else:
                             failed += 1
-                            logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
+                            logger.warning(f"No coverfile created for IssueID {itm} {issuefile}")
 
                     if action == 'tag' and issuefile:
                         logger.debug(f"Tagging {issuefile}")
@@ -6347,8 +6324,8 @@ class WebInterface:
                         genres = entry[1]
                         tags = {}
                         cnt = 1
-                        for item in get_list(genres):
-                            tags[f'/Genre_{cnt}'] = item
+                        for gen in get_list(genres):
+                            tags[f'/Genre_{cnt}'] = gen
                             cnt += 1
                         try:
                             res = write_pdf_tags(issuefile, title, issue['IssueDate'], tags)
@@ -6362,7 +6339,7 @@ class WebInterface:
                             if CONFIG.get_bool('IMP_MAGOPF'):
                                 logger.debug(f"Writing opf for {issuefile}")
                                 _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
-                                                                                issue['IssueDate'], item,
+                                                                                issue['IssueDate'], itm,
                                                                                 language=entry[0],
                                                                                 genres=genres,
                                                                                 overwrite=True)
@@ -6404,7 +6381,7 @@ class WebInterface:
                             passed += 1
                         else:
                             failed += 1
-                            logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
+                            logger.warning(f"No coverfile created for IssueID {itm} {issuefile}")
 
                     if action == "Delete" and issuefile:
                         result = self.delete_issue(issuefile)
@@ -6416,7 +6393,7 @@ class WebInterface:
                         else:
                             failed += 1
                     if action == "Remove" or action == "Delete":
-                        db.action('DELETE from issues WHERE IssueID=?', (item,))
+                        db.action('DELETE from issues WHERE IssueID=?', (itm,))
                         logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} removed from database')
                         _ = self.mag_set_latest(title)
                         passed += 1
@@ -6538,10 +6515,10 @@ class WebInterface:
         lazylibrarian.MARK_ISSUES = True
         passed = 0
         failed = 0
-        for item in args:
+        for itm in args:
             if not lazylibrarian.MARK_ISSUES:
                 break
-            title = item
+            title = itm
             if action == "Paused" or action == "Active":
                 control_value_dict = {"Title": title}
                 new_value_dict = {"Status": action}
@@ -6584,8 +6561,8 @@ class WebInterface:
                     genres = mag[1]
                     tags = {}
                     cnt = 1
-                    for item in get_list(genres):
-                        tags[f'/Genre_{cnt}'] = item
+                    for gen in get_list(genres):
+                        tags[f'/Genre_{cnt}'] = gen
                         cnt += 1
                     try:
                         res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"], tags)
@@ -7516,7 +7493,20 @@ class WebInterface:
             CONFIG.set_bool('OL_API', True)
         else:
             CONFIG.set_bool('OL_API', False)
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
+            # ensure at least one option is available
+            CONFIG.set_bool('OL_API', True)
+        return kwargs['status']
+
+    @cherrypy.expose
+    @require_auth()
+    def dnb_api_changed(self, **kwargs):
+        # dnb_api is true/false, not an api key
+        if kwargs['status']:
+            CONFIG.set_bool('DNB_API', True)
+        else:
+            CONFIG.set_bool('DNB_API', False)
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['status']
@@ -7529,7 +7519,7 @@ class WebInterface:
             CONFIG.set_bool('HC_API', True)
         else:
             CONFIG.set_bool('HC_API', False)
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['status']
@@ -7539,7 +7529,7 @@ class WebInterface:
     def gr_api_changed(self, **kwargs):
         self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GR_API', kwargs['gr_api'])
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gr_api']
@@ -7549,7 +7539,7 @@ class WebInterface:
     def gb_api_changed(self, **kwargs):
         self.validate_param("googlebooks api", kwargs['gb_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GB_API', kwargs['gb_api'])
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API'):
+        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gb_api']

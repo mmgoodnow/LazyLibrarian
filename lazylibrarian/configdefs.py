@@ -488,6 +488,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('API', 'LT_DEVKEY', ''),
     ConfigBool('API', 'CV_WEBSEARCH', 0),
     ConfigBool('API', 'OL_API', 0),
+    ConfigBool('API', 'DNB_API', 0),
     ConfigBool('API', 'HC_API', 0),
     ConfigBool('API', 'HC_SYNC', 0),
     ConfigBool('API', 'HC_SYNCREADONLY', 0),

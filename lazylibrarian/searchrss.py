@@ -135,9 +135,10 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
                 new_value_dict = {"AudioRequester": f"{book['dispname']} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(str(e))
 
+    db.close()
     return want_book, want_audio
 
 
@@ -164,7 +165,7 @@ def search_wishlist():
             for book in resultlist:
                 # we get rss_author, rss_title, maybe rss_isbn, rss_bookid, rss_link
                 # we can just use bookid if exists, or try isbn and name matching on author/title if not
-                # eg NYTimes wishlist
+                # e.g. NYTimes wishlist
                 if lazylibrarian.STOPTHREADS and thread_name() == "SEARCHWISHLIST":
                     logger.debug("Aborting SEARCHWISHLIST")
                     break
@@ -244,7 +245,7 @@ def search_wishlist():
                                 break
 
                     if authorname and not bookmatch:
-                        searchterm = f"{book['rss_title']} <ll> {authorname}"
+                        searchterm = f"{book['rss_title']}<ll>{authorname}"
                         logger.debug(f"Searching using title {book['rss_title']}:{authorname}")
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:
@@ -263,7 +264,7 @@ def search_wishlist():
                         if newtitle != book['rss_title']:
                             logger.debug(f"Searching using newtitle {newtitle}:{authorname}")
                             title = newtitle
-                            searchterm = f"{title} <ll> {authorname}"
+                            searchterm = f"{title}<ll>{authorname}"
                             results = search_for(unaccented(searchterm, only_ascii=False))
                             for result in results:
                                 if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
@@ -481,7 +482,7 @@ def search_rss_book(books=None, library=None):
                 searchtype = 'book'
             found = process_result_list(resultlist, book, searchtype, 'rss')
 
-            # if you can't find the book, try title without any "(extended details, series etc)"
+            # if you can't find the book, try title without any "(extended details, series etc.)"
             if not found and '(' in book['bookName']:  # anything to shorten?
                 searchtype = f"short{searchtype}"
                 found = process_result_list(resultlist, book, searchtype, 'rss')

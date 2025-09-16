@@ -127,8 +127,9 @@ from lazylibrarian.scheduling import restart_jobs, SchedulerCommand
 # 86 add language to magazine table
 # 87 add hc_token to users table
 # 88 add bookauthors table
+# 89 add dnb_id to book table
 
-db_current_version = 88
+db_current_version = 89
 
 
 def upgrade_needed():
@@ -1449,6 +1450,12 @@ def update_schema(db, upgradelog):
                       (entry['AuthorID'], entry['BookID'], 1), suppress='UNIQUE')
         if CONFIG['CONTRIBUTING_AUTHORS']:
             threading.Thread(target=get_authors_from_book_files, name='MULTIAUTH_BOOKFILES').start()
+
+    if not has_column(db, "books", "dnb_id"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding dnb_id column to books table'
+        upgradelog.write(f"{time.ctime()} v89: {lazylibrarian.UPDATE_MSG}\n")
+        db.action('ALTER TABLE books ADD COLUMN dnb_id TEXT')
 
     if changes:
         upgradelog.write(f"{time.ctime()} Changed: {changes}\n")

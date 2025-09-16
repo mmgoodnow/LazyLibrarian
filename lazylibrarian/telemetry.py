@@ -150,8 +150,8 @@ class LazyTelemetry(object):
             cfg_telemetry["params"] += f"PRIMARY_OL "
 
         # Record whether these are configured differently from the default
-        for key in ['GR_API', 'GB_API', 'OL_API', 'HC_API', 'GR_SYNC', 'HC_SYNC', 'LT_DEVKEY', 'IMP_PREFLANG',
-                    'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
+        for key in ['GR_API', 'GB_API', 'OL_API', 'DNB_API', 'HC_API', 'GR_SYNC', 'HC_SYNC', 'LT_DEVKEY',
+                    'IMP_PREFLANG', 'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
             item = _config.get_item(key)
             if item and not item.is_default():
                 cfg_telemetry["params"] += f"{key} "

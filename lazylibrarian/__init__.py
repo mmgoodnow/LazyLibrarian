@@ -38,6 +38,7 @@ STOPTHREADS = False  # Part of the scheduling state machine. Should move to a sc
 
 # These are globals
 UPDATE_MSG = ''
+INFOSOURCES = {}
 TIMERS = {
             'NO_TOR_MSG': 0,
             'NO_RSS_MSG': 0,

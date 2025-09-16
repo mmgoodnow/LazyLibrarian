@@ -28,15 +28,14 @@ from lazylibrarian.bookwork import get_work_series, delete_empty_series, \
 from lazylibrarian.cache import json_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
-    get_list, clean_name, make_unicode, make_utf8bytes, strip_quotes, thread_name
+    get_list, clean_name, make_utf8bytes, strip_quotes, thread_name
 from lazylibrarian.hc import HardCover
 from lazylibrarian.images import cache_bookimg, get_book_cover
 from lazylibrarian.ol import OpenLibrary
 
 
 class GoogleBooks:
-    def __init__(self, name=None):
-        self.name = make_unicode(name)
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.url = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes?q='])
         self.params = {
@@ -69,10 +68,10 @@ class GoogleBooks:
             title = ''
             authorname = ''
 
-            if ' <ll> ' in searchterm:  # special token separates title from author
-                title, authorname = searchterm.split(' <ll> ')
+            if '<ll>' in searchterm:  # special token separates title from author
+                title, authorname = searchterm.split('<ll>')
 
-            fullterm = searchterm.replace(' <ll> ', ' ')
+            fullterm = searchterm.replace('<ll>', ' ')
             self.logger.debug(f'Now searching Google Books API with searchterm: {fullterm}')
 
             for api_value in api_strings:
@@ -312,7 +311,7 @@ class GoogleBooks:
                         # do we care about language?
                         if "All" not in valid_langs:
                             if book['isbn']:
-                                # seems google lies to us, sometimes tells us books are in english when they are not
+                                # it seems google lies to us, sometimes tells us books are in english when they are not
                                 if booklang == "Unknown" or booklang == "en":
                                     googlelang = booklang
                                     match = False
@@ -336,7 +335,6 @@ class GoogleBooks:
                         if CONFIG.get_bool('NO_LANG'):
                             ignorable.append('lang')
                         rejected = []
-                        existing_book = None
                         bookname = book['name']
                         bookid = item['id']
                         if not bookname:
@@ -605,7 +603,7 @@ class GoogleBooks:
                                 if update_value_dict:
                                     db.upsert("books", update_value_dict, control_value_dict)
 
-                                if not existing_book:
+                                if not existing:
                                     typ = 'Added'
                                     added_count += 1
                                 else:
@@ -679,7 +677,7 @@ class GoogleBooks:
         finally:
             db.close()
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gb.find_book'):
+    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='gb.add_bookid'):
         if not CONFIG['GB_API']:
             self.logger.warning('No GoogleBooks API key, check config')
             return
@@ -737,11 +735,11 @@ class GoogleBooks:
         try:
             authorname = book['author']
             if CONFIG['BOOK_API'] == "HardCover":
-                hc = HardCover(f"{authorname}<ll>{bookname}")
-                author = hc.find_author_id()
+                hc = HardCover()
+                author = hc.find_author_id(authorname=authorname, title=bookname)
             else:
-                ol = OpenLibrary(f"{authorname}<ll>{bookname}")
-                author = ol.find_author_id()
+                ol = OpenLibrary()
+                author = ol.find_author_id(authorname=authorname, title=bookname)
             if author:
                 author_id = author['authorid']
                 match = db.match('SELECT AuthorID from authors WHERE AuthorID=?', (author_id,))

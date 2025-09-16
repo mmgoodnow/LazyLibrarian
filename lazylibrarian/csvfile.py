@@ -223,8 +223,8 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     Return database entry, or False if not found
     """
     db = database.DBConnection()
+    bookmatch = ""
     try:
-        bookmatch = ""
         isbn10 = ""
         isbn13 = ""
         bookid = ""
@@ -258,8 +258,10 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
             if bookid:
                 fullcmd = f"{cmd}and BookID=?"
                 bookmatch = db.match(fullcmd, (bookid,))
-    finally:
-        db.close()
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(str(e))
+    db.close()
     return bookmatch
 
 
@@ -356,7 +358,7 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
                         db.upsert("books", new_value_dict, control_value_dict)
                         bookcount += 1
                 elif authorid:
-                    searchterm = f"{title} <ll> {authorname}"
+                    searchterm = f"{title}<ll>{authorname}"
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
                         if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
@@ -367,7 +369,7 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
                         newtitle, _, _ = split_title(authorname, title)
                         if newtitle != title:
                             title = newtitle
-                            searchterm = f"{title} <ll> {authorname}"
+                            searchterm = f"{title}<ll>{authorname}"
                             results = search_for(unaccented(searchterm, only_ascii=False))
                             for result in results:
                                 if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \

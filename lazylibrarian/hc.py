@@ -7,21 +7,21 @@ import platform
 import threading
 import time
 import traceback
+from queue import Queue
 
 import cherrypy
 import requests
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database, ROLE
+from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian.bookwork import get_status, isbn_from_words, isbnlang, is_set_or_part
+from lazylibrarian.bookdict import validate_bookdict, warn_about_bookdict, add_bookdict_to_db, add_author_books_to_db
 from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
-from lazylibrarian.formatter import md5_utf8, make_unicode, is_valid_isbn, get_list, format_author_name, \
-    date_format, thread_name, now, today, plural, unaccented, replace_all, check_int
-from lazylibrarian.images import cache_bookimg, get_book_cover
+from lazylibrarian.formatter import md5_utf8, is_valid_isbn, get_list, format_author_name, \
+    date_format, thread_name, now, plural
 
 
 class ReadStatus(enum.Enum):
@@ -48,7 +48,7 @@ def test_auth(userid=None, token=None):
 
     logger.info(f"Testing auth for userid: {userid}")
     if userid:
-        h_c = HardCover(userid=userid)
+        h_c = HardCover()
         if BLOCKHANDLER.is_blocked('HardCover'):
             BLOCKHANDLER.remove_provider_entry('HardCover')
         msg = h_c.hc_whoami(userid=userid, token=token)
@@ -140,7 +140,7 @@ def hc_sync(library='', userid=None, confirmed=False, readonly=False):
                 user_id = user['UserID']
                 logger.info(f"Starting HC sync for user: {user_id}")
                 # Create a HardCover instance with this user's token
-                hc = HardCover(userid=user_id)
+                hc = HardCover()
 
                 # Check if user has a hc_id, if not try to get one
                 user_data = db.match("SELECT hc_id, hc_token FROM users WHERE UserID=?", (user_id,))
@@ -203,7 +203,7 @@ def hc_sync(library='', userid=None, confirmed=False, readonly=False):
         # If a specific userid is provided, just sync that one
         logger.info(f"Starting hc_sync for userid: {userid}")
         logger.debug("Taking single-user sync path")
-        hc = HardCover(userid=userid)
+        hc = HardCover()
         try:
             msg = hc.sync(library, userid, confirmed, readonly)
             logger.info(f"Completed hc_sync for userid: {userid}")
@@ -241,147 +241,6 @@ def hc_sync(library='', userid=None, confirmed=False, readonly=False):
             })
 
 
-def validate_bookdict(bookdict):
-    """Validate a book dictionary for required fields and rules."""
-    logger = logging.getLogger(__name__)
-    rejected = []
-
-    if not bookdict.get('auth_id') or not bookdict.get('auth_name'):
-        rejected.append(['name', "Authorname or ID not found"])
-        return rejected
-
-    db = database.DBConnection()
-    # noinspection PyBroadException
-    try:
-        wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
-        if 'All' not in wantedlanguages:
-            lang = ''
-            languages = get_list(bookdict.get('languages'))
-            if languages:
-                for item in languages:
-                    if item in wantedlanguages:
-                        lang = item
-                        break
-            elif bookdict.get('isbn'):
-                lang, _, _ = isbnlang(bookdict['isbn'])
-
-            if not lang:
-                lang = 'Unknown'
-
-            if lang not in wantedlanguages:
-                rejected.append(['lang', f'Invalid language [{lang}]'])
-
-        if not bookdict['title']:
-            rejected.append(['name', 'No title'])
-
-        if bookdict['publishers']:
-            for bookpub in bookdict['publishers']:
-                if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
-                    rejected.append(['publisher', bookpub])
-                    break
-        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
-        cmd = (
-            "SELECT BookID,books.hc_id FROM books,authors WHERE books.AuthorID = authors.AuthorID and "
-            "BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE and books.Status != 'Ignored' "
-            "and AudioStatus != 'Ignored'"
-        )
-        if exists:  # If author exists, let's check if the title does too
-            exists = db.match(cmd, (bookdict['title'], auth_name))
-        if not exists:
-            in_db = lazylibrarian.librarysync.find_book_in_db(
-                auth_name, bookdict['title'],
-                source='hc_id', ignored=False, library='eBook',
-                reason=f"hc_get_author_books {bookdict['auth_id']},{bookdict['title']}"
-            )
-            if not in_db:
-                in_db = lazylibrarian.librarysync.find_book_in_db(
-                    auth_name, bookdict['title'],
-                    source='bookid', ignored=False, library='eBook',
-                    reason=f"hc_get_author_books {bookdict['auth_id']},{bookdict['title']}"
-                )
-            if in_db and in_db[0]:
-                cmd = "SELECT BookID,hc_id FROM books WHERE BookID=?"
-                exists = db.match(cmd, (in_db[0],))
-
-        if exists:
-            # existing bookid might not still be listed at this source so won't refresh.
-            # should we keep new bookid or existing one?
-            # existing one might have been user edited, might be locked,
-            # might have been merged from another authorid or inherited from goodreads?
-            # Should probably use the one with the "best" info but since we don't know
-            # which that is, keep the old one which is already linked to other db tables
-            # but allow info (dates etc.) to be updated
-            if bookdict['bookid'] != exists['BookID']:
-                rejected.append(['dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"])
-                if not exists['hc_id']:
-                    db.action(
-                        "UPDATE books SET hc_id=? WHERE BookID=?",
-                        (bookdict['bookid'], exists['BookID'])
-                    )
-
-        if not bookdict['isbn'] and CONFIG.get_bool('ISBN_LOOKUP'):
-            # try isbn lookup by name
-            title = bookdict.get('title')
-            if title:
-                try:
-                    res = isbn_from_words(
-                        f"{unaccented(title, only_ascii=False)} "
-                        f"{unaccented(bookdict['auth_name'], only_ascii=False)}"
-                    )
-                except Exception as e:
-                    res = None
-                    logger.warning(f"Error from isbn: {e}")
-                if res:
-                    logger.debug(f"isbn found {res} for {bookdict['bookid']}")
-                    if len(res) in [10, 13]:
-                        bookdict['isbn'] = res
-
-        if not bookdict['isbn'] and CONFIG.get_bool('NO_ISBN'):
-            rejected.append(['isbn', 'No ISBN'])
-
-        dic = {
-            '.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
-            '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '
-        }
-        name = replace_all(bookdict['title'], dic).strip()
-        name = name.lower()
-        # remove extra spaces if they're in a row
-        name = " ".join(name.split())
-        namewords = name.split(' ')
-        badwords = get_list(CONFIG['REJECT_WORDS'], ',')
-
-        for word in badwords:
-            if (' ' in word and word in name) or word in namewords:
-                rejected.append(['word', f'Name contains [{word}]'])
-                break
-
-        book_name = unaccented(bookdict['title'], only_ascii=False)
-        if CONFIG.get_bool('NO_SETS'):
-            # allow date ranges eg 1981-95
-            is_set, set_msg = is_set_or_part(book_name)
-            if is_set:
-                rejected.append(['set', set_msg])
-
-        if CONFIG.get_bool('NO_FUTURE'):
-            publish_date = bookdict.get('publish_date', '')
-            if not publish_date:
-                publish_date = ''
-            if publish_date > today()[:len(publish_date)]:
-                rejected.append(['future', f'Future publication date [{publish_date}]'])
-
-            if CONFIG.get_bool('NO_PUBDATE'):
-                if not publish_date or publish_date == '0000':
-                    rejected.append(['date', 'No publication date'])
-        db.close()
-        return rejected
-
-    except Exception:
-        logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
-        logger.error(f"{bookdict}")
-        db.close()
-        return rejected
-
-
 class HardCover:
     def __init__(self, name='', userid=None):
         """Initialize HardCover API handler."""
@@ -392,10 +251,6 @@ class HardCover:
         self.HC_WHOAMI = 'query whoami { me { id } }'
         self.apikey = None
         self.logger = logging.getLogger(__name__)
-        self.name = make_unicode(name)
-        self.title = ''
-        if '<ll>' in self.name:
-            self.name, self.title = self.name.split('<ll>')
         self.lt_cache = False
         self.searchinglogger = logging.getLogger('special.searching')
         self.syncinglogger = logging.getLogger('special.grsync')
@@ -409,7 +264,7 @@ class HardCover:
             self.user_agent += f"{platform.system()} {platform.release()}"
         self.user_agent += ')'
 
-        # If a userid is provided, try to fetch the user's hc_token from the database
+        # If userid is provided, try to fetch the user's hc_token from the database
         if not userid:
             userid, _ = get_current_userid()
         if userid:
@@ -804,7 +659,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 if not position or str(position) == 'None':
                     position = 0
                 book_title = entry['book']['title']
-                pubyear = entry['book']['release_year']
+                # pubyear = entry['book']['release_year']
                 pubdate = entry['book']['release_date']
                 compilation = entry['book']['compilation']
 
@@ -816,7 +671,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     if not language:
                         language = 'Unknown'
                     if 'All' in wantedlanguages or language in wantedlanguages:
-                        resultdict[position] = [book_title, authorname, authorlink, book_id, pubyear, pubdate]
+                        resultdict[position] = [book_title, authorname, authorlink, book_id, pubdate]
             for item in resultdict:
                 res = [item]
                 res.extend(resultdict[item])
@@ -859,9 +714,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     pass
 
             if not searchcmd:  # not isbn search, could be author, title, both
-                if ' <ll> ' in searchterm:  # special token separates title from author
-                    searchtitle, searchauthorname = searchterm.split(' <ll> ')
-                    searchterm = searchterm.replace(' <ll> ', ' ').strip()
+                if '<ll>' in searchterm:  # special token separates title from author
+                    searchtitle, searchauthorname = searchterm.split('<ll>')
+                    searchterm = searchterm.replace('<ll>', ' ').strip()
                     searchtitle = searchtitle.split(' (')[0].strip()  # without any series info
                 else:
                     # could be either... At the moment the HardCover book search covers both
@@ -921,10 +776,10 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     bookdict = self.build_bookdict(book_data)
 
                 if searchauthorname:
-                    author_fuzz = fuzz.token_sort_ratio(bookdict['auth_name'], searchauthorname)
+                    author_fuzz = fuzz.token_sort_ratio(bookdict['authorname'], searchauthorname)
                 else:
-                    author_fuzz = fuzz.token_sort_ratio(bookdict['auth_name'], searchterm)
-                book_title = bookdict['title']
+                    author_fuzz = fuzz.token_sort_ratio(bookdict['authorname'], searchterm)
+                book_title = bookdict['bookname']
                 if book_title:
                     if searchtitle:
                         if book_title.endswith(')'):
@@ -947,21 +802,21 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     highest_fuzz = max((author_fuzz + book_fuzz) / 2, isbn_fuzz)
 
                     resultlist.append({
-                        'authorname': bookdict['auth_name'],
+                        'authorname': bookdict['authorname'],
                         'bookid': bookdict['bookid'],
-                        'authorid': bookdict['auth_id'],
-                        'bookname': bookdict['title'],
-                        'booksub': bookdict['subtitle'],
-                        'bookisbn': bookdict['isbn'],
-                        'bookpub': bookdict['publishers'],
-                        'bookdate': bookdict['publish_date'],
-                        'booklang': bookdict['languages'],
-                        'booklink': bookdict['link'],
+                        'authorid': bookdict['authorid'],
+                        'bookname': bookdict['bookname'],
+                        'booksub': bookdict['booksub'],
+                        'bookisbn': bookdict['bookisbn'],
+                        'bookpub': bookdict['bookpub'],
+                        'bookdate': bookdict['bookdate'],
+                        'booklang': bookdict['booklang'],
+                        'booklink': bookdict['booklink'],
                         'bookrate': bookdict['bookrate'],
                         'bookrate_count': bookdict['bookrate_count'],
-                        'bookimg': bookdict['cover'],
+                        'bookimg': bookdict['bookimg'],
                         'bookpages': bookdict['bookpages'],
-                        'bookgenre': bookdict['genres'],
+                        'bookgenre': bookdict['bookgenre'],
                         'bookdesc': bookdict['bookdesc'],
                         'workid': bookdict['bookid'],  # TODO should this be canonical id?
                         'author_fuzz': round(author_fuzz, 2),
@@ -979,12 +834,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
         except Exception:
             self.logger.error(f'Unhandled exception in HC.find_results: {traceback.format_exc()}')
 
-    def find_author_id(self, refresh=False):
+    def find_author_id(self, authorname='', title='', refresh=False):
         """Find HardCover author ID for a name or title."""
         api_hits = 0
-        authorname = self.name.replace('#', '').replace('/', '_')
+        authorname = authorname.replace('#', '').replace('/', '_')
         authorname = format_author_name(authorname, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        title = self.title
 
         if not title:
             # we only have an authorname. Return id of matching author with the most books
@@ -1085,7 +939,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
         self.logger.debug(f"No results. Used {api_hits} api hit")
         return {}
 
-    def get_author_info(self, authorid=None, refresh=False):
+    def get_author_info(self, authorid=None, authorname=None, refresh=False):
         """Get detailed info for a HardCover author."""
         author_name = ''
         author_born = ''
@@ -1109,8 +963,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
             if author and str(author['id']) == str(authorid):
                 author_name = author.get('name', '')
                 # hc sometimes returns multiple comma separated names, use the one we are looking for
-                if self.name and self.name in author_name:
-                    author_name = self.name
+                if authorname and authorname in author_name:
+                    author_name = authorname
                 author_born = author.get('born_date', '')
                 author_died = author.get('death_date', '')
                 totalbooks = author.get('books_count', 0)
@@ -1154,8 +1008,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
     def build_bookdict(self, book_data):
         """Convert HardCover book data to a standard dict."""
-        bookdict = {'languages': '', 'publishers': '', 'auth_name': '', 'auth_id': '0',
-                    'cover': '', 'isbn': '', 'series': [], 'contributing_authors': []}
+        bookdict = {'booklang': '', 'bookpub': '', 'authorname': '', 'authorid': '0',
+                    'bookcover': '', 'bookisbn': '', 'series': [], 'contributors': [], 'source': 'HardCover'}
 
         # Filter and select primary author from contributions
         if 'contributions' in book_data and len(book_data['contributions']):
@@ -1171,33 +1025,33 @@ query FindAuthor { authors_by_pk(id: [authorid])
             sorted_contributions = sorted(author_contributions, key=lambda x: x['author']['name'])
 
             author = sorted_contributions[0]
-            bookdict['auth_name'] = " ".join(author['author']['name'].split())
+            bookdict['authorname'] = " ".join(author['author']['name'].split())
             # not all hardcover entries have an id???
-            bookdict['auth_id'] = str(author['author'].get('id', '0'))
+            bookdict['authorid'] = str(author['author'].get('id', '0'))
             if len(sorted_contributions) > 1:
                 sorted_contributions.pop(0)
                 for item in sorted_contributions:
-                    bookdict['contributing_authors'].append([str(item['author'].get('id', '0')),
-                                                             " ".join(item['author']['name'].split())])
+                    bookdict['contributors'].append([str(item['author'].get('id', '0')),
+                                                     " ".join(item['author']['name'].split())])
 
-        bookdict['title'] = book_data.get('title', '')
-        bookdict['subtitle'] = book_data.get('subtitle', '')
+        bookdict['bookname'] = book_data.get('title', '')
+        bookdict['booksub'] = book_data.get('subtitle', '')
         if 'cached_image' in book_data and book_data['cached_image'].get('url'):
-            bookdict['cover'] = book_data['cached_image']['url']
+            bookdict['bookimg'] = book_data['cached_image']['url']
         editions = book_data.get('editions', [])
         for edition in editions:
             if edition.get('isbn_13'):
-                bookdict['isbn'] = edition['isbn_13']
+                bookdict['bookisbn'] = edition['isbn_13']
                 break
             if edition.get('isbn_10'):
-                bookdict['isbn'] = edition['isbn_10']
+                bookdict['bookisbn'] = edition['isbn_10']
                 break
         bookseries = book_data.get('book_series', [])
         for series in bookseries:
             bookdict['series'].append([series['series']['name'], series['series']['id'], series['position']])
-        bookdict['link'] = book_data.get('slug', '')
-        if bookdict['link']:
-            bookdict['link'] = self.book_url + bookdict['link']
+        bookdict['booklink'] = book_data.get('slug', '')
+        if bookdict['booklink']:
+            bookdict['booklink'] = self.book_url + bookdict['booklink']
         bookdict['bookrate'] = book_data.get('rating', 0)
         bookdict['bookrate_count'] = book_data.get('ratings_count', 0)
         if bookdict['bookrate'] is None:
@@ -1208,13 +1062,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
             bookdict['bookpages'] = 0
         bookdict['bookdesc'] = book_data.get('description', '')
         bookdict['bookid'] = str(book_data.get('id', ''))
-        bookdict['publish_date'] = book_data.get('release_date', '')
-        if not bookdict['publish_date']:
-            bookdict['publish_date'] = ''
+        bookdict['bookdate'] = book_data.get('release_date', '')
+        if not bookdict['bookdate']:
+            bookdict['bookdate'] = ''
         else:
-            bookdict['publish_date'] = date_format(bookdict['publish_date'],
-                                                   context=f"{bookdict['auth_name']}/{bookdict['title']}",
-                                                   datelang=CONFIG['DATE_LANG'])
+            bookdict['bookdate'] = date_format(bookdict['bookdate'],
+                                               context=f"{bookdict['authorname']}/{bookdict['bookname']}",
+                                               datelang=CONFIG['DATE_LANG'])
         bookdict['first_publish_year'] = book_data.get('release_year', '')
         bookgenre = ''
         genres = []
@@ -1230,7 +1084,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 genre_limit = 3
             genres = list(set(genres))
             bookgenre = ', '.join(genres[:genre_limit])
-        bookdict['genres'] = bookgenre
+        bookdict['bookgenre'] = bookgenre
         langs = []
         for edition in editions:
             if edition.get('language'):
@@ -1238,7 +1092,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 if lang:
                     langs.append(lang)
         if langs:
-            bookdict['languages'] = ', '.join(set(langs))
+            bookdict['booklang'] = ', '.join(set(langs))
         pubs = []
         for edition in editions:
             if edition.get('publisher'):
@@ -1246,15 +1100,15 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 if pub:
                     pubs.append(pub)
         if pubs:
-            bookdict['publishers'] = ', '.join(set(pubs))
+            bookdict['bookpub'] = ', '.join(set(pubs))
         bookdict['id_librarything'] = ""
-        if not bookdict['cover']:
-            bookdict['cover'] = 'images/nocover.png'
+        if not bookdict.get('bookimg'):
+            bookdict['bookimg'] = 'images/nocover.png'
         return bookdict
 
     def get_searchdict(self, book_data):
         """Convert HardCover search result to a book dict."""
-        bookdict = {'auth_id': '0', 'auth_name': 'Unknown'}
+        bookdict = {'authorid': '0', 'authorname': ''}
 
         # Filter and select primary author from contributions
         if 'contributions' in book_data and len(book_data['contributions']):
@@ -1269,23 +1123,23 @@ query FindAuthor { authors_by_pk(id: [authorid])
             sorted_contributions = sorted(author_contributions, key=lambda x: x['author']['name'])
 
             author = sorted_contributions[0]
-            bookdict['auth_name'] = " ".join(author['author']['name'].split())
+            bookdict['authorname'] = " ".join(author['author']['name'].split())
             # not all hardcover entries have an id???
-            bookdict['auth_id'] = str(author['author'].get('id', '0'))
+            bookdict['authorid'] = str(author['author'].get('id', '0'))
 
-        bookdict['title'] = book_data.get('title', '')
-        bookdict['subtitle'] = book_data.get('subtitle', '')
-        bookdict['cover'] = ""
+        bookdict['bookname'] = book_data.get('title', '')
+        bookdict['booksub'] = book_data.get('subtitle', '')
+        bookdict['bookimg'] = ""
         if 'image' in book_data and book_data['image'].get('url'):
-            bookdict['cover'] = book_data['image']['url']
+            bookdict['bookimg'] = book_data['image']['url']
         isbns = book_data.get('isbns', [])
-        bookdict['isbn'] = ""
+        bookdict['bookisbn'] = ""
         if isbns:
-            bookdict['isbn'] = isbns[0]
+            bookdict['bookisbn'] = isbns[0]
         bookdict['series'] = []
-        bookdict['link'] = book_data.get('slug', '')
-        if bookdict['link']:
-            bookdict['link'] = self.book_url + bookdict['link']
+        bookdict['booklink'] = book_data.get('slug', '')
+        if bookdict['booklink']:
+            bookdict['booklink'] = self.book_url + bookdict['booklink']
         bookdict['bookrate'] = book_data.get('rating', 0)
         bookdict['bookrate_count'] = book_data.get('ratings_count', 0)
         if bookdict['bookrate'] is None:
@@ -1296,13 +1150,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
             bookdict['bookpages'] = 0
         bookdict['bookdesc'] = book_data.get('description', '')
         bookdict['bookid'] = str(book_data.get('id', ''))
-        bookdict['publish_date'] = book_data.get('release_date', '')
-        if not bookdict['publish_date']:
-            bookdict['publish_date'] = ''
+        bookdict['bookdate'] = book_data.get('release_date', '')
+        if not bookdict['bookdate']:
+            bookdict['bookdate'] = ''
         else:
-            bookdict['publish_date'] = date_format(bookdict['publish_date'],
-                                                   context=f"{bookdict['auth_name']}/{bookdict['title']}",
-                                                   datelang=CONFIG['DATE_LANG'])
+            bookdict['bookdate'] = date_format(bookdict['bookdate'],
+                                               context=f"{bookdict['authorname']}/{bookdict['bookname']}",
+                                               datelang=CONFIG['DATE_LANG'])
         bookdict['first_publish_year'] = book_data.get('release_year', '')
         bookgenre = ''
         genres = []
@@ -1318,42 +1172,19 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 genre_limit = 3
             genres = list(set(genres))
             bookgenre = ', '.join(genres[:genre_limit])
-        bookdict['genres'] = bookgenre
-        bookdict['languages'] = ""
-        bookdict['publishers'] = ""
+        bookdict['bookgenre'] = bookgenre
+        bookdict['booklang'] = ""
+        bookdict['bookpub'] = ""
         bookdict['id_librarything'] = ""
-        if not bookdict['cover']:
-            bookdict['cover'] = 'images/nocover.png'
+        if not bookdict['bookimg']:
+            bookdict['bookimg'] = 'images/nocover.png'
         return bookdict
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
                          entrystatus='Active', refresh=False, reason='hc.get_author_books'):
         """Import all books for an author from HardCover."""
         cache_hits = 0
-        api_hits = 0
-        lt_lang_hits = 0
-        book_ignore_count = 0
-        bad_lang = 0
-        added_count = 0
-        not_cached = 0
-        entryreason = reason
-        cover_time = 0
-        cover_count = 0
-        locked_count = 0
-        new_authors = 0
-        updated_count = 0
-        removed_results = 0
-        duplicates = 0
-        auth_start = time.time()
-        series_updates = []
         hc_id = ''
-        entry_name = authorname
-
-        # these are reject reasons we might want to override, so optionally add to database as "ignored"
-        ignorable = ['future', 'date', 'isbn', 'set', 'word', 'publisher']
-        if CONFIG.get_bool('NO_LANG'):
-            ignorable.append('lang')
-
         db = database.DBConnection()
         try:
             match = db.match('SELECT authorid,hc_id FROM authors where authorid=? or hc_id=?', (authorid, authorid))
@@ -1368,7 +1199,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
             searchcmd = self.HC_AUTHORID_BOOKS.replace('[authorid]', hc_id)
             results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
-            api_hits += not in_cache
             cache_hits += in_cache
             if 'error' in results:
                 self.logger.error(str(results['error']))
@@ -1377,403 +1207,34 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 return
 
             self.logger.debug(f"HC found {len(results['data']['books'])} results")
+            resultqueue = Queue()
+            resultlist = []
             for book_data in results['data']['books']:
                 bookdict = self.build_bookdict(book_data)
-                if bookdict['auth_name'] != entry_name:
+                if bookdict['authorname'] != authorname:
                     # not our author, might be a contributor to an anthology?
                     # Check all contributions (already filtered in build_bookdict) for name match
                     if 'contributions' in book_data and len(book_data['contributions']):
                         for contrib in book_data['contributions']:
-                            if (fuzz.token_set_ratio(contrib['author']['name'], entry_name) >=
+                            if (fuzz.token_set_ratio(contrib['author']['name'], authorname) >=
                                     CONFIG.get_int('NAME_RATIO')):
-                                bookdict['auth_name'] = " ".join(contrib['author']['name'].split())
-                                bookdict['auth_id'] = str(contrib['author']['id'])
+                                bookdict['authorname'] = " ".join(contrib['author']['name'].split())
+                                bookdict['authorid'] = str(contrib['author']['id'])
                                 break
 
-                bookdict['book_status'] = bookstatus
-                bookdict['audio_status'] = audiostatus
-                rejected = validate_bookdict(bookdict)
-                fatal = False
-                reason = ''
-                ignore_book = False
-                ignore_audio = False
-                if rejected:
-                    for reject in rejected:
-                        if reject[0] not in ignorable:
-                            if reject[0] == 'lang':
-                                bad_lang += 1
-                            if reject[0] == 'dupe':
-                                duplicates += 1
-                            if reject[0] == 'name':
-                                removed_results += 1
-                            fatal = True
-                            reason = reject[1]
-                            break
+                bookdict['status'] = bookstatus
+                bookdict['audiostatus'] = audiostatus
 
-                    if not CONFIG['IMP_IGNORE']:
-                        fatal = True
+                resultlist.append(bookdict)
 
-                    if not fatal:
-                        for reject in rejected:
-                            if reject[0] in ignorable:
-                                ignore_book = True
-                                ignore_audio = True
-                                book_ignore_count += 1
-                                reason = f"Ignored: {reject[1]}"
-                                break
+            resultqueue.put(resultlist)
+            _ = add_author_books_to_db(resultqueue, bookstatus, audiostatus, entrystatus, reason, authorid,
+                                       self.get_series_members, self.get_bookdict_for_bookid, cache_hits=cache_hits)
 
-                elif 'author_update' in entryreason:
-                    reason += f" Author: {bookdict['auth_name']}"
-                else:
-                    reason = entryreason
-
-                if fatal:
-                    self.logger.debug(f"Rejected {bookdict['bookid']} {reason}")
-                else:
-                    update_value_dict = {}
-                    exists = db.match("SELECT * from books WHERE BookID=?", (bookdict['bookid'],))
-                    if exists:
-                        series = db.select('select seriesname from series,member where '
-                                           'series.seriesid=member.seriesid and bookid=?', (exists['BookID'],))
-                        serieslist = []
-                        for n in series:
-                            serieslist.append(n[0])
-
-                        locked = exists['Manual']
-                        if locked is None:
-                            locked = False
-                        elif locked.isdigit():
-                            locked = bool(int(locked))
-                    else:
-                        serieslist = []
-                        locked = False
-                        self.logger.debug(f"Inserting new book [{bookdict['title']}] for [{bookdict['auth_name']}]")
-                        if 'author_update' in entryreason:
-                            reason = f"Author: {bookdict['auth_name']}"
-                        else:
-                            reason = entryreason
-                        reason = f"[{thread_name()}] {reason}"
-                        added_count += 1
-                        if not bookdict['languages']:
-                            bookdict['languages'] = 'Unknown'
-                            if bookdict['isbn']:
-                                booklang, cache_hit, thing_hit = isbnlang(bookdict['isbn'])
-                                if thing_hit:
-                                    lt_lang_hits += 1
-                                if booklang:
-                                    bookdict['languages'] = booklang
-
-                        cover_link = bookdict['cover']
-                        if 'nocover' in cover_link or 'nophoto' in cover_link:
-                            start = time.time()
-                            cover_link, _ = get_book_cover(bookdict['bookid'], ignore='hardcover')
-                            cover_time += (time.time() - start)
-                            cover_count += 1
-                        elif cover_link and cover_link.startswith('http'):
-                            cover_link = cache_bookimg(cover_link, bookdict['bookid'], 'hc')
-                        if not cover_link:  # no results on search or failed to cache it
-                            cover_link = 'images/nocover.png'
-
-                        if ignore_book:
-                            bookdict['book_status'] = 'Ignored'
-                        if ignore_audio:
-                            bookdict['audio_status'] = 'Ignored'
-
-                        db.action(
-                            f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, BookDate, "
-                            f"BookLang, BookAdded, Status, WorkPage, AudioStatus, ScanResult, OriginalPubDate, "
-                            f"hc_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                            (authorid, bookdict['title'], cover_link, bookdict['link'],
-                             bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
-                             bookdict['book_status'], '', bookdict['audio_status'], reason,
-                             bookdict['first_publish_year'], bookdict['bookid']))
-
-                        db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                                  (authorid, bookdict['bookid'], ROLE['PRIMARY']), suppress='UNIQUE')
-                        lazylibrarian.importer.update_totals(authorid)
-
-                        if CONFIG.get_bool('CONTRIBUTING_AUTHORS'):
-                            for entry in bookdict['contributing_authors']:
-                                reason = f"Contributor to {bookdict['title']}"
-                                auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1],
-                                                                                  refresh=False,
-                                                                                  authorid=entry[0],
-                                                                                  addbooks=False,
-                                                                                  reason=reason)
-                                if auth_id:
-                                    # Add any others as contributing authors
-                                    db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                                              (auth_id, bookdict['bookid'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
-                                    lazylibrarian.importer.update_totals(auth_id)
-                                else:
-                                    logger.debug(f"Unable to add {auth_id}")
-
-                    # Leave alone if locked
-                    if locked:
-                        locked_count += 1
-                    else:
-                        if exists and exists['ScanResult'] and ' publication date' in exists['ScanResult'] \
-                                and bookdict['publish_date'] and bookdict['publish_date'] != '0000' \
-                                and bookdict['publish_date'] <= today()[:len(bookdict['publish_date'])]:
-                            # was rejected on previous scan but bookdate has become valid
-                            self.logger.debug(
-                                f"valid bookdate [{bookdict['publish_date']}] previous scanresult "
-                                f"[{exists['ScanResult']}]")
-
-                            update_value_dict["ScanResult"] = f"bookdate {bookdict['publish_date']} is now valid"
-                            self.searchinglogger.debug(f"entry status {entrystatus} {bookstatus},{audiostatus}")
-                            book_status, audio_status = get_status(bookdict['bookid'], serieslist, bookstatus,
-                                                                   audiostatus, entrystatus)
-                            if bookdict['book_status'] not in ['Wanted', 'Open', 'Have'] and not ignore_book:
-                                update_value_dict["Status"] = book_status
-                            if bookdict['audio_status'] not in ['Wanted', 'Open', 'Have'] and not ignore_audio:
-                                update_value_dict["AudioStatus"] = audio_status
-                            self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
-                        elif not exists:
-                            update_value_dict["ScanResult"] = reason
-
-                    if update_value_dict:
-                        control_value_dict = {"BookID": bookdict['bookid']}
-                        db.upsert("books", update_value_dict, control_value_dict)
-
-                    if not exists:
-                        typ = 'Added'
-                        added_count += 1
-                    else:
-                        typ = 'Updated'
-                        updated_count += 1
-                    msg = (f"[{bookdict['auth_name']}] {typ} book: {bookdict['title']} [{bookdict['languages']}] "
-                           f"status {bookstatus}")
-                    if CONFIG.get_bool('AUDIO_TAB'):
-                        msg += f" audio {audiostatus}"
-                    self.logger.debug(msg)
-
-                    if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):
-                        for item in bookdict['series']:
-                            ser_name = item[0].strip()
-                            ser_id = f"HC{str(item[1])}"
-                            exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
-                            if not exists:
-                                exists = db.match("SELECT * from series WHERE seriesname=? "
-                                                  "and instr(seriesid, 'HC') = 1", (ser_name,))
-                                if exists:
-                                    ser_id = exists['SeriesID']
-                            if not exists:
-                                self.logger.debug(f"New series: {ser_id}:{ser_name}: {CONFIG['NEWSERIES_STATUS']}")
-                                db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
-                                          'Updated, Reason) VALUES (?,?,?,?,?)',
-                                          (ser_id, ser_name, CONFIG['NEWSERIES_STATUS'], time.time(), ser_name))
-                                db.commit()
-                                exists = {'Status': CONFIG['NEWSERIES_STATUS']}
-
-                            # books in series might be by different authors
-                            match = db.match(f"SELECT AuthorID from authors WHERE AuthorID=? or hc_id=?",
-                                             (bookdict['auth_id'], bookdict['auth_id']))
-                            if match:
-                                auth_id = match['AuthorID']
-                            else:
-                                auth_id = authorid
-
-                            authmatch = db.match(f"SELECT * from seriesauthors WHERE "
-                                                 f"SeriesID=? and AuthorID=?", (ser_id, auth_id))
-                            if not authmatch:
-                                self.logger.debug(f"Adding {bookdict['auth_name']} as series author for {ser_name}")
-                                db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
-                                          (ser_id, auth_id), suppress='UNIQUE')
-
-                            match = db.match(f"SELECT * from member WHERE SeriesID=? AND BookID=?",
-                                             (ser_id, bookdict['bookid']))
-                            if item[2] and not match:
-                                self.logger.debug(f"Inserting new member [{item[2]}] for {ser_id}")
-                                db.action(
-                                    f"INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
-                                    (ser_id, bookdict['bookid'], '', item[2]), suppress='UNIQUE')
-                            ser = db.match(
-                                f"select count(*) as counter from member where seriesid=?",
-                                (ser_id,))
-                            if ser:
-                                counter = check_int(ser['counter'], 0)
-                                db.action("UPDATE series SET Total=? WHERE SeriesID=?",
-                                          (counter, ser_id))
-
-                            if exists['Status'] in ['Paused', 'Ignored']:
-                                self.logger.debug(
-                                    f"Not getting additional series members for {ser_name}, status is "
-                                    f"{exists['Status']}")
-                            elif ser_id in series_updates:
-                                self.logger.debug(f"Series {ser_id}:{ser_name} already updated")
-                            else:
-                                seriesmembers = self.get_series_members(ser_id, ser_name)
-                                series_updates.append(ser_id)
-                                if len(seriesmembers) == 1:
-                                    self.logger.debug(f"Found member {seriesmembers[0][1]} for series {ser_name}")
-                                else:
-                                    self.logger.debug(f"Found {len(seriesmembers)} members for series {ser_name}")
-                                # position, book_title, author_name, hc_author_id, book_id
-                                for member in seriesmembers:
-                                    db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
-                                              (ser_id, member[0]))
-                                    auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
-                                    if not exists:
-                                        reason = f"Series contributor {ser_name}:{member[1]}"
-                                        # Use add_author_to_db with the author ID we already have from the series data
-                                        # This avoids the author search that can return the wrong author
-                                        if CONFIG.get_bool('ADD_AUTHOR'):
-                                            # Only add series author if the global config is set
-                                            lazylibrarian.importer.add_author_to_db(authorname=auth_name,
-                                                                                    authorid=member[3],
-                                                                                    refresh=False,
-                                                                                    addbooks=False,
-                                                                                    reason=reason
-                                                                                    )
-                                        else:
-                                            self.logger.debug(f"Skipping adding {member[2]}({member[3]}) "
-                                                              f"for series {ser_name}, "
-                                                              f"author not in database and ADD_AUTHOR is disabled")
-                                            continue
-                                        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
-                                        if not exists:
-                                            self.logger.debug(f"Unable to add {member[2]}({member[3]}) "
-                                                              f"for series {ser_name}, "
-                                                              f"author not in database")
-                                            continue
-
-                                    cmd = "SELECT * from authors WHERE authorname=? or hc_id=?"
-                                    exists = db.match(cmd, (auth_name, member[3]))
-                                    if exists:
-                                        auth_id = exists['AuthorID']
-                                        if fuzz.ratio(auth_name.lower().replace('.', ''),
-                                                      member[2].lower().replace('.', '')) < 95:
-                                            akas = get_list(exists['AKA'], ',')
-                                            if member[2] not in akas:
-                                                akas.append(member[2])
-                                                db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
-                                                          (', '.join(akas), auth_id))
-                                        match = db.match(
-                                            f"SELECT * from seriesauthors WHERE SeriesID=? and AuthorID=?",
-                                            (ser_id, auth_id))
-                                        if not match:
-                                            self.logger.debug(f"Adding {auth_name} as series author for {ser_name}")
-                                            new_authors += 1
-                                            db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
-                                                      (ser_id, auth_id), suppress='UNIQUE')
-
-                                    cmd = "SELECT BookID FROM books WHERE BookID=?"
-                                    # make sure bookid is in database, if not, add it
-                                    match = db.match(cmd, (str(member[4]),))
-                                    if not match:
-                                        newbookdict, in_cache = self.get_bookdict(str(member[4]))
-                                        api_hits += not in_cache
-                                        cache_hits += in_cache
-                                        if not newbookdict:
-                                            self.logger.debug(f"Unable to add bookid {member[4]} to database")
-                                            continue
-
-                                        cover_link = newbookdict['cover']
-                                        if 'nocover' in cover_link or 'nophoto' in cover_link:
-                                            start = time.time()
-                                            cover_link, _ = get_book_cover(newbookdict['bookid'],
-                                                                           ignore='hardcover')
-                                            cover_time += (time.time() - start)
-                                            cover_count += 1
-                                        elif cover_link and cover_link.startswith('http'):
-                                            cover_link = cache_bookimg(cover_link,
-                                                                       newbookdict['bookid'], 'hc')
-                                        if not cover_link:  # no results or failed to cache it
-                                            cover_link = 'images/nocover.png'
-
-                                        cmd = ('INSERT INTO books (AuthorID, BookName, BookImg, '
-                                               'BookLink, BookID, BookDate, BookLang, BookAdded, '
-                                               'Status, WorkPage, AudioStatus, ScanResult, '
-                                               'OriginalPubDate, hc_id) '
-                                               'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-
-                                        if (not newbookdict.get('book_status') or not
-                                                newbookdict.get('audio_status')):
-                                            newbookdict['book_status'], newbookdict['audio_status']\
-                                                = get_status(bookdict['bookid'], serieslist,
-                                                             bookstatus, audiostatus, entrystatus)
-                                        db.action(cmd, (auth_id, newbookdict['title'],
-                                                        cover_link, newbookdict['link'],
-                                                        newbookdict['bookid'],
-                                                        newbookdict['publish_date'],
-                                                        newbookdict['languages'], now(),
-                                                        newbookdict['book_status'], '',
-                                                        newbookdict['audio_status'], reason,
-                                                        newbookdict['first_publish_year'],
-                                                        newbookdict['bookid']))
-
-                                    self.logger.debug(
-                                        f"Inserting new member [{member[0]}] for {ser_name}")
-                                    db.action('INSERT INTO member (SeriesID, BookID, SeriesNum) VALUES (?,?,?)',
-                                              (ser_id, member[4], member[0]), suppress="UNIQUE")
-
-                                    ser = db.match(f"select count(*) as counter from member where seriesid=?",
-                                                   (ser_id,))
-                                    if ser:
-                                        counter = check_int(ser['counter'], 0)
-                                        db.action("UPDATE series SET Total=? WHERE SeriesID=?", (counter, ser_id))
-
-                                    lazylibrarian.importer.update_totals(auth_id)
-
-            # no more books to process, update summaries
-            cmd = ("SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=? and "
-                   "Status != 'Ignored' order by BookDate DESC")
-            lastbook = db.match(cmd, (authorid,))
-            if lastbook:
-                lastbookname = lastbook['BookName']
-                lastbooklink = lastbook['BookLink']
-                lastbookdate = lastbook['BookDate']
-                lastbookid = lastbook['BookID']
-                lastbookimg = lastbook['BookImg']
-            else:
-                lastbookname = ""
-                lastbooklink = ""
-                lastbookdate = ""
-                lastbookid = ""
-                lastbookimg = ""
-
-            control_value_dict = {"AuthorID": authorid}
-            new_value_dict = {
-                "Status": entrystatus,
-                "LastBook": lastbookname,
-                "LastLink": lastbooklink,
-                "LastDate": lastbookdate,
-                "LastBookID": lastbookid,
-                "LastBookImg": lastbookimg
-            }
-            db.upsert("authors", new_value_dict, control_value_dict)
-
-            resultcount = added_count + updated_count
-            self.logger.debug(f"Found {locked_count} locked {plural(locked_count, 'book')}")
-            self.logger.debug(f"Added {new_authors} new {plural(new_authors, 'author')}")
-            self.logger.debug(f"Removed {bad_lang} unwanted language {plural(bad_lang, 'result')}")
-            self.logger.debug(f"Removed {removed_results} incorrect/incomplete {plural(removed_results, 'result')}")
-            self.logger.debug(f"Removed {duplicates} duplicate {plural(duplicates, 'result')}")
-            self.logger.debug(f"Ignored {book_ignore_count} {plural(book_ignore_count, 'book')}")
-            self.logger.debug(
-                f"Imported/Updated {resultcount} {plural(resultcount, 'book')} in "
-                f"{int(time.time() - auth_start)} secs using {api_hits} api {plural(api_hits, 'hit')}")
-            if cover_count:
-                self.logger.debug(f"Fetched {cover_count} {plural(cover_count, 'cover')} in {cover_time:.2f} sec")
-
-            control_value_dict = {"authorname": entry_name.replace('"', '""')}
-            new_value_dict = {
-                "GR_book_hits": api_hits,
-                "GR_lang_hits": 0,
-                "LT_lang_hits": lt_lang_hits,
-                "GB_lang_change": 0,
-                "cache_hits": cache_hits,
-                "bad_lang": bad_lang,
-                "bad_char": removed_results,
-                "uncached": not_cached,
-                "duplicates": duplicates
-            }
-            db.upsert("stats", new_value_dict, control_value_dict)
         finally:
             db.close()
 
-    def get_bookdict(self, bookid=None):
+    def get_bookdict_for_bookid(self, bookid=None):
         """Get a book's details from HardCover by ID."""
         bookidcmd = self.HC_BOOKID_BOOKS.replace('[bookid]', str(bookid))
         results, in_cache = self.result_from_cache(bookidcmd, refresh=False)
@@ -1784,9 +1245,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
             bookdict = self.build_bookdict(results['data']['books_by_pk'])
         return bookdict, in_cache
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.find_book'):
+    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.add_bookid_to_db'):
         """Import a single book from HardCover by ID."""
-        bookdict, _ = self.get_bookdict(bookid)
+        bookdict, _ = self.get_bookdict_for_bookid(bookid)
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
             self.logger.debug(f"No bookstatus passed, using default {bookstatus}")
@@ -1794,152 +1255,30 @@ query FindAuthor { authors_by_pk(id: [authorid])
             audiostatus = CONFIG['NEWAUDIO_STATUS']
             self.logger.debug(f"No audiostatus passed, using default {audiostatus}")
         self.logger.debug(f"bookstatus={bookstatus}, audiostatus={audiostatus}")
-        bookdict['book_status'] = bookstatus
-        bookdict['audio_status'] = audiostatus
-        rejected = validate_bookdict(bookdict)
+        bookdict['status'] = bookstatus
+        bookdict['audiostatus'] = audiostatus
+        bookdict, rejected = validate_bookdict(bookdict)
 
         if rejected:
-            if reason.startswith("Series:") or rejected[0] == 'name' or 'title' not in bookdict:
+            if reason.startswith("Series:") or 'bookname' not in bookdict or 'authorname' not in bookdict:
                 return
-            #
-            # user has said they want this book, don't block for unwanted language etc.
-            # Ignore book if adding as part of a series, else just warn and include it
-            #
-            title = bookdict['title']
-            lang = bookdict.get('languages', '')
-            bookdate = bookdict.get('publish_date', '')
-            msg = ''
-            if rejected[0] == 'name':
-                msg = f'Book {title} authorname invalid'
-            elif rejected[0] == 'lang':
-                msg = f'Book {title} Language [{lang}] does not match preference'
+            for reject in rejected:
+                if reject[0] == 'name':
+                    return
+        # show any non-fatal warnings
+        warn_about_bookdict(bookdict)
 
-            elif rejected[0] in ['publisher']:
-                msg = f'Book {title} Publisher [{lang}] does not match preference'
+        # Use the author ID we already have from the book data
+        # This avoids an author search that can return the wrong author
+        authorid = bookdict['authorid']
 
-            elif CONFIG.get_bool('NO_PUBDATE'):
-                if not bookdate or bookdate == '0000':
-                    msg = f'Book {title} Publication date [{bookdate}] does not match preference'
-
-            elif CONFIG.get_bool('NO_FUTURE'):
-                # may have yyyy or yyyy-mm-dd
-                if bookdate > today()[:len(bookdate)]:
-                    msg = f'Book {title} Future publication date [{bookdate}] does not match preference'
-
-            elif CONFIG.get_bool('NO_SETS'):
-                is_set, set_msg = is_set_or_part(title)
-                if is_set:
-                    msg = f'Book {title} {set_msg}'
-            if msg:
-                self.logger.warning(f"{msg} : adding anyway")
-
-        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
-        if not exists:
-            reason = f"{reason}:{bookdict['bookid']}"
-            # Use add_author_to_db with the author ID we already have from the book data
-            # This avoids the author search that can return the wrong author
-            lazylibrarian.importer.add_author_to_db(authorname=auth_name,
-                                                    authorid=bookdict['auth_id'],
-                                                    refresh=False, addbooks=False, reason=reason)
-        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(bookdict['auth_name'])
-        if not exists:
-            self.logger.debug(f"Unable to add {bookdict['auth_name']} for {bookdict['bookid']}, author not found")
-        else:
-            db = database.DBConnection()
-            cmd = "SELECT * from authors WHERE authorname=?"
-            exists = db.match(cmd, (auth_name,))
-            if not exists:
-                self.logger.debug(
-                    f"Unable to add {bookdict['auth_name']} for {bookdict['bookid']}, author not in database")
-            else:
-                auth_id = exists['AuthorID']
-                cover_link = bookdict['cover']
-                if 'nocover' in cover_link or 'nophoto' in cover_link:
-                    cover_link, _ = get_book_cover(bookdict['bookid'], ignore='hardcover')
-                elif cover_link and cover_link.startswith('http'):
-                    cover_link = cache_bookimg(cover_link, bookdict['bookid'], 'hc')
-                if not cover_link:  # no results on search or failed to cache it
-                    cover_link = 'images/nocover.png'
-
-                exists = db.match("SELECT BookID FROM books WHERE BookID=?", (bookdict['bookid'],))
-                if not exists:
-                    db.action(
-                        f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, BookDate, BookLang, "
-                        f"BookAdded, Status, WorkPage, AudioStatus, ScanResult, OriginalPubDate, hc_id) "
-                        f"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        (auth_id, bookdict['title'], cover_link, bookdict['link'],
-                         bookdict['bookid'], bookdict['publish_date'], bookdict['languages'], now(),
-                         bookdict['book_status'], '', bookdict['audio_status'], reason,
-                         bookdict['first_publish_year'], bookdict['bookid']))
-                else:
-                    self.logger.debug(f"Book {bookdict['bookid']} already exists, skipping insert")
-
-                db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                          (auth_id, bookdict['bookid'], ROLE['PRIMARY']), suppress='UNIQUE')
-                lazylibrarian.importer.update_totals(auth_id)
-
-                if CONFIG.get_bool('CONTRIBUTING_AUTHORS'):
-                    for entry in bookdict['contributing_authors']:
-                        auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
-                                                                          authorid=entry[0], addbooks=False,
-                                                                          reason=f"Contributor to {bookdict['title']}")
-                        if auth_id:
-                            # Add any others as contributing authors
-                            db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
-                                      (auth_id, bookdict['bookid'], ROLE['CONTRIBUTING']), suppress='UNIQUE')
-                            lazylibrarian.importer.update_totals(auth_id)
-                        else:
-                            self.logger.debug(f"Unable to add contributor {entry[1]} for {bookdict['title']}")
-
-                # Handle series data if present
-                if CONFIG.get_bool('ADD_SERIES') and bookdict.get('series'):
-                    for item in bookdict['series']:
-                        ser_name = item[0].strip()
-                        ser_id = f"HC{str(item[1])}"
-                        exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
-                        if not exists:
-                            exists = db.match("SELECT * from series WHERE seriesname=? "
-                                              "and instr(seriesid, 'HC') = 1", (ser_name,))
-                            if exists:
-                                ser_id = exists['SeriesID']
-                        if not exists:
-                            self.logger.debug(f"New series: {ser_id}:{ser_name}: {CONFIG['NEWSERIES_STATUS']}")
-                            db.action('INSERT INTO series (SeriesID, SeriesName, Status, '
-                                      'Updated, Reason) VALUES (?,?,?,?,?)',
-                                      (ser_id, ser_name, CONFIG['NEWSERIES_STATUS'], time.time(), ser_name))
-                            db.commit()
-
-                        # Add author to series
-                        authmatch = db.match(f"SELECT * from seriesauthors WHERE "
-                                             f"SeriesID=? and AuthorID=?", (ser_id, auth_id))
-                        if not authmatch:
-                            self.logger.debug(f"Adding {auth_name} as series author for {ser_name}")
-                            db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
-                                      (ser_id, auth_id), suppress='UNIQUE')
-
-                        # Add book to series
-                        match = db.match(f"SELECT * from member WHERE SeriesID=? AND BookID=?",
-                                         (ser_id, bookdict['bookid']))
-                        if not match:
-                            self.logger.debug(f"Inserting new member [{item[2]}] for {ser_id}")
-                            db.action(
-                                f"INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
-                                (ser_id, bookdict['bookid'], '', item[2]), suppress='UNIQUE')
-
-                        # Update series total
-                        ser = db.match(
-                            f"select count(*) as counter from member where seriesid=?",
-                            (ser_id,))
-                        if ser:
-                            counter = check_int(ser['counter'], 0)
-                            db.action("UPDATE series SET Total=? WHERE SeriesID=?",
-                                      (counter, ser_id))
-
-                self.logger.info(f"{bookdict['title']} by {auth_name} added to the books database, "
-                                 f"{bookdict['book_status']}/{bookdict['audio_status']}")
-            db.close()
-
-        return
+        if authorid:
+            # Add book to database using bookdict
+            bookdict['status'] = bookstatus
+            bookdict['audiostatus'] = audiostatus
+            reason = f"[{thread_name()}] {reason}"
+            add_bookdict_to_db(bookdict, reason, bookdict['source'])
+            lazylibrarian.importer.update_totals(authorid)
 
     def hc_whoami(self, userid=None, token=None):
         """Get the HardCover user ID for the current token."""
@@ -2045,13 +1384,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
     def _add_missing_book(self, hc_id, item, db, remapped, sync_dict, stats):
         """Add a book that's missing from the database."""
         self.syncinglogger.warning(f"Book {hc_id} not found in database")
-        newbookdict, _ = self.get_bookdict(str(hc_id))
+        newbookdict, _ = self.get_bookdict_for_bookid(str(hc_id))
 
         if not newbookdict:
             self.syncinglogger.debug(f"No bookdict found for {hc_id}")
             return None
 
-        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(newbookdict['auth_name'])
+        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(newbookdict['authorname'])
 
         # Check for exact matches first
         exact_match = self._find_exact_book_match(db, newbookdict, auth_name)
@@ -2060,9 +1399,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
             self._handle_exact_match(exact_match, hc_id, item, db, remapped, sync_dict, stats)
         else:
             # No exact match found - add as new book
-            self.syncinglogger.debug(f"No exact match found for {hc_id} {auth_name} '{newbookdict['title']}' "
+            self.syncinglogger.debug(f"No exact match found for {hc_id} {auth_name} '{newbookdict['bookname']}' "
                                      f"- adding as new book")
-            self.find_book(str(hc_id))
+            self.add_bookid_to_db(str(hc_id))
             stats['new_books_added'] += 1
 
             # Update tracking structures for newly added book
@@ -2082,12 +1421,12 @@ query FindAuthor { authors_by_pk(id: [authorid])
         """Find exact book match by ISBN or title/author."""
         exact_match = None
 
-        if bookdict.get('isbn'):
+        if bookdict.get('bookisbn'):
             # First try ISBN match - most reliable
             exact_match = db.match(
                 "SELECT BookID,hc_id,bookname FROM books WHERE BookISBN=? AND "
                 "AuthorID=(SELECT AuthorID FROM authors WHERE AuthorName=?)",
-                (bookdict['isbn'], auth_name)
+                (bookdict['bookisbn'], auth_name)
             )
 
         if not exact_match:
@@ -2095,7 +1434,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             exact_match = db.match(
                 "SELECT books.BookID,books.hc_id,books.bookname FROM books,authors WHERE "
                 "books.AuthorID=authors.AuthorID AND books.BookName=? AND authors.AuthorName=?",
-                (bookdict['title'], auth_name)
+                (bookdict['bookname'], auth_name)
             )
 
         return exact_match
