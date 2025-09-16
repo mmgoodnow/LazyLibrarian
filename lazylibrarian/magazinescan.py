@@ -27,7 +27,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory, remove_dir, book_file
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
-    replacevars, month2num, check_int
+    replacevars, month2num, check_int, two_months
 from lazylibrarian.images import create_mag_cover, write_pdf_tags, read_pdf_tags
 from lazylibrarian.librarysync import get_book_info
 
@@ -191,11 +191,11 @@ def magazine_scan(title=None):
                                             issuefolder = os.path.dirname(issuefile)
                                             parent = os.path.dirname(issuefolder)
                                             title = os.path.basename(parent)
-                                            logger.debug(f"Using {title}:{issuedate} from {issuefile} "
-                                                         f"calibre parent folder")
+                                            logger.debug(f"Using {title}:{issuedate} from "
+                                                         f"{issuefile} calibre parent folder")
                                         else:
-                                            logger.debug(f"Using {title}:{issuedate} from filename {fname} "
-                                                         f"pattern match")
+                                            logger.debug(f"Using {title}:{issuedate} from "
+                                                         f"filename {fname} pattern match")
                                 else:
                                     logger.debug(f"Pattern match failed for [{fname}]")
                         except Exception:
@@ -498,6 +498,12 @@ def get_dateparts(title_or_issue, datetype=''):
         if month:
             mname = words[pos]
             months.append(month)
+        else:
+            month_a, month_b = two_months(words[pos])
+            # compound months as a single word eg AprilMay
+            if month_a:
+                months.append(month_a)
+                months.append(month_b)
         if words[pos].lower().strip('.') in issuenouns:
             if pos + 1 < len(words):
                 inoun = words[pos]

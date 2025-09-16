@@ -1004,6 +1004,14 @@
             });
         });
 
+        $('#dnb_api').on('click', function() {
+            let status = $("#dnb_api").prop("checked") ? 'True' : ''
+            $.get('dnb_api_changed', {'status': status},
+            function(data) {
+                location.reload();
+            });
+        });
+
         $('#hc_api').on('change', function() {
             let status = $("#hc_api").prop("checked") ? 'True' : ''
             $.get('hc_api_changed', {'status': status},

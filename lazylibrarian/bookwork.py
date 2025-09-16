@@ -784,7 +784,7 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
 
         if source == 'HC':
             results = []
-            hc = lazylibrarian.hc.HardCover(seriesid)
+            hc = lazylibrarian.hc.HardCover()
             res = hc.get_series_members(seriesid, seriesname)
             if res:
                 source = 'HC'
@@ -797,8 +797,7 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
             api_hits = 0
             results = []
             if source == 'OL':
-                # noinspection PyUnresolvedReferences
-                ol = lazylibrarian.ol.OpenLibrary(seriesid)
+                ol = lazylibrarian.ol.OpenLibrary()
                 res = ol.get_series_members(seriesid, seriesname)
                 if res:
                     for item in res:
@@ -1071,8 +1070,8 @@ def get_work_series(bookid=None, source='GR', reason=""):
 
     elif source == 'HC':
         series_results = []
-        hc = lazylibrarian.hc.HardCover(bookid)
-        res, _ = hc.get_bookdict(bookid)
+        hc = lazylibrarian.hc.HardCover()
+        res, _ = hc.get_bookdict_for_bookid(bookid)
         if 'series' in res:
             series_results = res['series']
         for item in series_results:
@@ -1370,7 +1369,7 @@ def isbn_from_words(words):
                 item = item.replace('-', '').replace(' ', '')
             if len(item) == 10:
                 db.action("INSERT into isbn (Words, ISBN) VALUES (?, ?)", (words, item))
-                dv.close()
+                db.close()
                 return item
     except Exception as e:
         logger.error(str(e))

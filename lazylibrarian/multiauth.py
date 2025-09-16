@@ -22,8 +22,8 @@ def get_authors_from_hc():
     books = db.select("SELECT hc_id,bookid from books WHERE hc_id is not null")
     logger.debug(f"Processing {len(books)} books with HardCover ID")
     for book in books:
-        hc = HardCover(book['hc_id'])
-        bookdict, _ = hc.get_bookdict(book['hc_id'])
+        hc = HardCover()
+        bookdict, _ = hc.get_bookdict_for_bookid(book['hc_id'])
         searchinglogger.debug(bookdict['title'], bookdict['contributing_authors'])
         for entry in bookdict['contributing_authors']:
             auth_id = add_author_to_db(authorname=entry[1], refresh=False, authorid=entry[0],

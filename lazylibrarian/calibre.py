@@ -63,6 +63,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
         Return message giving totals """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
+    msg = ''
     try:
         username = ''
         readlist = []
@@ -139,7 +140,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                         logger.warning(
                             f"Book {item['title']} by {authorname} is marked Ignored in database, importing anyway")
                     if not bookid:
-                        searchterm = f"{item['title']} <ll> {authorname}"
+                        searchterm = f"{item['title']}<ll>{authorname}"
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         if results:
                             result = results[0]
@@ -365,8 +366,11 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
             db.upsert("sync", new_value_dict, control_value_dict)
 
             msg = f"{username} sync updated: {ll_changes} calibre, {calibre_changes} lazylibrarian"
-    finally:
-        db.close()
+
+    except Exception as e:
+        logger.error(str(e))
+
+    db.close()
     return msg
 
 

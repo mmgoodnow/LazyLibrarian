@@ -469,12 +469,7 @@ def is_overdue(which="author") -> (int, int, str, str, int):
         try:
             if which == 'author':
                 cmd = "SELECT AuthorName,AuthorID,Updated from authors WHERE Status='Active' or Status='Loading'"
-                cmd += " or Status='Wanted' "
-                if CONFIG['BOOK_API'] == 'OpenLibrary':
-                    cmd += "and AuthorID LIKE 'OL%A' "
-                else:
-                    cmd += "and AuthorID NOT LIKE 'OL%A' "
-                cmd += "order by Updated ASC"
+                cmd += " or Status='Wanted' and AuthorID !='' order by Updated ASC"
                 res = db.select(cmd)
                 total = len(res)
                 if total:

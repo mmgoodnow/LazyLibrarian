@@ -432,6 +432,38 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         return datestr
 
 
+def two_months(word):
+    a = 0
+    b = 0
+    cleanword = unaccented(word).lower()
+    for f in range(1, 13):
+        for month in lazylibrarian.MONTHNAMES[0][f]:
+            if word.startswith(month):
+                a = f
+                break
+        if not a:
+            for month in lazylibrarian.MONTHNAMES[1][f]:
+                if cleanword.startswith(month):
+                    a = f
+        if a:
+            break
+    if a:
+        for f in range(1, 13):
+            for month in lazylibrarian.MONTHNAMES[0][f]:
+                if word.endswith(month):
+                    b = f
+                    break
+            if not b:
+                for month in lazylibrarian.MONTHNAMES[1][f]:
+                    if cleanword.endswith(month):
+                        b = f
+            if b:
+                break
+    if a == b:
+        return 0, 0
+    return a, b
+
+
 def month2num(month):
     """
     Return a month number
@@ -604,7 +636,7 @@ def make_utf8bytes(txt):
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-def make_unicode(txt: Optional[Union[str, bytes]]) -> Optional[Union[str, bytes]]:
+def make_unicode(txt: [str, bytes]) -> Optional[Union[str, bytes]]:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     # return is unicode if possible, else bytestring

@@ -43,19 +43,17 @@ from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, get_list, \
     thread_name, split_author_names
-from lazylibrarian.gb import GoogleBooks
-from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
-from lazylibrarian.hc import HardCover, hc_sync
+from lazylibrarian.hc import hc_sync
 from lazylibrarian.images import get_author_image, get_author_images, get_book_cover, get_book_covers, \
     create_mag_covers, create_mag_cover, shrink_mag, read_pdf_tags, write_pdf_tags
-from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate
+from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate, \
+    get_all_author_details
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.multiauth import get_authors_from_hc, get_authors_from_ol, get_authors_from_book_files
-from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
     process_book_from_dir, process_mag_from_file, send_ebook_to_calibre, send_mag_issue_to_calibre, \
     send_comic_issue_to_calibre
@@ -80,6 +78,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'saveTable': (0, '&table= Save a database table to a file'),
             'getIndex': (0, 'list all authors'),
             'getAuthor': (0, '&id= get author by AuthorID and list their books'),
+            'getAuthorInfo': (0, '&id= [&name=] get author info from configured sources'),
             'getAuthorImage': (0, '&id= [&refresh] [&max] get one or more images for this author'),
             'setAuthorImage': (1, '&id= &img= set a new image for this author'),
             'setAuthorLock': (1, '&id= lock author name/image/dates'),
@@ -344,19 +343,13 @@ class Api(object):
 
             if 'callback' not in self.kwargs:
                 self.loggerdlcomms.debug(str(self.data))
-                if isinstance(self.data, str):
-                    return self.data
-                else:
-                    return json.dumps(self.data)
             else:
                 self.callback = self.kwargs['callback']
                 self.data = json.dumps(self.data)
                 self.data = f"{self.callback}({self.data});"
-                return self.data
-
-        elif isinstance(self.data, str):
             return self.data
-        return json.dumps(self.data)
+        else:
+            return json.dumps(self.data)
 
     @staticmethod
     def _dic_from_query(query):
@@ -1394,7 +1387,7 @@ class Api(object):
         descs = 0
         cnt = 0
         self.logger.debug(f"Checking description for {len(res)} {plural(len(res), 'book')}")
-        # ignore all errors except blocked (not found etc)
+        # ignore all errors except blocked (not found etc.)
         blocked = False
         for item in res:
             cnt += 1
@@ -1436,7 +1429,7 @@ class Api(object):
         genre = 0
         cnt = 0
         self.logger.debug(f"Checking genre for {len(res)} {plural(len(res), 'book')}")
-        # ignore all errors except blocked (not found etc)
+        # ignore all errors except blocked (not found etc.)
         blocked = False
         for item in res:
             cnt += 1
@@ -2000,15 +1993,11 @@ class Api(object):
         else:
             source = CONFIG.get_str('BOOK_API')
         authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        if source == 'GoodReads':
-            gr = GoodReads(authorname)
-            self.data = gr.find_author_id()
-        if source == 'OpenLibrary':
-            ol = OpenLibrary(authorname)
-            self.data = ol.find_author_id()
-        if source == 'HardCover':
-            hc = HardCover(authorname)
-            self.data = hc.find_author_id()
+
+        if lazylibrarian.INFOSOURCES.get(source):
+            ap = lazylibrarian.INFOSOURCES[source]['class']
+            res = ap.find_author_id(authorname=authorname)
+            self.data = str(res)
 
     def _findmissingauthorid(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2019,28 +2008,18 @@ class Api(object):
         cnt = 0
         db = database.DBConnection()
         key = ''
-        if source == 'GoodReads' and CONFIG['GR_API']:
-            key = 'gr_id'
-        elif source == 'OpenLibrary' and CONFIG['OL_API']:
-            key = 'ol_id'
-        elif source == 'HardCover' and CONFIG['HC_API']:
-            key = 'hc_id'
+        if source in lazylibrarian.INFOSOURCES:
+            key = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['author_key']
+            if key == 'authorid':  # not all providers have authorid
+                key = ''
         if not key:
             self.data = f"Invalid or disabled source [{source}]"
             return
 
         authordata = db.select(f"SELECT AuthorName from authors WHERE {key}='' or {key} is null")
-        api = None
-        res = {}
+        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
         for author in authordata:
-            if source == 'GoodReads':
-                api = GoodReads(author['AuthorName'])
-            elif source == 'OpenLibrary':
-                api = OpenLibrary(author['AuthorName'])
-            elif source == 'HardCover':
-                api = HardCover(author['AuthorName'])
-            if api:
-                res = api.find_author_id()
+            res = api.find_author_id(authorname=author['AuthorName'])
             if res.get('authorid'):
                 db.action(f"update authors set {key}=? where authorname=?",
                           (res.get('authorid'), author['AuthorName']))
@@ -2055,31 +2034,12 @@ class Api(object):
             return
 
         authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        if CONFIG.get_str('BOOK_API') == "GoogleBooks":
-            gb = GoogleBooks(authorname)
-            myqueue = Queue()
-            search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS',
-                                          args=[f" <ll> {authorname}", myqueue])
-            search_api.start()
-        elif CONFIG.get_str('BOOK_API') == "GoodReads":
-            gr = GoodReads(authorname)
-            myqueue = Queue()
-            search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS',
-                                          args=[f" <ll> {authorname}", myqueue])
-            search_api.start()
-        elif CONFIG.get_str('BOOK_API') == "HardCover":
-            hc = HardCover(authorname)
-            myqueue = Queue()
-            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS',
-                                          args=[f" <ll> {authorname}", myqueue])
-            search_api.start()
-        else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
-            ol = OpenLibrary(authorname)
-            myqueue = Queue()
-            search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS',
-                                          args=[f" <ll> {authorname}", myqueue])
-            search_api.start()
-
+        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+        myqueue = Queue()
+        search_api = threading.Thread(target=api.find_results,
+                                      name=f"API-{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}RESULTS",
+                                      args=[f"<ll>{authorname}", myqueue])
+        search_api.start()
         search_api.join()
         self.data = myqueue.get()
 
@@ -2089,31 +2049,12 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
 
-        if CONFIG.get_str('BOOK_API') == "GoogleBooks":
-            gb = GoogleBooks(kwargs['name'])
-            myqueue = Queue()
-            search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS',
-                                          args=[f"{kwargs['name']} <ll> ", myqueue])
-            search_api.start()
-        elif CONFIG.get_str('BOOK_API') == "GoodReads":
-            gr = GoodReads(kwargs['name'])
-            myqueue = Queue()
-            search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS',
-                                          args=[f"{kwargs['name']} <ll> ", myqueue])
-            search_api.start()
-        elif CONFIG.get_str('BOOK_API') == "HardCover":
-            hc = HardCover(kwargs['name'])
-            myqueue = Queue()
-            search_api = threading.Thread(target=hc.find_results, name='API-HCRESULTS',
-                                          args=[f"{kwargs['name']} <ll> ", myqueue])
-            search_api.start()
-        else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
-            ol = OpenLibrary(kwargs['name'])
-            myqueue = Queue()
-            search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS',
-                                          args=[f"{kwargs['name']} <ll> ", myqueue])
-            search_api.start()
-
+        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+        myqueue = Queue()
+        search_api = threading.Thread(target=api.find_results,
+                                      name=f"API-{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}RESULTS",
+                                      args=[f"{kwargs['name']}<ll>", myqueue])
+        search_api.start()
         search_api.join()
         self.data = myqueue.get()
 
@@ -2123,22 +2064,10 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
 
-        if CONFIG.get_str('BOOK_API') == "GoogleBooks":
-            gb = GoogleBooks(kwargs['id'])
-            threading.Thread(target=gb.find_book, name='API-GBRESULTS', args=[kwargs['id'],
-                                                                              None, None, "Added by API"]).start()
-        elif CONFIG.get_str('BOOK_API') == "GoodReads":
-            gr = GoodReads(kwargs['id'])
-            threading.Thread(target=gr.find_book, name='API-GRRESULTS', args=[kwargs['id'],
-                                                                              None, None, "Added by API"]).start()
-        elif CONFIG.get_str('BOOK_API') == "HardCover":
-            hc = HardCover(kwargs['id'])
-            threading.Thread(target=hc.find_book, name='API-HCRESULTS', args=[kwargs['id'],
-                                                                              None, None, "Added by API"]).start()
-        elif CONFIG.get_str('BOOK_API') == "OpenLibrary":
-            ol = OpenLibrary(kwargs['id'])
-            threading.Thread(target=ol.find_book, name='API-OLRESULTS', args=[kwargs['id'],
-                                                                              None, None, "Added by API"]).start()
+        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+        threading.Thread(target=api.add_bookid_to_db,
+                         name=f"API-{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}RESULTS",
+                         args=[kwargs['id'], None, None, "Added by API"]).start()
 
     def _movebook(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2283,19 +2212,18 @@ class Api(object):
     def _hcsync(self, **kwargs):
         TELEMETRY.record_usage_data()
         library = kwargs.get('library', '')
-        userid = kwargs.get('user', None)
 
         # If no user specified and HC_SYNC is enabled, sync all users with tokens
-        if not userid and CONFIG.get_bool('HC_SYNC'):
+        if not kwargs.get('user') and CONFIG.get_bool('HC_SYNC'):
             try:
                 # This will sync all users
                 threading.Thread(target=hc_sync, name='API-HCSYNC', args=[library, None]).start()
             except Exception as e:
                 self.data = f"{type(e).__name__} {str(e)}"
-        # If specific user requested, sync just that user
-        elif userid:
+        if kwargs.get('user'):
+            # If specific user requested, sync just that user
             try:
-                threading.Thread(target=hc_sync, name='API-HCSYNC', args=[library, userid]).start()
+                threading.Thread(target=hc_sync, name='API-HCSYNC', args=[library, kwargs.get('user')]).start()
             except Exception as e:
                 self.data = f"{type(e).__name__} {str(e)}"
         else:
@@ -2904,3 +2832,10 @@ class Api(object):
             return
         self.data = isbn_from_words(kwargs['words'])
 
+    def _getauthorinfo(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        res = get_all_author_details(kwargs['id'], kwargs.get('name'))
+        self.data = str(res)
