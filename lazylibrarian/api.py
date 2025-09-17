@@ -343,13 +343,18 @@ class Api(object):
 
             if 'callback' not in self.kwargs:
                 self.loggerdlcomms.debug(str(self.data))
+                if isinstance(self.data, str):
+                    return self.data
+                else:
+                    return json.dumps(self.data)
             else:
                 self.callback = self.kwargs['callback']
                 self.data = json.dumps(self.data)
                 self.data = f"{self.callback}({self.data});"
+                return self.data
+        elif isinstance(self.data, str):
             return self.data
-        else:
-            return json.dumps(self.data)
+        return json.dumps(self.data)
 
     @staticmethod
     def _dic_from_query(query):

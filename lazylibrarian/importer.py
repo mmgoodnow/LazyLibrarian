@@ -290,6 +290,8 @@ def get_all_author_details(authorid='', authorname=None):
                 auth_id = authorid
             if authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
                 book = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
+                if not book:
+                    book = db.match('SELECT bookname from books WHERE authorname=?', (authorname,))
                 title = ''
                 if book:
                     title = book['bookname']
@@ -298,8 +300,10 @@ def get_all_author_details(authorid='', authorname=None):
                     db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
                               (aid['authorid'], authorid))
                     auth_id = aid['authorid']
-        author_info[source[0]] = cl.get_author_info(authorid=auth_id, authorname=authorname)
-        author_info[source[0]][source[2]] = author_info[source[0]].get('authorid')
+        res = cl.get_author_info(authorid=auth_id, authorname=authorname)
+        if res:
+            author_info[source[0]] = res
+            author_info[source[0]][source[2]] = author_info[source[0]].get('authorid')
 
     merged_info = author_info[sources[0][0]]
     akas = []
@@ -315,11 +319,12 @@ def get_all_author_details(authorid='', authorname=None):
                     break
             if author_info[entry].get('authorid'):
                 merged_info[author_key] = author_info[entry]['authorid']
-            if author_info[entry]['authorname'] != authorname and author_info[entry]['authorname'] not in akas:
+            auth_name = author_info[entry].get('authorname')
+            if auth_name and auth_name != authorname and auth_name not in akas:
                 logger.warning(
-                    f"Conflicting {entry} authorname for {authorid} [{author_info[entry]['authorname']}]"
+                    f"Conflicting {entry} authorname for {authorid} [{auth_name}]"
                     f" expecting [{authorname}] setting AKA")
-                akas.append(author_info[entry]['authorname'])
+                akas.append(auth_name)
 
             for item in author_info[entry]:
                 if item == 'authorimg':

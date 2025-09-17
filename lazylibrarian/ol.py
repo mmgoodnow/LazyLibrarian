@@ -229,10 +229,12 @@ class OpenLibrary:
         return {}
 
     def get_author_info(self, authorid=None, authorname=None, refresh=False):
-        self.logger.debug(f"Getting OL author info for {authorid}, refresh={refresh}")
-        authorinfo, in_cache = json_request(f"{self.OL_AUTHOR + authorid}.json", use_cache=not refresh)
+        authorinfo = {}
+        if authorid:
+            self.logger.debug(f"Getting OL author info for {authorid}, refresh={refresh}")
+            authorinfo, in_cache = json_request(f"{self.OL_AUTHOR + authorid}.json", use_cache=not refresh)
         if not authorinfo:
-            self.logger.debug(f"No info found for {authorid}")
+            self.logger.debug(f"No info found for {authorid}:{authorname}")
             return {}
 
         try:
@@ -1314,7 +1316,8 @@ class OpenLibrary:
         else:
             cover = 'images/nocover.png'
         bookdict['bookimg'] = cover
-        bookdict['bookdate'] = date_format(workinfo.get('publish_date', ''), context=bookdict['bookname'], datelang=CONFIG['DATE_LANG'])
+        bookdict['bookdate'] = date_format(workinfo.get('publish_date', ''),
+                                           context=bookdict['bookname'], datelang=CONFIG['DATE_LANG'])
         lang = "Unknown"
         authors = workinfo.get('authors')
         if authors:
@@ -1329,7 +1332,6 @@ class OpenLibrary:
         auth = self.get_author_info(authorid)
         bookdict['authorname'] = auth['authorname']
         return bookdict, in_cache
-
 
     def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.add_bookid'):
         self.logger.debug(f"bookstatus={bookstatus}, audiostatus={audiostatus}")
@@ -1429,7 +1431,8 @@ class OpenLibrary:
             bookgenre = ''
             db = database.DBConnection()
             try:
-                match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorID=? or ol_id=?', (authorid, authorid))
+                match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorID=? or ol_id=?',
+                                 (authorid, authorid))
                 if match:
                     authorname = match['AuthorName']
                     authorid = match['AuthorID']
