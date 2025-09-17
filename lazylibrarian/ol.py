@@ -1292,6 +1292,45 @@ class OpenLibrary:
         finally:
             db.close()
 
+    def get_bookdict_for_bookid(self, bookid=None):
+        bookdict = {}
+        url = f"{self.OL_WORK + bookid}.json"
+        try:
+            self.searchinglogger.debug(url)
+            workinfo, in_cache = json_request(url)
+            if not workinfo:
+                self.logger.debug("Error requesting book")
+                return None, False
+        except Exception as e:
+            self.logger.error(f"{type(e).__name__} finding book: {str(e)}")
+            return None, False
+        bookdict['bookname'] = workinfo.get('title', '')
+        covers = workinfo.get('covers', '')
+        if covers:
+            if isinstance(covers, list):
+                covers = covers[0]
+            cover = 'http://covers.openlibrary.org/b/id/'
+            cover += f'{covers}-M.jpg'
+        else:
+            cover = 'images/nocover.png'
+        bookdict['bookimg'] = cover
+        bookdict['bookdate'] = date_format(workinfo.get('publish_date', ''), context=bookdict['bookname'], datelang=CONFIG['DATE_LANG'])
+        lang = "Unknown"
+        authors = workinfo.get('authors')
+        if authors:
+            try:
+                authorid = authors[0]['author']['key']
+                authorid = authorid.split('/')[-1]
+            except KeyError:
+                authorid = ''
+        else:
+            authorid = ''
+        bookdict['authorid'] = authorid
+        auth = self.get_author_info(authorid)
+        bookdict['authorname'] = auth['authorname']
+        return bookdict, in_cache
+
+
     def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.add_bookid'):
         self.logger.debug(f"bookstatus={bookstatus}, audiostatus={audiostatus}")
         url = f"{self.OL_WORK + bookid}.json"
@@ -1390,23 +1429,21 @@ class OpenLibrary:
             bookgenre = ''
             db = database.DBConnection()
             try:
-                auth_name, exists = lazylibrarian.importer.get_preferred_author_name(authorname)
-                match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+                match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorID=? or ol_id=?', (authorid, authorid))
                 if match:
                     authorname = match['AuthorName']
-                elif reason.startswith('Librarysync ') and ' rescan ' in reason:
-                    authorname = auth_name
-                    match = db.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
-                    if match:
-                        authorid = match['AuthorID']
+                    authorid = match['AuthorID']
                 else:
                     # ol does not give us authorname in work page
+                    auth = self.get_author_info(authorid)
+                    authorname = auth['authorname']
+                    auth_name, exists = lazylibrarian.importer.get_preferred_author_name(authorname)
                     if exists:
                         match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorName=?', (auth_name,))
                         authorname = match['AuthorName']
                         authorid = match['AuthorID']
                     else:
-                        auth_id = lazylibrarian.importer.add_author_name_to_db(authorname=auth_name,
+                        auth_id = lazylibrarian.importer.add_author_name_to_db(authorname=authorname,
                                                                                refresh=False,
                                                                                addbooks=False,
                                                                                reason=f"ol.add_bookid {bookid}")

@@ -287,6 +287,7 @@ def get_all_author_details(authorid='', authorname=None):
             if authorid.startswith(source[0]):
                 db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
                           (authorid, authorid))
+                auth_id = authorid
             if authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
                 book = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
                 title = ''
@@ -296,6 +297,7 @@ def get_all_author_details(authorid='', authorname=None):
                 if aid:
                     db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
                               (aid['authorid'], authorid))
+                    auth_id = aid['authorid']
         author_info[source[0]] = cl.get_author_info(authorid=auth_id, authorname=authorname)
         author_info[source[0]][source[2]] = author_info[source[0]].get('authorid')
 
@@ -311,7 +313,8 @@ def get_all_author_details(authorid='', authorname=None):
                 if item[0] == entry:
                     author_key = item[2]
                     break
-            merged_info[author_key] = author_info[entry]['authorid']
+            if author_info[entry].get('authorid'):
+                merged_info[author_key] = author_info[entry]['authorid']
             if author_info[entry]['authorname'] != authorname and author_info[entry]['authorname'] not in akas:
                 logger.warning(
                     f"Conflicting {entry} authorname for {authorid} [{author_info[entry]['authorname']}]"
