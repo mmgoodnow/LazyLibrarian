@@ -1082,4 +1082,5 @@ class DNB:
             # we can merge the series together in the database by matching series_name where series_id starts with 'DN'
             # so the series id becomes the bookid of the first book in the series added to the database
             mydict['series'] = [(mydict['series_name'], f"DN{mydict['bookid']}", mydict['series_index'])]
+        mydict['source'] = 'DNB'
         return mydict
