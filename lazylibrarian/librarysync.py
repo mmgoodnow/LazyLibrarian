@@ -898,7 +898,10 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # If we have a valid ID, use that
                                 mtype = ''
                                 match = None
-                                bookid = eval(lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['book_key'])
+                                try:
+                                    bookid = eval(lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['book_key'])
+                                except NameError:
+                                    bookid = None
                                 if bookid:
                                     match = db.match('SELECT AuthorID,Status FROM books where BookID=?',
                                                      (bookid,))
