@@ -276,13 +276,14 @@ def get_all_author_details(authorid='', authorname=None):
     author_info = {}
     db = database.DBConnection()
     match = db.match(f"SELECT {','.join(keys)},authorname from authors WHERE authorid=?", (authorid,))
-    if not match:
-        return author_info
-    if not authorname:
+    if match and not authorname:
         authorname = match['authorname']
     for source in sources:
         cl = source[1]
-        auth_id = match[source[2]]
+        if match:
+            auth_id = match[source[2]]
+        else:
+            auth_id = authorid
         if not auth_id:
             if authorid.startswith(source[0]):
                 db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
