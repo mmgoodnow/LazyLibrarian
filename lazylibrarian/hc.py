@@ -1108,7 +1108,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
     def get_searchdict(self, book_data):
         """Convert HardCover search result to a book dict."""
-        bookdict = {'authorid': '0', 'authorname': ''}
+        bookdict = {'authorid': '0', 'authorname': '', 'source': 'HardCover'}
 
         # Filter and select primary author from contributions
         if 'contributions' in book_data and len(book_data['contributions']):
