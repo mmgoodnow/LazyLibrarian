@@ -116,7 +116,7 @@ def search_book(books=None, library=None):
             # The user has added new books
             if library:
                 logger.debug(f"Searching for {len(books)} {plural(len(books), library)}")
-                loggersearching.debug(f"{books}")
+                searchinglogger.debug(f"{books}")
             for book in books:
                 print(type(book), book)
                 if book['bookid'] not in ['booklang', 'library', 'ignored']:

@@ -187,13 +187,13 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 #    if lazylibrarian.SAB_PP:
 #        params["script"] = lazylibrarian.SAB_SCRIPT
 
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f'sab params: {repr(params)}')
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f'sab params: {repr(params)}')
     logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
 
     url = f"{host}/api?{urlencode(params)}"
 
-    loggerdlcomms.debug(f'Request url for <a href="{url}">sab_nzbd</a>')
+    dlcommslogger.debug(f'Request url for <a href="{url}">sab_nzbd</a>')
     proxies = proxy_list()
     try:
         timeout = CONFIG.get_int('HTTP_TIMEOUT')
@@ -211,7 +211,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         res = f"Unable to connect to SAB with URL: {url}, {type(e).__name__}:{str(e)}"
         logger.error(res)
         return False, res
-    loggerdlcomms.debug(f"Result text from SAB: {str(result)}")
+    dlcommslogger.debug(f"Result text from SAB: {str(result)}")
 
     if title and title.startswith('LL.('):
         return result, ''

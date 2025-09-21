@@ -28,7 +28,7 @@ from lazylibrarian.images import shrink_mag, coverswap, valid_pdf, write_pdf_tag
 
 def preprocess_ebook(bookfolder):
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     logger.debug(f"Preprocess ebook {bookfolder}")
     ebook_convert = calibre_prg('ebook-convert')
     if not ebook_convert:
@@ -63,7 +63,7 @@ def preprocess_ebook(bookfolder):
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
-            loggerpostprocess.debug(str(params))
+            postprocesslogger.debug(str(params))
             try:
                 if os.name != 'nt':
                     _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
@@ -144,11 +144,11 @@ def get_ffmpeg_details():
 
 def write_metadata(source_file, metadata_file):
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     ffmpeg = CONFIG['FFMPEG']
     params = [ffmpeg, '-i', source_file,
               '-f', 'ffmetadata', '-y', metadata_file]
-    if loggerpostprocess.isEnabledFor(logging.DEBUG):
+    if postprocesslogger.isEnabledFor(logging.DEBUG):
         params.append('-report')
         logger.debug(str(params))
         ffmpeg_env = os.environ.copy()
@@ -174,7 +174,7 @@ def write_metadata(source_file, metadata_file):
 
 def read_part_durations(bookfolder, parts, metadata_file, duration_file):
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     ffmpeg = CONFIG['FFMPEG']
     part_durations = []
     highest_bitrate = 0
@@ -183,7 +183,7 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
         # we get the duration data from the subprocess response
         params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
-        if loggerpostprocess.isEnabledFor(logging.DEBUG):
+        if postprocesslogger.isEnabledFor(logging.DEBUG):
             params.append('-report')
             logger.debug(str(params))
             ffmpeg_env = os.environ.copy()
@@ -298,7 +298,7 @@ def get_metatags(bookid, bookfile, authorname, bookname, source_file):
 
 def write_audio_tags(bookfolder, filename, track, metatags):
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     ffmpeg = CONFIG['FFMPEG']
     try:
         extn = os.path.splitext(filename)[1]
@@ -315,7 +315,7 @@ def write_audio_tags(bookfolder, filename, track, metatags):
             b2a = False
 
         params.append(tempfile)
-        if loggerpostprocess.isEnabledFor(logging.DEBUG):
+        if postprocesslogger.isEnabledFor(logging.DEBUG):
             params.append('-report')
             logger.debug(str(params))
             ffmpeg_env = os.environ.copy()
@@ -351,7 +351,7 @@ def write_audio_tags(bookfolder, filename, track, metatags):
 
 def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     if merge is None:
         merge = CONFIG.get_bool('CREATE_SINGLEAUDIO')
     if tag is None:
@@ -473,7 +473,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         params.extend(options)
         params.append('-y')
         params.append(os.path.join(bookfolder, outfile))
-        if loggerpostprocess.isEnabledFor(logging.DEBUG):
+        if postprocesslogger.isEnabledFor(logging.DEBUG):
             params.append('-report')
             logger.debug(str(params))
             ffmpeg_env = os.environ.copy()

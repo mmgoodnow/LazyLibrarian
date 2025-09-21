@@ -70,7 +70,7 @@ class OPDS(object):
         """
         self.searchroot = self.opdsroot.replace('/opds', '')
         self.logger = logging.getLogger(__name__)
-        self.loggerdlcomms = logging.getLogger('special.dlcomms')
+        self.dlcommslogger = logging.getLogger('special.dlcomms')
 
     def check_params(self, **kwargs):
         if 'cmd' not in kwargs:
@@ -101,7 +101,7 @@ class OPDS(object):
                 remote_ip = cherrypy.request.remote.ip
 
             self.user_agent = cherrypy.request.headers.get('User-Agent')
-            self.loggerdlcomms.debug(self.user_agent)
+            self.dlcommslogger.debug(self.user_agent)
 
             # NOTE Moon+ identifies as Aldiko/Moon+  so check for Moon+ first
             # at the moment we only need to identify Aldiko as it doesn't paginate properly
@@ -128,12 +128,11 @@ class OPDS(object):
                     return serve_file(self.filepath, mime_type(self.filename), 'attachment', name=self.filename)
                 if isinstance(self.data, str):
                     return self.data
-                else:
-                    cherrypy.response.headers['Content-Type'] = "text/xml"
-                    self.logger.debug(f"Returning {self.data['title']}: {len(self.data['entries'])} entries")
-                    # noinspection PyUnresolvedReferences
-                    return lazylibrarian.webServe.serve_template(templatename="opds.html",
-                                                                 title=self.data['title'], opds=self.data)
+                cherrypy.response.headers['Content-Type'] = "text/xml"
+                self.logger.debug(f"Returning {self.data['title']}: {len(self.data['entries'])} entries")
+                # noinspection PyUnresolvedReferences
+                return lazylibrarian.webServe.serve_template(templatename="opds.html",
+                                                             title=self.data['title'], opds=self.data)
             except Exception as e:
                 self.logger.error(f"Unhandled OPDS {self.cmd} error: {e}")
         else:
@@ -1560,7 +1559,7 @@ class OPDS(object):
         db = database.DBConnection()
         try:
             results = db.select(cmd)
-            self.loggerdlcomms.debug(f"Initial select found {len(results)}")
+            self.dlcommslogger.debug(f"Initial select found {len(results)}")
 
             readfilter = None
             if sorder == 'Read' and 'user' in kwargs:
@@ -1568,13 +1567,13 @@ class OPDS(object):
             elif sorder == 'ToRead' and 'user' in kwargs:
                 readfilter = get_readinglist("ToRead", kwargs['user'])
             if readfilter is not None:
-                self.loggerdlcomms.debug(f"Filter length {len(readfilter)}")
+                self.dlcommslogger.debug(f"Filter length {len(readfilter)}")
                 filtered = []
                 for res in results:
                     if res['BookID'] in readfilter:
                         filtered.append(res)
                 results = filtered
-                self.loggerdlcomms.debug(f"Filter matches {len(results)}")
+                self.dlcommslogger.debug(f"Filter matches {len(results)}")
 
             if limit:
                 page = results[index:(index + limit)]

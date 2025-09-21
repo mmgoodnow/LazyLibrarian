@@ -34,7 +34,7 @@ except ImportError:
 # noinspection PyUnusedLocal
 def id3read(filename):
     logger = logging.getLogger(__name__)
-    loggerlibsync = logging.getLogger('special.libsync')
+    libsynclogger = logging.getLogger('special.libsync')
     mydict = {}
     if not TinyTag:
         logger.warning("TinyTag library not available")
@@ -84,10 +84,10 @@ def id3read(filename):
         else:
             albumartist = ''
 
-        if loggerlibsync.isEnabledFor(logging.DEBUG):
+        if libsynclogger.isEnabledFor(logging.DEBUG):
             for tag in ['filename', 'artist', 'albumartist', 'composer', 'album', 'title', 'track',
                         'track_total', 'comment']:
-                loggerlibsync.debug(f"id3r.{tag} [{eval(tag)}]")
+                libsynclogger.debug(f"id3r.{tag} [{eval(tag)}]")
 
         if artist == 'None':
             artist = ''
@@ -716,7 +716,7 @@ def name_vars(bookid, abridged=''):
         SerYear is the publication year of the first book in the series or empty string
         Language is the language(s) if known or empty string
         """
-    loggermatching = logging.getLogger('special.matching')
+    matchinglogger = logging.getLogger('special.matching')
     mydict = {}
     seriesnum = ''
     seriesname = ''
@@ -875,7 +875,7 @@ def name_vars(bookid, abridged=''):
                 mydict['SortTitle'] = ''
 
     except Exception as e:
-        loggermatching.debug(str(e))
+        matchinglogger.debug(str(e))
     db.close()
 
     mydict['FolderName'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FOLDER'],
@@ -893,6 +893,6 @@ def name_vars(bookid, abridged=''):
                                                                                    '$Part').replace('sTotal',
                                                                                                     '$Total')
     if bookid != 'test':
-        loggermatching.debug(str(mydict))
+        matchinglogger.debug(str(mydict))
     return mydict
 

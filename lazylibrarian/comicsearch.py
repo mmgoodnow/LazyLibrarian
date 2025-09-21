@@ -199,7 +199,7 @@ def cron_search_comics():
 
 def search_comics(comicid=None):
     logger = logging.getLogger(__name__)
-    loggersearching = logging.getLogger('special.searching')
+    searchinglogger = logging.getLogger('special.searching')
     threadname = thread_name()
     if "Thread" in threadname:
         if not comicid:
@@ -237,7 +237,7 @@ def search_comics(comicid=None):
             for item in res:
                 match = None
                 if item['score'] >= 85:
-                    loggersearching.debug(f"Trying to match {item['title']}")
+                    searchinglogger.debug(f"Trying to match {item['title']}")
                     if comic['ComicID'].startswith('CV'):
                         match = cv_identify(item['title'])
                     elif comic['ComicID'].startswith('CX'):
@@ -249,10 +249,10 @@ def search_comics(comicid=None):
                             if match[4] not in foundissues:
                                 foundissues[match[4]] = item
                     else:
-                        loggersearching.debug(f"No match ({match[3]['seriesid']}) want {id_list}: {item['title']}")
+                        searchinglogger.debug(f"No match ({match[3]['seriesid']}) want {id_list}: {item['title']}")
                         notfound += 1
                 else:
-                    loggersearching.debug(f"No match [{item['score']}%] {item['title']}")
+                    searchinglogger.debug(f"No match [{item['score']}%] {item['title']}")
                     notfound += 1
 
             total = len(foundissues)

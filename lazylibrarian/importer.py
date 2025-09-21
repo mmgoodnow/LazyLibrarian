@@ -51,16 +51,16 @@ def is_valid_authorid(authorid: str, api=None) -> bool:
     return False
 
 
-def get_preferred_author_name(author: str) -> (str, str):
+def get_preferred_author_name(author):
     # Look up an authorname in the database, if not found try fuzzy match
-    # Return possibly changed authorname and whether found in library
+    # Return possibly changed authorname and authorid if found in library
     logger = logging.getLogger(__name__)
     author = format_author_name(author, postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-    match = ''
+    authorid = ''
     db = database.DBConnection()
     check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
     if check_exist_author:
-        match = check_exist_author['AuthorID']
+        authorid = check_exist_author['AuthorID']
     else:  # If no exact match, look for a close fuzzy match to handle misspellings, accents or AKA
         match_name = author.lower().replace('.', '')
         res = db.action('select AuthorID,AuthorName,AKA from authors')
@@ -71,7 +71,7 @@ def get_preferred_author_name(author: str) -> (str, str):
                 if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                     logger.debug(f"Fuzzy match [{item['AuthorName']}] {round(match_fuzz, 2)}% for [{author}]")
                     author = item['AuthorName']
-                    match = item['AuthorID']
+                    authorid = item['AuthorID']
                     break
             akas = get_list(item['AKA'], ',')
             if akas:
@@ -80,10 +80,10 @@ def get_preferred_author_name(author: str) -> (str, str):
                     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                         logger.debug(f"Fuzzy AKA match [{aka}] {round(match_fuzz, 2)}% for [{author}]")
                         author = item['AuthorName']
-                        match = item['AuthorID']
+                        authorid = item['AuthorID']
                         break
     db.close()
-    return author, match
+    return author, authorid
 
 
 def available_author_sources():
@@ -274,45 +274,58 @@ def get_all_author_details(authorid='', authorname=None):
     sources = available_author_sources()
     keys = author_keys()
     author_info = {}
+    pref = ''
+    match = {}
     db = database.DBConnection()
-    match = db.match(f"SELECT {','.join(keys)},authorname from authors WHERE authorid=?", (authorid,))
-    if match and not authorname:
+    if authorid:
+        cmd = f"SELECT {','.join(keys)},authorid,authorname from authors WHERE authorid=?"
+        for k in keys:
+            cmd += f" or {k}=?"
+        match = db.match(cmd, tuple([str(authorid)] * (len(keys) + 1)))
+    if not match and authorname:
+        a_name, a_id = get_preferred_author_name(authorname)
+        if a_id:
+            cmd = f"SELECT {','.join(keys)},authorid,authorname from authors WHERE authorname=? COLLATE NOCASE"
+            match = db.match(cmd, (a_name,))
+    if match:
         authorname = match['authorname']
+        authorid = match['authorid']
+
+    merged_info = {}
     for source in sources:
         cl = source[1]
+        auth_id = ''
         if match:
-            auth_id = match[source[2]]
-        else:
-            auth_id = authorid
+            auth_id = match[source[2]]  # authorid for this source, eg hc_id
         if not auth_id:
             if authorid.startswith(source[0]):
                 db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
                           (authorid, authorid))
                 auth_id = authorid
-            if authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
-                book = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
-                if not book:
-                    book = db.match('SELECT bookname from books WHERE authorname=?', (authorname,))
-                title = ''
-                if book:
-                    title = book['bookname']
-                aid = cl.find_author_id(authorname=authorname, title=title)
-                if aid:
-                    db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
-                              (aid['authorid'], authorid))
-                    auth_id = aid['authorid']
-        res = cl.get_author_info(authorid=auth_id, authorname=authorname)
-        if res:
-            author_info[source[0]] = res
-            author_info[source[0]][source[2]] = author_info[source[0]].get('authorid')
-
-    merged_info = author_info[sources[0][0]]
+        if not auth_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
+            book = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
+            title = ''
+            if book:
+                title = book['bookname']
+            aid = cl.find_author_id(authorname=authorname, title=title)
+            if aid:
+                db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
+                          (aid['authorid'], authorid))
+                auth_id = aid['authorid']
+        if auth_id:
+            res = cl.get_author_info(authorid=auth_id, authorname=authorname)
+            if res:
+                author_info[source[0]] = res
+                author_info[source[0]][source[2]] = auth_id
+                if not merged_info:
+                    pref = source[0]
+                    merged_info = author_info[pref]
     akas = []
     if merged_info.get('AKA'):
         akas = get_list(merged_info.get('AKA', ''), ',')
-    authorname = merged_info['authorname']
+    authorname = merged_info.get('authorname')
     for entry in author_info:
-        if entry != sources[0][0]:
+        if entry != pref:
             author_key = 'authorid'
             for item in sources:
                 if item[0] == entry:
@@ -334,7 +347,8 @@ def get_all_author_details(authorid='', authorname=None):
                 elif item not in merged_info or not merged_info.get(item):
                     merged_info[item] = author_info[entry][item]
 
-    merged_info['AKA'] = ', '.join(akas)
+    if akas:
+        merged_info['AKA'] = ', '.join(akas)
     if authorid:
         merged_info['authorid'] = authorid  # keep original entry authorid if we have one
     db.close()
@@ -535,48 +549,37 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
                 api_sources = []
                 info_sources = lazylibrarian.INFOSOURCES
                 for item in info_sources:
-                    api_sources.append([info_sources[item], info_sources[item]['src'], info_sources[item]['class'],
+                    api_sources.append([item, info_sources[item]['src'], info_sources[item]['class'],
                                         info_sources[item]['author_key'], info_sources[item]['enabled']])
 
-                # TODO use INFOSOURCES to get preferred source first
-                if CONFIG['BOOK_API'] == "GoodReads":
-                    api_sources.insert(0, api_sources.pop(1))
-                elif CONFIG['BOOK_API'] == "HardCover":
-                    api_sources.insert(0, api_sources.pop(2))
-                elif CONFIG['BOOK_API'] == "GoogleBooks":
-                    api_sources.insert(0, api_sources.pop(3))
-                elif CONFIG['BOOK_API'] == "DNB":
-                    api_sources.insert(0, api_sources.pop(4))
-                if not CONFIG.get_bool('MULTI_SOURCE'):
-                    api_sources = [api_sources[0]]
-
+                # get preferred source first but keep all other enabled ones in any order
+                current_sources = []
                 for api_source in api_sources:
-                    if not CONFIG[api_source[4]]:
-                        logger.debug(f"{api_source[4]} is disabled")
-                    else:
-                        has_authorkey = []
-                        info = lazylibrarian.INFOSOURCES
-                        for item in info:
-                            if info[item]['author_key'] and info[item]['author_key'] != 'authorid':
-                                has_authorkey.append(item)
-
-                        current_id = current_author.get(api_source[3], '')
-                        if not current_id:
-                            if api_source[1] in has_authorkey:
-                                logger.debug(f"Finding {api_source[1]} author ID for {current_author['authorname']}")
-                                book_api = api_source[2]
-                                res = book_api.find_author_id(authorname=authorname, title='', refresh=True)
-                                if res and res.get('authorid'):
-                                    current_id = res.get('authorid')
-                                    cmd = f"UPDATE authors SET {api_source[3]}=? WHERE AuthorName=? COLLATE NOCASE"
-                                    db.action(cmd, (current_id, current_author['authorname']))
-                        if current_id:
-                            logger.debug(f"Book query {api_source[1]} for {current_id}:{current_author['authorname']}")
+                    if api_source[4]:  # only include if source is enabled
+                        if api_source[0] == CONFIG['BOOK_API']:
+                            current_sources.insert(0, api_source)
+                        else:
+                            current_sources.append(api_source)
+                if not CONFIG.get_bool('MULTI_SOURCE'):
+                    current_sources = [current_sources[0]]
+                for api_source in current_sources:
+                    current_id = current_author.get(api_source[3], '')
+                    if not current_id:
+                        if api_source[3] and api_source[3] != 'authorid':
+                            logger.debug(f"Finding {api_source[0]} author ID for {current_author['authorname']}")
                             book_api = api_source[2]
-                            book_api.get_author_books(current_id, current_author['authorname'],
-                                                      bookstatus=bookstatus,
-                                                      audiostatus=audiostatus, entrystatus=entry_status,
-                                                      refresh=refresh, reason=reason)
+                            res = book_api.find_author_id(authorname=authorname, title='', refresh=True)
+                            if res and res.get('authorid'):
+                                current_id = res.get('authorid')
+                                cmd = f"UPDATE authors SET {api_source[3]}=? WHERE AuthorName=? COLLATE NOCASE"
+                                db.action(cmd, (current_id, current_author['authorname']))
+                    if current_id:
+                        logger.debug(f"Book query {api_source[0]} for {current_id}:{current_author['authorname']}")
+                        book_api = api_source[2]
+                        book_api.get_author_books(current_id, current_author['authorname'],
+                                                  bookstatus=bookstatus,
+                                                  audiostatus=audiostatus, entrystatus=entry_status,
+                                                  refresh=refresh, reason=reason)
                 de_duplicate(current_author['authorid'])
                 update_totals(current_author['authorid'])
 
@@ -830,9 +833,10 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
         ebook/audio=None makes add_bookid_to_db use configured default """
     if not source:
         source = CONFIG['BOOK_API']
-    api = lazylibrarian.INFOSOURCES[source]['class']
+    info = lazylibrarian.INFOSOURCES
+    api = info[source]['class']
     if not wait:
-        threading.Thread(target=api.add_bookid_to_db, name=f"{lazylibrarian.INFOSOURCES[source]['src']}-IMPORT",
+        threading.Thread(target=api.add_bookid_to_db, name=f"{info[source]['src']}-IMPORT",
                          args=[bookid, ebook, audio, reason]).start()
     else:
         api.add_bookid_to_db(bookid, ebook, audio, reason)
@@ -842,15 +846,16 @@ def search_for(searchterm, source=None):
     """
         search openlibrary/goodreads/googlebooks for a searchterm, return a list of results
     """
-    loggersearching = logging.getLogger('special.searching')
+    searchinglogger = logging.getLogger('special.searching')
     if not source:
         source = CONFIG['BOOK_API']
-    loggersearching.debug(f"{source} {searchterm}")
-    api = lazylibrarian.INFOSOURCES[source]['class']
-    if lazylibrarian.INFOSOURCES[source]['enabled']:
+    searchinglogger.debug(f"{source} {searchterm}")
+    info = lazylibrarian.INFOSOURCES
+    api = info[source]['class']
+    if info[source]['enabled']:
         myqueue = Queue()
         search_api = threading.Thread(target=api.find_results,
-                                      name=f"{lazylibrarian.INFOSOURCES[source]['src']}-RESULTS",
+                                      name=f"{info[source]['src']}-RESULTS",
                                       args=[searchterm, myqueue])
         search_api.start()
         search_api.join()

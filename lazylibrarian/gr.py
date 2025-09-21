@@ -36,7 +36,7 @@ class GoodReads:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.loggersearching = logging.getLogger('special.searching')
+        self.searchinglogger = logging.getLogger('special.searching')
         if not CONFIG['GR_API']:
             self.logger.warning('No Goodreads API key, check config')
         self.params = {"key": CONFIG['GR_API']}
@@ -58,7 +58,7 @@ class GoodReads:
             set_url = '/'.join([CONFIG['GR_URL'],
                                 f"search.xml?q={url}&{urlencode(self.params)}"])
             self.logger.debug(f'Now searching GoodReads API with searchterm: {searchterm}')
-            self.loggersearching.debug(set_url)
+            self.searchinglogger.debug(set_url)
 
             resultcount = 0
             try:
@@ -225,7 +225,7 @@ class GoodReads:
                     else:
                         url = f"{set_url}&page={str(loop_count)}"
                         resultxml = None
-                        self.loggersearching.debug(set_url)
+                        self.searchinglogger.debug(set_url)
                         try:
                             rootxml, in_cache = gr_xml_request(url)
                             if rootxml is None:
@@ -275,7 +275,7 @@ class GoodReads:
         url = '/'.join([CONFIG['GR_URL'], 'api/author_url/'])
         try:
             url += f"{quote(make_utf8bytes(author)[0])}?{urlencode(self.params)}"
-            self.loggersearching.debug(url)
+            self.searchinglogger.debug(url)
             rootxml, _ = gr_xml_request(url, use_cache=not refresh)
         except Exception as e:
             self.logger.error(f"{type(e).__name__} finding authorid: {url}, {str(e)}")
@@ -316,7 +316,7 @@ class GoodReads:
                         f"author/show/{authorid}.xml?{urlencode(self.params)}"])
 
         try:
-            self.loggersearching.debug(url)
+            self.searchinglogger.debug(url)
             rootxml, _ = gr_xml_request(url)
         except Exception as e:
             self.logger.error(f"{type(e).__name__} getting author info: {str(e)}")
@@ -407,7 +407,7 @@ class GoodReads:
             url = '/'.join([CONFIG['GR_URL'],
                             f"author/list/{gr_id}.xml?{urlencode(self.params)}"])
             try:
-                self.loggersearching.debug(url)
+                self.searchinglogger.debug(url)
                 rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
             except Exception as e:
                 self.logger.error(f"{type(e).__name__} fetching author books: {str(e)}")
@@ -773,8 +773,8 @@ class GoodReads:
                                         if not match['gr_id']:
                                             cmd = "UPDATE books SET gr_id=? WHERE BookID=?"
                                             db.action(cmd, (bookid, match['BookID']))
-                                        rejected.append(['bookid', f"Duplicate title {bookname} ({bookid}/{match['BookID']})"])
-
+                                        rejected.append(['bookid', f"Duplicate title {bookname} "
+                                                                   f"({bookid}/{match['BookID']})"])
                         fatal = False
                         reason = ''
                         ignore_book = False
@@ -943,7 +943,7 @@ class GoodReads:
                                             f"valid bookdate [{bookdate}] previous scanresult "
                                             f"[{existing['ScanResult']}]")
                                         update_value_dict["ScanResult"] = f"bookdate {bookdate} is now valid"
-                                        self.loggersearching.debug(
+                                        self.searchinglogger.debug(
                                             f"entry status {entrystatus} {bookstatus},{audiostatus}")
                                         book_stat, audio_stat = get_status(bookid, serieslist, bookstatus,
                                                                            audiostatus, entrystatus)
@@ -952,7 +952,7 @@ class GoodReads:
                                         if (existing['AudioStatus'] not in ['Wanted', 'Open', 'Have'] and not
                                                 ignore_audio):
                                             update_value_dict["AudioStatus"] = audio_stat
-                                        self.loggersearching.debug(f"status is now {book_status},{audio_status}")
+                                        self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
                                     elif not existing:
                                         update_value_dict["ScanResult"] = reason
 
@@ -1017,7 +1017,7 @@ class GoodReads:
                                         f"author/list/{gr_id}.xml?{urlencode(self.params)}&page={str(loop_count)}"])
                         resultxml = None
                         try:
-                            self.loggersearching.debug(url)
+                            self.searchinglogger.debug(url)
                             rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
                             if rootxml is None:
                                 self.logger.debug('Failed to get next page of results')
@@ -1142,7 +1142,7 @@ class GoodReads:
                 pagecount += 1
                 url = '/'.join([CONFIG['GR_URL'], f"book/id_to_work_id/{page}?{urlencode(self.params)}"])
                 try:
-                    self.loggersearching.debug(url)
+                    self.searchinglogger.debug(url)
                     rootxml, _ = gr_xml_request(url, use_cache=False)
                     if rootxml is None:
                         self.logger.debug(f"Failed to get id_to_work_id page {page}")
@@ -1202,7 +1202,7 @@ class GoodReads:
     def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.add_bookid'):
         url = '/'.join([CONFIG['GR_URL'], f"book/show/{bookid}?{urlencode(self.params)}"])
         try:
-            self.loggersearching.debug(url)
+            self.searchinglogger.debug(url)
             rootxml, _ = gr_xml_request(url)
             if rootxml is None:
                 self.logger.debug(f"Failed to get book info for {bookid}")

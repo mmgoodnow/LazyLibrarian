@@ -119,7 +119,7 @@ def clear_our_cookies():
 def serve_template(templatename, **kwargs):
     thread_name("WEBSERVER")
     logger = logging.getLogger(__name__)
-    loggeradmin = logging.getLogger('special.admin')
+    adminlogger = logging.getLogger('special.admin')
     interface_dir = os.path.join(str(DIRS.PROG_DIR), 'data', 'interfaces')
     template_dir = os.path.join(str(interface_dir), CONFIG['HTTP_LOOK'])
     if not path_isdir(template_dir):
@@ -144,7 +144,7 @@ def serve_template(templatename, **kwargs):
             return template.render(perm=0, message="Database upgrade in progress, please wait...",
                                    title="Database Upgrade", timer=5, style=style)
 
-        loggeradmin.debug(str(cherrypy.request.headers))
+        adminlogger.debug(str(cherrypy.request.headers))
         if not CONFIG.get_bool('USER_ACCOUNTS'):
             perm = lazylibrarian.perm_admin
             try:
@@ -338,7 +338,7 @@ def serve_template(templatename, **kwargs):
                 else:
                     templatename = "login.html"
 
-            loggeradmin.debug(f"User {username}: {perm} {userprefs} {usertheme} {templatename}")
+            adminlogger.debug(f"User {username}: {perm} {userprefs} {usertheme} {templatename}")
 
             theme = usertheme.split('_', 1)[0]
             if theme and theme != CONFIG['HTTP_LOOK']:
@@ -401,7 +401,7 @@ class WebInterface:
 
     @staticmethod
     def check_permitted(required_perm):
-        loggeradmin = logging.getLogger('special.admin')
+        adminlogger = logging.getLogger('special.admin')
         userid = ''
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
@@ -413,7 +413,7 @@ class WebInterface:
                 perm = check_int(res['Perms'], 0)
                 userid = res['UserID']
             else:
-                loggeradmin.debug(f"No match for userid [{cookie_userid}]")
+                adminlogger.debug(f"No match for userid [{cookie_userid}]")
                 clear_our_cookies()
             db.close()
         else:
@@ -524,8 +524,8 @@ class WebInterface:
     @cherrypy.tools.json_out()
     def get_index(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
-        loggerserverside.debug(f"Start {iDisplayStart} Length {iDisplayLength} Col {iSortCol_0} "
+        serversidelogger = logging.getLogger('special.serverside')
+        serversidelogger.debug(f"Start {iDisplayStart} Length {iDisplayLength} Col {iSortCol_0} "
                                f"Dir {sSortDir_0} Search [{sSearch}]")
         rows = []
         filtered = []
@@ -568,14 +568,14 @@ class WebInterface:
             myauthors = []
             if userid and userprefs & lazylibrarian.pref_myauthors:
                 res = db.select("SELECT WantID from subscribers WHERE Type='author' and UserID=?", (userid,))
-                loggerserverside.debug(f"User subscribes to {len(res)} authors")
+                serversidelogger.debug(f"User subscribes to {len(res)} authors")
                 for author in res:
                     myauthors.append(author['WantID'])
                 cmd += " and AuthorID in (" + ", ".join(f"'{w}'" for w in myauthors) + ")"
 
             cmd += " order by AuthorName COLLATE NOCASE"
 
-            loggerserverside.debug(f"get_index {cmd}")
+            serversidelogger.debug(f"get_index {cmd}")
 
             rowlist = db.select(cmd)
             # At his point we want to sort and filter _before_ adding the html as it's much quicker
@@ -615,7 +615,7 @@ class WebInterface:
                     nrow.extend(arow[11:])
                     rows.append(nrow)  # add each rowlist to the masterlist
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
@@ -625,7 +625,7 @@ class WebInterface:
                     sortcolumn = 13
                 elif sortcolumn > 2:
                     sortcolumn -= 1
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
                 filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                               reverse=sSortDir_0 == "desc")
 
@@ -633,8 +633,8 @@ class WebInterface:
                     rows = filtered
                 else:
                     rows = filtered[displaystart:(displaystart + displaylength)]
-            loggerserverside.debug(f"get_index returning {displaystart} to {displaystart + displaylength}")
-            loggerserverside.debug(f"get_index filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_index returning {displaystart} to {displaystart + displaylength}")
+            serversidelogger.debug(f"get_index filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
         except Exception:
             logger.error(f'Unhandled exception in get_index: {traceback.format_exc()}')
             rows = []
@@ -648,7 +648,7 @@ class WebInterface:
                       'loading': lazylibrarian.AUTHORS_UPDATE,
                       'searching': lazylibrarian.SEARCHING,
                       }
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @staticmethod
@@ -1374,7 +1374,7 @@ class WebInterface:
     @cherrypy.tools.json_out()
     def get_series(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
         rows = []
         filtered = []
         userid = None
@@ -1427,14 +1427,14 @@ class WebInterface:
             db = database.DBConnection()
             if userid and userprefs & lazylibrarian.pref_myseries:
                 res = db.select("SELECT WantID from subscribers WHERE Type='series' and UserID=?", (userid,))
-                loggerserverside.debug(f"User subscribes to {len(res)} series")
+                serversidelogger.debug(f"User subscribes to {len(res)} series")
                 for series in res:
                     myseries.append(series['WantID'])
                 cmd += " and series.seriesID in (" + ", ".join(f"'{w}'" for w in myseries) + ")"
 
             cmd += " GROUP BY series.seriesID order by AuthorName,SeriesName"
 
-            loggerserverside.debug(f"get_series {cmd}: {str(args)}")
+            serversidelogger.debug(f"get_series {cmd}: {str(args)}")
 
             if args:
                 rowlist = db.select(cmd, tuple(args))
@@ -1449,13 +1449,13 @@ class WebInterface:
                     rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
 
                 for row in filtered:
                     row.append(row[0][:2])  # extract 2 letter source from seriesid
@@ -1492,13 +1492,13 @@ class WebInterface:
                 else:
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
-            loggerserverside.debug(f"get_series returning {displaystart} to {displaystart + displaylength}")
-            loggerserverside.debug(f"get_series filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_series returning {displaystart} to {displaystart + displaylength}")
+            serversidelogger.debug(f"get_series filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
             mydict = {'iTotalDisplayRecords': len(filtered),
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
-            loggerserverside.debug(str(mydict))
+            serversidelogger.debug(str(mydict))
             return mydict
 
         except Exception:
@@ -1510,7 +1510,7 @@ class WebInterface:
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
-            loggerserverside.debug(str(mydict))
+            serversidelogger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
@@ -2502,7 +2502,7 @@ class WebInterface:
     def library_scan_author(self, authorid, **kwargs):
         self.check_permitted(lazylibrarian.perm_force)
         logger = logging.getLogger(__name__)
-        loggerfuzz = logging.getLogger('special.fuzz')
+        fuzzlogger = logging.getLogger('special.fuzz')
         db = database.DBConnection()
         authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
         if authorsearch:  # to stop error if try to refresh an author while they are still loading
@@ -2540,7 +2540,7 @@ class WebInterface:
                                                           get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
                     if match >= CONFIG.get_int('NAME_RATIO'):
                         authordir = os.path.join(libdir, itm)
-                        loggerfuzz.debug(f"Fuzzy match folder {round(match, 2)}% {itm} for {author_name}")
+                        fuzzlogger.debug(f"Fuzzy match folder {round(match, 2)}% {itm} for {author_name}")
                         # Add this name variant as an aka if not already there?
                         break
 
@@ -2824,7 +2824,7 @@ class WebInterface:
         rows = []
         filtered = []
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
@@ -2857,7 +2857,7 @@ class WebInterface:
                         have_read = get_readinglist("HaveRead", userid)
                         reading = get_readinglist("Reading", userid)
                         abandoned = get_readinglist("Abandoned", userid)
-                        loggerserverside.debug(
+                        serversidelogger.debug(
                             f"get_books userid {cookie['ll_uid'].value} read {len(to_read)},{len(have_read)},"
                             f"{len(reading)},{len(abandoned)}")
 
@@ -2870,7 +2870,7 @@ class WebInterface:
                    "LEFT OUTER JOIN member ON (bookauthors.BookID = member.BookID and bookauthors.bookid=books.bookid) "
                    "LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID) "
                    "WHERE bookauthors.authorid=authors.authorid and bookauthors.bookid=books.bookid ")
-            loggerserverside.debug(
+            serversidelogger.debug(
                 f"ToRead {len(to_read)} Read {len(have_read)} Reading {len(reading)} Abandoned {len(abandoned)}")
             types = []
             if CONFIG.get_bool('EBOOK_TAB'):
@@ -2922,17 +2922,17 @@ class WebInterface:
             if kwargs['source'] in ["Books", "Audio"]:
                 if userid and userprefs & lazylibrarian.pref_myfeeds or \
                         userprefs & lazylibrarian.pref_myafeeds:
-                    loggerserverside.debug("Getting user booklist")
+                    serversidelogger.debug("Getting user booklist")
                     mybooks = []
                     res = db.select("SELECT WantID from subscribers WHERE Type='author' and UserID=?", (userid,))
-                    loggerserverside.debug(f"User subscribes to {len(res)} authors")
+                    serversidelogger.debug(f"User subscribes to {len(res)} authors")
                     for authorid in res:
                         bookids = db.select('SELECT BookID from bookauthors WHERE AuthorID=?', (authorid['WantID'],))
                         for bookid in bookids:
                             mybooks.append(bookid['BookID'])
 
                     res = db.select("SELECT WantID from subscribers WHERE Type='series' and UserID=?", (userid,))
-                    loggerserverside.debug(f"User subscribes to {len(res)} series")
+                    serversidelogger.debug(f"User subscribes to {len(res)} series")
                     for series in res:
                         sel = 'SELECT BookID from member,series WHERE series.seriesid=?'
                         sel += ' and member.seriesid=series.seriesid'
@@ -2941,7 +2941,7 @@ class WebInterface:
                             mybooks.append(bookid['BookID'])
 
                     res = db.select("SELECT WantID from subscribers WHERE Type='feed' and UserID=?", (userid,))
-                    loggerserverside.debug(f"User subscribes to {len(res)} feeds")
+                    serversidelogger.debug(f"User subscribes to {len(res)} feeds")
                     for feed in res:
                         sel = "SELECT BookID from books WHERE instr(Requester, '?') > 0"
                         sel += "  or instr(AudioRequester, '?') > 0"
@@ -2950,7 +2950,7 @@ class WebInterface:
                             mybooks.append(bookid['BookID'])
 
                     mybooks = set(mybooks)
-                    loggerserverside.debug(f"User booklist length {len(mybooks)}")
+                    serversidelogger.debug(f"User booklist length {len(mybooks)}")
                     cmd += " and books.bookID in (" + ", ".join(f"'{w}'" for w in mybooks) + ")"
 
             if kwargs['source'] in ["Author"]:
@@ -2968,9 +2968,9 @@ class WebInterface:
                     "booklang, booksub, booklink, workpage, bookauthors.authorid, booklibrary, audiostatus, "
                     "audiolibrary, bookgenre, bookadded, scanresult, lt_workid")
 
-            loggerserverside.debug(f"get_books {cmd}: {str(args)}")
+            serversidelogger.debug(f"get_books {cmd}: {str(args)}")
             rowlist = db.select(cmd, tuple(args))
-            loggerserverside.debug(f"get_books selected {len(rowlist)}")
+            serversidelogger.debug(f"get_books selected {len(rowlist)}")
 
             if library is None:
                 rowlist = []
@@ -2986,10 +2986,10 @@ class WebInterface:
                     if CONFIG.get_bool('SORT_DEFINITE'):
                         entry[2] = sort_definite(entry[2], articles=get_list(CONFIG.get_csv('NAME_DEFINITE')))
                     rows.append(entry)  # add each rowlist to the masterlist
-                loggerserverside.debug("get_books surname/definite completed")
+                serversidelogger.debug("get_books surname/definite completed")
 
                 if sSearch:
-                    loggerserverside.debug(f"filter [{sSearch}]")
+                    serversidelogger.debug(f"filter [{sSearch}]")
                     if library is not None:
                         search_fields = ['AuthorName', 'BookName', 'BookDate', 'Status', 'BookID',
                                          'BookLang', 'BookSub', 'AuthorID', 'BookGenre',
@@ -3011,7 +3011,7 @@ class WebInterface:
 
                 # table headers and column headers do not match at this point
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
                 if sortcolumn < 4:  # author, title
                     sortcolumn -= 1
                 elif sortcolumn == 4:  # series
@@ -3032,7 +3032,7 @@ class WebInterface:
                 else:  # rating, date
                     sortcolumn -= 2
 
-                loggerserverside.debug(f"final sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"final sortcolumn {sortcolumn}")
 
                 if sortcolumn in [12, 13, 15, 18]:  # series, dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -3163,10 +3163,10 @@ class WebInterface:
 
                 rows = data
 
-            loggerserverside.debug(
+            serversidelogger.debug(
                 f"get_books {kwargs['source']} returning {displaystart} to {displaystart + displaylength}, "
                 f"flagged {flag_to},{flag_have}")
-            loggerserverside.debug(f"get_books filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_books filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
 
         except Exception:
             logger.error(f'Unhandled exception in get_books: {traceback.format_exc()}')
@@ -3186,7 +3186,7 @@ class WebInterface:
         elif kwargs['source'] == 'Audio':
             mydict['loading'] = lazylibrarian.AUDIO_UPDATE
         db.close()
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @staticmethod
@@ -3562,8 +3562,8 @@ class WebInterface:
     @require_auth()
     def open_book(self, bookid=None, library=None, redirect=None, booktype=None, email=False):
         logger = logging.getLogger(__name__)
-        loggeradmin = logging.getLogger('special.admin')
-        loggeradmin.debug(f"{bookid} {library} {redirect} {booktype} {email}")
+        adminlogger = logging.getLogger('special.admin')
+        adminlogger.debug(f"{bookid} {library} {redirect} {booktype} {email}")
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
         db = database.DBConnection()
@@ -4854,7 +4854,7 @@ class WebInterface:
     @cherrypy.tools.json_out()
     def get_comics(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
         rows = []
         filtered = []
         rowlist = []
@@ -4878,7 +4878,7 @@ class WebInterface:
                 mycomics = []
                 if userid and userprefs & lazylibrarian.pref_mycomics:
                     res = db.select("SELECT WantID from subscribers WHERE Type='comic' and UserID=?", (userid,))
-                    loggerserverside.debug(f"User subscribes to {len(res)} comics")
+                    serversidelogger.debug(f"User subscribes to {len(res)} comics")
                     for mag in res:
                         mycomics.append(mag['WantID'])
                     cmd += " WHERE comics.comicid in (" + ", ".join(f"'{w}'" for w in mycomics) + ")"
@@ -4897,13 +4897,13 @@ class WebInterface:
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
 
                 if sortcolumn in [4, 5]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -4945,8 +4945,8 @@ class WebInterface:
                     else:
                         row[5] = date_format(row[5], CONFIG['ISS_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
 
-            loggerserverside.debug(f"get_comics returning {displaystart} to {displaystart + displaylength}")
-            loggerserverside.debug(f"get_comics filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_comics returning {displaystart} to {displaystart + displaylength}")
+            serversidelogger.debug(f"get_comics filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
         except Exception:
             logger.error(f'Unhandled exception in get_comics: {traceback.format_exc()}')
             rows = []
@@ -4958,7 +4958,7 @@ class WebInterface:
                   'aaData': rows,
                   'loading': lazylibrarian.COMIC_UPDATE,
                   }
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @cherrypy.expose
@@ -5087,7 +5087,7 @@ class WebInterface:
         rows = []
         filtered = []
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
 
         # noinspection PyBroadException
         try:
@@ -5111,13 +5111,13 @@ class WebInterface:
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
 
                 if sortcolumn in [2, 3]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -5147,8 +5147,8 @@ class WebInterface:
                 row[3] = date_format(row[3], CONFIG['DATE_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
                 row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
 
-            loggerserverside.debug(f"get_comic_issues returning {displaystart} to {displaystart + displaylength}")
-            loggerserverside.debug(f"get_comic_issues filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_comic_issues returning {displaystart} to {displaystart + displaylength}")
+            serversidelogger.debug(f"get_comic_issues filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
         except Exception:
             logger.error(f'Unhandled exception in get_comic_issues: {traceback.format_exc()}')
             rows = []
@@ -5160,7 +5160,7 @@ class WebInterface:
                   'aaData': rows,
                   'loading': lazylibrarian.COMIC_UPDATE,
                   }
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @cherrypy.expose
@@ -5412,7 +5412,7 @@ class WebInterface:
     @cherrypy.tools.json_out()
     def get_mags(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
         rows = []
         filtered = []
         rowlist = []
@@ -5436,7 +5436,7 @@ class WebInterface:
                 mymags = []
                 if userid and userprefs & lazylibrarian.pref_mymags:
                     res = db.select("SELECT WantID from subscribers WHERE Type='magazine' and UserID=?", (userid,))
-                    loggerserverside.debug(f"User subscribes to {len(res)} magazines")
+                    serversidelogger.debug(f"User subscribes to {len(res)} magazines")
                     maglist = ''
                     for mag in res:
                         if maglist:
@@ -5445,7 +5445,7 @@ class WebInterface:
                     cmd += " WHERE Title in (" + maglist + ")"
                 cmd += " order by Title"
 
-                loggerserverside.debug(cmd)
+                serversidelogger.debug(cmd)
                 rowlist = db.select(cmd)
             finally:
                 db.close()
@@ -5460,13 +5460,13 @@ class WebInterface:
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
 
                 if sortcolumn in [4, 5]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -5511,8 +5511,8 @@ class WebInterface:
                                 row[1] = f"cache/{imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
                         row.append(f"cache/{fullsize[len(DIRS.CACHEDIR):].lstrip(os.sep)}")
 
-            loggerserverside.debug(f"get_mags returning {displaystart} to {displaystart + displaylength}")
-            loggerserverside.debug(f"get_mags filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_mags returning {displaystart} to {displaystart + displaylength}")
+            serversidelogger.debug(f"get_mags filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
         except Exception:
             logger.error(f'Unhandled exception in get_mags: {traceback.format_exc()}')
             rows = []
@@ -5524,7 +5524,7 @@ class WebInterface:
                   'aaData': rows,
                   'loading': lazylibrarian.MAG_UPDATE,
                   }
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @cherrypy.expose
@@ -5669,7 +5669,7 @@ class WebInterface:
     @cherrypy.tools.json_out()
     def get_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
         rows = []
         filtered = []
         # noinspection PyBroadException
@@ -5703,13 +5703,13 @@ class WebInterface:
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
 
                 if sortcolumn in [2, 3]:  # dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -5753,8 +5753,8 @@ class WebInterface:
                 if perm & lazylibrarian.perm_edit:
                     row[2] = row[2] + '<br><a href="edit_issue?issueid=' + row[4] + '"><small><i>Edit</i></a>'
 
-            loggerserverside.debug(f"get_issues returning {displaystart} to {displaystart + displaylength}")
-            loggerserverside.debug(f"get_issues filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_issues returning {displaystart} to {displaystart + displaylength}")
+            serversidelogger.debug(f"get_issues filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
         except Exception:
             logger.error(f'Unhandled exception in get_issues: {traceback.format_exc()}')
             rows = []
@@ -5766,7 +5766,7 @@ class WebInterface:
                   'aaData': rows,
                   'loading': lazylibrarian.MAG_UPDATE,
                   }
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @cherrypy.expose
@@ -6063,7 +6063,7 @@ class WebInterface:
     def get_past_issues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc",
                         sSearch="", **kwargs):
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
         # kwargs is used by datatables to pass params
         rows = []
         filtered = []
@@ -6080,7 +6080,7 @@ class WebInterface:
                 cmd += " AND BookID=?"
                 args.append(kwargs['mag'].replace('&amp;', '&'))
 
-            loggerserverside.debug(f"get_past_issues {cmd}: {str(args)}")
+            serversidelogger.debug(f"get_past_issues {cmd}: {str(args)}")
             rowlist = db.select(cmd, tuple(args))
             if len(rowlist):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
@@ -6088,13 +6088,13 @@ class WebInterface:
                     rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
 
                 filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                               reverse=sSortDir_0 == "desc")
@@ -6117,8 +6117,8 @@ class WebInterface:
                         provider = provider.replace('/', ' ')
                         row[4] = provider
 
-            loggerserverside.debug(f"get_past_issues returning {displaystart} to {displaystart + displaylength}")
-            loggerserverside.debug(f"get_past_issues filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_past_issues returning {displaystart} to {displaystart + displaylength}")
+            serversidelogger.debug(f"get_past_issues filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
         except Exception:
             logger.error(f'Unhandled exception in get_past_issues: {traceback.format_exc()}')
             rows = []
@@ -6130,7 +6130,7 @@ class WebInterface:
                   'iTotalRecords': len(rowlist),
                   'aaData': rows,
                   }
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @cherrypy.expose
@@ -7190,7 +7190,7 @@ class WebInterface:
         rowlist = []
         self.label_thread('WEBSERVER')
         logger = logging.getLogger(__name__)
-        loggerserverside = logging.getLogger('special.serverside')
+        serversidelogger = logging.getLogger('special.serverside')
         db = database.DBConnection()
         # noinspection PyBroadException
         try:
@@ -7208,13 +7208,13 @@ class WebInterface:
                     rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
-                    loggerserverside.debug(f"filter {sSearch}")
+                    serversidelogger.debug(f"filter {sSearch}")
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
                 sortcolumn = int(iSortCol_0)
-                loggerserverside.debug(f"sortcolumn {sortcolumn}")
+                serversidelogger.debug(f"sortcolumn {sortcolumn}")
 
                 # use rowid to get most recently added first (monitoring progress)
                 if sortcolumn == 6:
@@ -7292,9 +7292,9 @@ class WebInterface:
                             continue
                     rows.append(row)
 
-            loggerserverside.debug(
+            serversidelogger.debug(
                 f"get_history returning {displaystart} to {displaystart + displaylength}, snatching {snatching}")
-            loggerserverside.debug(f"get_history filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
+            serversidelogger.debug(f"get_history filtered {len(filtered)} from {len(rowlist)}:{len(rows)}")
         except Exception:
             logger.error(f'Unhandled exception in get_history: {traceback.format_exc()}')
             rows = []
@@ -7306,7 +7306,7 @@ class WebInterface:
                   'iTotalRecords': len(rowlist),
                   'aaData': rows,
                   }
-        loggerserverside.debug(str(mydict))
+        serversidelogger.debug(str(mydict))
         return mydict
 
     @cherrypy.expose
@@ -8251,7 +8251,7 @@ class WebInterface:
     def test_deluge(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
-        loggerdlcomms = logging.getLogger('special.dlcomms')
+        dlcommslogger = logging.getLogger('special.dlcomms')
         fail = ''
         if 'host' in kwargs:
             if self.validate_param("deluge host", kwargs['host'], ['<', '>', '='], None):
@@ -8311,7 +8311,7 @@ class WebInterface:
                 if CONFIG['DELUGE_LABEL']:
                     labels = client.call('label.get_labels')
                     if labels:
-                        loggerdlcomms.debug(f"Valid labels: {str(labels)}")
+                        dlcommslogger.debug(f"Valid labels: {str(labels)}")
                     else:
                         msg += "Deluge daemon seems to have no labels set\n"
 
@@ -8625,7 +8625,7 @@ class WebInterface:
     def test_ffmpeg(self, **kwargs):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        loggerpostprocess = logging.getLogger('special.postprocess')
+        postprocesslogger = logging.getLogger('special.postprocess')
         if 'prg' in kwargs and kwargs['prg']:
             if self.validate_param("ffmpeg program", kwargs['prg'], ['<', '>', '='], None):
                 CONFIG.set_str('FFMPEG', kwargs['prg'])
@@ -8633,7 +8633,7 @@ class WebInterface:
                 return 'ffmpeg failed, bad parameter: program'
         ffmpeg = CONFIG['FFMPEG']
         try:
-            if loggerpostprocess.isEnabledFor(logging.DEBUG):
+            if postprocesslogger.isEnabledFor(logging.DEBUG):
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = DIRS.get_logfile(
                     f"ffmpeg-test-{now().replace(':', '-').replace(' ', '-')}.log")

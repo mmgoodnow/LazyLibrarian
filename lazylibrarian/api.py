@@ -278,7 +278,7 @@ class Api(object):
         self.callback = None
         self.lower_cmds = [key.lower() for key, _ in cmd_dict.items()]
         self.logger = logging.getLogger(__name__)
-        self.loggerdlcomms = logging.getLogger('special.dlcomms')
+        self.dlcommslogger = logging.getLogger('special.dlcomms')
 
     def check_params(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -342,7 +342,7 @@ class Api(object):
             method_to_call(**self.kwargs)
 
             if 'callback' not in self.kwargs:
-                self.loggerdlcomms.debug(str(self.data))
+                self.dlcommslogger.debug(str(self.data))
                 if isinstance(self.data, str):
                     return self.data
                 else:

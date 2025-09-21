@@ -47,9 +47,9 @@ def get_client():
 
 
 def get_files(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug(f'get_torrent_files({hashid})')
+    dlcommslogger.debug(f'get_torrent_files({hashid})')
     hashid = hashid.lower()
     qbclient = get_client()
     if not qbclient:
@@ -66,9 +66,9 @@ def get_files(hashid):
 
 
 def get_name(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug(f'get_name({hashid})')
+    dlcommslogger.debug(f'get_name({hashid})')
     hashid = hashid.lower()
     qbclient = get_client()
     if not qbclient:
@@ -93,9 +93,9 @@ def get_name(hashid):
 
 
 def get_folder(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug(f'get_folder({hashid})')
+    dlcommslogger.debug(f'get_folder({hashid})')
     hashid = hashid.lower()
     qbclient = get_client()
     if not qbclient:
@@ -123,15 +123,15 @@ def get_folder(hashid):
 
 
 def get_progress(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f'get_progress({hashid})')
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f'get_progress({hashid})')
     hashid = hashid.lower()
     qbclient = get_client()
     if not qbclient:
         return -1, '', False
 
     preferences = qbclient.preferences()
-    loggerdlcomms.debug(str(preferences))
+    dlcommslogger.debug(str(preferences))
     max_ratio = 0.0
     if 'max_ratio_enabled' in preferences and 'max_ratio' in preferences:
         if preferences['max_ratio_enabled']:
@@ -166,8 +166,8 @@ def get_progress(hashid):
 
 def remove_torrent(hashid, remove_data=False):
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f'remove_torrent({hashid},{remove_data})')
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f'remove_torrent({hashid},{remove_data})')
     hashid = hashid.lower()
     qbclient = get_client()
     if not qbclient:
@@ -213,16 +213,16 @@ def check_link():
 
 
 def add_file(data, hashid, title, provider_options):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug(f'add_file(data){title}')
+    dlcommslogger.debug(f'add_file(data){title}')
     hashid = hashid.lower()
     qbclient = get_client()
     if not qbclient:
         return False, "Failed to login to qbittorrent"
 
     kwargs = get_args(provider_options)
-    loggerdlcomms.debug(f'{kwargs}')
+    dlcommslogger.debug(f'{kwargs}')
     qbclient.download_from_file(data, **kwargs)
     count = 0
     while count < 10:
@@ -232,17 +232,17 @@ def add_file(data, hashid, title, provider_options):
         torrent = qbclient.get_torrent(hashid)
         if torrent:
             if count > 1:
-                loggerdlcomms.debug(f"hashid found in torrent list after {count} seconds")
+                dlcommslogger.debug(f"hashid found in torrent list after {count} seconds")
             return True, ''
     res = "hashid not found in torrent list, add_file failed"
-    loggerdlcomms.debug(res)
+    dlcommslogger.debug(res)
     return False, res
 
 
 def add_torrent(link, hashid, provider_options):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
 
-    loggerdlcomms.debug(f'add_torrent({link})')
+    dlcommslogger.debug(f'add_torrent({link})')
 
     qbclient = get_client()
     if not qbclient:
@@ -250,7 +250,7 @@ def add_torrent(link, hashid, provider_options):
 
     hashid = hashid.lower()
     kwargs = get_args(provider_options)
-    loggerdlcomms.debug(f'{kwargs}')
+    dlcommslogger.debug(f'{kwargs}')
     qbclient.download_from_link(link, **kwargs)
     count = 0
     while count < 10:
@@ -260,10 +260,10 @@ def add_torrent(link, hashid, provider_options):
         torrent = qbclient.get_torrent(hashid)
         if torrent:
             if count > 1:
-                loggerdlcomms.debug(f"hashid found in torrent list after {count} seconds")
+                dlcommslogger.debug(f"hashid found in torrent list after {count} seconds")
             return True, ''
     res = "hashid not found in torrent list, add_torrent failed"
-    loggerdlcomms.debug(res)
+    dlcommslogger.debug(res)
     return False, res
 
 

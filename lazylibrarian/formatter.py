@@ -941,8 +941,8 @@ def strip_quotes(text):
 def replacevars(base, mydict):
     if not base:
         return ''
-    loggermatching = logging.getLogger('special.matching')
-    loggermatching.debug(base)
+    matchinglogger = logging.getLogger('special.matching')
+    matchinglogger.debug(base)
     vardict = ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum', '$Language',
                '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total', '$Abridged',
                '$IssueDate', '$IssueNum', '$IssueVol', '$IssueMonth', '$IssueYear', '$IssueDay']
@@ -971,7 +971,7 @@ def replacevars(base, mydict):
         if item[1:] in mydict:
             base = base.replace(item, mydict[item[1:]])
     base = base.replace('$$', ' ')
-    loggermatching.debug(base)
+    matchinglogger.debug(base)
     return base
 
 

@@ -336,7 +336,7 @@ def db_upgrade(current_version: int, restartjobs: bool = False):
 
 def check_db(upgradelog=None):
     logger = logging.getLogger(__name__)
-    loggermatching = logging.getLogger('special.matching')
+    matchinglogger = logging.getLogger('special.matching')
     cnt = 0
     closefile = False
     db = database.DBConnection()
@@ -717,7 +717,7 @@ def check_db(upgradelog=None):
                 for author in authors:
                     name = db.match("SELECT authorname,status,reason from authors where authorid=?",
                                     (author[0],))
-                    loggermatching.warning(f"{name[0]} ({name[1]}) has no active books ({name[2]})")
+                    matchinglogger.warning(f"{name[0]} ({name[1]}) has no active books ({name[2]})")
                 # db.action('DELETE from authors where authorid=?', (author[0],))
 
             # update empty bookdate to "0000"

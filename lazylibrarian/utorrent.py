@@ -34,7 +34,7 @@ class UtorrentClient(object):
                  username='',  # lazylibrarian.CONFIG['UTORRENT_USER'],
                  password='',):  # lazylibrarian.CONFIG['UTORRENT_PASS']):
         self.logger = logging.getLogger(__name__)
-        self.loggerdlcomms = logging.getLogger('special.dlcomms')
+        self.dlcommslogger = logging.getLogger('special.dlcomms')
 
         host = CONFIG['UTORRENT_HOST']
         port = CONFIG.get_int('UTORRENT_PORT')
@@ -84,7 +84,7 @@ class UtorrentClient(object):
             response = self.opener.open(url)
         except Exception as err:
             self.logger.error(f'{type(err).__name__} getting Token. uTorrent responded with: {str(err)}')
-            self.loggerdlcomms.debug(f'URL: {url}')
+            self.dlcommslogger.debug(f'URL: {url}')
             return None
         match = re.search(UtorrentClient.TOKEN_REGEX, response.read())
         return match.group(1)
@@ -186,7 +186,7 @@ class UtorrentClient(object):
 
     def _action(self, params, body=None, content_type=None):
         url = f"{self.base_url}/gui/?token={self.token}&{urlencode(params)}"
-        self.loggerdlcomms.debug(f"uTorrent params {str(params)}")
+        self.dlcommslogger.debug(f"uTorrent params {str(params)}")
         request = Request(url)
         if CONFIG['PROXY_HOST']:
             for item in get_list(CONFIG['PROXY_TYPE']):
@@ -203,8 +203,8 @@ class UtorrentClient(object):
             response = self.opener.open(request)
             res = response.code
             js = json.loads(response.read())
-            self.loggerdlcomms.debug(f"uTorrent response code {res}")
-            self.loggerdlcomms.debug(str(js))
+            self.dlcommslogger.debug(f"uTorrent response code {res}")
+            self.dlcommslogger.debug(str(js))
             return res, js
         except Exception as err:
             self.logger.debug(f'URL: {url}')
@@ -235,8 +235,8 @@ def check_link():
 
 # noinspection PyUnresolvedReferences
 def label_torrent(hashid, label):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"set label {label} for {hashid}")
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"set label {label} for {hashid}")
     uclient = UtorrentClient()
     torrent_list = uclient.list()
     for torrent in torrent_list[1].get('torrents'):
@@ -247,8 +247,8 @@ def label_torrent(hashid, label):
 
 
 def dir_torrent(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"get directory for {hashid}")
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"get directory for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -259,8 +259,8 @@ def dir_torrent(hashid):
 
 
 def name_torrent(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"get name for {hashid}")
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"get name for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -271,15 +271,15 @@ def name_torrent(hashid):
 
 
 def pause_torrent(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"pause {hashid}")
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"pause {hashid}")
     uclient = UtorrentClient()
     return uclient.pause(hashid)
 
 
 def progress_torrent(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"get progress for {hashid}")
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"get progress for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -291,8 +291,8 @@ def progress_torrent(hashid):
 
 
 def list_torrent(hashid):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"get file list for {hashid}")
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"get file list for {hashid}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -303,8 +303,8 @@ def list_torrent(hashid):
 
 
 def remove_torrent(hashid, remove_data=False):
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"remove torrent {hashid} remove_data={remove_data}")
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"remove torrent {hashid} remove_data={remove_data}")
     uclient = UtorrentClient()
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
@@ -321,9 +321,9 @@ def remove_torrent(hashid, remove_data=False):
 def add_torrent(link, hashid, provider_options=None):
     uclient = UtorrentClient()
     uclient.add_url(link)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
-    loggerdlcomms.debug(f"Add hashid {hashid}")
-    
+    dlcommslogger = logging.getLogger('special.dlcomms')
+    dlcommslogger.debug(f"Add hashid {hashid}")
+
     if provider_options:
         if "seed_ratio" in provider_options:
             uclient.setprops(hashid, "seed_time", provider_options["seed_ratio"])

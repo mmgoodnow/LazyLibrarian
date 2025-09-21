@@ -252,7 +252,7 @@ def process_issues(source_dir=None, title=''):
     # import magazine issues for a given title from an alternate directory
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
-    loggermatching = logging.getLogger('special.matching')
+    matchinglogger = logging.getLogger('special.matching')
     # noinspection PyBroadException
     try:
         if not source_dir:
@@ -295,19 +295,19 @@ def process_issues(source_dir=None, title=''):
             if not extn or extn.lower() not in get_list(CONFIG['MAG_TYPE']):
                 continue
 
-            loggermatching.debug(f'Trying to match {f}')
+            matchinglogger.debug(f'Trying to match {f}')
             filename_words = replace_all(f.lower(), dic).split()
             found_title = True
             for word in title_words:
                 if word not in filename_words:
-                    loggermatching.debug(f'[{word}] not found in {f}')
+                    matchinglogger.debug(f'[{word}] not found in {f}')
                     found_title = False
                     break
 
             if found_title:
                 for item in rejects:
                     if item in filename_words:
-                        loggermatching.debug(f'Rejecting {f}, contains {item}')
+                        matchinglogger.debug(f'Rejecting {f}, contains {item}')
                         found_title = False
                         break
 
@@ -343,7 +343,7 @@ def process_issues(source_dir=None, title=''):
                     else:
                         logger.warning(f'Failed to process {f}')
                 else:
-                    loggermatching.debug(f'Unrecognised date style for {f}')
+                    matchinglogger.debug(f'Unrecognised date style for {f}')
         if 'IMPORTISSUES' in threading.current_thread().name:
             threading.current_thread().name = 'WEBSERVER'
         return True
@@ -673,7 +673,7 @@ def unpack_multipart(source_dir, download_dir, title):
         returns new directory in download_dir with book in it, or empty string
     """
     logger = logging.getLogger(__name__)
-    # loggerpostprocess = logging.getLogger('special.postprocess')
+    # postprocesslogger = logging.getLogger('special.postprocess')
     TELEMETRY.record_usage_data('Process/MultiPart')
     # noinspection PyBroadException
     try:
@@ -718,7 +718,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
         returns new directory in download_dir with book in it, or empty string
     """
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     archivename = make_unicode(archivename)
     if not path_isfile(archivename):  # regular files only
         return ''
@@ -728,7 +728,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
         xtn = os.path.splitext(archivename)[1].lower()
         if xtn not in ['.epub', '.cbz'] and zipfile.is_zipfile(archivename):
             TELEMETRY.record_usage_data('Process/Archive/Zip')
-            loggerpostprocess.debug(f'{archivename} is a zip file')
+            postprocesslogger.debug(f'{archivename} is a zip file')
             try:
                 z = zipfile.ZipFile(archivename)
             except Exception as e:
@@ -759,7 +759,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
 
         elif tarfile.is_tarfile(archivename):
             TELEMETRY.record_usage_data('Process/Archive/Tar')
-            loggerpostprocess.debug(f'{archivename} is a tar file')
+            postprocesslogger.debug(f'{archivename} is a tar file')
             try:
                 z = tarfile.TarFile(archivename)
             except Exception as e:
@@ -789,7 +789,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
 
         elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
             TELEMETRY.record_usage_data('Process/Archive/RarOne')
-            loggerpostprocess.debug(f'{archivename} is a rar file')
+            postprocesslogger.debug(f'{archivename} is a rar file')
             try:
                 z = lazylibrarian.RARFILE.RarFile(archivename)
             except Exception as e:
@@ -821,7 +821,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
             # noinspection PyBroadException
             try:
                 z = lazylibrarian.RARFILE(archivename)
-                loggerpostprocess.debug(f'{archivename} is a rar file')
+                postprocesslogger.debug(f'{archivename} is a rar file')
                 TELEMETRY.record_usage_data('Process/Archive/RarTwo')
             except Exception as e:
                 if archivename.endswith('.rar'):
@@ -857,7 +857,7 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
                                     f.write(entry[1])
                             break
         if not targetdir:
-            loggerpostprocess.debug(f"[{archivename}] doesn't look like an archive we can unpack")
+            postprocesslogger.debug(f"[{archivename}] doesn't look like an archive we can unpack")
             return ''
 
         return targetdir
@@ -888,8 +888,8 @@ def book_type(book):
 
 def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
-    loggerfuzz = logging.getLogger('special.fuzz')
+    postprocesslogger = logging.getLogger('special.postprocess')
+    fuzzlogger = logging.getLogger('special.fuzz')
     status = {'status': 'failed'}
     count = 0
     for threadname in [n.name for n in [t for t in threading.enumerate()]]:
@@ -1024,7 +1024,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                     for fname in downloads:
                         # skip if failed before or incomplete torrents, or incomplete btsync etc
-                        loggerpostprocess.debug(f"Checking extn on {fname}")
+                        postprocesslogger.debug(f"Checking extn on {fname}")
                         extn = os.path.splitext(fname)[1]
                         if not extn or extn.strip('.') not in skipped_extensions:
                             # This is to get round differences in torrent filenames.
@@ -1036,7 +1036,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             matchname = sanitize(matchname)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
                             pp_path = ''
-                            loggerfuzz.debug(f"{round(match, 2)}% match {matchtitle} : {matchname}")
+                            fuzzlogger.debug(f"{round(match, 2)}% match {matchtitle} : {matchname}")
                             if match >= CONFIG.get_int('DLOAD_RATIO'):
                                 # matching file or folder name
                                 pp_path = os.path.join(download_dir, fname)
@@ -1048,14 +1048,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                                         matchname = sanitize(matchname)
                                         match = fuzz.token_set_ratio(matchtitle, matchname)
-                                        loggerfuzz.debug(f"{round(match, 2)}% match {matchtitle} : {matchname}")
+                                        fuzzlogger.debug(f"{round(match, 2)}% match {matchtitle} : {matchname}")
                                         if match >= CONFIG.get_int('DLOAD_RATIO'):
                                             # found matching file in this folder
                                             pp_path = os.path.join(download_dir, fname)
                                             break
 
                             if match >= CONFIG.get_int('DLOAD_RATIO'):
-                                loggerpostprocess.debug(f"process_dir found {type(pp_path)} {repr(pp_path)}")
+                                postprocesslogger.debug(f"process_dir found {type(pp_path)} {repr(pp_path)}")
 
                                 if path_isfile(pp_path):
                                     # Check for single file downloads first. Book/mag file in download root.
@@ -1064,7 +1064,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     # note that epub are zipfiles so check booktype first
                                     # and don't unpack cbr/cbz comics'
                                     if is_valid_type(fname, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
-                                        loggerpostprocess.debug(f'file [{fname}] is a valid book/mag')
+                                        postprocesslogger.debug(f'file [{fname}] is a valid book/mag')
                                         if bts_file(download_dir):
                                             logger.debug(f"Skipping {download_dir}, found a .bts file")
                                         else:
@@ -1160,7 +1160,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                                                                                 ' ')
                                                     processed_fname = sanitize(processed_fname)
                                                     bookmatch = fuzz.token_set_ratio(matchtitle, processed_fname)
-                                                    loggerfuzz.debug(f"{round(bookmatch, 2)}% match {matchtitle} : "
+                                                    fuzzlogger.debug(f"{round(bookmatch, 2)}% match {matchtitle} : "
                                                                      f"{processed_fname}")
                                                     if bookmatch > found_score:
                                                         found_file = f
@@ -1354,7 +1354,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         if match:
                             logger.debug(f'Closest match ({round(match, 2)}%): {pp_path}')
                             for match in matches:
-                                loggerfuzz.debug(f'Match: {round(match[0], 2)}%  {match[1]}')
+                                fuzzlogger.debug(f'Match: {round(match[0], 2)}%  {match[1]}')
 
                     if not dest_path:
                         continue
@@ -1601,14 +1601,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             mins = 0
             progress = 'Unknown'
             finished = False
-            loggerpostprocess.debug(f"{book['Status']} {book['Source']} {book['NZBtitle']}")
+            postprocesslogger.debug(f"{book['Status']} {book['Source']} {book['NZBtitle']}")
             if book['Status'] == "Aborted":
                 abort = True
             else:
                 progress, finished = get_download_progress(book['Source'], book['DownloadID'])
 
             if book['Status'] == "Seeding":
-                loggerpostprocess.debug(
+                postprocesslogger.debug(
                     f"Progress:{progress} Finished:{finished} Waiting:{CONFIG.get_bool('SEED_WAIT')}")
                 if not CONFIG.get_bool('KEEP_SEEDING') and (finished or progress < 0
                                                             and not CONFIG.get_bool('SEED_WAIT')):
@@ -1854,13 +1854,13 @@ def check_residual(download_dir):
     # don't process any we've already got as we might not want to delete originals
     # NOTE: we currently only import ebook OR audiobook from a single folder, not both
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     db = database.DBConnection()
     ppcount = 0
     try:
         skipped_extensions = get_list(CONFIG['SKIPPED_EXT'])
         downloads = listdir(download_dir)
-        loggerpostprocess.debug(
+        postprocesslogger.debug(
             f"Scanning {len(downloads)} {plural(len(downloads), 'entry')} in {download_dir} for LL.(num)")
         TELEMETRY.record_usage_data('Process/Residual')
         for entry in downloads:
@@ -1889,21 +1889,21 @@ def check_residual(download_dir):
                     if exists:
                         logger.debug(f'Skipping BookID {book_id}, already exists')
                     else:
-                        loggerpostprocess.debug(f"Checking type of {pp_path}")
+                        postprocesslogger.debug(f"Checking type of {pp_path}")
 
                         if path_isfile(pp_path):
-                            loggerpostprocess.debug(f"{pp_path} is a file")
+                            postprocesslogger.debug(f"{pp_path} is a file")
                             pp_path = os.path.join(download_dir)
 
                         if path_isdir(pp_path):
-                            loggerpostprocess.debug(f"{pp_path} is a dir")
+                            postprocesslogger.debug(f"{pp_path} is a dir")
                             if process_book(pp_path, book_id):
-                                loggerpostprocess.debug(f"Imported {pp_path}")
+                                postprocesslogger.debug(f"Imported {pp_path}")
                                 ppcount += 1
                 else:
-                    loggerpostprocess.debug(f"Skipping extn {entry}")
+                    postprocesslogger.debug(f"Skipping extn {entry}")
             else:
-                loggerpostprocess.debug(f"Skipping (no LL bookid) {entry}")
+                postprocesslogger.debug(f"Skipping (no LL bookid) {entry}")
         db.close()
     except Exception as e:
         logger.error(f"Exception in check_residual: {e}")
@@ -1913,7 +1913,7 @@ def check_residual(download_dir):
 
 def get_download_name(title, source, downloadid):
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     dlname = None
     try:
         logger.debug(f"{title} was sent to {source}")
@@ -1937,7 +1937,7 @@ def get_download_name(title, source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                loggerdlcomms.debug(f"Deluge RPC Status [{str(result)}]")
+                dlcommslogger.debug(f"Deluge RPC Status [{str(result)}]")
                 if 'name' in result:
                     dlname = unaccented(result['name'], only_ascii=False)
             except Exception as e:
@@ -1992,7 +1992,7 @@ def get_download_name(title, source, downloadid):
 
 def get_download_files(source, downloadid):
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     dlfiles = None
     TELEMETRY.record_usage_data('Get/DownloadFiles')
     try:
@@ -2016,13 +2016,13 @@ def get_download_files(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                loggerdlcomms.debug(f"Deluge RPC Status [{str(result)}]")
+                dlcommslogger.debug(f"Deluge RPC Status [{str(result)}]")
                 if 'files' in result:
                     dlfiles = result['files']
             except Exception as e:
                 logger.error(f'DelugeRPC failed {type(e).__name__} {str(e)}')
         else:
-            loggerdlcomms.debug(f"Unable to get file list from {source} (not implemented)")
+            dlcommslogger.debug(f"Unable to get file list from {source} (not implemented)")
         return dlfiles
 
     except Exception as e:
@@ -2032,7 +2032,7 @@ def get_download_files(source, downloadid):
 
 def get_download_folder(source, downloadid):
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     dlfolder = None
     # noinspection PyBroadException
     TELEMETRY.record_usage_data('Get/DownloadFolder')
@@ -2058,7 +2058,7 @@ def get_download_folder(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                loggerdlcomms.debug(f"Deluge RPC Status [{str(result)}]")
+                dlcommslogger.debug(f"Deluge RPC Status [{str(result)}]")
                 if 'save_path' in result:
                     dlfolder = result['save_path']
             except Exception as e:
@@ -2106,7 +2106,7 @@ def get_download_folder(source, downloadid):
 
         elif source == 'NZBGET':
             res, _ = nzbget.send_nzb(cmd='listgroups')
-            loggerdlcomms.debug(str(res))
+            dlcommslogger.debug(str(res))
             if res:
                 for item in res:
                     if item['NZBID'] == check_int(downloadid, 0):
@@ -2114,7 +2114,7 @@ def get_download_folder(source, downloadid):
                         break
             if not dlfolder:  # not in queue, try history
                 res, _ = nzbget.send_nzb(cmd='history')
-                loggerdlcomms.debug(str(res))
+                dlcommslogger.debug(str(res))
                 if res:
                     for item in res:
                         if item['NZBID'] == check_int(downloadid, 0):
@@ -2130,7 +2130,7 @@ def get_download_folder(source, downloadid):
 
 def get_download_progress(source, downloadid):
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     progress = 0
     finished = False
     db = database.DBConnection()
@@ -2219,7 +2219,7 @@ def get_download_progress(source, downloadid):
 
         elif source == 'NZBGET':
             res, _ = nzbget.send_nzb(cmd='listgroups')
-            loggerdlcomms.debug(str(res))
+            dlcommslogger.debug(str(res))
             found = False
             if res:
                 for item in res:
@@ -2237,7 +2237,7 @@ def get_download_progress(source, downloadid):
                         break
             if not found:  # not in queue, try history in case completed or error
                 res, _ = nzbget.send_nzb(cmd='history')
-                loggerdlcomms.debug(str(res))
+                dlcommslogger.debug(str(res))
                 if res:
                     for item in res:
                         if item['NZBID'] == check_int(downloadid, 0):
@@ -2314,7 +2314,7 @@ def get_download_progress(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                loggerdlcomms.debug(f"Deluge RPC Status [{str(result)}]")
+                dlcommslogger.debug(f"Deluge RPC Status [{str(result)}]")
 
                 if 'progress' in result:
                     progress = result['progress']
@@ -2335,7 +2335,7 @@ def get_download_progress(source, downloadid):
                 progress = 0
 
         else:
-            loggerdlcomms.debug(f"Unable to get progress from {source} (not implemented)")
+            dlcommslogger.debug(f"Unable to get progress from {source} (not implemented)")
             progress = 0
         try:
             progress = int(progress)
@@ -2407,13 +2407,13 @@ def delete_task(source, download_id, remove_data):
 def process_book(pp_path=None, bookid=None, library=None):
     TELEMETRY.record_usage_data('Process/Book')
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
         # Move a book into LL folder structure given just the folder and bookID, returns True or False
         # Called from "import_alternate" or if we find a "LL.(xxx)" folder that doesn't match a snatched book/mag
-        loggerpostprocess.debug(f"process_book {pp_path}")
+        postprocesslogger.debug(f"process_book {pp_path}")
         is_audio = (book_file(pp_path, "audiobook", config=CONFIG) != '')
         is_ebook = (book_file(pp_path, "ebook", config=CONFIG) != '')
 
@@ -2445,7 +2445,7 @@ def process_book(pp_path=None, bookid=None, library=None):
             elif want_ebook and is_ebook:
                 booktype = "eBook"
             elif not was_snatched:
-                loggerpostprocess.debug(
+                postprocesslogger.debug(
                     f'Bookid {bookid} was not snatched so cannot check type, contains ebook:{is_ebook} '
                     f'audio:{is_audio}')
 
@@ -2494,7 +2494,7 @@ def process_book(pp_path=None, bookid=None, library=None):
                 dest_file = make_unicode(dest_file)
                 if was_snatched:
                     snatched_from = CONFIG.disp_name(was_snatched[0]['NZBprov'])
-                    loggerpostprocess.debug(f"{global_name} was snatched from {snatched_from}")
+                    postprocesslogger.debug(f"{global_name} was snatched from {snatched_from}")
                     control_value_dict = {"BookID": bookid}
                     new_value_dict = {"Status": "Processed", "NZBDate": now(), "DLResult": dest_file}
                     db.upsert("wanted", new_value_dict, control_value_dict)
@@ -2508,7 +2508,7 @@ def process_book(pp_path=None, bookid=None, library=None):
                         new_value_dict["NZBSize"] = 0
                     db.upsert("wanted", new_value_dict, control_value_dict)
                     snatched_from = "manually added"
-                    loggerpostprocess.debug(f"{booktype} {global_name} was {snatched_from}")
+                    postprocesslogger.debug(f"{booktype} {global_name} was {snatched_from}")
 
                 if dest_file:  # do we know the location (not calibre already exists)
                     process_extras(dest_file, global_name, bookid, booktype)
@@ -2996,7 +2996,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
     TELEMETRY.record_usage_data('Process/Destination')
     logger = logging.getLogger(__name__)
-    loggerpostprocess = logging.getLogger('special.postprocess')
+    postprocesslogger = logging.getLogger('special.postprocess')
     logger.debug(f"{booktype} [{global_name}] {str(data)}")
     booktype = booktype.lower()
     pp_path = make_unicode(pp_path)
@@ -3110,12 +3110,12 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         return send_to_calibre(booktype, global_name, pp_path, data)
 
     # we are copying the files ourselves
-    loggerpostprocess.debug(f"BookType: {booktype}, calibredb: [{CONFIG['IMP_CALIBREDB']}]")
-    loggerpostprocess.debug(f"Source Path: {repr(pp_path)}")
-    loggerpostprocess.debug(f"Dest Path: {repr(dest_path)}")
+    postprocesslogger.debug(f"BookType: {booktype}, calibredb: [{CONFIG['IMP_CALIBREDB']}]")
+    postprocesslogger.debug(f"Source Path: {repr(pp_path)}")
+    postprocesslogger.debug(f"Dest Path: {repr(dest_path)}")
     dest_path, encoding = make_utf8bytes(dest_path)
     if encoding:
-        loggerpostprocess.debug(f"dest_path was {encoding}")
+        postprocesslogger.debug(f"dest_path was {encoding}")
     if not path_exists(dest_path):
         logger.debug(f'{dest_path} does not exist, so it\'s safe to create it')
     elif not path_isdir(dest_path):
@@ -3132,7 +3132,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     udest_path = make_unicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
     global_name, encoding = make_utf8bytes(global_name)
     if encoding:
-        loggerpostprocess.debug(f"global_name was {encoding}")
+        postprocesslogger.debug(f"global_name was {encoding}")
 
     # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
     firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multipart audiobooks

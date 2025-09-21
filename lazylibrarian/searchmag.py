@@ -40,7 +40,7 @@ def search_magazines(mags=None, reset=False, backissues=False):
     # produce a list of magazines to search for, then search all enabled providers
     TELEMETRY.record_usage_data('Search/Magazine')
     logger = logging.getLogger(__name__)
-    loggersearching = logging.getLogger('special.searching')
+    searchinglogger = logging.getLogger('special.searching')
     threadname = thread_name()
     if "Thread" in threadname:
         if not mags:
@@ -304,9 +304,9 @@ def search_magazines(mags=None, reset=False, backissues=False):
                             lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower().split()
                             lower_bookid = unaccented(bookid, only_ascii=False).lower().split()
                             if reject_list:
-                                loggersearching.debug(f'Reject: {reject_list}')
-                                loggersearching.debug(f'Title: {lower_title}')
-                                loggersearching.debug(f'Bookid: {lower_bookid}')
+                                searchinglogger.debug(f'Reject: {reject_list}')
+                                searchinglogger.debug(f'Title: {lower_title}')
+                                searchinglogger.debug(f'Bookid: {lower_bookid}')
                             for word in reject_list:
                                 word = unaccented(word).lower()
                                 if word in lower_title and word not in lower_bookid:
@@ -426,14 +426,14 @@ def search_magazines(mags=None, reset=False, backissues=False):
                                     logger.debug(f'This issue of {nzbtitle_formatted} is new, downloading')
                                     issues.append(issue)
                                     logger.debug(f'Magazine request number {len(issues)}')
-                                    loggersearching.debug(str(issues))
+                                    searchinglogger.debug(str(issues))
                                     insert_table = "wanted"
                                     nzbdate = now()  # when we asked for it
                                 else:
                                     logger.debug(f'This issue of {issue} is already flagged for download; skipping')
                                     continue
                             else:
-                                loggersearching.debug(f'This issue of {nzbtitle_formatted} is old; skipping.')
+                                searchinglogger.debug(f'This issue of {nzbtitle_formatted} is old; skipping.')
                                 old_date += 1
 
                             mag_entry = db.match(f'SELECT * from issues WHERE title=? and issuedate=?',

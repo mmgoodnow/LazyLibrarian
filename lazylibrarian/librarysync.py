@@ -44,13 +44,13 @@ from lib.mobi import Mobi
 def get_book_meta(fdir, reason="get_book_meta"):
     # look for a bookid in a LL.() filename or a .desktop file and return author/title/bookid
     logger = logging.getLogger(__name__)
-    loggerlibsync = logging.getLogger('special.libsync')
+    libsynclogger = logging.getLogger('special.libsync')
     bookid = ''
     reason = f"{reason} [{fdir}]"
-    loggerlibsync.debug(reason)
+    libsynclogger.debug(reason)
     try:
         for item in listdir(fdir):
-            loggerlibsync.debug(f"Checking [{item}]")
+            libsynclogger.debug(f"Checking [{item}]")
             if 'LL.(' in item:
                 bookid = item.split('LL.(')[1].split(')')[0]
                 if bookid:
@@ -238,7 +238,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     # or one already marked 'Open' so we match the same one as before
     # or prefer not ignored over ignored
     logger = logging.getLogger(__name__)
-    loggerfuzz = logging.getLogger('special.fuzz')
+    fuzzlogger = logging.getLogger('special.fuzz')
     book = book.replace('\n', ' ')
     book = " ".join(book.split())
     author = " ".join(author.split())
@@ -273,9 +273,9 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
 
-        loggerfuzz.debug(f"Found {len(res)} exact match")
+        fuzzlogger.debug(f"Found {len(res)} exact match")
         for item in res:
-            loggerfuzz.debug(f"{book} [{item[whichstatus]}]")
+            fuzzlogger.debug(f"{book} [{item[whichstatus]}]")
 
         match = None
         for item in res:
@@ -328,7 +328,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                            f"(source={source},library={library},ignored={ignored})")
             return 0, ''
 
-        loggerfuzz.debug(cmd)
+        fuzzlogger.debug(cmd)
 
         best_ratio = 0.0
         best_partial = 0.0
@@ -360,7 +360,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         logger.debug(f"Searching {len(books)} {ign}{plural(len(books), 'book')} by "
                      f"[{authorid}:{author}] in database for [{book}]")
-        loggerfuzz.debug(f'book partname [{book_partname}] book_sub [{book_sub}]')
+        fuzzlogger.debug(f'book partname [{book_partname}] book_sub [{book_sub}]')
         if book_partname == book_lower:
             book_partname = ''
 
@@ -368,7 +368,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             a_bookname = a_book['BookName']
             if a_book['BookSub'] and book_sub:
                 a_bookname += f" {a_book['BookSub']}"
-            loggerfuzz.debug(f"Checking [{a_bookname}]")
+            fuzzlogger.debug(f"Checking [{a_bookname}]")
             # tidy up everything to raise fuzziness scores
             # still need to lowercase for matching against partial_name later on
             a_book_lower = unaccented(a_bookname.lower(), only_ascii=False)
@@ -382,14 +382,14 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             #
             # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
             ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
-            loggerfuzz.debug(f"Ratio {round(ratio, 2)} [{book_lower}][{a_book_lower}]")
+            fuzzlogger.debug(f"Ratio {round(ratio, 2)} [{book_lower}][{a_book_lower}]")
             # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
             partial = fuzz.partial_ratio(book_lower, a_book_lower)
-            loggerfuzz.debug(f"PartialRatio {round(partial, 2)} [{book_lower}][{a_book_lower}]")
+            fuzzlogger.debug(f"PartialRatio {round(partial, 2)} [{book_lower}][{a_book_lower}]")
             if book_partname:
                 # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
                 partname = fuzz.partial_ratio(book_partname, a_book_lower)
-                loggerfuzz.debug(f"PartName {round(partname, 2)} [{book_partname}][{a_book_lower}]")
+                fuzzlogger.debug(f"PartName {round(partname, 2)} [{book_partname}][{a_book_lower}]")
 
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
@@ -495,8 +495,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
     """ Scan a directory tree adding new books into database
         Return how many books you added """
     logger = logging.getLogger(__name__)
-    loggerlibsync = logging.getLogger('special.libsync')
-    loggermatching = logging.getLogger('special.matching')
+    libsynclogger = logging.getLogger('special.libsync')
+    matchinglogger = logging.getLogger('special.matching')
     destdir = get_directory(library)
     if not startdir:
         if not destdir:
@@ -663,7 +663,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
             "\\$Total", "(?P<total>.*?)").replace(
             "\\$Abridged", "(?P<abridged>.*?)").replace(
             "\\$\\$", "\\ ") + r'\.[' + booktypes + ']'
-        loggermatching.debug(f"Pattern [{match_string}]")
+        matchinglogger.debug(f"Pattern [{match_string}]")
 
         # noinspection PyBroadException
         try:
@@ -696,9 +696,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 # in case user keeps multiple different books in the same subdirectory
                 if library == 'eBook' and CONFIG.get_bool('IMP_SINGLEBOOK') and \
                         (subdirectory in processed_subdirectories):
-                    loggerlibsync.debug(f"[{subdirectory}] already scanned")
+                    libsynclogger.debug(f"[{subdirectory}] already scanned")
                 elif library == 'AudioBook' and (subdirectory in processed_subdirectories):
-                    loggerlibsync.debug(f"[{subdirectory}] already scanned")
+                    libsynclogger.debug(f"[{subdirectory}] already scanned")
                 elif not path_isdir(rootdir):
                     logger.debug(f"Directory {repr(rootdir)} missing (renamed?)")
                 else:

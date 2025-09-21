@@ -1306,19 +1306,7 @@ class OpenLibrary:
         except Exception as e:
             self.logger.error(f"{type(e).__name__} finding book: {str(e)}")
             return None, False
-        bookdict['bookname'] = workinfo.get('title', '')
-        covers = workinfo.get('covers', '')
-        if covers:
-            if isinstance(covers, list):
-                covers = covers[0]
-            cover = 'http://covers.openlibrary.org/b/id/'
-            cover += f'{covers}-M.jpg'
-        else:
-            cover = 'images/nocover.png'
-        bookdict['bookimg'] = cover
-        bookdict['bookdate'] = date_format(workinfo.get('publish_date', ''),
-                                           context=bookdict['bookname'], datelang=CONFIG['DATE_LANG'])
-        lang = "Unknown"
+
         authors = workinfo.get('authors')
         if authors:
             try:
@@ -1331,6 +1319,36 @@ class OpenLibrary:
         bookdict['authorid'] = authorid
         auth = self.get_author_info(authorid)
         bookdict['authorname'] = auth['authorname']
+        bookdict['bookname'] = workinfo.get('title', '')
+        bookdict['booksub'] = ''
+        try:
+            res = isbn_from_words(f"{title} {unaccented(authorname, only_ascii=False)}")
+        except Exception as e:
+            res = None
+            self.logger.warning(f"Error from isbn: {e}")
+        if res:
+            self.logger.debug(f"isbn found {res} for {title}")
+            bookdict['bookisbn'] = res
+        bookdict['bookpub'] = ''
+        bookdict['bookdate'] = date_format(workinfo.get('publish_date', ''),
+                                           context=bookdict['bookname'], datelang=CONFIG['DATE_LANG'])
+        bookdict['booklang'] = "Unknown"
+        bookdict['booklink'] = workinfo.get('key')
+        bookdict['bookrate'] = 0
+        bookdict['bookrate_count'] = 0
+        covers = workinfo.get('covers', '')
+        if covers:
+            if isinstance(covers, list):
+                covers = covers[0]
+            cover = 'http://covers.openlibrary.org/b/id/'
+            cover += f'{covers}-M.jpg'
+        else:
+            cover = 'images/nocover.png'
+        bookdict['bookimg'] = cover
+        bookdict['bookpages'] = 0
+        bookdict['bookgenre'] = ''
+        bookdict['bookdesc'] = ''
+        bookdict['source'] = 'OpenLibrary'
         return bookdict, in_cache
 
     def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.add_bookid'):
@@ -1408,7 +1426,6 @@ class OpenLibrary:
                     if reason.startswith("Series:"):
                         return
 
-            authorname = ''
             authors = workinfo.get('authors')
             if authors:
                 try:
@@ -1485,7 +1502,6 @@ class OpenLibrary:
                     cover, _ = get_book_cover(bookid, ignore='openlibrary')
                 elif cover and cover.startswith('http'):
                     cover = cache_bookimg(cover, bookid, 'ol')
-                print(1, authorid)
                 reason = f"[{thread_name()}] {reason}"
                 control_value_dict = {"BookID": bookid}
                 new_value_dict = {
@@ -1517,8 +1533,8 @@ class OpenLibrary:
                           (authorid, bookid, ROLE['PRIMARY']), suppress='UNIQUE')
                 # ol work page doesn't give us enough info on secondary authors
                 # we can get the data later when the primary author is refreshed using ol_search
+                self.logger.info(f"{title} by {authorname} added to the books database, {bookstatus}/{audiostatus}")
+                db.close()
             except Exception:
                 self.logger.error(f'Unhandled exception in OL.add_bookid_to_db: {traceback.format_exc()}')
-            finally:
                 db.close()
-            self.logger.info(f"{title} by {authorname} added to the books database, {bookstatus}/{audiostatus}")

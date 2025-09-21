@@ -149,7 +149,7 @@ def get_torrent_folder_by_id(torrentid):  # uses transmission id
 
 def get_torrent_files(torrentid):  # uses hashid
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['id', 'files']}
     retries = 3
@@ -157,7 +157,7 @@ def get_torrent_files(torrentid):  # uses hashid
         response, _ = torrent_action(method, arguments)  # type: dict
         if response:
             if len(response['arguments']['torrents'][0]['files']):
-                loggerdlcomms.debug(f"get_torrent_files: {str(response['arguments']['torrents'][0]['files'])}")
+                dlcommslogger.debug(f"get_torrent_files: {str(response['arguments']['torrents'][0]['files'])}")
                 return response['arguments']['torrents'][0]['files']
         else:
             logger.debug('get_torrent_files: No response from transmission')
@@ -172,7 +172,7 @@ def get_torrent_files(torrentid):  # uses hashid
 
 def get_torrent_progress(torrentid):  # uses hashid
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['id', 'percentDone', 'errorString', 'status']}
     retries = 3
@@ -184,7 +184,7 @@ def get_torrent_progress(torrentid):  # uses hashid
                     err = response['arguments']['torrents'][0]['errorString']
                     res = response['arguments']['torrents'][0]['percentDone']
                     fin = (response['arguments']['torrents'][0]['status'] == 0)  # TR_STATUS_STOPPED == 0
-                    loggerdlcomms.debug(f"get_torrent_progress: {err},{res},{fin}")
+                    dlcommslogger.debug(f"get_torrent_progress: {err},{res},{fin}")
                     try:
                         res = int(float(res) * 100)
                         return res, err, fin
@@ -311,13 +311,13 @@ def torrent_action(method, arguments):
     global session_id, host_url, rpc_version, tr_version
 
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     username = CONFIG['TRANSMISSION_USER']
     password = CONFIG['TRANSMISSION_PASS']
 
     if host_url:
-        loggerdlcomms.debug(f"Using existing host {host_url}")
+        dlcommslogger.debug(f"Using existing host {host_url}")
     else:
         host = CONFIG['TRANSMISSION_HOST']
         port = CONFIG.get_int('TRANSMISSION_PORT')
@@ -349,7 +349,7 @@ def torrent_action(method, arguments):
                 parts[2] += "/transmission/rpc"
 
         host_url = urlunparse(parts)
-        loggerdlcomms.debug(f'Transmission host {host_url}')
+        dlcommslogger.debug(f'Transmission host {host_url}')
 
     # blank username is valid
     auth = (username, password) if password else None
@@ -357,9 +357,9 @@ def torrent_action(method, arguments):
     timeout = CONFIG.get_int('HTTP_TIMEOUT')
     # Retrieve session id
     if session_id:
-        loggerdlcomms.debug(f'Using existing session_id {session_id}')
+        dlcommslogger.debug(f'Using existing session_id {session_id}')
     else:
-        loggerdlcomms.debug('Requesting session_id')
+        dlcommslogger.debug('Requesting session_id')
         try:
             if host_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout,
@@ -408,7 +408,7 @@ def torrent_action(method, arguments):
     # Prepare real request
     headers = {'x-transmission-session-id': session_id}
     data = {'method': method, 'arguments': arguments}
-    loggerdlcomms.debug(f'Transmission request {str(data)}')
+    dlcommslogger.debug(f'Transmission request {str(data)}')
     try:
         response = requests.post(host_url, json=data, headers=headers, proxies=proxies,
                                  auth=auth, timeout=timeout)
@@ -424,7 +424,7 @@ def torrent_action(method, arguments):
             return False, res
         try:
             res = response.json()
-            loggerdlcomms.debug(f'Transmission returned {str(res)}')
+            dlcommslogger.debug(f'Transmission returned {str(res)}')
         except ValueError:
             res = f"Expected json, Transmission returned {response.text}"
             logger.error(res)

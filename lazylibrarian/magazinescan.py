@@ -40,7 +40,7 @@ def create_id(issuename=None):
 
 def magazine_scan(title=None):
     logger = logging.getLogger(__name__)
-    loggermatching = logging.getLogger('special.matching')
+    matchinglogger = logging.getLogger('special.matching')
     lazylibrarian.MAG_UPDATE = 1
 
     db = database.DBConnection()
@@ -123,7 +123,7 @@ def magazine_scan(title=None):
         match = match_string.replace(
             "\\$IssueDate", "(?P<issuedate>.*?)").replace(
             "\\$Title", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
-        loggermatching.debug(f"Pattern [{match}]")
+        matchinglogger.debug(f"Pattern [{match}]")
 
         # noinspection PyBroadException
         try:
@@ -183,7 +183,7 @@ def magazine_scan(title=None):
                                 if match:
                                     title = match.group("title").strip()
                                     issuedate = match.group("issuedate").strip()
-                                    loggermatching.debug(f"Title pattern [{title}][{issuedate}] {fname}")
+                                    matchinglogger.debug(f"Title pattern [{title}][{issuedate}] {fname}")
                                     if title and issuedate:
                                         match = True
                                         if title.rsplit('(', 1)[1].split(')').isdigit():
@@ -233,13 +233,13 @@ def magazine_scan(title=None):
                             dateparts = get_dateparts(issuedate, datetype=datetype)
                             issuenum_type = dateparts['style']
                             issuedate = dateparts['dbdate']
-                            loggermatching.debug(f"Date style [{issuenum_type}][{issuedate}]")
+                            matchinglogger.debug(f"Date style [{issuenum_type}][{issuedate}]")
 
                         if not issuedate:
                             dateparts = get_dateparts(fname, datetype=datetype)
                             issuenum_type = dateparts['style']
                             issuedate = dateparts['dbdate']
-                            loggermatching.debug(f"Filename date style [{issuenum_type}][{issuedate}]")
+                            matchinglogger.debug(f"Filename date style [{issuenum_type}][{issuedate}]")
 
                         if not issuedate:
                             logger.warning(f"Invalid name format for [{fname}]")

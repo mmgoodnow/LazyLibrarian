@@ -45,7 +45,7 @@ class GrAuth:
     def goodreads_oauth1():
         global client, request_token, consumer
         logger = logging.getLogger(__name__)
-        loggergrsync = logging.getLogger('special.grsync')
+        grsynclogger = logging.getLogger('special.grsync')
         if CONFIG['GR_API'] == 'ckvsiSDsuqh7omh74ZZ6Q':
             msg = "Please get your own personal GoodReads api key from https://www.goodreads.com/api/keys and try again"
             return msg
@@ -80,7 +80,7 @@ class GrAuth:
 
         request_token = dict(parse_qsl(content))
         request_token = {key.decode("utf-8"): request_token[key].decode("utf-8") for key in request_token}
-        loggergrsync.debug(f"oauth1: {str(request_token)}")
+        grsynclogger.debug(f"oauth1: {str(request_token)}")
         if 'oauth_token' in request_token:
             authorize_link = f"{authorize_url}?oauth_token={request_token['oauth_token']}"
             return authorize_link
@@ -92,7 +92,7 @@ class GrAuth:
     def goodreads_oauth2():
         global request_token, consumer, token, client
         logger = logging.getLogger(__name__)
-        loggergrsync = logging.getLogger('special.grsync')
+        grsynclogger = logging.getLogger('special.grsync')
         try:
             if request_token and 'oauth_token' in request_token and 'oauth_token_secret' in request_token:
                 # noinspection PyTypeChecker
@@ -120,7 +120,7 @@ class GrAuth:
 
         access_token = dict(parse_qsl(content))
         access_token = {key.decode("utf-8"): access_token[key].decode("utf-8") for key in access_token}
-        loggergrsync.debug(f"oauth2: {str(access_token)}")
+        grsynclogger.debug(f"oauth2: {str(access_token)}")
         CONFIG.set_str('GR_OAUTH_TOKEN', access_token['oauth_token'])
         CONFIG.set_str('GR_OAUTH_SECRET', access_token['oauth_token_secret'])
         CONFIG.save_config_and_backup_old(section='API')
@@ -151,7 +151,7 @@ class GrAuth:
     def get_shelf_list(self):
         global consumer, client, token, user_id
         logger = logging.getLogger(__name__)
-        loggergrsync = logging.getLogger('special.grsync')
+        grsynclogger = logging.getLogger('special.grsync')
         if not CONFIG['GR_API'] or not CONFIG['GR_SECRET'] or not \
                 CONFIG['GR_OAUTH_TOKEN'] or not CONFIG['GR_OAUTH_SECRET']:
             logger.warning("Goodreads get shelf error: Please authorise first")
@@ -192,7 +192,7 @@ class GrAuth:
 
                 if not response['status'].startswith('2'):
                     logger.error(f"Failure status: {response['status']} for page {current_page}")
-                    loggergrsync.debug(request_url)
+                    grsynclogger.debug(request_url)
                 else:
                     # noinspection PyUnresolvedReferences
                     xmldoc = xml.dom.minidom.parseString(content)
@@ -205,9 +205,9 @@ class GrAuth:
                         shelves.append({'name': shelf_name, 'books': shelf_count, 'exclusive': shelf_exclusive})
                         page_shelves += 1
 
-                        loggergrsync.debug(f'Shelf {shelf_name} : {shelf_count}: Exclusive {shelf_exclusive}')
+                        grsynclogger.debug(f'Shelf {shelf_name} : {shelf_count}: Exclusive {shelf_exclusive}')
 
-                    loggergrsync.debug(f'Found {page_shelves} shelves on page {current_page}')
+                    grsynclogger.debug(f'Found {page_shelves} shelves on page {current_page}')
 
             logger.debug(
                 f"Found {len(shelves)} {plural(len(shelves), 'shelf')} on {current_page - 1} "
@@ -310,7 +310,7 @@ class GrAuth:
     def get_gr_shelf_contents(self, shelf='to-read'):
         global consumer, client, token, user_id
         logger = logging.getLogger(__name__)
-        loggergrsync = logging.getLogger('special.grsync')
+        grsynclogger = logging.getLogger('special.grsync')
         if not CONFIG['GR_API'] or not CONFIG['GR_SECRET'] or not \
                 CONFIG['GR_OAUTH_TOKEN'] or not CONFIG['GR_OAUTH_SECRET']:
             logger.warning("Goodreads shelf contents error: Please authorise first")
@@ -346,18 +346,18 @@ class GrAuth:
                 for book in xmldoc.getElementsByTagName('book'):
                     book_id, book_title = self.get_book_info(book)
 
-                    if loggergrsync.isEnabledFor(logging.DEBUG):
+                    if grsynclogger.isEnabledFor(logging.DEBUG):
                         try:
-                            loggergrsync.debug('Book %10s : %s' % (str(book_id), book_title))
+                            grsynclogger.debug('Book %10s : %s' % (str(book_id), book_title))
                         except UnicodeEncodeError:
-                            loggergrsync.debug('Book %10s : %s' % (str(book_id), 'Title Messed Up By Unicode Error'))
+                            grsynclogger.debug('Book %10s : %s' % (str(book_id), 'Title Messed Up By Unicode Error'))
 
                     gr_list.append(book_id)
 
                     page_books += 1
                     total_books += 1
 
-                loggergrsync.debug(f'Found {page_books} books on page {current_page} (total = {total_books})')
+                grsynclogger.debug(f'Found {page_books} books on page {current_page} (total = {total_books})')
                 if page_books == 0:
                     break
 
@@ -400,7 +400,7 @@ class GrAuth:
     def get_shelf_books(page, shelf_name):
         global client, user_id
         logger = logging.getLogger(__name__)
-        loggergrsync = logging.getLogger('special.grsync')
+        grsynclogger = logging.getLogger('special.grsync')
         data = '${base}/review/list?format=xml&v=2&id=${user_id}&sort=author&order=a'
         data += '&key=${key}&page=${page}&per_page=100&shelf=${shelf_name}'
         owned_template = Template(data)
@@ -418,7 +418,7 @@ class GrAuth:
             return "Error in client.request: see error log"
         if not response['status'].startswith('2'):
             logger.error(f"Failure status: {response['status']} for {shelf_name} page {page}")
-            loggergrsync.debug(request_url)
+            grsynclogger.debug(request_url)
         return content
 
     #############################
@@ -629,7 +629,7 @@ def grfollow(authorid, follow=True):
 def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list):
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
-    loggergrsync = logging.getLogger('special.grsync')
+    grsynclogger = logging.getLogger('special.grsync')
     dstatus = status
     db = database.DBConnection()
     # noinspection PyBroadException
@@ -748,7 +748,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list
                     content = ''
                 if r:
                     gr_shelf.remove(book)
-                    loggergrsync.debug("%10s removed from %s shelf" % (book, shelf))
+                    grsynclogger.debug("%10s removed from %s shelf" % (book, shelf))
                 else:
                     logger.warning(f"Failed to remove {book} from {shelf} shelf: {content}")
 
@@ -802,7 +802,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list
                     shelf_changed += 1
                 else:
                     if '404' not in content:  # already removed is ok
-                        loggergrsync.warning(f"Failed to remove {book} from {shelf} shelf: {content}")
+                        grsynclogger.warning(f"Failed to remove {book} from {shelf} shelf: {content}")
 
         logger.info(f"{len(removed_from_shelf)} missing from goodreads {shelf}")
         if removed_from_shelf:
@@ -917,7 +917,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list
                 if 'eBook' in library:
                     if status == 'Open':
                         if res['Status'] == 'Open':
-                            loggergrsync.warning(f"{res['BookName']} [{book}] is already marked Open")
+                            grsynclogger.warning(f"{res['BookName']} [{book}] is already marked Open")
                         else:
                             db.action("UPDATE books SET Status='Have' WHERE gr_id=?", (book,))
                             ll_changed.append(book)
@@ -950,7 +950,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list
                 if 'Audio' in library:
                     if status == 'Open':
                         if res['AudioStatus'] == 'Open':
-                            loggergrsync.warning(f"{res['BookName']} [{book}] is already marked Open")
+                            grsynclogger.warning(f"{res['BookName']} [{book}] is already marked Open")
                         else:
                             db.action("UPDATE books SET AudioStatus='Have' WHERE gr_id=?", (book,))
                             ll_changed.append(book)

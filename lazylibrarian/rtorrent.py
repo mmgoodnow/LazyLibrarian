@@ -23,7 +23,7 @@ from xmlrpc.client import Binary, ServerProxy
 
 def get_server():
     logger = logging.getLogger(__name__)
-    loggerdlcomms = logging.getLogger('special.dlcomms')
+    dlcommslogger = logging.getLogger('special.dlcomms')
     host = CONFIG['RTORRENT_HOST']
     if not host:
         logger.error("rtorrent error: No host found, check your config")
@@ -51,7 +51,7 @@ def get_server():
             server = ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
-        loggerdlcomms.debug(f"rTorrent client version = {version}")
+        dlcommslogger.debug(f"rTorrent client version = {version}")
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed
         logger.error(f"xmlrpc_client error: {repr(e)}")

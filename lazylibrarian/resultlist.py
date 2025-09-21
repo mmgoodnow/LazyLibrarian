@@ -60,7 +60,7 @@ def find_best_result(resultlist, book, searchtype, source):
     """
     # noinspection PyBroadException
     logger = logging.getLogger(__name__)
-    loggerfuzz = logging.getLogger('special.fuzz')
+    fuzzlogger = logging.getLogger('special.fuzz')
     db = database.DBConnection()
     highest = None
     try:
@@ -112,12 +112,12 @@ def find_best_result(resultlist, book, searchtype, source):
                 book_match = fuzz.token_set_ratio(title.replace(author, ''), only_title)
             if 'booksearch' in res and res['booksearch'] == 'bibliotik':
                 # bibliotik only returns book title, not author name
-                loggerfuzz.debug("bibliotik, ignoring author fuzz")
+                fuzzlogger.debug("bibliotik, ignoring author fuzz")
                 author_match = 100
             else:
                 author_match = fuzz.token_set_ratio(author, result_title)
 
-            loggerfuzz.debug(f"{source.upper()} author/book Match: {author_match}/{book_match} {result_title} "
+            fuzzlogger.debug(f"{source.upper()} author/book Match: {author_match}/{book_match} {result_title} "
                              f"at {res[prefix + 'prov']}")
 
             rejected = False
