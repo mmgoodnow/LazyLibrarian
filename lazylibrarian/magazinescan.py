@@ -264,7 +264,7 @@ def magazine_scan(title=None):
                                 "IssueStatus": "Skipped",
                                 "Regex": None,
                                 "CoverPage": 1,
-                                "Language": "en",
+                                "Language": CONFIG['PREF_MAGLANG'],
                             }
                             logger.debug(f"Adding magazine {title}")
                             db.upsert("magazines", new_value_dict, control_value_dict)
@@ -272,7 +272,7 @@ def magazine_scan(title=None):
                             magazineadded = None
                             maglastacquired = None
                             magcoverpage = 1
-                            maglanguage = "en"
+                            maglanguage = CONFIG['PREF_MAGLANG']
                         else:
                             title = mag_entry['Title']
                             maglastacquired = mag_entry['LastAcquired']

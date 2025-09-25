@@ -1835,7 +1835,7 @@ class WebInterface:
                     datetype = ""
                 language = mag['Language']
                 if not language:
-                    language = "en"
+                    language = CONFIG['PREF_MAGLANG']
                 coverpage = check_int(mag['CoverPage'], 1)
                 mags_list.append({
                     'Title': title,
