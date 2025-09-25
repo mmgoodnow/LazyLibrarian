@@ -271,7 +271,9 @@ def get_all_author_details(authorid='', authorname=None):
     # fetch as much data as you can on an author using all configured sources
 
     logger = logging.getLogger(__name__)
+    searchinglogger = logging.getLogger('special.searching')
     sources = available_author_sources()
+    searchinglogger.debug(f"{authorid}:{authorname}:{sources}")
     keys = author_keys()
     author_info = {}
     pref = ''
@@ -297,11 +299,6 @@ def get_all_author_details(authorid='', authorname=None):
         auth_id = ''
         if match:
             auth_id = match[source[2]]  # authorid for this source, eg hc_id
-        if not auth_id:
-            if authorid.startswith(source[0]):
-                db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
-                          (authorid, authorid))
-                auth_id = authorid
         if not auth_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
             book = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
             title = ''
@@ -312,6 +309,8 @@ def get_all_author_details(authorid='', authorname=None):
                 db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
                           (aid['authorid'], authorid))
                 auth_id = aid['authorid']
+        if not auth_id and authorid:
+            auth_id = authorid
         if auth_id:
             res = cl.get_author_info(authorid=auth_id, authorname=authorname)
             if res:
@@ -324,6 +323,7 @@ def get_all_author_details(authorid='', authorname=None):
     if merged_info.get('AKA'):
         akas = get_list(merged_info.get('AKA', ''), ',')
     authorname = merged_info.get('authorname')
+    searchinglogger.debug(str(author_info))
     for entry in author_info:
         if entry != pref:
             author_key = 'authorid'
@@ -352,6 +352,7 @@ def get_all_author_details(authorid='', authorname=None):
     if authorid:
         merged_info['authorid'] = authorid  # keep original entry authorid if we have one
     db.close()
+    searchinglogger.debug(str(merged_info))
     return merged_info
 
 
@@ -408,7 +409,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
 
         if new_author or refresh:
             current_author = get_all_author_details(authorid, authorname)
-            current_author['authorid'] = authorid  # keep entry authorid
+            if authorid:
+                current_author['authorid'] = authorid  # keep entry authorid
         else:
             current_author = {}
             for item in dict(dbauthor):
@@ -466,9 +468,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
                 db.action('UPDATE authors SET AuthorName=? WHERE AuthorID=?',
                           (current_author['authorname'], current_author['authorid']))
 
+        if not current_author.get('authorid'):
+            current_author['authorid'] = authorid
+        if not current_author.get('authorname'):
+            current_author['authorname'] = authorname
+
         control_value_dict = {"AuthorID": current_author['authorid']}
         if not current_author['manual']:
-            new_value_dict = current_author
+            new_value_dict = current_author.copy()
             new_value_dict.pop('authorid')
             try:
                 db.upsert("authors", new_value_dict, control_value_dict)
@@ -481,7 +488,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
                 logger.error(traceback.format_exc())
                 # retry using authorname instead of authorid
                 control_value_dict = {"AuthorName": current_author['authorname']}
-                new_value_dict = current_author
+                new_value_dict = current_author.copy()
                 new_value_dict.pop('authorname')
                 try:
                     db.upsert("authors", new_value_dict, control_value_dict)
@@ -496,8 +503,6 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
             "Status": "Loading",
             "Updated": int(time.time())
         }
-        if not current_author.get('authorid'):
-            current_author['authorid'] = authorid
         if new_author:
             new_value_dict["AuthorImg"] = "images/nophoto.png"
             new_value_dict['Reason'] = reason
