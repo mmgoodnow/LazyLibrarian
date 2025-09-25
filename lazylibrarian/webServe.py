@@ -1790,6 +1790,7 @@ class WebInterface:
     @cherrypy.expose
     @require_auth()
     def config(self):
+        logger = logging.getLogger(__name__)
         self.label_thread('CONFIG')
         http_look_dir = os.path.join(DIRS.PROG_DIR, 'data' + os.path.sep + 'interfaces')
         http_look_list = [name for name in listdir(http_look_dir)
@@ -1851,17 +1852,26 @@ class WebInterface:
         # Don't pass the whole config, no need to pass the
         # lazylibrarian.globals
         months = {}
-        cnt = 0
-        for itm in lazylibrarian.MONTHNAMES[0]:
-            months[cnt] = ', '.join(itm)
-            cnt += 1
+        try:
+            cnt = 0
+            for itm in lazylibrarian.MONTHNAMES[0]:
+                months[cnt] = ', '.join(itm)
+                cnt += 1
+        except Exception as e:
+            logger.error(f"Unable to load monthnames: {e}")
+            logger.error(f"{lazylibrarian.MONTHNAMES}")
+
         seasons = {}
-        for itm in lazylibrarian.SEASONS:
-            value = lazylibrarian.SEASONS.get(itm)
-            if value not in seasons:
-                seasons[value] = itm
-            else:
-                seasons[value] = f"{seasons[value]}, {itm}"
+        try:
+            for itm in lazylibrarian.SEASONS:
+                value = lazylibrarian.SEASONS[itm]
+                if value not in seasons:
+                    seasons[value] = itm
+                else:
+                    seasons[value] = f"{seasons[value]}, {itm}"
+        except Exception as e:
+            logger.error(f"Unable to load seasons: {e}")
+            logger.error(f"{lazylibrarian.SEASONS}")
 
         namevars = name_vars('test')
         testvars = {}
