@@ -189,7 +189,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True
             if delay > 86400:
                 delay -= 86400  # no roll-over to next day
         elif r.status_code == 429:  # too many requests
-            delay = 10
+            delay = 60
         else:
             # might be forbidden for a different reason where midnight might not matter
             # eg "Cannot determine user location for geographically restricted operation"
@@ -332,6 +332,8 @@ class CacheRequest(ABC):
             if success:
                 self.cachelogger.debug(f"CacheHandler: Storing {self.name()} {myhash} for {self.url}")
                 source, result = self.load_from_result_and_cache(result, hashfilename, expire_older_than)
+            elif '404' in result:  # don't block on "not found"
+                return None, False
             else:
                 msg = f"Got error response for {self.url}: {result.split('<')[0]}"
                 self.logger.debug(msg)
