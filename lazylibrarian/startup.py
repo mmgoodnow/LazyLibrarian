@@ -336,6 +336,8 @@ class StartupLazyLibrarian:
                 'DNB': {'src': 'DN', 'author_key': 'authorid', 'book_key': 'dnb_id', 'enabled': 'DNB_API',
                         'class': dnb.DNB()},
                 }
+        adminlogger = logging.getLogger('special.admin')
+        adminlogger.debug(info_sources)
         return info_sources
 
     @staticmethod
@@ -343,18 +345,21 @@ class StartupLazyLibrarian:
         """ Detect presence of unrar library
             Return type of library and rarfile()
         """
+        adminlogger = logging.getLogger('special.admin')
         rarfile = None
         # noinspection PyBroadException
         try:
             # noinspection PyUnresolvedReferences
             from unrar import rarfile
             if config.get_int('PREF_UNRARLIB') == 1:
+                adminlogger.debug("Using unrar")
                 return 1, rarfile
         except Exception:
             # noinspection PyBroadException
             try:
                 from lib.unrar import rarfile
                 if config.get_int('PREF_UNRARLIB') == 1:
+                    adminlogger.debug("Using unrar")
                     return 1, rarfile
             except Exception:
                 pass
@@ -363,9 +368,11 @@ class StartupLazyLibrarian:
             # noinspection PyBroadException
             try:
                 from lib.UnRAR2 import RarFile
+                adminlogger.debug("Using unrar2")
                 return 2, RarFile
             except Exception:
                 if rarfile:
+                    adminlogger.debug("Using unrar")
                     return 1, rarfile
         return 0, None
 
@@ -501,6 +508,7 @@ class StartupLazyLibrarian:
                 }
 
     def build_monthtable(self, config: ConfigDict):
+        adminlogger = logging.getLogger('special.admin')
         seasons = {}
         table = None
         json_file = os.path.join(DIRS.DATADIR, 'seasons.json')
@@ -514,6 +522,7 @@ class StartupLazyLibrarian:
         if not seasons:
             seasons = {"winter": 1, "spring": 4, "summer": 7, "fall": 10,
                        "autumn": 10, "christmas": 12}
+        adminlogger.debug(seasons)
 
         json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
         if path_isfile(json_file):
@@ -546,7 +555,6 @@ class StartupLazyLibrarian:
                 ['November', 'Nov'],
                 ['December', 'Dec']
             ]
-
         if len(get_list(config['IMP_MONTHLANG'])) > 0:  # any extra languages wanted?
             try:
                 current_locale = locale.setlocale(locale.LC_ALL, '')  # read current state.
@@ -614,6 +622,7 @@ class StartupLazyLibrarian:
                 with open(json_file, 'w', encoding='utf-8') as f:
                     json.dump(table, f, ensure_ascii=False)
 
+        adminlogger.debug(table)
         # Create a second copy of the monthnames without accents and lowercased to speed up matching
         cleantable = []
         for lyne in table:

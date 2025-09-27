@@ -126,10 +126,9 @@ def hc_sync(library='', userid=None, confirmed=False, readonly=False):
                     'message': msg
                 })
 
-            # For testing multi-user sync UI when debug is enabled
+            # For testing multi-user sync UI when admin debug is enabled
             debug_duplicated = False
-            if (logger.isEnabledFor(logging.DEBUG) and
-                    logging.getLogger('special.grsync').isEnabledFor(logging.DEBUG) and len(users) == 1):
+            if logging.getLogger('special.admin').isEnabledFor(logging.DEBUG) and len(users) == 1:
                 logger.debug("Debug mode: Duplicating single user for multi-user sync UI testing")
                 users = users * 5  # Create 5 copies of the same user for testing
                 debug_duplicated = True

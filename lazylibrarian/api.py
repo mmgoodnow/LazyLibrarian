@@ -325,6 +325,7 @@ class Api(object):
         self.kwargs = kwargs
         self.data = 'OK'
 
+    # noinspection PyUnreachableCode
     @property
     def fetch_data(self):
         TELEMETRY.record_usage_data()
@@ -1999,8 +2000,10 @@ class Api(object):
             source = CONFIG.get_str('BOOK_API')
         authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
 
-        if lazylibrarian.INFOSOURCES.get(source):
-            ap = lazylibrarian.INFOSOURCES[source]['class']
+        info = lazylibrarian.INFOSOURCES
+        if info.get(source):
+            this_source = info[source]
+            ap = this_source['class']
             res = ap.find_author_id(authorname=authorname)
             self.data = str(res)
 
@@ -2013,8 +2016,11 @@ class Api(object):
         cnt = 0
         db = database.DBConnection()
         key = ''
-        if source in lazylibrarian.INFOSOURCES:
-            key = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['author_key']
+        this_source = None
+        info = lazylibrarian.INFOSOURCES
+        if source in info:
+            this_source = info[source]
+            key = this_source['author_key']
             if key == 'authorid':  # not all providers have authorid
                 key = ''
         if not key:
@@ -2022,7 +2028,7 @@ class Api(object):
             return
 
         authordata = db.select(f"SELECT AuthorName from authors WHERE {key}='' or {key} is null")
-        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+        api = this_source['class']
         for author in authordata:
             res = api.find_author_id(authorname=author['AuthorName'])
             if res.get('authorid'):
@@ -2039,10 +2045,12 @@ class Api(object):
             return
 
         authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+        info = lazylibrarian.INFOSOURCES
+        this_source = info[CONFIG['BOOK_API']]
+        api = this_source['class']
         myqueue = Queue()
         search_api = threading.Thread(target=api.find_results,
-                                      name=f"API-{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}RESULTS",
+                                      name=f"API-{this_source['src']}RESULTS",
                                       args=[f"<ll>{authorname}", myqueue])
         search_api.start()
         search_api.join()
@@ -2054,10 +2062,12 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
 
-        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+        info = lazylibrarian.INFOSOURCES
+        this_source = info[CONFIG['BOOK_API']]
+        api = this_source['class']
         myqueue = Queue()
         search_api = threading.Thread(target=api.find_results,
-                                      name=f"API-{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}RESULTS",
+                                      name=f"API-{this_source['src']}RESULTS",
                                       args=[f"{kwargs['name']}<ll>", myqueue])
         search_api.start()
         search_api.join()
@@ -2069,9 +2079,11 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
 
-        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+        info = lazylibrarian.INFOSOURCES
+        this_source = info[CONFIG['BOOK_API']]
+        api = this_source['class']
         threading.Thread(target=api.add_bookid_to_db,
-                         name=f"API-{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}RESULTS",
+                         name=f"API-{this_source['src']}RESULTS",
                          args=[kwargs['id'], None, None, "Added by API"]).start()
 
     def _movebook(self, **kwargs):

@@ -90,7 +90,8 @@ api_sources = []
 info_sources = lazylibrarian.INFOSOURCES
 for item in info_sources:
     # source, authorid, bookid
-    api_sources.append([info_sources[item], info_sources[item]['author_key'], info_sources[item]['book_key']])
+    info_source = info_sources[item]
+    api_sources.append([info_source, info_source['author_key'], info_source['book_key']])
 
 
 def clear_mako_cache(userid=0):
@@ -3250,9 +3251,11 @@ class WebInterface:
             update_totals(author_id)
         else:
 
-            api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+            info = lazylibrarian.INFOSOURCES
+            this_source = info[CONFIG['BOOK_API']]
+            api = this_source['class']
             t = threading.Thread(target=api.add_bookid_to_db(bookid=bookid),
-                                 name=f"{lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']}-BOOK",
+                                 name=f"{this_source['src']}-BOOK",
                                  args=[bookid, ebook_status, audio_status, "Added by user"])
             t.start()
             t.join(timeout=10)  # 10 s to add book before redirect

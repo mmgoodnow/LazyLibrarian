@@ -77,7 +77,9 @@ def get_book_meta(fdir, reason="get_book_meta"):
             existing_book = db.match(cmd, (bookid,))
             if not existing_book:
                 logger.debug(f"Searching {CONFIG['BOOK_API']} for {bookid}")
-                api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
+                info = lazylibrarian.INFOSOURCES
+                this_source = info[CONFIG['BOOK_API']]
+                api = this_source['class']
                 api.add_bookid_to_db(bookid, None, None, reason)
                 existing_book = db.match(cmd, (bookid,))
             db.close()
@@ -898,8 +900,10 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # If we have a valid ID, use that
                                 mtype = ''
                                 match = None
+                                info = lazylibrarian.INFOSOURCES
+                                this_source = info[CONFIG['BOOK_API']]
                                 try:
-                                    bookid = eval(lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['book_key'])
+                                    bookid = eval(this_source['book_key'])
                                 except NameError:
                                     bookid = None
                                 if bookid:
@@ -945,10 +949,12 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         logger.warning(
                                             f"Metadata bookid [{bookid}] not found in database, trying to add...")
 
-                                        api = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['class']
-                                        book_id = eval(lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['book_id'])
+                                        info = lazylibrarian.INFOSOURCES
+                                        this_source = info[CONFIG['BOOK_API']]
+                                        api = this_source['class']
+                                        book_id = eval(this_source['book_id'])
                                         if book_id:
-                                            src = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]['src']
+                                            src = this_source['src']
                                             api.add_bookid_to_db(book_id, None, None, f"Added by {src}"
                                                                  f" librarysync")
                                     if bookid:
@@ -1019,8 +1025,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         # Since we have the book anyway, try and reload it
                                         info_sources = lazylibrarian.INFOSOURCES
                                         for source in info_sources:
-                                            if info_sources[source] not in sources and info_sources[source]['enabled']:
-                                                sources.append(info_sources[source])
+                                            this_source = info_sources[source]
+                                            if this_source not in sources and this_source['enabled']:
+                                                sources.append(this_source)
 
                                     searchresults = []
                                     for source in sources:
@@ -1065,7 +1072,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             logger.debug(f"{bookid} [{bookauthor}] matched on rescan for {booktitle}")
                                         else:
                                             logger.debug(f"Adding {bookid} [{bookauthor}] on rescan for {booktitle}")
-                                            api = lazylibrarian.INFOSOURCES[source]['class']
+                                            info = lazylibrarian.INFOSOURCES
+                                            this_source = info[source]
+                                            api = this_source['class']
                                             api.add_bookid_to_db(bookid, reason=f"Librarysync {source} "
                                                                                 f"rescan {bookauthor}")
                                             if language and language != "Unknown":

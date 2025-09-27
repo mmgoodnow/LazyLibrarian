@@ -318,7 +318,8 @@ def add_bookdict_to_db(book, reason, source):
     }
     if not exists:
         new_value_dict["BookAdded"] = today()
-    new_value_dict[id_key] = book['bookid']
+    this_key = id_key[source]
+    new_value_dict[this_key] = book['bookid']
 
     db.upsert("books", new_value_dict, control_value_dict)
 

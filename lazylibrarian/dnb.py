@@ -173,7 +173,7 @@ class DNB:
         """Query DNB SRU API"""
         if not etree:
             self.logger.error(f'DNB query unavailable: lxml module missing')
-            return []
+            return [], False
         headers = {
             'User-Agent': get_user_agent(),
             'Accept': 'application/xml, text/xml',
