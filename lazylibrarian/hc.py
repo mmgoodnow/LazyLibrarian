@@ -1047,7 +1047,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 break
         bookseries = book_data.get('book_series', [])
         for series in bookseries:
-            bookdict['series'].append([series['series']['name'], series['series']['id'], series['position']])
+            bookdict['series'].append([series['series']['name'], f"HC{series['series']['id']}", series['position']])
         bookdict['booklink'] = book_data.get('slug', '')
         if bookdict['booklink']:
             bookdict['booklink'] = self.book_url + bookdict['booklink']

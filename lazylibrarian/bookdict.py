@@ -344,7 +344,7 @@ def add_bookdict_to_db(book, reason, source):
     if CONFIG.get_bool('ADD_SERIES') and book.get('series'):
         for item in book['series']:
             ser_name = item[0].strip()
-            ser_id = item[1].strip()
+            ser_id = str(item[1]).strip()
             src = id_key[source][:2].upper()
             exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
             if not exists:
