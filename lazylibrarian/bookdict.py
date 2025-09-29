@@ -159,7 +159,7 @@ def validate_bookdict(bookdict):
             logger.warning(f"Invalid source {source} for bookdict {bookdict}")
             source = 'OpenLibrary'  # set a usable default
 
-        auth_name, auth_id = lazylibrarian.importer.get_preferred_author_name(bookdict['authorname'])
+        auth_name, auth_id = lazylibrarian.importer.get_preferred_author(bookdict['authorname'])
         exists = auth_id
         if auth_id:  # If author exists, let's check if the title does too
             # ensure bookdict author details match database
@@ -777,7 +777,7 @@ def add_series_entries(bookdict, get_series_members, get_bookdict_for_bookid):
             for member in seriesmembers:
                 db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
                           (ser_id, member[0]))
-                auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
+                auth_name, exists = lazylibrarian.importer.get_preferred_author(member[2])
                 if not exists:
                     reason = f"Series contributor {ser_name}:{member[1]}"
                     # Use add_author_to_db with the author ID we already have from the series data
@@ -795,7 +795,7 @@ def add_series_entries(bookdict, get_series_members, get_bookdict_for_bookid):
                                      f"for series {ser_name}, "
                                      f"author not in database and ADD_AUTHOR is disabled")
                         continue
-                    auth_name, exists = lazylibrarian.importer.get_preferred_author_name(member[2])
+                    auth_name, exists = lazylibrarian.importer.get_preferred_author(member[2])
                     if not exists:
                         logger.debug(f"Unable to add {member[2]}({member[3]}) "
                                      f"for series {ser_name}, author not in database")

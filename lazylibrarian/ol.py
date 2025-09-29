@@ -937,7 +937,7 @@ class OpenLibrary:
                                             # remove any old entries for this series member
                                             db.action("DELETE from member WHERE SeriesID=? AND SeriesNum=?",
                                                       (seriesid, member[0]))
-                                            auth_name, exists = lazylibrarian.importer.get_preferred_author_name(
+                                            auth_name, exists = lazylibrarian.importer.get_preferred_author(
                                                 member[2])
                                             if not exists:
                                                 reason = f"Series author {series[0]}:{member[1]}"
@@ -947,7 +947,7 @@ class OpenLibrary:
                                                                                              reason=reason
                                                                                              )
                                                 auth_name, exists = \
-                                                    lazylibrarian.importer.get_preferred_author_name(member[2])
+                                                    lazylibrarian.importer.get_preferred_author(member[2])
                                                 if exists:
                                                     auth_name = member[2]
                                                 else:
@@ -1380,7 +1380,7 @@ class OpenLibrary:
             self.logger.warning(f"No title for {bookid}, unable to add book")
             return
 
-        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(authorname)
+        auth_name, exists = lazylibrarian.importer.get_preferred_author(authorname)
         if exists:
             match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorName=?', (auth_name,))
             bookdict['authorname'] = match['AuthorName']

@@ -814,27 +814,31 @@ class DNB:
         db = database.DBConnection()
         try:
             entryreason = reason
+            auth_id = authorid
+            auth_name = authorname
+            if authorid:
+                res = db.match('SELECT AuthorName from authors WHERE Authorid=? or dnb_id=?', (authorid, authorid))
+                if res:
+                    auth_name = res['AuthorName']
+            else:
+                auth_name, auth_id = lazylibrarian.importer.get_preferred_author(authorname)
 
-            auth_name, exists = lazylibrarian.importer.get_preferred_author_name(authorname)
-
-            self.logger.debug(f'[{auth_name}] Now processing books with DNB API')
-            author = db.match('SELECT * from authors where authorname=?', (auth_name,))
-            authorid = author['AuthorID']
+            self.logger.debug(f'[{auth_id}:{auth_name}] Now processing books with DNB API')
             # Artist is loading
-            db.action("UPDATE authors SET Status='Loading' WHERE AuthorID=?", (authorid,))
+            db.action("UPDATE authors SET Status='Loading' WHERE AuthorID=?", (auth_id,))
 
             resultqueue = Queue()
-            if not self.find_results(f"<ll>{authorname}", resultqueue):
-                self.logger.warning(f"No results from DNB for {authorname}")
+            if not self.find_results(f"<ll>{auth_name}", resultqueue):
+                self.logger.warning(f"No results from DNB for {auth_name}")
                 return
 
             _ = add_author_books_to_db(resultqueue, bookstatus, audiostatus, entrystatus, entryreason,
-                                       authorid, None, self.get_bookdict_for_bookid, cache_hits=0)
+                                       auth_id, None, self.get_bookdict_for_bookid, cache_hits=0)
 
         except Exception:
             self.logger.error(f'Unhandled exception in dnb_get_author_books: {traceback.format_exc()}')
         finally:
-            db.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entrystatus, authorid,))
+            db.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entrystatus, auth_id,))
             db.close()
 
     def get_bookdict_for_bookid(self, bookid=None):

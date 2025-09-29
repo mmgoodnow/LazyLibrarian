@@ -1244,9 +1244,11 @@ query FindAuthor { authors_by_pk(id: [authorid])
             bookdict = self.build_bookdict(results['data']['books_by_pk'])
         return bookdict, in_cache
 
-    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='hc.add_bookid_to_db'):
+    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None,
+                         reason='hc.add_bookid_to_db', bookdict=None):
         """Import a single book from HardCover by ID."""
-        bookdict, _ = self.get_bookdict_for_bookid(bookid)
+        if not bookdict:
+            bookdict, _ = self.get_bookdict_for_bookid(bookid)
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
             self.logger.debug(f"No bookstatus passed, using default {bookstatus}")
@@ -1267,17 +1269,12 @@ query FindAuthor { authors_by_pk(id: [authorid])
         # show any non-fatal warnings
         warn_about_bookdict(bookdict)
 
-        # Use the author ID we already have from the book data
-        # This avoids an author search that can return the wrong author
-        authorid = bookdict['authorid']
-
-        if authorid:
-            # Add book to database using bookdict
-            bookdict['status'] = bookstatus
-            bookdict['audiostatus'] = audiostatus
-            reason = f"[{thread_name()}] {reason}"
-            add_bookdict_to_db(bookdict, reason, bookdict['source'])
-            lazylibrarian.importer.update_totals(authorid)
+        # Add book to database using bookdict
+        bookdict['status'] = bookstatus
+        bookdict['audiostatus'] = audiostatus
+        reason = f"[{thread_name()}] {reason}"
+        add_bookdict_to_db(bookdict, reason, bookdict['source'])
+        lazylibrarian.importer.update_totals(bookdict['authorid'])
 
     def hc_whoami(self, userid=None, token=None):
         """Get the HardCover user ID for the current token."""
@@ -1389,7 +1386,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
             self.syncinglogger.debug(f"No bookdict found for {hc_id}")
             return None
 
-        auth_name, exists = lazylibrarian.importer.get_preferred_author_name(newbookdict['authorname'])
+        auth_name, auth_id = lazylibrarian.importer.get_preferred_author(newbookdict['authorname'])
 
         # Check for exact matches first
         exact_match = self._find_exact_book_match(db, newbookdict, auth_name)
@@ -1398,9 +1395,16 @@ query FindAuthor { authors_by_pk(id: [authorid])
             self._handle_exact_match(exact_match, hc_id, item, db, remapped, sync_dict, stats)
         else:
             # No exact match found - add as new book
-            self.syncinglogger.debug(f"No exact match found for {hc_id} {auth_name} '{newbookdict['bookname']}' "
-                                     f"- adding as new book")
-            self.add_bookid_to_db(str(hc_id))
+            if not auth_id:
+                # need to add the author first...
+                auth_id = lazylibrarian.importer.add_author_to_db(authorname=auth_name, refresh=False,
+                                                                  authorid=newbookdict['authorid'], addbooks=False,
+                                                                  reason=f"HC sync {newbookdict['bookname']}")
+
+            newbookdict['authorid'] = auth_id  # use LL preferred authorid, not necessarily hc_id
+            self.syncinglogger.debug(f"No exact match found for {hc_id} {auth_id}:{auth_name} "
+                                     f"'{newbookdict['bookname']}' - adding as new book")
+            self.add_bookid_to_db(str(hc_id), bookdict=newbookdict)
             stats['new_books_added'] += 1
 
             # Update tracking structures for newly added book
@@ -1412,7 +1416,6 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     sync_dict[book_id] = item['id']
                     self.syncinglogger.debug(f"Added newly created book {book_id} to tracking")
                     return book_id
-
         return None
 
     @staticmethod

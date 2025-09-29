@@ -52,7 +52,7 @@ def is_valid_authorid(authorid: str, api=None) -> bool:
     return False
 
 
-def get_preferred_author_name(author):
+def get_preferred_author(author):
     # Look up an authorname in the database, if not found try fuzzy match
     # Return possibly changed authorname and authorid if found in library
     logger = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     try:
         # Check if the author exists, and import the author if not,
         req_author = author
-        author, exists = get_preferred_author_name(req_author)
+        author, exists = get_preferred_author(req_author)
         if exists:
             check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
         else:
@@ -288,7 +288,7 @@ def get_all_author_details(authorid='', authorname=None):
             cmd += f" or {k}=?"
         match = db.match(cmd, tuple([str(authorid)] * (len(keys) + 1)))
     if not match and authorname:
-        a_name, a_id = get_preferred_author_name(authorname)
+        a_name, a_id = get_preferred_author(authorname)
         if a_id:
             cmd = f"SELECT {','.join(keys)},authorid,authorname from authors WHERE authorname=? COLLATE NOCASE"
             match = db.match(cmd, (a_name,))

@@ -62,7 +62,7 @@ from lazylibrarian.formatter import unaccented, plural, now, today, check_int, r
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, \
     img_id, write_pdf_tags, read_pdf_tags
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
-    get_preferred_author_name
+    get_preferred_author
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import get_dateparts, rename_issue, remove_if_empty, magazine_scan
@@ -2542,7 +2542,7 @@ class WebInterface:
                 # or calibre calls "Neil deGrasse Tyson" "Neil DeGrasse Tyson" with a capital 'D'
                 # so try a fuzzy match...
                 libdir = os.path.dirname(authordir)
-                matchname, exists = get_preferred_author_name(author_name)
+                matchname, exists = get_preferred_author(author_name)
                 if exists:
                     author_name = matchname
                 matchname = unaccented(matchname).lower()

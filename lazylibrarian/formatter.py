@@ -101,7 +101,7 @@ def split_author_names(namelist, splitlist):
                 continue
             else:
                 if name not in authornames:
-                    name, _ = lazylibrarian.importer.get_preferred_author_name(name)
+                    name, _ = lazylibrarian.importer.get_preferred_author(name)
                     if name not in authornames:
                         authornames.append(name)
     return authornames
