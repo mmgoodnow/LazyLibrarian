@@ -326,15 +326,15 @@ class StartupLazyLibrarian:
     def build_sources():
         info_sources = {
                 'OpenLibrary': {'src': 'OL', 'author_key': 'ol_id', 'book_key': 'ol_id', 'enabled': 'OL_API',
-                                'class': ol.OpenLibrary()},
+                                'api': ol.OpenLibrary()},
                 'GoodReads': {'src': 'GR', 'author_key': 'gr_id', 'book_key': 'gr_id', 'enabled': 'GR_API',
-                              'class': gr.GoodReads()},
+                              'api': gr.GoodReads()},
                 'HardCover': {'src': 'HC', 'author_key': 'hc_id', 'book_key': 'hc_id', 'enabled': 'HC_API',
-                              'class': hc.HardCover()},
+                              'api': hc.HardCover()},
                 'GoogleBooks': {'src': 'GB', 'author_key': 'authorid', 'book_key': 'gb_id', 'enabled': 'GB_API',
-                                'class': gb.GoogleBooks()},
+                                'api': gb.GoogleBooks()},
                 'DNB': {'src': 'DN', 'author_key': 'authorid', 'book_key': 'dnb_id', 'enabled': 'DNB_API',
-                        'class': dnb.DNB()},
+                        'api': dnb.DNB()},
                 }
         adminlogger = logging.getLogger('special.admin')
         adminlogger.debug(info_sources)

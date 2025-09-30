@@ -79,7 +79,7 @@ def get_book_meta(fdir, reason="get_book_meta"):
                 logger.debug(f"Searching {CONFIG['BOOK_API']} for {bookid}")
                 info = lazylibrarian.INFOSOURCES
                 this_source = info[CONFIG['BOOK_API']]
-                api = this_source['class']
+                api = this_source['api']
                 api.add_bookid_to_db(bookid, None, None, reason)
                 existing_book = db.match(cmd, (bookid,))
             db.close()
@@ -900,8 +900,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # If we have a valid ID, use that
                                 mtype = ''
                                 match = None
-                                info = lazylibrarian.INFOSOURCES
-                                this_source = info[CONFIG['BOOK_API']]
+                                this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
                                 try:
                                     bookid = eval(this_source['book_key'])
                                 except NameError:
@@ -949,9 +948,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         logger.warning(
                                             f"Metadata bookid [{bookid}] not found in database, trying to add...")
 
-                                        info = lazylibrarian.INFOSOURCES
-                                        this_source = info[CONFIG['BOOK_API']]
-                                        api = this_source['class']
+                                        this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
+                                        api = this_source['api']
                                         book_id = eval(this_source['book_id'])
                                         if book_id:
                                             src = this_source['src']
@@ -1023,8 +1021,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         # Either original source doesn't have the book, or it didn't match language
                                         # prefs, or it's under another author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
-                                        info_sources = lazylibrarian.INFOSOURCES
-                                        for source in info_sources:
+                                        for source in lazylibrarian.INFOSOURCES.keys():
                                             this_source = info_sources[source]
                                             if this_source not in sources and this_source['enabled']:
                                                 sources.append(this_source)
@@ -1072,9 +1069,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             logger.debug(f"{bookid} [{bookauthor}] matched on rescan for {booktitle}")
                                         else:
                                             logger.debug(f"Adding {bookid} [{bookauthor}] on rescan for {booktitle}")
-                                            info = lazylibrarian.INFOSOURCES
-                                            this_source = info[source]
-                                            api = this_source['class']
+                                            this_source = lazylibrarian.INFOSOURCES[source]
+                                            api = this_source['api']
                                             api.add_bookid_to_db(bookid, reason=f"Librarysync {source} "
                                                                                 f"rescan {bookauthor}")
                                             if language and language != "Unknown":

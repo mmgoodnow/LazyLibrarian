@@ -39,9 +39,8 @@ def is_valid_authorid(authorid: str, api=None) -> bool:
         api = CONFIG['BOOK_API']
     # Not all providers have authorid, so we use one of the other sources
     has_authorkey = []
-    info = lazylibrarian.INFOSOURCES
-    for item in info:
-        this_source = info[item]
+    for item in lazylibrarian.INFOSOURCES.keys():
+        this_source = lazylibrarian.INFOSOURCES[item]
         if this_source['author_key'] and this_source['author_key'] != 'authorid':
             has_authorkey.append(item)
 
@@ -91,11 +90,10 @@ def available_author_sources():
     author_sources = []
     source_dict = {}
     pref = ''
-    info_sources = lazylibrarian.INFOSOURCES
-    for item in info_sources:
+    for item in lazylibrarian.INFOSOURCES.keys():
         # fullname, 2-letter_code, class, author_key, api_enabled
-        this_source = info_sources[item]
-        source_dict[item] = [this_source['src'], this_source['class'],
+        this_source = lazylibrarian.INFOSOURCES[item]
+        source_dict[item] = [this_source['src'], this_source['api'],
                              this_source['author_key'], this_source['enabled']]
     # GB/DNB don't have authorid so we use one of the others...
     # prefer CONFIG['BOOK_API'] if it has authorid
@@ -262,9 +260,8 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
 
 def author_keys():
     keys = []
-    info = lazylibrarian.INFOSOURCES
-    for item in info:
-        this_source = info[item]
+    for item in lazylibrarian.INFOSOURCES.keys():
+        this_source = lazylibrarian.INFOSOURCES[item]
         if this_source['author_key'] and this_source['author_key'] != 'authorid':
             keys.append(this_source['author_key'])
     return keys
@@ -381,9 +378,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
     # noinspection PyBroadException
     try:
         authorkeys = []
-        info = lazylibrarian.INFOSOURCES
-        for item in info:
-            this_source = info[item]
+        for item in lazylibrarian.INFOSOURCES.keys():
+            this_source = lazylibrarian.INFOSOURCES[item]
             if this_source['author_key'] and this_source['author_key'] != 'authorid':
                 authorkeys.append(this_source['author_key'])
 
@@ -556,10 +552,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
                 # process books
                 authorname = current_author['authorname']
                 api_sources = []
-                info_sources = lazylibrarian.INFOSOURCES
-                for item in info_sources:
-                    this_source = info_sources[item]
-                    api_sources.append([item, this_source['src'], this_source['class'],
+                for item in lazylibrarian.INFOSOURCES.keys():
+                    this_source = lazylibrarian.INFOSOURCES[item]
+                    api_sources.append([item, this_source['src'], this_source['api'],
                                         this_source['author_key'], this_source['enabled']])
 
                 # get preferred source first but keep all other enabled ones in any order
@@ -691,9 +686,9 @@ def de_duplicate(authorid):
                       'BookAdded', 'WorkPage', 'Manual', 'SeriesDisplay', 'BookLibrary',
                       'AudioFile', 'AudioLibrary', 'WorkID', 'ScanResult', 'OriginalPubDate',
                       'Requester', 'AudioRequester', 'LT_WorkID', 'Narrator']
-    info = lazylibrarian.INFOSOURCES
-    for item in info:
-        this_source = info[item]
+
+    for item in lazylibrarian.INFOSOURCES.keys():
+        this_source = lazylibrarian.INFOSOURCES[item]
         booktable_keys.append(this_source['book_key'])
 
     if author:
@@ -844,9 +839,8 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
         ebook/audio=None makes add_bookid_to_db use configured default """
     if not source:
         source = CONFIG['BOOK_API']
-    info = lazylibrarian.INFOSOURCES
-    this_source = info[source]
-    api = this_source['class']
+    this_source = lazylibrarian.INFOSOURCES[source]
+    api = this_source['api']
     if not wait:
         threading.Thread(target=api.add_bookid_to_db, name=f"{this_source['src']}-IMPORT",
                          args=[bookid, ebook, audio, reason]).start()
@@ -862,9 +856,8 @@ def search_for(searchterm, source=None):
     if not source:
         source = CONFIG['BOOK_API']
     searchinglogger.debug(f"{source} {searchterm}")
-    info = lazylibrarian.INFOSOURCES
-    this_source = info[source]
-    api = this_source['class']
+    this_source = lazylibrarian.INFOSOURCES[source]
+    api = this_source['api']
     if this_source['enabled']:
         myqueue = Queue()
         search_api = threading.Thread(target=api.find_results,

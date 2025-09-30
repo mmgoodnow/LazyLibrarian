@@ -2000,10 +2000,9 @@ class Api(object):
             source = CONFIG.get_str('BOOK_API')
         authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
 
-        info = lazylibrarian.INFOSOURCES
-        if info.get(source):
-            this_source = info[source]
-            ap = this_source['class']
+        if source in lazylibrarian.INFOSOURCES.keys():
+            this_source = lazylibrarian.INFOSOURCES[source]
+            ap = this_source['api']
             res = ap.find_author_id(authorname=authorname)
             self.data = str(res)
 
@@ -2017,9 +2016,8 @@ class Api(object):
         db = database.DBConnection()
         key = ''
         this_source = None
-        info = lazylibrarian.INFOSOURCES
-        if source in info:
-            this_source = info[source]
+        if source in lazylibrarian.INFOSOURCES.keys():
+            this_source = lazylibrarian.INFOSOURCES[source]
             key = this_source['author_key']
             if key == 'authorid':  # not all providers have authorid
                 key = ''
@@ -2028,7 +2026,7 @@ class Api(object):
             return
 
         authordata = db.select(f"SELECT AuthorName from authors WHERE {key}='' or {key} is null")
-        api = this_source['class']
+        api = this_source['api']
         for author in authordata:
             res = api.find_author_id(authorname=author['AuthorName'])
             if res.get('authorid'):
@@ -2045,9 +2043,8 @@ class Api(object):
             return
 
         authorname = format_author_name(kwargs['name'], postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
-        info = lazylibrarian.INFOSOURCES
-        this_source = info[CONFIG['BOOK_API']]
-        api = this_source['class']
+        this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
+        api = this_source['api']
         myqueue = Queue()
         search_api = threading.Thread(target=api.find_results,
                                       name=f"API-{this_source['src']}RESULTS",
@@ -2062,9 +2059,8 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
 
-        info = lazylibrarian.INFOSOURCES
-        this_source = info[CONFIG['BOOK_API']]
-        api = this_source['class']
+        this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
+        api = this_source['api']
         myqueue = Queue()
         search_api = threading.Thread(target=api.find_results,
                                       name=f"API-{this_source['src']}RESULTS",
@@ -2079,9 +2075,8 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
 
-        info = lazylibrarian.INFOSOURCES
-        this_source = info[CONFIG['BOOK_API']]
-        api = this_source['class']
+        this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
+        api = this_source['api']
         threading.Thread(target=api.add_bookid_to_db,
                          name=f"API-{this_source['src']}RESULTS",
                          args=[kwargs['id'], None, None, "Added by API"]).start()

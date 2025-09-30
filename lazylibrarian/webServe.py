@@ -87,10 +87,9 @@ lastmagazine = ''
 lastcomic = ''
 
 api_sources = []
-info_sources = lazylibrarian.INFOSOURCES
-for item in info_sources:
+for item in lazylibrarian.INFOSOURCES.keys():
     # source, authorid, bookid
-    info_source = info_sources[item]
+    info_source = lazylibrarian.INFOSOURCES[item]
     api_sources.append([info_source, info_source['author_key'], info_source['book_key']])
 
 
@@ -3250,10 +3249,8 @@ class WebInterface:
             author_id = match['AuthorID']
             update_totals(author_id)
         else:
-
-            info = lazylibrarian.INFOSOURCES
-            this_source = info[CONFIG['BOOK_API']]
-            api = this_source['class']
+            this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
+            api = this_source['api']
             t = threading.Thread(target=api.add_bookid_to_db(bookid=bookid),
                                  name=f"{this_source['src']}-BOOK",
                                  args=[bookid, ebook_status, audio_status, "Added by user"])
