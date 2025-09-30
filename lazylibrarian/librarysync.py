@@ -77,8 +77,7 @@ def get_book_meta(fdir, reason="get_book_meta"):
             existing_book = db.match(cmd, (bookid,))
             if not existing_book:
                 logger.debug(f"Searching {CONFIG['BOOK_API']} for {bookid}")
-                info = lazylibrarian.INFOSOURCES
-                this_source = info[CONFIG['BOOK_API']]
+                this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
                 api = this_source['api']
                 api.add_bookid_to_db(bookid, None, None, reason)
                 existing_book = db.match(cmd, (bookid,))
@@ -1022,9 +1021,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         # prefs, or it's under another author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
                                         for source in lazylibrarian.INFOSOURCES.keys():
-                                            this_source = info_sources[source]
-                                            if this_source not in sources and this_source['enabled']:
-                                                sources.append(this_source)
+                                            this_source = lazylibrarian.INFOSOURCES[source]
+                                            if source not in sources and this_source['enabled']:
+                                                sources.append(source)
 
                                     searchresults = []
                                     for source in sources:
