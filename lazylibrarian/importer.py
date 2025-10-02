@@ -837,12 +837,24 @@ def update_totals(authorid):
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book', source=None):
     """ search goodreads or googlebooks for a bookid and import the book
         ebook/audio=None makes add_bookid_to_db use configured default """
+    logger = logging.getLogger(__name__)
     if not source:
         source = CONFIG['BOOK_API']
-    this_source = lazylibrarian.INFOSOURCES[source]
-    api = this_source['api']
+    else:
+        # we may be passed a 2 letter code, eg GR, OL and need to get the source api from that
+        # or may have full source eg GoodReads, OpenLibrary which we can look up in infosources
+        for item in lazylibrarian.INFOSOURCES.keys():
+            if lazylibrarian.INFOSOURCES[item]['src'] == source:
+                source = item
+                break
+
+    if source not in lazylibrarian.INFOSOURCES.keys():
+        logger.error(f"Invalid source {source} in import_book")
+        return
+
+    api = lazylibrarian.INFOSOURCES[source]['api']
     if not wait:
-        threading.Thread(target=api.add_bookid_to_db, name=f"{this_source['src']}-IMPORT",
+        threading.Thread(target=api.add_bookid_to_db, name=f"{lazylibrarian.INFOSOURCES[source]['src']}-IMPORT",
                          args=[bookid, ebook, audio, reason]).start()
     else:
         api.add_bookid_to_db(bookid, ebook, audio, reason)
