@@ -560,7 +560,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
                 # get preferred source first but keep all other enabled ones in any order
                 current_sources = []
                 for api_source in api_sources:
-                    if api_source[4]:  # only include if source is enabled
+                    if CONFIG[api_source[4]]:  # only include if source is enabled
                         if api_source[0] == CONFIG['BOOK_API']:
                             current_sources.insert(0, api_source)
                         else:
@@ -858,7 +858,7 @@ def search_for(searchterm, source=None):
     searchinglogger.debug(f"{source} {searchterm}")
     this_source = lazylibrarian.INFOSOURCES[source]
     api = this_source['api']
-    if this_source['enabled']:
+    if CONFIG[this_source['enabled']]:
         myqueue = Queue()
         search_api = threading.Thread(target=api.find_results,
                                       name=f"{this_source['src']}-RESULTS",

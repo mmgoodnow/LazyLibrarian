@@ -16,6 +16,7 @@ from typing import List, Optional
 from urllib.parse import quote
 
 import requests
+import unicodedata
 
 try:
     import iso639
@@ -817,7 +818,7 @@ class DNB:
             auth_id = authorid
             auth_name = authorname
             if authorid:
-                res = db.match('SELECT AuthorName from authors WHERE Authorid=? or dnb_id=?', (authorid, authorid))
+                res = db.match('SELECT AuthorName from authors WHERE Authorid=?', (authorid, ))
                 if res:
                     auth_name = res['AuthorName']
             else:
@@ -1073,8 +1074,9 @@ class DNB:
         authornames = mydict['authorname']
         if len(authornames) > 1:
             for authorname in authornames[1:]:
+                authorname, _ = lazylibrarian.importer.get_preferred_author(authorname)
                 mydict['contributors'].append(['0', " ".join(authorname.split())])
-        mydict['authorname'] = authornames[0]
+        mydict['authorname'], _ = lazylibrarian.importer.get_preferred_author(authornames[0])
 
         mydict['bookisbn'] = ''
         if mydict['identifiers'] and 'isbn' in mydict['identifiers']:

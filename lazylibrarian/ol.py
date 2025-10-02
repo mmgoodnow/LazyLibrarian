@@ -1304,7 +1304,6 @@ class OpenLibrary:
         try:
             self.searchinglogger.debug(url)
             workinfo, in_cache = json_request(url)
-            print(0, str(workinfo))
             if not workinfo:
                 self.logger.debug(f"OL no bookinfo for {bookid}")
                 return None, False
@@ -1337,7 +1336,7 @@ class OpenLibrary:
             bookdict['bookisbn'] = ', '.join(bookdict['bookisbn'])
         else:
             try:
-                res = isbn_from_words(f"{title} {unaccented(authorname, only_ascii=False)}")
+                res = isbn_from_words(f"{bookdict['bookname']} {unaccented(bookdict['authorname'], only_ascii=False)}")
             except Exception as e:
                 res = None
                 self.logger.warning(f"Error from isbn: {e}")
@@ -1380,6 +1379,7 @@ class OpenLibrary:
             self.logger.warning(f"No title for {bookid}, unable to add book")
             return
 
+        db = database.DBConnection()
         auth_name, exists = lazylibrarian.importer.get_preferred_author(authorname)
         if exists:
             match = db.match('SELECT AuthorName,AuthorID from authors WHERE AuthorName=?', (auth_name,))
@@ -1398,7 +1398,9 @@ class OpenLibrary:
                 bookdict['authorid'] = match['AuthorID']
             else:
                 self.logger.warning(f"No match for {auth_id}, unable to add book {title}")
+                db.close()
                 return
+        db.close()
 
         # validate bookdict, reject if unwanted or incomplete
         bookdict, rejected = validate_bookdict(bookdict)

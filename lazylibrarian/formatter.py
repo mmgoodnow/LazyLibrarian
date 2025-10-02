@@ -801,6 +801,7 @@ def format_author_name(author: str, postfix: List[str]) -> str:
     """ get authorname in a consistent format """
     fuzzlogger = logging.getLogger('special.fuzz')
     author = make_unicode(author)
+    author = unicodedata.normalize('NFKD', author)
     # if multiple authors assume the first one is primary
     # except if only one word before '&', e.g. Robert & Gilles Néret Descharnes
     if '& ' in author:

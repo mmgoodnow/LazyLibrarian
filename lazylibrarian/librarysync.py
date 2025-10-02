@@ -1022,7 +1022,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         # Since we have the book anyway, try and reload it
                                         for source in lazylibrarian.INFOSOURCES.keys():
                                             this_source = lazylibrarian.INFOSOURCES[source]
-                                            if source not in sources and this_source['enabled']:
+                                            if source not in sources and CONFIG[this_source['enabled']]:
                                                 sources.append(source)
 
                                     searchresults = []
