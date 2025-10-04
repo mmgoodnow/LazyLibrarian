@@ -267,6 +267,15 @@ def author_keys():
     return keys
 
 
+def book_keys():
+    keys = []
+    for item in lazylibrarian.INFOSOURCES.keys():
+        this_source = lazylibrarian.INFOSOURCES[item]
+        if this_source['book_key'] and this_source['book_key'] != 'bookid':
+            keys.append(this_source['book_key'])
+    return keys
+
+
 def get_all_author_details(authorid='', authorname=None):
     # fetch as much data as you can on an author using all configured sources
 
@@ -460,7 +469,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
                 if aka and aka not in akas:
                     akas.append(aka)
                     db.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), dbauthor['authorid']))
-                return dbauthor['authorid']
+                current_author['authorid'] = dbauthor['authorid']
+                current_author['AKA'] = ', '.join(akas)
             else:
                 logger.warning(
                     f"Updating authorname for {current_author['authorid']} (new:{current_author['authorname']} "

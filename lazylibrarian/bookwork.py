@@ -509,8 +509,11 @@ def add_series_members(seriesid, refresh=False):
             logger.debug(f"{member[0]}:{member[1]} - {member[2]}")
             book = None
             if bookid:
-                cmd = "SELECT * from books WHERE bookid=? or ol_id=? or gr_id=? or gb_id=? or hc_id=?"
-                book = db.match(cmd, (bookid, bookid, bookid, bookid, bookid))
+                keys = lazylibrarian.importer.book_keys()
+                cmd = "SELECT * from books WHERE bookid=?"
+                for k in keys:
+                    cmd += f" or {k}=?"
+                book = db.match(cmd, tuple([str(bookid)] * (len(keys) + 1)))
                 if not book:
                     cmd = ("SELECT * from books,authors where bookname=? COLLATE NOCASE "
                            "and authorname=? COLLATE NOCASE and books.authorid = authors.authorid")
