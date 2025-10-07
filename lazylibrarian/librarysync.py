@@ -949,7 +949,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                         this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
                                         api = this_source['api']
-                                        book_id = eval(this_source['book_id'])
+                                        book_id = eval(this_source['book_key'])
                                         if book_id:
                                             src = this_source['src']
                                             api.add_bookid_to_db(book_id, None, None, f"Added by {src}"
