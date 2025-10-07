@@ -1325,6 +1325,7 @@ class OpenLibrary:
                     authorid = ''
 
         bookdict['authorid'] = authorid
+        bookdict['bookid'] = bookid
         auth = self.get_author_info(authorid)
         bookdict['authorname'] = auth['authorname']
         bookdict['bookname'] = workinfo.get('title', '')
