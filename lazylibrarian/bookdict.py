@@ -327,7 +327,7 @@ def add_bookdict_to_db(book, reason, source):
     db.action('INSERT into bookauthors (AuthorID, BookID, Role) VALUES (?, ?, ?)',
               (book['authorid'], book['bookid'], ROLE['PRIMARY']), suppress='UNIQUE')
 
-    if CONFIG.get_bool('CONTRIBUTING_AUTHORS'):
+    if CONFIG.get_bool('CONTRIBUTING_AUTHORS') and 'contributors' in book:
         for entry in book['contributors']:
             auth_id = lazylibrarian.importer.add_author_to_db(authorname=entry[1], refresh=False,
                                                               authorid=entry[0], addbooks=False,
