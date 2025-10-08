@@ -1365,6 +1365,8 @@ class OpenLibrary:
         bookdict['bookpages'] = int(workinfo.get('number_of_pages', 0))
         bookdict['bookgenre'] = ''
         bookdict['bookdesc'] = ''
+        bookdict['contributors'] = []
+        bookdict['series'] = []
         bookdict['source'] = 'OpenLibrary'
         return bookdict, in_cache
 
