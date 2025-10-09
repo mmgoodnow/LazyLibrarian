@@ -351,7 +351,11 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         book_lower = unaccented(book.lower(), only_ascii=False)
         book_lower = strip_quotes(book_lower)
-        book_partname, book_sub, _ = split_title(author, book_lower)
+        if source in ['hc_id', 'dnb_id']:  # subtitle already split out by provider
+            book_partname = ''
+            book_sub = ''
+        else:
+            book_partname, book_sub, _ = split_title(author, book_lower)
 
         # We want to match a book on disk with a subtitle to a shorter book in the DB
         # - Strict prefix match with a : followed by junk is allowed
@@ -361,10 +365,9 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         logger.debug(f"Searching {len(books)} {ign}{plural(len(books), 'book')} by "
                      f"[{authorid}:{author}] in database for [{book}]")
-        fuzzlogger.debug(f'book partname [{book_partname}] book_sub [{book_sub}]')
         if book_partname == book_lower:
             book_partname = ''
-
+        fuzzlogger.debug(f'book partname [{book_partname}] book_sub [{book_sub}]')
         for a_book in books:
             a_bookname = a_book['BookName']
             if a_book['BookSub'] and book_sub:
@@ -391,7 +394,6 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                 # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
                 partname = fuzz.partial_ratio(book_partname, a_book_lower)
                 fuzzlogger.debug(f"PartName {round(partname, 2)} [{book_partname}][{a_book_lower}]")
-
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
             words = len(get_list(book_lower))

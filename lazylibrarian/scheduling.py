@@ -300,7 +300,7 @@ def author_update(restart=True, only_overdue=True):
             elif not overdue and only_overdue:
                 msg = f"Oldest author info ({name}) is {days} {plural(days, 'day')} old, no update due"
             else:
-                logger.info(f'Starting update for {name}')
+                logger.info(f'Starting update for {name}:{ident}')
                 _ = add_author_to_db(refresh=True, authorid=ident, reason=f"author_update {name}")
                 if lazylibrarian.STOPTHREADS:
                     return ''
