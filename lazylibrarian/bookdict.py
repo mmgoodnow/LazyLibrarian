@@ -715,7 +715,9 @@ def add_series_entries(bookdict, get_series_members, get_bookdict_for_bookid):
     for item in bookdict['series']:
         ser_name = item[0].strip()
         reason = ser_name
-        ser_id = f"{source}{str(item[1])}"
+        ser_id = str(item[1])
+        if not ser_id.startswith(source):
+            ser_id = f"{source}{str(item[1])}"
         exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
         if not exists:
             exists = db.match("SELECT * from series WHERE seriesname=? "
