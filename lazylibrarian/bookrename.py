@@ -20,7 +20,8 @@ from rapidfuzz import fuzz
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation
-from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory, copy_tree
+from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory, copy_tree, \
+    path_isdir, path_isfile
 from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, \
     sanitize, replacevars
 from lazylibrarian.opfedit import opf_read
@@ -400,7 +401,7 @@ def audio_parts(folder, bookname, authorname):
     return parts, failed, tokmatch, abridged
 
 
-def audio_rename(bookid, rename=False, playlist=False):
+def audio_rename(bookid, rename=False, playlist=False, overwrite=False):
     """
     :param bookid: book to process
     :param rename: rename to match audiobook filename pattern
@@ -469,9 +470,12 @@ def audio_rename(bookid, rename=False, playlist=False):
                 else:
                     shutil.rmtree(old_path)
             else:
-                logger.debug(f"moving folder {old_path} to {dest_path}")
-                dest_path = safe_move(old_path, dest_path)
-            book_filename = os.path.join(dest_path, os.path.basename(book_filename))
+                if path_isdir(dest_path) and not overwrite:
+                    logger.debug(f"Not moving folder {old_path} as {dest_path} exists")
+                else:
+                    logger.debug(f"moving folder {old_path} to {dest_path}")
+                    dest_path = safe_move(old_path, dest_path)
+                    book_filename = os.path.join(dest_path, os.path.basename(book_filename))
         except Exception as why:
             msg = f'Rename failed: {why}'
             logger.error(msg)
@@ -508,9 +512,13 @@ def audio_rename(bookid, rename=False, playlist=False):
                 n = o
             if o != n:
                 try:
-                    n = safe_move(o, n)
+                    if path_isfile(n) and not overwrite:
+                        logger.debug(f"Not moving {o} as {n} exists")
+                        n = o
+                    else:
+                        logger.debug(f"{exists['BookName']}: audio_rename [{o}] to [{n}]")
+                        n = safe_move(o, n)
                     book_filename = n  # return part 1 of set
-                    logger.debug(f"{exists['BookName']}: audio_rename [{o}] to [{n}]")
                 except Exception as e:
                     logger.error(f'Unable to rename [{o}] to [{n}] {type(e).__name__} {str(e)}')
     else:
@@ -537,7 +545,11 @@ def audio_rename(bookid, rename=False, playlist=False):
                     n = o
                 if o != n:
                     try:
-                        n = safe_move(o, n)
+                        if path_isfile(n) and not overwrite:
+                            logger.debug(f"Not renaming [{o}] as [{n}] exists")
+                            n = o
+                        else:
+                            n = safe_move(o, n)
                         if part[0] == 1:
                             book_filename = n  # return part 1 of set
                         logger.debug(f"{exists['BookName']}: audio_rename [{o}] to [{n}]")
@@ -562,7 +574,7 @@ def stripspaces(pathname):
     return pathname
 
 
-def book_rename(bookid):
+def book_rename(bookid, overwrite=False):
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     cmd = ('select AuthorName,BookName,BookFile from books,authors where '
@@ -654,8 +666,12 @@ def book_rename(bookid):
                 nfname = ofname
             if ofname != nfname:
                 try:
-                    nfname = safe_move(ofname, nfname)
-                    m = f"move file {ofname} to {nfname} "
+                    if path_isfile(nfname) and not overwrite:
+                        m = f"Not moving {ofname} as {nfname} exists"
+                        nfname = ofname
+                    else:
+                        nfname = safe_move(ofname, nfname)
+                        m = f"move file {ofname} to {nfname} "
                     logger.debug(m)
                     msg += m
                     if ofname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
@@ -672,8 +688,12 @@ def book_rename(bookid):
                 nfname = ofname
             if ofname != nfname:
                 try:
-                    nfname = safe_move(ofname, nfname)
-                    m = f"move file {ofname} to {nfname} "
+                    if path_isfile(nfname) and not overwrite:
+                        m = f"Not moving {ofname} as {nfname} exists"
+                        nfname = ofname
+                    else:
+                        nfname = safe_move(ofname, nfname)
+                        m = f"move file {ofname} to {nfname} "
                     logger.debug(m)
                     msg += m
                 except Exception as e:
