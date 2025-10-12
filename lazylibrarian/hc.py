@@ -664,13 +664,15 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
                 if not author_name:
                     author_name = authorname
+                if not language:
+                    language = 'Unknown'
                 # pick the first entry for each position that is non compilation and in a language we want
                 if not compilation and position and (position not in resultdict or
                                                      resultdict[position][1] != author_name):
-                    if not language:
-                        language = 'Unknown'
                     if 'All' in wantedlanguages or language in wantedlanguages:
-                        resultdict[position] = [book_title, authorname, authorlink, book_id, pubdate]
+                        resultdict[position] = [book_title, authorname, authorlink, book_id, pubdate, language]
+                    else:
+                        self.logger.debug(f"Rejecting {position}:{book_title} as language {language}")
             for item in resultdict:
                 res = [item]
                 res.extend(resultdict[item])
