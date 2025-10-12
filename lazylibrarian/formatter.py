@@ -751,8 +751,8 @@ def split_title(author, book):
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(f"{author}:"):
         book = book.split(f"{author}:")[1].strip()
-    brace = book.rfind('(') + 1
-    if brace and book.endswith(')'):
+
+    if '(' in book and book.endswith(')'):
         # if title ends with words in braces, split on last brace
         # as this always seems to be a subtitle or series info
         # If there is a digit before the closing brace assume it's series
@@ -768,6 +768,8 @@ def split_title(author, book):
             parts[1] = f"({parts[1]}"
             bookname = parts[0].strip()
             booksub = parts[1].rstrip(':').strip()
+            if ' ' not in booksub:
+                booksub = ''
             if booksub.find(')'):
                 for item in ImportPrefs.SPLIT_LIST:
                     if f"({item})" == booksub.lower():
@@ -776,12 +778,13 @@ def split_title(author, book):
             return bookname, booksub, bookseries
 
     # if not (words in braces at end of string)
-    # split subtitle on first ':'
-    colon = book.find(':') + 1
+    # split subtitle on last colon
+    # eg The Land: Awakening: The Saga Continues
+    # title = The Land: Awakening
     bookname = book
     booksub = ''
-    if colon:
-        parts = book.split(':', 1)
+    if ':' in book:
+        parts = book.rsplit(':', 1)
         bookname = parts[0].strip()
         booksub = parts[1].rstrip(':').strip()
         bookname_lower = bookname.lower()
