@@ -351,7 +351,15 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
         book_lower = unaccented(book.lower(), only_ascii=False)
         book_lower = strip_quotes(book_lower)
-        if source in ['hc_id', 'dnb_id']:  # subtitle already split out by provider
+        # source is the book_key eg hc_id, dnb_id
+        # from this we need to see if the source provides subtitles
+        has_subtitles = []
+        for item in lazylibrarian.INFOSOURCES.keys():
+            this_source = lazylibrarian.INFOSOURCES[item]
+            if this_source['has_subs']:
+                has_subtitles.append(this_source['book_key'])
+
+        if source in has_subtitles:
             book_partname = ''
             book_sub = ''
         else:
@@ -386,34 +394,47 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             #
             # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
             ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
-            fuzzlogger.debug(f"Ratio {round(ratio, 2)} [{book_lower}][{a_book_lower}]")
             # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
             partial = fuzz.partial_ratio(book_lower, a_book_lower)
-            fuzzlogger.debug(f"PartialRatio {round(partial, 2)} [{book_lower}][{a_book_lower}]")
             if book_partname:
                 # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
                 partname = fuzz.partial_ratio(book_partname, a_book_lower)
-                fuzzlogger.debug(f"PartName {round(partname, 2)} [{book_partname}][{a_book_lower}]")
+
+            # lose points if the difference is just numbers so we don't match "book 2" and "book 3"
+            # eg "He Who Fights With Monsters #7" is not the same as "He Who Fights With Monsters 05"
+            set1 = set(book_lower.split())
+            set2 = set(a_book_lower.split())
+            differences = set1.symmetric_difference(set2)
+            numbers = []
+            for word in differences:
+                # see if word coerces to an integer or a float
+                try:
+                    numbers.append(float(re.findall(r'\d+\.\d+', word)[0]))
+                except IndexError:
+                    try:
+                        numbers.append(int(re.findall(r'\d+', word)[0]))
+                    except IndexError:
+                        pass
+            if len(numbers) == 2 and numbers[0] != numbers[1]:
+                # make sure we are below match threshold
+                if ratio > CONFIG.get_int('NAME_RATIO'):
+                    ratio = CONFIG.get_int('NAME_RATIO') - 1
+                if partial > CONFIG.get_int('NAME_PARTIAL'):
+                    partial = CONFIG.get_int('NAME_PARTIAL') - 1
+                if partname > CONFIG.get_int('NAME_PARTNAME'):
+                    partname = CONFIG.get_int('NAME_PARTNAME') - 1
+                fuzzlogger.debug(f"Downgraded ratios as different numbers")
+
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
-            words = len(get_list(book_lower))
-            words -= len(get_list(a_book_lower))
-            # lose points if the difference is just digits so we don't match "book 2" and "book 3"
-            # or "some book" and "some book 2"
-            set1 = set(book_lower)
-            set2 = set(a_book_lower)
-            difference = set1.symmetric_difference(set2)
-            digits = sum(c.isdigit() for c in difference)
-            if digits == len(difference):
-                # make sure we are below match threshold
-                ratio = CONFIG.get_int('NAME_RATIO') - 1
-                partial = CONFIG.get_int('NAME_PARTIAL') - 1
-                partname = CONFIG.get_int('NAME_PARTNAME') - 1
-            else:
-                ratio -= abs(words)
-                partial -= abs(words)
-                # don't subtract extra words from partname so we can compare books with/without subtitle
-                # partname -= abs(words)
+            words = len(book_lower.split())
+            words -= len(a_book_lower.split())
+            ratio -= abs(words)
+            partial -= abs(words)
+            # don't subtract extra words from partname so we can compare books with/without subtitle
+            # partname -= abs(words)
+            fuzzlogger.debug(f"Ratios [{book_lower}][{a_book_lower}]")
+            fuzzlogger.debug(f"Ratio {round(ratio, 2)} PartialRatio {round(partial, 2)} PartName {round(partname, 2)}")
 
             def isitbest(aratio, abest_ratio, aratio_name, abest_type, astatus):
                 use_it = False
@@ -427,10 +448,10 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                         new_words = get_list(a_bookname.lower())
                         best_cnt = 0
                         new_cnt = 0
-                        for word in want_words:
-                            if word in best_words:
+                        for a_word in want_words:
+                            if a_word in best_words:
                                 best_cnt += 1
-                            if word in new_words:
+                            if a_word in new_words:
                                 new_cnt += 1
                         if new_cnt > best_cnt:
                             use_it = True
