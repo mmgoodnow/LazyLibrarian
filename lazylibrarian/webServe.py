@@ -4721,8 +4721,10 @@ class WebInterface:
 
     @cherrypy.expose
     @require_auth()
-    def wall_columns(self, redirect=None, count=None, have=0, title=''):
+    def wall_columns(self, redirect=None, count=None, have='', title=''):
         title = title.split(' (')[0].replace(' ', '+')
+        if not have:
+            have = '1' if 'Wanted' in title else '0'
         columns = check_int(CONFIG.get_int('WALL_COLUMNS'), 6)
         if count == 'up' and columns <= 12:
             columns += 1
