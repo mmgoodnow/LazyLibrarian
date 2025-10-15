@@ -1233,8 +1233,8 @@ class GoodReads:
         if book_language not in valid_langs and 'All' not in valid_langs:
             msg = f'Book {bookname} Language [{book_language}] does not match preference'
             self.logger.warning(msg)
-            if reason.startswith("Series:"):
-                return
+            # if reason.startswith("Series:"):
+            #    return
 
         if rootxml.find('./book/work/original_publication_year').text is None:
             originalpubdate = ''
@@ -1266,16 +1266,16 @@ class GoodReads:
             if not bookdate or bookdate == '0000':
                 msg = f'Book {bookname} Publication date [{bookdate}] does not match preference'
                 self.logger.warning(msg)
-                if reason.startswith("Series:"):
-                    return
+                # if reason.startswith("Series:"):
+                #    return
 
         if CONFIG.get_bool('NO_FUTURE'):
             # may have yyyy or yyyy-mm-dd
             if bookdate > today()[:len(bookdate)]:
                 msg = f'Book {bookname} Future publication date [{bookdate}] does not match preference'
                 self.logger.warning(msg)
-                if reason.startswith("Series:"):
-                    return
+                # if reason.startswith("Series:"):
+                #    return
 
         if CONFIG.get_bool('NO_SETS'):
             is_set, set_msg = is_set_or_part(bookname)

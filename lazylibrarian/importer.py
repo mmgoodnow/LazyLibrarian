@@ -11,6 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import re
 import sqlite3
 import string
 import threading
@@ -384,6 +385,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
         thread_name("AddAuthorToDB")
     db = database.DBConnection()
     ret_id = None
+
     # noinspection PyBroadException
     try:
         authorkeys = []
@@ -674,6 +676,25 @@ def collate_fuzzy(string1, string2):
     str2 = string2.translate(str.maketrans('', '', string.punctuation))
     if str1 == str2:
         return 0
+
+    set1 = set(str1.split())
+    set2 = set(str2.split())
+    differences = set1.symmetric_difference(set2)
+    numbers = []
+    for word in differences:
+        # see if word coerces to an integer or a float
+        try:
+            numbers.append(float(re.findall(r'\d+\.\d+', word)[0]))
+        except IndexError:
+            try:
+                numbers.append(int(re.findall(r'\d+', word)[0]))
+            except IndexError:
+                pass
+    if len(numbers) == 2:
+        if numbers[0] > numbers[1]:
+            return 1
+        return -1
+
     match_fuzz = fuzz.ratio(str1, str2)
     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
         return 0
@@ -720,6 +741,7 @@ def de_duplicate(authorid):
                 favourite = ''
                 copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE FUZZY",
                                    (authorid, item[1]))
+
                 for copy in copies:
                     if (copy['Status'] in ['Open', 'Have'] or
                             copy['AudioStatus'] in ['Open', 'Have']):
