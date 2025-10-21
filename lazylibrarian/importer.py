@@ -11,6 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import re
 import sqlite3
 import string
 import threading
@@ -702,6 +703,8 @@ def collate_fuzzy(string1, string2):
         if numbers[0] > numbers[1]:
             return 1
         return -1
+    elif len(numbers) == 1:
+        return 1
 
     match_fuzz = fuzz.ratio(str1, str2)
     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):

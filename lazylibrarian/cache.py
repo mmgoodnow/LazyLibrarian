@@ -434,7 +434,7 @@ class XMLCacheRequest(CacheRequest):
         else:
             self.logger.error(f"Error getting xml data from {self.url}")
             if result:
-                self.logger.error(f"Result: {result[:40]}")
+                self.logger.error(f"Result: {result[:80]}")
             return None, False
         return source, True
 

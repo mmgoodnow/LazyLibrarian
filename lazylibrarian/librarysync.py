@@ -419,7 +419,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                         numbers.append(int(re.findall(r'\d+', word)[0]))
                     except IndexError:
                         pass
-            if len(numbers) == 2 and numbers[0] != numbers[1]:
+            if len(numbers) == 1 or (len(numbers) == 2 and numbers[0] != numbers[1]):
                 # make sure we are below match threshold
                 if ratio >= CONFIG.get_int('NAME_RATIO'):
                     ratio = CONFIG.get_int('NAME_RATIO') - 5
@@ -433,22 +433,10 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             # this should also stop us matching single books against omnibus editions
             words = len(get_list(book_lower))
             words -= len(get_list(a_book_lower))
-            # lose points if the difference is just digits so we don't match "book 2" and "book 3"
-            # or "some book" and "some book 2"
-            set1 = set(book_lower)
-            set2 = set(a_book_lower)
-            difference = set1.symmetric_difference(set2)
-            digits = sum(c.isdigit() for c in difference)
-            if digits == len(difference):
-                # make sure we are below match threshold
-                ratio = CONFIG.get_int('NAME_RATIO') - 1
-                partial = CONFIG.get_int('NAME_PARTIAL') - 1
-                partname = CONFIG.get_int('NAME_PARTNAME') - 1
-            else:
-                ratio -= abs(words)
-                partial -= abs(words)
-                # don't subtract extra words from partname so we can compare books with/without subtitle
-                # partname -= abs(words)
+            ratio -= abs(words)
+            partial -= abs(words)
+            # don't subtract extra words from partname so we can compare books with/without subtitle
+            # partname -= abs(words)
 
             def isitbest(aratio, abest_ratio, aratio_name, abest_type, astatus):
                 use_it = False
@@ -462,10 +450,10 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                         new_words = get_list(a_bookname.lower())
                         best_cnt = 0
                         new_cnt = 0
-                        for word in want_words:
-                            if word in best_words:
+                        for wrd in want_words:
+                            if wrd in best_words:
                                 best_cnt += 1
-                            if word in new_words:
+                            if wrd in new_words:
                                 new_cnt += 1
                         if new_cnt > best_cnt:
                             use_it = True

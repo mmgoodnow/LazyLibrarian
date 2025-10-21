@@ -518,7 +518,7 @@ class GoodReads:
                                 if thing_hit:
                                     lt_lang_hits += 1
 
-                        if not book_language or book_language == "Unknown" or not bookdate or  bookdate == '0000':
+                        if not book_language or book_language == "Unknown" or not bookdate or bookdate == '0000':
                             # still  no earlier match, we'll have to search the goodreads api
                             try:
                                 if book.find(find_field).text:
@@ -862,11 +862,12 @@ class GoodReads:
 
                             if (not bookdate or bookdate == '0000') and booklink:
                                 result, in_cache = html_request(booklink)
-                                try:
-                                    pubdate = result.split(b"publicationInfo")[1].split(b"ublished ")[1].split(b"<")[0]
-                                    bookdate = date_format(pubdate.decode('utf-8'))
-                                except IndexError:
-                                    pass
+                                if result:
+                                    try:
+                                        pubdate = result.split(b"publicationInfo")[1].split(b"ished ")[1].split(b"<")[0]
+                                        bookdate = date_format(pubdate.decode('utf-8'))
+                                    except IndexError:
+                                        pass
 
                             # Leave alone if locked
                             if locked:
