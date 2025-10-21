@@ -319,7 +319,7 @@ def search_wishlist():
             if link and (not cat or 'Ebook' in cat):
                 dl_books.append(item)
             else:
-                search_books.append({'bookid', item['BookID']})
+                search_books.append({'bookid': item['BookID']})
 
         logger.debug(f"eBooks: Download {len(dl_books)}, Search {len(search_books)}")
 
@@ -331,7 +331,7 @@ def search_wishlist():
             if link and (not cat or 'Audiobook' in cat):
                 dl_audio.append(item)
             else:
-                search_audio.append({'bookid', item['BookID']})
+                search_audio.append({'bookid': item['BookID']})
 
         logger.debug(f"Audio: Download {len(dl_audio)}, Search {len(search_audio)}")
 
