@@ -45,7 +45,7 @@ class Client:
 
         self._url = url + "api/v2/"
         self._verify = verify
-        self._timeout = timeout
+        self._timeout = 10.0
         self._proxies = proxy_list()
         self._max_attempts_on_403 = max_attempts_on_403
 

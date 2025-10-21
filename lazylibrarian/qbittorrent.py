@@ -43,7 +43,11 @@ def get_files(hashid):
     retries = 5
 
     while retries:
-        files = qbclient.get_torrent_files(hashid)
+        try:
+            files = qbclient.get_torrent_files(hashid)
+        except Exception as e:
+            dlcommslogger.error(f"Failed to get_files: {e}")
+            return ''
         if files:
             return files
         time.sleep(2)
@@ -68,7 +72,11 @@ def get_name(hashid):
         # get_torrent(hashid) gets info on one torrent but doesn't return all the information
         # eg we are missing name, state, progress
         # so get all of our torrents and then look for the hashid
-        torrents = qbclient.torrents(category=cat)
+        try:
+            torrents = qbclient.torrents(category=cat)
+        except Exception as e:
+            dlcommslogger.error(f" Failed to get_name: {e}")
+            return ''
         for torrent in torrents:
             if torrent.get('hash') == hashid:
                 if torrent.get('name'):
@@ -93,7 +101,11 @@ def get_folder(hashid):
     if not cat:
         cat = None
     while retries:
-        torrents = qbclient.torrents(category=cat)
+        try:
+            torrents = qbclient.torrents(category=cat)
+        except Exception as e:
+            dlcommslogger.error(f"Failed to get_folder: {e}")
+            torrents = ''
         for torrent in torrents:
             if torrent.get('hash') == hashid:
                 if torrent.get('save_path'):
@@ -116,8 +128,12 @@ def get_progress(hashid):
     if not qbclient:
         return -1, '', False
 
-    preferences = qbclient.preferences()
-    loggerdlcomms.debug(str(preferences))
+    try:
+        preferences = qbclient.preferences()
+    except Exception as e:
+        dlcommslogger.error(f"Failed to get_progress: {e}")
+        preferences = {}
+    dlcommslogger.debug(str(preferences))
     max_ratio = 0.0
     if 'max_ratio_enabled' in preferences and 'max_ratio' in preferences:
         if preferences['max_ratio_enabled']:
@@ -125,7 +141,11 @@ def get_progress(hashid):
     cat = CONFIG['QBITTORRENT_LABEL']
     if not cat:
         cat = None
-    torrents = qbclient.torrents(category=cat)
+    try:
+        torrents = qbclient.torrents(category=cat)
+    except Exception as e:
+        dlcommslogger.error(f"Failed to get_progress: {e}")
+        torrents = ''
     for torrent in torrents:
         if torrent.get('hash') == hashid:
             if 'state' in torrent:
@@ -162,7 +182,11 @@ def remove_torrent(hashid, remove_data=False):
     cat = CONFIG['QBITTORRENT_LABEL']
     if not cat:
         cat = None
-    torrents = qbclient.torrents(category=cat)
+    try:
+        torrents = qbclient.torrents(category=cat)
+    except Exception as e:
+        dlcommslogger.error(f" Failed to remove_torrent: {e}")
+        return False
     for torrent in torrents:
         if torrent.get('hash') == hashid:
             remove = True
@@ -174,11 +198,19 @@ def remove_torrent(hashid, remove_data=False):
                     remove = False
             if remove:
                 if remove_data:
-                    qbclient.delete_permanently(hashid)
-                    logger.info(f"{torrent['name']} removing torrent and data")
+                    try:
+                        qbclient.delete_permanently(hashid)
+                        logger.info(f"{torrent['name']} removing torrent and data")
+                    except Exception as e:
+                        dlcommslogger.error(f"Failed to delete_permanently: {e}")
+                        return False
                 else:
-                    qbclient.delete(hashid)
-                    logger.info(f"{torrent['name']} removing torrent")
+                    try:
+                        qbclient.delete(hashid)
+                        logger.info(f"{torrent['name']} removing torrent")
+                    except Exception as e:
+                        dlcommslogger.error(f"Failed to delete: {e}")
+                        return False
                 return True
     return False
 
@@ -206,14 +238,23 @@ def add_file(data, hashid, title, provider_options):
         return False, "Failed to login to qbittorrent"
 
     kwargs = get_args(provider_options)
-    loggerdlcomms.debug(f'{kwargs}')
-    qbclient.download_from_file(data, **kwargs)
+    dlcommslogger.debug(f'{kwargs}')
+    try:
+        qbclient.download_from_file(data, **kwargs)
+    except Exception as e:
+        dlcommslogger.error(f"Failed to download_from_file: {e}")
+        return False, str(e)
+
     count = 0
     while count < 10:
         count += 1
         time.sleep(1)
         # noinspection PyProtectedMember
-        torrent = qbclient.get_torrent(hashid)
+        try:
+            torrent = qbclient.get_torrent(hashid)
+        except Exception as e:
+            dlcommslogger.error(f"Failed to get_torrent: {e}")
+            return False, str(e)
         if torrent:
             if count > 1:
                 loggerdlcomms.debug(f"hashid found in torrent list after {count} seconds")
@@ -234,14 +275,23 @@ def add_torrent(link, hashid, provider_options):
 
     hashid = hashid.lower()
     kwargs = get_args(provider_options)
-    loggerdlcomms.debug(f'{kwargs}')
-    qbclient.download_from_link(link, **kwargs)
+    dlcommslogger.debug(f'{kwargs}')
+    try:
+        qbclient.download_from_link(link, **kwargs)
+    except Exception as e:
+        dlcommslogger.error(f" Failed to download_from_link: {e}")
+        return False, str(e)
+
     count = 0
     while count < 10:
         count += 1
         time.sleep(1)
         # noinspection PyProtectedMember
-        torrent = qbclient.get_torrent(hashid)
+        try:
+            torrent = qbclient.get_torrent(hashid)
+        except Exception as e:
+            dlcommslogger.error(f" Failed to delete_permanently: {e}")
+            return False, str(e)
         if torrent:
             if count > 1:
                 loggerdlcomms.debug(f"hashid found in torrent list after {count} seconds")
