@@ -427,7 +427,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                     partial = CONFIG.get_int('NAME_PARTIAL') - 5
                 if partname >= CONFIG.get_int('NAME_PARTNAME'):
                     partname = CONFIG.get_int('NAME_PARTNAME') - 5
-                fuzzlogger.debug(f"Downgraded ratios as different numbers")
+                loggerfuzz.debug(f"Downgraded ratios as different numbers")
 
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
