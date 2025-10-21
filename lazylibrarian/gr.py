@@ -23,11 +23,11 @@ from lazylibrarian import database, ROLE
 from lazylibrarian.bookwork import get_work_series, delete_empty_series, \
     set_series, get_status, isbn_from_words, isbnlang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter, is_set_or_part
-from lazylibrarian.cache import gr_xml_request
+from lazylibrarian.cache import gr_xml_request, html_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
-    make_utf8bytes, thread_name
+    make_utf8bytes, thread_name, date_format
 from lazylibrarian.images import cache_bookimg, get_book_cover
 
 
@@ -518,7 +518,7 @@ class GoodReads:
                                 if thing_hit:
                                     lt_lang_hits += 1
 
-                        if not book_language or book_language == "Unknown":
+                        if not book_language or book_language == "Unknown" or not bookdate or  bookdate == '0000':
                             # still  no earlier match, we'll have to search the goodreads api
                             try:
                                 if book.find(find_field).text:
@@ -672,6 +672,11 @@ class GoodReads:
                             if sbooksub != booksub:
                                 self.logger.warning(f'Different subtitles [{sbooksub}][{booksub}]')
                                 booksub = sbooksub
+
+                        if bookname and booksub:
+                            bookname = f"{bookname} - {booksub}"
+                            booksub = ''
+
                         dic = {':': '.', '"': ''}  # do we need to strip apostrophes , '\'': ''}
                         bookname = replace_all(bookname, dic).strip()
                         booksub = replace_all(booksub, dic).strip()
@@ -854,6 +859,14 @@ class GoodReads:
 
                             if originalpubdate:
                                 bookdate = originalpubdate
+
+                            if (not bookdate or bookdate == '0000') and booklink:
+                                result, in_cache = html_request(booklink)
+                                try:
+                                    pubdate = result.split(b"publicationInfo")[1].split(b"ublished ")[1].split(b"<")[0]
+                                    bookdate = date_format(pubdate.decode('utf-8'))
+                                except IndexError:
+                                    pass
 
                             # Leave alone if locked
                             if locked:

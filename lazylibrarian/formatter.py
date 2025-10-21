@@ -906,7 +906,7 @@ def strip_quotes(text):
     return text
 
 
-def replacevars(base, mydict):
+def replacevars(base, mydict, is_folder=False):
     if not base:
         return ''
     loggermatching = logging.getLogger('special.matching')
@@ -937,7 +937,7 @@ def replacevars(base, mydict):
 
     for item in vardict:
         if item[1:] in mydict:
-            base = base.replace(item, mydict[item[1:]])
+            base = base.replace(item, sanitize(mydict[item[1:]], is_folder=is_folder))
     base = base.replace('$$', ' ')
     loggermatching.debug(base)
     return base
