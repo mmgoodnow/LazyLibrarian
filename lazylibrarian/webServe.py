@@ -2533,6 +2533,7 @@ class WebInterface:
             else:  # if library == 'eBook':
                 authordir = safe_unicode(os.path.join(get_directory('eBook'), author_name))
             if not path_isdir(authordir):
+                logger.debug(f"Assumed authordir [{authordir}] not found")
                 # books might not be in exact same authorname folder due to capitalisation
                 # or accent stripping etc.
                 # eg Calibre puts books into folder "Eric Van Lustbader", but
@@ -2543,6 +2544,9 @@ class WebInterface:
                 matchname, exists = get_preferred_author_name(author_name)
                 if exists:
                     author_name = matchname
+                    if exists != authorid:
+                        logger.warning(f"{authorid}:{author_name} matches preferred {exists}:{author_name}")
+                logger.debug(f"Scanning {libdir} for preferred name {matchname}")
                 matchname = unaccented(matchname).lower()
                 for item in listdir(libdir):
                     match = fuzz.ratio(format_author_name(unaccented(item),
@@ -2554,6 +2558,7 @@ class WebInterface:
                         break
 
             if not path_isdir(authordir):
+                logger.debug(f"[{authordir}] still not found")
                 # if still not found, see if we have a book by them, and what directory it's in
                 if library == 'AudioBook':
                     sourcefile = 'AudioFile'
@@ -2563,9 +2568,12 @@ class WebInterface:
                 cmd += f"  and AuthorName=? and {sourcefile} <> ''"
                 anybook = db.match(cmd, (author_name,))
                 if anybook:
+                    logger.debug(f"Found {sourcefile} {anybook[sourcefile]} for {author_name}")
                     authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
+
             if path_isdir(authordir):
                 remv = CONFIG.get_bool('FULL_SCAN')
+                logger.debug(f"Using [{authordir}] for {authorid}:{author_name}")
                 try:
                     threading.Thread(target=library_scan, name=f'AUTHOR_SCAN_{authorid}',
                                      args=[authordir, library, authorid, remv]).start()
