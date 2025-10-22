@@ -599,7 +599,7 @@
                         <input type="checkbox" id="sort_definite" name="sort_definite" value="1" ${checked} />
                         Show titles ignoring article (The, A)</label>
                       </div>
-                      %if not APPRISE_VER and APPRISE_VER[0].isdigit():
+                      %if APPRISE_VER and APPRISE_VER[0].isdigit():
                       <div class="col-md-6">
                         <% checked = 'checked="checked"' if CONFIG['HIDE_OLD_NOTIFIERS'] else '' %>
                         <label for="hide_old_notifiers" class="control-label">
