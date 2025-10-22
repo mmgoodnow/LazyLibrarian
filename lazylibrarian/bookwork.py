@@ -169,7 +169,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     if match['Status'] in ['Paused', 'Ignored']:
                         members = []
                     else:
-                        members, _api_hits = get_series_members(seriesid, item[2])
+                        members, _api_hits, _src = get_series_members(seriesid, item[2])
                         debug_msg = f"Existing series {item[2]} has {len(members)} members"
                         logger.info(debug_msg)
                         api_hits += _api_hits
@@ -179,7 +179,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     logger.info(debug_msg)
                     if item[0]:
                         seriesid = item[0]
-                        members, _api_hits = get_series_members(seriesid, item[2])
+                        members, _api_hits, _src = get_series_members(seriesid, item[2])
                         debug_msg = f"New series {item[2]}:{seriesid} has {len(members)} members"
                         logger.info(debug_msg)
                         api_hits += _api_hits
@@ -487,7 +487,7 @@ def add_series_members(seriesid, refresh=False):
         entrystatus = series['Status']
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action("UPDATE series SET Status='Active' WHERE SeriesID=?", (seriesid,))
-        members, _ = get_series_members(seriesid, seriesname)
+        members, _api_hits, _src = get_series_members(seriesid, seriesname)
         logger.debug(f"Processing {len(members)} for {seriesname}")
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action('UPDATE series SET Status=? WHERE SeriesID=?', (entrystatus, seriesid))
@@ -599,7 +599,7 @@ def get_series_authors(seriesid):
             return 0
 
         seriesname = result['SeriesName']
-        members, api_hits = get_series_members(seriesid, seriesname)
+        members, api_hits, _src = get_series_members(seriesid, seriesname)
 
         if members:
             for member in members:
