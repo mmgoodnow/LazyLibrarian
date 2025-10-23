@@ -1415,6 +1415,10 @@ class WebInterface:
                    "SeriesID,Have,Total,series.Reason from series,authors,seriesauthors,member where "
                    "authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID and "
                    "member.seriesid=series.seriesid")  # and seriesnum=1"
+
+            if 'active' in kwargs and kwargs['active']:
+                cmd += " and authors.status IN ('Active', 'Wanted')"
+
             args = []
             if which_status == 'Empty':
                 cmd += " and Have = 0"
@@ -1521,7 +1525,7 @@ class WebInterface:
 
     @cherrypy.expose
     @require_auth()
-    def series(self, authorid=None, which_status=None):
+    def series(self, authorid=None, which_status=None, active=False):
         self.check_permitted(lazylibrarian.perm_series)
         title = "Series"
         if authorid:
@@ -1536,7 +1540,7 @@ class WebInterface:
                 title = title.replace('&', '&amp;')
 
         return serve_template(templatename="series.html", title=title, authorid=authorid, series=[],
-                              whichStatus=which_status)
+                              whichStatus=which_status, active=active)
 
     @cherrypy.expose
     @require_auth()
@@ -6306,19 +6310,19 @@ class WebInterface:
         if action:
             total_items = len(args)
             current_item = 0
-            for item in args:
+            for itm in args:
                 if not lazylibrarian.MARK_ISSUES:
                     break
                 current_item += 1
                 current_percent = int(current_item * 100 / total_items)
                 self.issues_data = f"{current_item}/{total_items}/{current_percent}"
-                issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (item,))
+                issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (itm,))
                 if issue:
                     issue = dict(issue)
                     title = issue['Title']
                     issuefile = issue['IssueFile']
                     if not issuefile or not path_exists(issuefile):
-                        logger.error(f"No IssueFile found for IssueID {item}")
+                        logger.error(f"No IssueFile found for IssueID {itm}")
                         issuefile = None
 
                     if 'reCover' in action and issuefile:
@@ -6347,7 +6351,7 @@ class WebInterface:
                             passed += 1
                         else:
                             failed += 1
-                            logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
+                            logger.warning(f"No coverfile created for IssueID {itm} {issuefile}")
 
                     if action == 'tag' and issuefile:
                         logger.debug(f"Tagging {issuefile}")
@@ -6355,8 +6359,8 @@ class WebInterface:
                         genres = entry[1]
                         tags = {}
                         cnt = 1
-                        for item in get_list(genres):
-                            tags[f'/Genre_{cnt}'] = item
+                        for itm in get_list(genres):
+                            tags[f'/Genre_{cnt}'] = itm
                             cnt += 1
                         try:
                             res = write_pdf_tags(issuefile, title, issue['IssueDate'], tags)
@@ -6370,7 +6374,7 @@ class WebInterface:
                             if CONFIG.get_bool('IMP_MAGOPF'):
                                 logger.debug(f"Writing opf for {issuefile}")
                                 _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
-                                                                                issue['IssueDate'], item,
+                                                                                issue['IssueDate'], itm,
                                                                                 language=entry[0],
                                                                                 genres=genres,
                                                                                 overwrite=True)
@@ -6412,7 +6416,7 @@ class WebInterface:
                             passed += 1
                         else:
                             failed += 1
-                            logger.warning(f"No coverfile created for IssueID {item} {issuefile}")
+                            logger.warning(f"No coverfile created for IssueID {itm} {issuefile}")
 
                     if action == "Delete" and issuefile:
                         result = self.delete_issue(issuefile)
@@ -6424,7 +6428,7 @@ class WebInterface:
                         else:
                             failed += 1
                     if action == "Remove" or action == "Delete":
-                        db.action('DELETE from issues WHERE IssueID=?', (item,))
+                        db.action('DELETE from issues WHERE IssueID=?', (itm,))
                         logger.info(f'Issue {issue["IssueDate"]} of {issue["Title"]} removed from database')
                         _ = self.mag_set_latest(title)
                         passed += 1
@@ -6546,10 +6550,10 @@ class WebInterface:
         lazylibrarian.MARK_ISSUES = True
         passed = 0
         failed = 0
-        for item in args:
+        for itm in args:
             if not lazylibrarian.MARK_ISSUES:
                 break
-            title = item
+            title = itm
             if action == "Paused" or action == "Active":
                 control_value_dict = {"Title": title}
                 new_value_dict = {"Status": action}
@@ -6592,8 +6596,8 @@ class WebInterface:
                     genres = mag[1]
                     tags = {}
                     cnt = 1
-                    for item in get_list(genres):
-                        tags[f'/Genre_{cnt}'] = item
+                    for itm in get_list(genres):
+                        tags[f'/Genre_{cnt}'] = itm
                         cnt += 1
                     try:
                         res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"], tags)
