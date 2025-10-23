@@ -1203,6 +1203,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict['bookrate_count'] = book_data.get('ratings_count', 0)
         if bookdict['bookrate'] is None:
             bookdict['bookrate'] = 0
+        else:
+            bookdict['bookrate'] = round(bookdict['bookrate'], 2)
 
         bookdict['bookpages'] = book_data.get('pages', 0)
         if bookdict['bookpages'] is None:
@@ -1291,6 +1293,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict['bookrate_count'] = book_data.get('ratings_count', 0)
         if bookdict['bookrate'] is None:
             bookdict['bookrate'] = 0
+        else:
+            bookdict['bookrate'] = round(bookdict['bookrate'], 2)
 
         bookdict['bookpages'] = book_data.get('pages', 0)
         if bookdict['bookpages'] is None:
