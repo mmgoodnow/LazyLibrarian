@@ -838,7 +838,7 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
             filtered.append(item)
     if len(filtered) and not first:
         logger.warning(f"Series {seriesid} ({seriesname}) has {len(filtered)} members but no book 1")
-    return filtered, api_hits
+    return filtered, api_hits, source
 
 
 def get_gb_info(isbn=None, author=None, title=None, expire=False):
