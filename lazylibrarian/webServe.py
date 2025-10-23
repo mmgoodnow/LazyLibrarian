@@ -1638,6 +1638,7 @@ class WebInterface:
                 if action in ["Wanted", "Active", "Skipped", "Ignored", "Paused"]:
                     match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                     if not match:
+                        logger.debug(f"Failed to match {seriesid}")
                         failed += 1
                     else:
                         passed += 1
@@ -1662,6 +1663,7 @@ class WebInterface:
                         abandoned = set(get_readinglist('Abandoned', userid))
                         members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
                         if not members:
+                            logger.debug(f"No members found for {seriesid}")
                             failed += 1
                         else:
                             for item in members:
