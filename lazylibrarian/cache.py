@@ -435,6 +435,9 @@ class XMLCacheRequest(CacheRequest):
             self.logger.error(f"Error getting xml data from {self.url}")
             if result:
                 self.logger.error(f"Result: {result[:80]}")
+                with open(syspath(f"{filename}.err"), "wb") as cachefile:
+                    cachefile.write(result)
+                    self.logger.error(f"Cached {len(source)} bytes {filename}.err")
             return None, False
         return source, True
 
