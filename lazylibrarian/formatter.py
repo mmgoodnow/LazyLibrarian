@@ -107,7 +107,7 @@ def split_author_names(namelist, splitlist):
     return authornames
 
 
-def sanitize(name, is_folder=False):
+def sanitize(name, is_folder_or_file=False):
     """
     Sanitizes a string so it can be used as a file name or foldername, normalized as Unicode
     Returns a sanitized string
@@ -937,7 +937,7 @@ def replacevars(base, mydict, is_folder=False):
 
     for item in vardict:
         if item[1:] in mydict:
-            base = base.replace(item, sanitize(mydict[item[1:]], is_folder=is_folder))
+            base = base.replace(item, sanitize(mydict[item[1:]], is_folder_or_file=is_folder))
     base = base.replace('$$', ' ')
     loggermatching.debug(base)
     return base
