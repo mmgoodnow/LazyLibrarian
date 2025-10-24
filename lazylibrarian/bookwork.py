@@ -169,7 +169,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     if match['Status'] in ['Paused', 'Ignored']:
                         members = []
                     else:
-                        members, _api_hits = get_series_members(seriesid, item[2])
+                        members, _api_hits, _src = get_series_members(seriesid, item[2])
                         debug_msg = f"Existing series {item[2]} has {len(members)} members"
                         logger.info(debug_msg)
                         api_hits += _api_hits
@@ -179,7 +179,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     logger.info(debug_msg)
                     if item[0]:
                         seriesid = item[0]
-                        members, _api_hits = get_series_members(seriesid, item[2])
+                        members, _api_hits, _src = get_series_members(seriesid, item[2])
                         debug_msg = f"New series {item[2]}:{seriesid} has {len(members)} members"
                         logger.info(debug_msg)
                         api_hits += _api_hits
@@ -242,7 +242,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
 
 
 def get_status(bookid=None, serieslist=None, default=None, adefault=None, authstatus=None):
-    """ Get the status of a book according to series/author/newbook/newauthor preferences
+    """ Get the status for a book according to series/author/newbook/newauthor preferences
         defaults are passed in as newbook or newauthor status """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
@@ -253,6 +253,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
         match = db.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
         if not match:
             db.close()
+            logger.debug(f"Status {bookid}: {default} {adefault}")
             return default, adefault
 
         authorid = match['AuthorID']
@@ -296,7 +297,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
     if new_astatus:
         adefault = new_astatus
 
-    logger.debug(f"{bookname} {default} {adefault}")
+    logger.debug(f"Status {bookname}: {default} {adefault}")
     return default, adefault
 
 
@@ -487,7 +488,7 @@ def add_series_members(seriesid, refresh=False):
         entrystatus = series['Status']
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action("UPDATE series SET Status='Active' WHERE SeriesID=?", (seriesid,))
-        members, _ = get_series_members(seriesid, seriesname)
+        members, _api_hits, _src = get_series_members(seriesid, seriesname)
         logger.debug(f"Processing {len(members)} for {seriesname}")
         if refresh and entrystatus in ['Paused', 'Ignored']:
             db.action('UPDATE series SET Status=? WHERE SeriesID=?', (entrystatus, seriesid))
@@ -602,7 +603,7 @@ def get_series_authors(seriesid):
             return 0
 
         seriesname = result['SeriesName']
-        members, api_hits = get_series_members(seriesid, seriesname)
+        members, api_hits, _src = get_series_members(seriesid, seriesname)
 
         if members:
             for member in members:
@@ -840,7 +841,7 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
             filtered.append(item)
     if len(filtered) and not first:
         logger.warning(f"Series {seriesid} ({seriesname}) has {len(filtered)} members but no book 1")
-    return filtered, api_hits
+    return filtered, api_hits, source
 
 
 def get_gb_info(isbn=None, author=None, title=None, expire=False):

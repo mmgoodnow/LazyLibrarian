@@ -425,16 +425,40 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                     partname = CONFIG.get_int('NAME_PARTNAME') - 1
                 fuzzlogger.debug(f"Downgraded ratios as different numbers")
 
+            # lose points if the difference is just numbers so we don't match "book 2" and "book 3"
+            # eg "He Who Fights With Monsters #7" is not the same as "He Who Fights With Monsters 05"
+            set1 = set(book_lower.split())
+            set2 = set(a_book_lower.split())
+            differences = set1.symmetric_difference(set2)
+            numbers = []
+            for word in differences:
+                # see if word coerces to an integer or a float
+                word = word.replace('-', '')
+                try:
+                    numbers.append(float(re.findall(r'\d+\.\d+', word)[0]))
+                except IndexError:
+                    try:
+                        numbers.append(int(re.findall(r'\d+', word)[0]))
+                    except IndexError:
+                        pass
+            if len(numbers) == 1 or (len(numbers) == 2 and numbers[0] != numbers[1]):
+                # make sure we are below match threshold
+                if ratio >= CONFIG.get_int('NAME_RATIO'):
+                    ratio = CONFIG.get_int('NAME_RATIO') - 5
+                if partial >= CONFIG.get_int('NAME_PARTIAL'):
+                    partial = CONFIG.get_int('NAME_PARTIAL') - 5
+                if partname >= CONFIG.get_int('NAME_PARTNAME'):
+                    partname = CONFIG.get_int('NAME_PARTNAME') - 5
+                loggerfuzz.debug(f"Downgraded ratios as different numbers")
+
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
-            words = len(book_lower.split())
-            words -= len(a_book_lower.split())
+            words = len(get_list(book_lower))
+            words -= len(get_list(a_book_lower))
             ratio -= abs(words)
             partial -= abs(words)
             # don't subtract extra words from partname so we can compare books with/without subtitle
             # partname -= abs(words)
-            fuzzlogger.debug(f"Ratios [{book_lower}][{a_book_lower}]")
-            fuzzlogger.debug(f"Ratio {round(ratio, 2)} PartialRatio {round(partial, 2)} PartName {round(partname, 2)}")
 
             def isitbest(aratio, abest_ratio, aratio_name, abest_type, astatus):
                 use_it = False
@@ -448,10 +472,10 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                         new_words = get_list(a_bookname.lower())
                         best_cnt = 0
                         new_cnt = 0
-                        for a_word in want_words:
-                            if a_word in best_words:
+                        for wrd in want_words:
+                            if wrd in best_words:
                                 best_cnt += 1
-                            if a_word in new_words:
+                            if wrd in new_words:
                                 new_cnt += 1
                         if new_cnt > best_cnt:
                             use_it = True
@@ -534,7 +558,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
     if startdir == destdir:
         lazylibrarian.AUTHORS_UPDATE = 1
-    logger.debug("Counting directories...")
+    logger.debug(f"Counting directories: {startdir}")
     dir_cnt = 0
     for rootdir, dirnames, filenames in walk(startdir):
         for directory in dirnames:
@@ -713,7 +737,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
             total_items = dir_cnt
             for files in filenames:
                 current_item = len(processed_subdirectories)
-                current_percent = int(current_item * 100 / total_items)
+                current_percent = int(current_item * 100 / total_items) if total_items else 0
                 lazylibrarian.libraryscan_data = f"{current_item}/{total_items}/{current_percent}"
                 # Added new code to skip if we've done this directory before.
                 # Made this conditional with a switch in config.ini

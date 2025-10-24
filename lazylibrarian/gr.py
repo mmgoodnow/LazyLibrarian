@@ -23,11 +23,11 @@ from lazylibrarian import database, ROLE
 from lazylibrarian.bookwork import get_work_series, delete_empty_series, \
     set_series, get_status, isbn_from_words, isbnlang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter, is_set_or_part
-from lazylibrarian.cache import gr_xml_request
+from lazylibrarian.cache import gr_xml_request, html_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
-    make_utf8bytes, thread_name
+    make_utf8bytes, thread_name, date_format
 from lazylibrarian.images import cache_bookimg, get_book_cover
 
 
@@ -518,7 +518,7 @@ class GoodReads:
                                 if thing_hit:
                                     lt_lang_hits += 1
 
-                        if not book_language or book_language == "Unknown":
+                        if not book_language or book_language == "Unknown" or not bookdate or bookdate == '0000':
                             # still  no earlier match, we'll have to search the goodreads api
                             try:
                                 if book.find(find_field).text:
@@ -672,6 +672,11 @@ class GoodReads:
                             if sbooksub != booksub:
                                 self.logger.warning(f'Different subtitles [{sbooksub}][{booksub}]')
                                 booksub = sbooksub
+
+                        if bookname and booksub:
+                            bookname = f"{bookname} - {booksub}"
+                            booksub = ''
+
                         dic = {':': '.', '"': ''}  # do we need to strip apostrophes , '\'': ''}
                         bookname = replace_all(bookname, dic).strip()
                         booksub = replace_all(booksub, dic).strip()
@@ -855,6 +860,15 @@ class GoodReads:
 
                             if originalpubdate:
                                 bookdate = originalpubdate
+
+                            if (not bookdate or bookdate == '0000') and booklink:
+                                result, in_cache = html_request(booklink)
+                                if result:
+                                    try:
+                                        pubdate = result.split(b"publicationInfo")[1].split(b"ished ")[1].split(b"<")[0]
+                                        bookdate = date_format(pubdate.decode('utf-8'))
+                                    except IndexError:
+                                        pass
 
                             # Leave alone if locked
                             if locked:
@@ -1201,7 +1215,8 @@ class GoodReads:
         finally:
             db.close()
 
-    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.add_bookid'):
+    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
+        threadname = thread_name()
         url = '/'.join([CONFIG['GR_URL'], f"book/show/{bookid}?{urlencode(self.params)}"])
         try:
             self.searchinglogger.debug(url)
@@ -1233,8 +1248,8 @@ class GoodReads:
         if book_language not in valid_langs and 'All' not in valid_langs:
             msg = f'Book {bookname} Language [{book_language}] does not match preference'
             self.logger.warning(msg)
-            # if reason.startswith("Series:"):
-            #    return
+            if reason.startswith("Series") or threadname.startswith('SERIES'):
+                return
 
         if rootxml.find('./book/work/original_publication_year').text is None:
             originalpubdate = ''
@@ -1266,23 +1281,23 @@ class GoodReads:
             if not bookdate or bookdate == '0000':
                 msg = f'Book {bookname} Publication date [{bookdate}] does not match preference'
                 self.logger.warning(msg)
-                # if reason.startswith("Series:"):
-                #    return
+                if reason.startswith("Series") or threadname.startswith('SERIES'):
+                    return
 
         if CONFIG.get_bool('NO_FUTURE'):
             # may have yyyy or yyyy-mm-dd
             if bookdate > today()[:len(bookdate)]:
                 msg = f'Book {bookname} Future publication date [{bookdate}] does not match preference'
                 self.logger.warning(msg)
-                # if reason.startswith("Series:"):
-                #    return
+                if reason.startswith("Series") or threadname.startswith('SERIES'):
+                    return
 
         if CONFIG.get_bool('NO_SETS'):
             is_set, set_msg = is_set_or_part(bookname)
             if is_set:
                 msg = f'Book {bookname} {set_msg}'
                 self.logger.warning(msg)
-                if reason.startswith("Series:"):
+                if reason.startswith("Series") or threadname.startswith('SERIES'):
                     return
         try:
             bookimg = rootxml.find('./book/img_url').text
@@ -1338,7 +1353,8 @@ class GoodReads:
                     if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
                         newauthor_status = 'Paused'
                     # also pause author if adding as a series contributor/wishlist/grsync
-                    if reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason:
+                    if (reason.startswith("Series") or "grsync" in reason or "wishlist" in reason
+                            or threadname.startswith('SERIES')):
                         newauthor_status = 'Paused'
                     control_value_dict = {"AuthorID": author_id}
                     new_value_dict = {
@@ -1402,7 +1418,6 @@ class GoodReads:
                         else:
                             bookgenre = 'Unknown'
 
-            threadname = thread_name()
             reason = f"[{threadname}] {reason}"
             match = db.match("SELECT * from authors where AuthorID=?", (author_id,))
             if not match:

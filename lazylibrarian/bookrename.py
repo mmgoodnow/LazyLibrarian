@@ -899,19 +899,20 @@ def name_vars(bookid, abridged=''):
     db.close()
 
     mydict['FolderName'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FOLDER'],
-                                                            mydict)))
+                                                            mydict, True)))
     mydict['AudioFolderName'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_DEST_FOLDER'],
-                                                                 mydict)))
+                                                                 mydict, True)))
     mydict['BookFile'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FILE'],
-                                                          mydict)))
+                                                          mydict, True)))
     mydict['AudioFile'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_DEST_FILE'],
                                                            mydict))).replace('sPart',
                                                                              '$Part').replace('sTotal',
                                                                                               '$Total')
     mydict['AudioSingleFile'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_SINGLE_FILE'],
-                                                                 mydict))).replace('sPart',
-                                                                                   '$Part').replace('sTotal',
-                                                                                                    '$Total')
+                                                                 mydict,
+                                                                 True))).replace('sPart',
+                                                                                 '$Part').replace('sTotal',
+                                                                                                  '$Total')
     if bookid != 'test':
         matchinglogger.debug(str(mydict))
     return mydict

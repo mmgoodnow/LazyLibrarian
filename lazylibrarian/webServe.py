@@ -1409,6 +1409,10 @@ class WebInterface:
                    "SeriesID,Have,Total,series.Reason from series,authors,seriesauthors,member where "
                    "authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID and "
                    "member.seriesid=series.seriesid")  # and seriesnum=1"
+
+            if 'active' in kwargs and kwargs['active']:
+                cmd += " and authors.status IN ('Active', 'Wanted')"
+
             args = []
             if which_status == 'Empty':
                 cmd += " and Have = 0"
@@ -1515,7 +1519,7 @@ class WebInterface:
 
     @cherrypy.expose
     @require_auth()
-    def series(self, authorid=None, which_status=None):
+    def series(self, authorid=None, which_status=None, active=False):
         self.check_permitted(lazylibrarian.perm_series)
         title = "Series"
         if authorid:
@@ -1530,7 +1534,7 @@ class WebInterface:
                 title = title.replace('&', '&amp;')
 
         return serve_template(templatename="series.html", title=title, authorid=authorid, series=[],
-                              whichStatus=which_status)
+                              whichStatus=which_status, active=active)
 
     @cherrypy.expose
     @require_auth()
@@ -1628,6 +1632,7 @@ class WebInterface:
                 if action in ["Wanted", "Active", "Skipped", "Ignored", "Paused"]:
                     match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                     if not match:
+                        logger.debug(f"Failed to match {seriesid}")
                         failed += 1
                     else:
                         passed += 1
@@ -1652,6 +1657,7 @@ class WebInterface:
                         abandoned = set(get_readinglist('Abandoned', userid))
                         members = db.select('SELECT bookid from member where seriesid=?', (seriesid,))
                         if not members:
+                            logger.debug(f"No members found for {seriesid}")
                             failed += 1
                         else:
                             for itm in members:
@@ -2534,6 +2540,7 @@ class WebInterface:
             else:  # if library == 'eBook':
                 authordir = safe_unicode(os.path.join(get_directory('eBook'), author_name))
             if not path_isdir(authordir):
+                logger.debug(f"Assumed authordir [{authordir}] not found")
                 # books might not be in exact same authorname folder due to capitalisation
                 # or accent stripping etc.
                 # eg Calibre puts books into folder "Eric Van Lustbader", but
@@ -2544,6 +2551,9 @@ class WebInterface:
                 matchname, exists = get_preferred_author(author_name)
                 if exists:
                     author_name = matchname
+                    if exists != authorid:
+                        logger.warning(f"{authorid}:{author_name} matches preferred {exists}:{author_name}")
+                logger.debug(f"Scanning {libdir} for preferred name {matchname}")
                 matchname = unaccented(matchname).lower()
                 for itm in listdir(libdir):
                     match = fuzz.ratio(format_author_name(unaccented(itm),
@@ -2555,6 +2565,7 @@ class WebInterface:
                         break
 
             if not path_isdir(authordir):
+                logger.debug(f"[{authordir}] still not found")
                 # if still not found, see if we have a book by them, and what directory it's in
                 if library == 'AudioBook':
                     sourcefile = 'AudioFile'
@@ -2564,9 +2575,12 @@ class WebInterface:
                 cmd += f"  and AuthorName=? and {sourcefile} <> ''"
                 anybook = db.match(cmd, (author_name,))
                 if anybook:
+                    logger.debug(f"Found {sourcefile} {anybook[sourcefile]} for {author_name}")
                     authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
+
             if path_isdir(authordir):
                 remv = CONFIG.get_bool('FULL_SCAN')
+                logger.debug(f"Using [{authordir}] for {authorid}:{author_name}")
                 try:
                     threading.Thread(target=library_scan, name=f'AUTHOR_SCAN_{authorid}',
                                      args=[authordir, library, authorid, remv]).start()
@@ -6336,8 +6350,8 @@ class WebInterface:
                         genres = entry[1]
                         tags = {}
                         cnt = 1
-                        for gen in get_list(genres):
-                            tags[f'/Genre_{cnt}'] = gen
+                        for itm in get_list(genres):
+                            tags[f'/Genre_{cnt}'] = itm
                             cnt += 1
                         try:
                             res = write_pdf_tags(issuefile, title, issue['IssueDate'], tags)
@@ -6573,8 +6587,8 @@ class WebInterface:
                     genres = mag[1]
                     tags = {}
                     cnt = 1
-                    for gen in get_list(genres):
-                        tags[f'/Genre_{cnt}'] = gen
+                    for itm in get_list(genres):
+                        tags[f'/Genre_{cnt}'] = itm
                         cnt += 1
                     try:
                         res = write_pdf_tags(issue['IssueFile'], title, issue["IssueDate"], tags)

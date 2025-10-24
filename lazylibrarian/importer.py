@@ -683,6 +683,7 @@ def collate_fuzzy(string1, string2):
     numbers = []
     for word in differences:
         # see if word coerces to an integer or a float
+        word = word.replace('-', '')
         try:
             numbers.append(float(re.findall(r'\d+\.\d+', word)[0]))
         except IndexError:
@@ -693,7 +694,11 @@ def collate_fuzzy(string1, string2):
     if len(numbers) == 2:
         if numbers[0] > numbers[1]:
             return 1
-        return -1
+        if numbers[1] > numbers[0]:
+            return -1
+        return 0
+    elif len(numbers) == 1:
+        return 1
 
     match_fuzz = fuzz.ratio(str1, str2)
     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
@@ -738,7 +743,7 @@ def de_duplicate(authorid):
                            f"for {authorid}:{authorname}")
             for item in res:
                 logger.debug(f"{item[1]} has {item[0]} entries")
-                favourite = ''
+                favourite = {}
                 copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE FUZZY",
                                    (authorid, item[1]))
 
@@ -763,6 +768,10 @@ def de_duplicate(authorid):
                 if favourite:
                     logger.debug(f"Favourite {favourite['BookID']} {favourite['BookName']} "
                                  f"({favourite['Status']}/{favourite['AudioStatus']})")
+                for copy in copies:
+                    if copy['BookID'] != favourite['BookID']:
+                        logger.debug(f"Copy {copy['BookID']} {copy['BookName']} "
+                                     f"({copy['Status']}/{copy['AudioStatus']})")
                 for copy in copies:
                     if copy['BookID'] != favourite['BookID']:
                         members = db.select("SELECT SeriesID,SeriesNum from member WHERE BookID=?",

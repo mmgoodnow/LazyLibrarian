@@ -111,6 +111,9 @@ def validate_bookdict(bookdict):
             return bookdict, rejected
 
     db = database.DBConnection()
+
+    db.connection.create_collation('fuzzy', lazylibrarian.importer.collate_fuzzy)
+
     # noinspection PyBroadException
     try:
         reason = f"Validate bookdict {bookdict['bookname']}"
@@ -167,8 +170,8 @@ def validate_bookdict(bookdict):
             bookdict['authorname'] = auth_name
 
             cmd = (
-                f"SELECT BookID,books.{id_key[source]} FROM books,authors "
-                "WHERE books.AuthorID = authors.AuthorID and BookName=? COLLATE NOCASE "
+                f"SELECT BookID,books.{id_key[source]},bookname FROM books,authors "
+                "WHERE books.AuthorID = authors.AuthorID and BookName=? COLLATE FUZZY "
                 "and books.AuthorID=? and books.Status != 'Ignored' and AudioStatus != 'Ignored'"
             )
             exists = db.match(cmd, (bookdict['bookname'], auth_id))

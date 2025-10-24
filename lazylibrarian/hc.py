@@ -720,8 +720,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     searchterm = searchterm.replace('<ll>', ' ').strip()
                     searchtitle = searchtitle.split(' (')[0].strip()  # without any series info
                 else:
-                    # could be either... At the moment the HardCover book search covers both
-                    # author and title, but in future we may need two searches
+                    # could be either... Try title first, if no results try authorname
                     searchtitle = searchterm
                     searchauthorname = None
 
@@ -736,6 +735,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                             resultbooks.append(item['document'])
                     except (IndexError, KeyError):
                         pass
+                    if not resultbooks:
+                        searchauthorname = searchterm
 
                 if searchauthorname:
                     searchcmd = self.HC_FINDAUTHORBYNAME.replace('[authorname]', searchauthorname)
@@ -1057,6 +1058,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict['bookrate_count'] = book_data.get('ratings_count', 0)
         if bookdict['bookrate'] is None:
             bookdict['bookrate'] = 0
+        else:
+            bookdict['bookrate'] = round(bookdict['bookrate'], 2)
 
         bookdict['bookpages'] = book_data.get('pages', 0)
         if bookdict['bookpages'] is None:
@@ -1145,6 +1148,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict['bookrate_count'] = book_data.get('ratings_count', 0)
         if bookdict['bookrate'] is None:
             bookdict['bookrate'] = 0
+        else:
+            bookdict['bookrate'] = round(bookdict['bookrate'], 2)
 
         bookdict['bookpages'] = book_data.get('pages', 0)
         if bookdict['bookpages'] is None:

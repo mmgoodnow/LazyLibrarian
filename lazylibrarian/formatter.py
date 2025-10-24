@@ -107,7 +107,7 @@ def split_author_names(namelist, splitlist):
     return authornames
 
 
-def sanitize(name, is_folder=False):
+def sanitize(name, is_folder_or_file=False):
     """
     Sanitizes a string so it can be used as a file name or foldername, normalized as Unicode
     Returns a sanitized string
@@ -119,8 +119,8 @@ def sanitize(name, is_folder=False):
     filename = replace_all(filename, lazylibrarian.DICTS.get('apostrophe_dict', {}))
     # strip characters we don't want in a filename/foldername
     dic = lazylibrarian.DICTS.get('filename_dict', {}).copy()
-    if is_folder and os.path.__name__ == 'ntpath':
-        dic.pop(':')  # allow colon in windows foldernames, but not filenames
+    if is_folder_or_file and os.path.__name__ == 'ntpath':
+        dic.pop(':')
     filename = replace_all(filename, dic)
     # Remove all characters below code point 32
     filename = u"".join(c for c in filename if 31 < ord(c))
@@ -942,7 +942,7 @@ def strip_quotes(text):
     return text
 
 
-def replacevars(base, mydict):
+def replacevars(base, mydict, is_folder=False):
     if not base:
         return ''
     matchinglogger = logging.getLogger('special.matching')
@@ -973,7 +973,7 @@ def replacevars(base, mydict):
 
     for item in vardict:
         if item[1:] in mydict:
-            base = base.replace(item, mydict[item[1:]])
+            base = base.replace(item, sanitize(mydict[item[1:]], is_folder_or_file=is_folder))
     base = base.replace('$$', ' ')
     matchinglogger.debug(base)
     return base

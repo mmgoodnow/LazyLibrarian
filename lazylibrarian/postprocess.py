@@ -318,9 +318,11 @@ def process_issues(source_dir=None, title=''):
                     nouns.extend(get_list(CONFIG['VOLUME_NOUNS']))
                     nouns.extend(get_list(CONFIG['MAG_NOUNS']))
                     nouns.extend(get_list(CONFIG['MAG_TYPE']))
+                    nouns.extend(get_list(lazylibrarian.SEASONS.keys()))
+                    nouns = set(nouns)
                     valid = True
                     for word in filename_words:
-                        if word not in title_words and word not in nouns:
+                        if word not in title_words and word not in nouns and not word.isdigit():
                             cleanword = unaccented(word).lower()
                             valid = False
                             for month in range(1, 13):

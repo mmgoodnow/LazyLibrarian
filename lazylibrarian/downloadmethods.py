@@ -112,7 +112,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
         download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 
         if path_isfile(resultfile):
-            fname = sanitize(fname)
+            fname = sanitize(fname, is_folder_or_file=True)
             destdir = os.path.join(get_directory('Download'), fname)
             if not path_isdir(destdir):
                 _ = make_dirs(destdir)
@@ -376,7 +376,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             record_usage_data(f'Download/Direct/{provider}/Failed')
             return False, filecontent
         logger.debug(f"File download got {len(filecontent)} bytes for {filename}")
-        basename = dl_title
+        basename = sanitize(dl_title, is_folder_or_file=True)
         destdir = os.path.join(get_directory('Download'), basename)
         if not path_isdir(destdir):
             _ = make_dirs(destdir)
@@ -487,7 +487,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
             logger.debug(f"File download got {len(r.content)} bytes for {basename}")
 
-            basename = sanitize(basename)
+            basename = sanitize(basename, is_folder_or_file=True)
             destdir = os.path.join(get_directory('Download'), basename)
             if not path_isdir(destdir):
                 _ = make_dirs(destdir)
