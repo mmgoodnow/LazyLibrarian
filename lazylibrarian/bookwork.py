@@ -242,7 +242,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
 
 
 def get_status(bookid=None, serieslist=None, default=None, adefault=None, authstatus=None):
-    """ Get the status of a book according to series/author/newbook/newauthor preferences
+    """ Get the status for a book according to series/author/newbook/newauthor preferences
         defaults are passed in as newbook or newauthor status """
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
@@ -253,6 +253,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
         match = db.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
         if not match:
             db.close()
+            logger.debug(f"Status {bookid}: {default} {adefault}")
             return default, adefault
 
         authorid = match['AuthorID']
@@ -296,7 +297,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
     if new_astatus:
         adefault = new_astatus
 
-    logger.debug(f"{bookname} {default} {adefault}")
+    logger.debug(f"Status {bookname}: {default} {adefault}")
     return default, adefault
 
 
