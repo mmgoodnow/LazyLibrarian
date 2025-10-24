@@ -320,8 +320,10 @@ def search_magazines(mags=None, reset=False, backissues=False):
                                     nouns.extend(get_list(CONFIG['VOLUME_NOUNS']))
                                     nouns.extend(get_list(CONFIG['MAG_NOUNS']))
                                     nouns.extend(get_list(CONFIG['MAG_TYPE']))
+                                    nouns.extend(get_list(lazylibrarian.SEASONS.keys()))
+                                    nouns = set(nouns)
                                     for word in lower_title:
-                                        if word not in lower_bookid and word not in nouns:
+                                        if word not in lower_bookid and word not in nouns and not word.isdigit():
                                             valid = False
                                             for f in range(1, 13):
                                                 if (word in lazylibrarian.MONTHNAMES[0][f] or
