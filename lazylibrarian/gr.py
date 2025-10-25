@@ -942,7 +942,7 @@ class GoodReads:
                                     newserieslist = get_work_series(workid, 'GR', reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
-                                        self.logger.debug(f'Updated series: {bookid} [{serieslist}]')
+                                        self.logger.debug(f'Updated series: {bookid} {serieslist}')
                                     _api_hits, pubdate = set_series(serieslist, bookid, reason=reason)
                                     api_hits += _api_hits
                                     if pubdate and pubdate > originalpubdate:  # more detailed
