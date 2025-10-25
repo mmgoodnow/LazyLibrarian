@@ -895,7 +895,7 @@ class DNB:
             lazylibrarian.importer.update_totals(authorid)
 
     def find_results(self, searchterm=None, queue=None):
-        if not CONFIG['GB_API']:
+        if not CONFIG['DNB_API']:
             self.logger.warning('DNB API not enabled, check config')
             return False
         if not etree or not iso639:
