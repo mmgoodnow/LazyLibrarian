@@ -27,7 +27,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory, remove_dir, book_file
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
-    replacevars, month2num, check_int, two_months
+    replacevars, month2num, two_months, check_int
 from lazylibrarian.images import create_mag_cover, write_pdf_tags, read_pdf_tags
 from lazylibrarian.librarysync import get_book_info
 
@@ -447,8 +447,8 @@ def format_issue_filename(base, mag_title, dateparts):
     else:
         logger.debug(f"Invalid format {base}:{mag_title}:{dateparts}")
         issue_name = f"{mag_title} - {dateparts['dbdate']}"
-    # issue_name = unaccented(issue_name, only_ascii=False)
-    issue_name = sanitize(issue_name, is_folder)
+        # issue_name = unaccented(issue_name, only_ascii=False)
+        issue_name = sanitize(issue_name, is_folder)
     return issue_name
 
 

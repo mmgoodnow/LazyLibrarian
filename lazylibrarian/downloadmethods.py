@@ -375,6 +375,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             db.close()
             record_usage_data(f'Download/Direct/{provider}/Failed')
             return False, filecontent
+
         logger.debug(f"File download got {len(filecontent)} bytes for {filename}")
         basename = sanitize(dl_title, is_folder_or_file=True)
         destdir = os.path.join(get_directory('Download'), basename)

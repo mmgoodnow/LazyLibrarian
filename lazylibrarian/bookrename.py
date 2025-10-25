@@ -898,21 +898,15 @@ def name_vars(bookid, abridged=''):
         matchinglogger.debug(str(e))
     db.close()
 
-    mydict['FolderName'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FOLDER'],
-                                                            mydict, True)))
-    mydict['AudioFolderName'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_DEST_FOLDER'],
-                                                                 mydict, True)))
-    mydict['BookFile'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FILE'],
-                                                          mydict, True)))
-    mydict['AudioFile'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_DEST_FILE'],
-                                                           mydict))).replace('sPart',
-                                                                             '$Part').replace('sTotal',
-                                                                                              '$Total')
-    mydict['AudioSingleFile'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_SINGLE_FILE'],
-                                                                 mydict,
-                                                                 True))).replace('sPart',
-                                                                                 '$Part').replace('sTotal',
-                                                                                                  '$Total')
+    mydict['FolderName'] = stripspaces(replacevars(CONFIG['EBOOK_DEST_FOLDER'], mydict, True))
+    mydict['AudioFolderName'] = stripspaces(replacevars(CONFIG['AUDIOBOOK_DEST_FOLDER'], mydict, True))
+    mydict['BookFile'] = stripspaces(replacevars(CONFIG['EBOOK_DEST_FILE'], mydict, True))
+    mydict['AudioFile'] = (stripspaces(replacevars(CONFIG['AUDIOBOOK_DEST_FILE'], mydict))
+                           .replace('sPart', '$Part')
+                           .replace('sTotal', '$Total'))
+    mydict['AudioSingleFile'] = (stripspaces(replacevars(CONFIG['AUDIOBOOK_SINGLE_FILE'], mydict, True))
+                                 .replace('sPart', '$Part')
+                                 .replace('sTotal', '$Total'))
     if bookid != 'test':
         matchinglogger.debug(str(mydict))
     return mydict

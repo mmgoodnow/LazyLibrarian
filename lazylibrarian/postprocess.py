@@ -1273,7 +1273,6 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             dest_path = make_utf8bytes(dest_path)[0]
                             global_name = namevars['BookFile']
-                            global_name = sanitize(global_name)
                             data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': book['BookID'],
                                     'gr_id': gr_id, 'gb_id': gb_id, 'ol_id': ol_id, 'hc_id': hc_id, 'dnb_id': dnb_id}
                         else:
@@ -1331,8 +1330,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         '$Title', comic_name)
 
                                     global_name = f"{comic_name} {issueid}"
-                                    global_name = unaccented(global_name, only_ascii=False)
-                                    global_name = sanitize(global_name)
+                                    global_name = sanitize(unaccented(global_name, only_ascii=False))
                                     data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
 
                                     if CONFIG.get_bool('COMIC_RELATIVE'):
@@ -2483,7 +2481,6 @@ def process_book(pp_path=None, bookid=None, library=None):
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
             # audiobooks are usually multipart so can't be renamed this way
             global_name = namevars['BookFile']
-            global_name = sanitize(global_name)
             if booktype == "AudioBook":
                 dest_path = stripspaces(os.path.join(dest_dir, namevars['AudioFolderName']))
             else:
