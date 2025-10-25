@@ -568,7 +568,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     remaining = r.headers.get('RateLimit-Remaining', 'Unknown')
                     reset = r.headers.get('RateLimit-Reset', 'Unknown')
                     sleep_time = 0.0
-                    if str(reset).isdigit():
+                    reset = check_int(reset, 0)
+                    if reset:
                         sleep_time = reset - time.time()
                         reset = time.strftime("%H:%M:%S", time.localtime(reset))
                     self.logger.debug(f"429 error. Limit {limit}, Remaining {remaining}, Reset {reset}")
