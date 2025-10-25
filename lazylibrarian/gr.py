@@ -863,12 +863,11 @@ class GoodReads:
 
                             if (not bookdate or bookdate == '0000') and booklink:
                                 result, in_cache = html_request(booklink)
-                                if result:
-                                    try:
-                                        pubdate = result.split(b"publicationInfo")[1].split(b"ished ")[1].split(b"<")[0]
-                                        bookdate = date_format(pubdate.decode('utf-8'))
-                                    except IndexError:
-                                        pass
+                                try:
+                                    pubdate = result.split(b"publicationInfo")[1].split(b"ublished ")[1].split(b"<")[0]
+                                    bookdate = date_format(pubdate.decode('utf-8'))
+                                except IndexError:
+                                    pass
 
                             # Leave alone if locked
                             if locked:
@@ -1215,8 +1214,7 @@ class GoodReads:
         finally:
             db.close()
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
-        threadname = thread_name()
+    def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.add_bookid'):
         url = '/'.join([CONFIG['GR_URL'], f"book/show/{bookid}?{urlencode(self.params)}"])
         try:
             self.searchinglogger.debug(url)
@@ -1228,6 +1226,7 @@ class GoodReads:
             self.logger.error(f"{type(e).__name__} finding book: {str(e)}")
             return
 
+        threadname = thread_name()
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
             self.logger.debug(f"No bookstatus passed, using default {bookstatus}")
@@ -1248,7 +1247,7 @@ class GoodReads:
         if book_language not in valid_langs and 'All' not in valid_langs:
             msg = f'Book {bookname} Language [{book_language}] does not match preference'
             self.logger.warning(msg)
-            if reason.startswith("Series") or threadname.startswith('SERIES'):
+            if reason.startswith("Series:") or threadname.startswith('SERIES'):
                 return
 
         if rootxml.find('./book/work/original_publication_year').text is None:
@@ -1281,7 +1280,7 @@ class GoodReads:
             if not bookdate or bookdate == '0000':
                 msg = f'Book {bookname} Publication date [{bookdate}] does not match preference'
                 self.logger.warning(msg)
-                if reason.startswith("Series") or threadname.startswith('SERIES'):
+                if reason.startswith("Series:") or threadname.startswith('SERIES'):
                     return
 
         if CONFIG.get_bool('NO_FUTURE'):
@@ -1289,7 +1288,7 @@ class GoodReads:
             if bookdate > today()[:len(bookdate)]:
                 msg = f'Book {bookname} Future publication date [{bookdate}] does not match preference'
                 self.logger.warning(msg)
-                if reason.startswith("Series") or threadname.startswith('SERIES'):
+                if reason.startswith("Series:") or threadname.startswith('SERIES'):
                     return
 
         if CONFIG.get_bool('NO_SETS'):
@@ -1297,7 +1296,7 @@ class GoodReads:
             if is_set:
                 msg = f'Book {bookname} {set_msg}'
                 self.logger.warning(msg)
-                if reason.startswith("Series") or threadname.startswith('SERIES'):
+                if reason.startswith("Series:") or threadname.startswith('SERIES'):
                     return
         try:
             bookimg = rootxml.find('./book/img_url').text
@@ -1353,7 +1352,7 @@ class GoodReads:
                     if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
                         newauthor_status = 'Paused'
                     # also pause author if adding as a series contributor/wishlist/grsync
-                    if (reason.startswith("Series") or "grsync" in reason or "wishlist" in reason
+                    if (reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason
                             or threadname.startswith('SERIES')):
                         newauthor_status = 'Paused'
                     control_value_dict = {"AuthorID": author_id}
@@ -1418,6 +1417,7 @@ class GoodReads:
                         else:
                             bookgenre = 'Unknown'
 
+            threadname = thread_name()
             reason = f"[{threadname}] {reason}"
             match = db.match("SELECT * from authors where AuthorID=?", (author_id,))
             if not match:
