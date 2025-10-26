@@ -154,6 +154,9 @@ def set_series(serieslist=None, bookid=None, reason=""):
             # delete any old series-member entries
             db.action('DELETE from member WHERE BookID=?', (bookid,))
             for item in serieslist:
+                if not item[0] and item[2]:
+                    if item[2][0].isdigit and ')' in item[2]:  # incorrect split
+                        item[2] = item[2].rsplit(')', 1)[1].strip().strip('-').strip()
                 if item[0]:
                     cmd = 'SELECT SeriesID,SeriesName,Status from series where SeriesID=?'
                     key = 0
