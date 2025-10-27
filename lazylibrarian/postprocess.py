@@ -318,7 +318,7 @@ def process_issues(source_dir=None, title=''):
                     nouns.extend(get_list(CONFIG['VOLUME_NOUNS']))
                     nouns.extend(get_list(CONFIG['MAG_NOUNS']))
                     nouns.extend(get_list(CONFIG['MAG_TYPE']))
-                    nouns.extend(get_list(lazylibrarian.SEASONS.keys()))
+                    nouns.extend(list(lazylibrarian.SEASONS.keys()))
                     nouns = set(nouns)
                     valid = True
                     for word in filename_words:
