@@ -2552,16 +2552,17 @@ class WebInterface:
                 if exists:
                     author_name = matchname
                     if exists != authorid:
-                        logger.warning(f"{authorid}:{author_name} matches preferred {exists}:{author_name}")
+                        logger.warning(f"{authorid}:{author_name} matches preferred id {exists}:{matchname}")
+                    authorid = exists
                 logger.debug(f"Scanning {libdir} for preferred name {matchname}")
                 matchname = unaccented(matchname).lower()
                 for itm in listdir(libdir):
                     match = fuzz.ratio(format_author_name(unaccented(itm),
-                                                          get_list(CONFIG.get_csv('NAME_POSTFIX'))), matchname)
+                                                          get_list(CONFIG.get_csv('NAME_POSTFIX'))).lower(), matchname)
                     if match >= CONFIG.get_int('NAME_RATIO'):
                         authordir = os.path.join(libdir, itm)
                         fuzzlogger.debug(f"Fuzzy match folder {round(match, 2)}% {itm} for {author_name}")
-                        # Add this name variant as an aka if not already there?
+                        # TODO Add this name variant as an aka if not already there?
                         break
 
             if not path_isdir(authordir):
@@ -2571,12 +2572,13 @@ class WebInterface:
                     sourcefile = 'AudioFile'
                 else:
                     sourcefile = 'BookFile'
-                cmd = f"SELECT {sourcefile} from books,authors where books.AuthorID = authors.AuthorID"
-                cmd += f"  and AuthorName=? and {sourcefile} <> ''"
-                anybook = db.match(cmd, (author_name,))
+                cmd = f"SELECT {sourcefile} from books where AuthorID=? and {sourcefile} <> ''"
+                anybook = db.match(cmd, (authorid,))
                 if anybook:
-                    logger.debug(f"Found {sourcefile} {anybook[sourcefile]} for {author_name}")
+                    logger.debug(f"Found {sourcefile} {anybook[sourcefile]} for {authorid}:{author_name}")
                     authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
+                else:
+                    logger.debug(f"No {sourcefile} in library for {authorid}:{author_name}")
 
             if path_isdir(authordir):
                 remv = CONFIG.get_bool('FULL_SCAN')
