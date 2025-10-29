@@ -6744,13 +6744,18 @@ class WebInterface:
         else:
             control_value_dict = {"Title": title}
             new_value_dict = {
-                "Regex": None,
                 "Reject": reject,
                 "Genre": "",
                 "DateType": "",
                 "Status": "Active",
                 "MagazineAdded": today(),
-                "IssueStatus": "Wanted"
+                "LastAcquired": None,
+                "LatestCover": None,
+                "IssueDate": None,
+                "IssueStatus": "Wanted",
+                "Regex": None,
+                "CoverPage": 1,
+                "Language": CONFIG['PREF_MAGLANG'],
             }
             db.upsert("magazines", new_value_dict, control_value_dict)
             mags = [{"bookid": title}]
