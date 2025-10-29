@@ -1157,7 +1157,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                         book_filename = None
                                         if library == 'eBook':
-                                            if check_status['Status'] != 'Open':
+                                            if check_status['Status'] not in ['Open', 'Have']:
                                                 # we found a new book
                                                 new_book_count += 1
                                                 db.action(
@@ -1174,8 +1174,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             if CONFIG.get_bool('IMP_RENAME'):
                                                 book_filename, _ = book_rename(bookid)
 
-                                            db.action("UPDATE books SET BookFile=?, Status=? where BookID=?",
-                                                   (book_filename, CONFIG['FOUND_STATUS'], bookid))
+                                            db.action("UPDATE books SET BookFile=? where BookID=?",
+                                                      (book_filename, bookid))
 
                                             # check preferred type and store book location
                                             # so we can check if it gets (re)moved
@@ -1188,13 +1188,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                     logger.debug(f"Librarysync link to preferred type {book_type}")
                                                     db.action("UPDATE books SET BookFile=? where BookID=?",
                                                               (book_filename, bookid))
+                                                    modified_count += 1
                                                     break
-
-                                            # location may have changed on rename
-                                            if book_filename != check_status['BookFile']:
-                                                db.action('UPDATE books SET BookFile=? WHERE BookID=?',
-                                                          (book_filename, bookid))
-                                                modified_count += 1
 
                                             if 'unknown' in check_status['AuthorName'].lower():
                                                 newauth = db.match("SELECT * from authors WHERE AuthorName=?",
