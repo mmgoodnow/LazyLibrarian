@@ -1171,12 +1171,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                                                      os.path.splitext(os.path.basename(
                                                                                          book_filename))[0],
                                                                                      overwrite=False)
-
-                                            db.action("UPDATE books SET BookFile=? where BookID=?",
-                                                      (book_filename, bookid))
-
                                             if CONFIG.get_bool('IMP_RENAME'):
                                                 book_filename, _ = book_rename(bookid)
+
+                                            db.action("UPDATE books SET BookFile=?, Status=? where BookID=?",
+                                                   (book_filename, CONFIG['FOUND_STATUS'], bookid))
 
                                             # check preferred type and store book location
                                             # so we can check if it gets (re)moved
@@ -1187,6 +1186,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 if path_exists(preferred_type):
                                                     book_filename = preferred_type
                                                     logger.debug(f"Librarysync link to preferred type {book_type}")
+                                                    db.action("UPDATE books SET BookFile=? where BookID=?",
+                                                              (book_filename, bookid))
                                                     break
 
                                             # location may have changed on rename
