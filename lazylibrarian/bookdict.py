@@ -168,13 +168,17 @@ def validate_bookdict(bookdict):
             # ensure bookdict author details match database
             bookdict['authorid'] = auth_id
             bookdict['authorname'] = auth_name
-
+            # For some reason, collate fuzzy does not get called if the names match
+            # so we try a nocase first, then if that fails try fuzzy.
             cmd = (
                 f"SELECT BookID,books.{id_key[source]},bookname FROM books,authors "
-                "WHERE books.AuthorID = authors.AuthorID and BookName=? COLLATE FUZZY "
+                "WHERE books.AuthorID = authors.AuthorID and BookName=? COLLATE NOCASE "
                 "and books.AuthorID=? and books.Status != 'Ignored' and AudioStatus != 'Ignored'"
             )
             exists = db.match(cmd, (bookdict['bookname'], auth_id))
+            if not exists:
+                cmd = cmd.replace("NOCASE", 'FUZZY')
+                exists = db.match(cmd, (bookdict['bookname'], auth_id))
         if not exists:
             in_db = lazylibrarian.librarysync.find_book_in_db(
                 auth_name, bookdict['bookname'],

@@ -522,11 +522,17 @@ class GoodReads:
                             # still  no earlier match, we'll have to search the goodreads api
                             try:
                                 if book.find(find_field).text:
-                                    book_url = '/'.join([CONFIG['GR_URL'],
-                                                         f"book/show?id={book.find(find_field).text}"
-                                                         f"&{urlencode(self.params)}"])
+                                    if find_field == 'id':
+                                        book_url = '/'.join([CONFIG['GR_URL'],
+                                                             f"book/show?id={book.find(find_field).text}"
+                                                             f"&{urlencode(self.params)}"])
+                                    else:
+                                        book_url = '/'.join([CONFIG['GR_URL'],
+                                                             f"book/isbn/{book.find(find_field).text}"
+                                                             f"?{urlencode(self.params)}"])
                                     self.logger.debug(f"Book URL: {book_url}")
-                                    book_language = ""
+                                    if book_language == "Unknown":
+                                        book_language = ""
                                     try:
                                         book_rootxml, in_cache = gr_xml_request(book_url)
                                         if book_rootxml is None:
@@ -534,7 +540,9 @@ class GoodReads:
                                                               f'{book.find(find_field).text}')
                                         else:
                                             try:
-                                                book_language = book_rootxml.find('./book/language_code').text
+                                                bk_language = book_rootxml.find('./book/language_code').text
+                                                if bk_language:
+                                                    book_language = bk_language
                                             except Exception as e:
                                                 self.logger.error(
                                                     f"{type(e).__name__} finding language_code in book xml: "
@@ -550,9 +558,6 @@ class GoodReads:
                                                     isbnhead = res[3:6]
                                                 except Exception:
                                                     isbnhead = ''
-                                            # if bookLanguage and not isbnhead:
-                                            #     print(BOOK_URL)
-
                                             # might as well get the original publication date from here
                                             # noinspection PyBroadException
                                             try:
@@ -964,8 +969,8 @@ class GoodReads:
                                                                            audiostatus, entrystatus)
                                         if existing['Status'] not in ['Wanted', 'Open', 'Have'] and not ignore_book:
                                             update_value_dict["Status"] = book_stat
-                                        if (existing['AudioStatus'] not in ['Wanted', 'Open', 'Have'] and not
-                                                ignore_audio):
+                                        if (existing['AudioStatus'] not in ['Wanted', 'Open', 'Have']
+                                                and not ignore_audio):
                                             update_value_dict["AudioStatus"] = audio_stat
                                         self.searchinglogger.debug(f"status is now {book_status},{audio_status}")
                                     elif not existing:

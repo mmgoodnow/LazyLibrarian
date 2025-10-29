@@ -666,6 +666,7 @@ def collate_nopunctuation(string1, string2):
 
 
 def collate_fuzzy(string1, string2):
+    fuzzlogger = logging.getLogger('special.fuzz')
     string1 = string1.lower()
     string2 = string2.lower()
     for entry in title_translates:
@@ -675,10 +676,19 @@ def collate_fuzzy(string1, string2):
     str1 = string1.translate(str.maketrans('', '', string.punctuation))
     str2 = string2.translate(str.maketrans('', '', string.punctuation))
     if str1 == str2:
+        fuzzlogger.debug(f"[{string1}][{string2}] match")
         return 0
 
+    # make sure "The Lord of the Rings" matches "Lord of the Rings"
     set1 = set(str1.split())
     set2 = set(str2.split())
+    for word in get_list(CONFIG.get_csv('NAME_DEFINITE')):
+        set1.discard(word)
+        set2.discard(word)
+    if set1 == set2:
+        fuzzlogger.debug(f"[{set1}][{set2}] match")
+        return 0
+
     differences = set1.symmetric_difference(set2)
     numbers = []
     for word in differences:
@@ -691,23 +701,19 @@ def collate_fuzzy(string1, string2):
                 numbers.append(int(re.findall(r'\d+', word)[0]))
             except IndexError:
                 pass
+    fuzzlogger.debug(f"[{string1}][{string2}]{numbers}")
     if len(numbers) == 2:
-        if numbers[0] > numbers[1]:
-            return 1
-        if numbers[1] > numbers[0]:
-            return -1
-        return 0
+        return 1 if numbers[0] > numbers[1] else -1 if numbers[0] < numbers[1] else 0
     elif len(numbers) == 1:
         return 1
 
     match_fuzz = fuzz.ratio(str1, str2)
+    fuzzlogger.debug(f"[{string1}][{string2}]{match_fuzz}")
     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
         return 0
     if str1 < str2:
         return -1
-    elif str1 > str2:
-        return 1
-    return 0
+    return 1
 
 
 def de_duplicate(authorid):
@@ -731,80 +737,84 @@ def de_duplicate(authorid):
         authorname = author['AuthorName']
     # noinspection PyBroadException
     try:
-        # check/delete any duplicate titles - with fuzz
-        cmd = ("select count('bookname'),bookname from books where authorid=? "
-               "group by bookname COLLATE FUZZY having ( count(bookname) > 1 )")
-        res = db.select(cmd, (authorid,))
-        dupes = len(res)
-        if not dupes:
-            logger.debug("No duplicates to merge")
-        else:
-            logger.warning(f"There {plural(dupes, 'is')} {dupes} duplicate {plural(dupes, 'title')} "
-                           f"for {authorid}:{authorname}")
-            for item in res:
-                logger.debug(f"{item[1]} has {item[0]} entries")
-                favourite = {}
-                copies = db.select("SELECT * from books where AuthorID=? and BookName=? COLLATE FUZZY",
-                                   (authorid, item[1]))
+        # check/delete any duplicate titles - with separate fuzz
+        # we do a nocase first, as for some reason fuzzy doesn't get called if the names match
+        for collation in ['NOCASE', 'FUZZY']:
+            cmd = ("select count('bookname'),bookname from books where authorid=? "
+                   f"group by bookname COLLATE {collation} having ( count(bookname) > 1 )")
+            res = db.select(cmd, (authorid,))
+            dupes = len(res)
+            if not dupes:
+                logger.debug(f"No {collation} duplicates to merge")
+            else:
+                logger.warning(f"There {plural(dupes, 'is')} {dupes} duplicate {collation} {plural(dupes, 'title')} "
+                               f"for {authorid}:{authorname}")
+                for item in res:
+                    logger.debug(f"{item[1]} has {item[0]} entries")
+                    favourite = {}
+                    copies = db.select(f"SELECT * from books where AuthorID=? and BookName=? COLLATE {collation}",
+                                       (authorid, item[1]))
 
-                for copy in copies:
-                    if (copy['Status'] in ['Open', 'Have'] or
-                            copy['AudioStatus'] in ['Open', 'Have']):
-                        favourite = copy
-                        break
-                if not favourite:
                     for copy in copies:
-                        if (copy['Status'] in ['Wanted'] or
-                                copy['AudioStatus'] in ['Wanted']):
+                        if (copy['Status'] in ['Open', 'Have'] or
+                                copy['AudioStatus'] in ['Open', 'Have']):
                             favourite = copy
                             break
-                if not favourite:
+                    if not favourite:
+                        for copy in copies:
+                            if (copy['Status'] in ['Wanted'] or
+                                    copy['AudioStatus'] in ['Wanted']):
+                                favourite = copy
+                                break
+                    if not favourite:
+                        for copy in copies:
+                            if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
+                                favourite = copy
+                                break
+                    if not favourite and copies:
+                        favourite = copies[0]
+                    if favourite:
+                        logger.debug(f"Favourite {favourite['BookID']} {favourite['BookName']} "
+                                     f"({favourite['Status']}/{favourite['AudioStatus']})")
                     for copy in copies:
-                        if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
-                            favourite = copy
-                            break
-                if not favourite and copies:
-                    favourite = copies[0]
-                if favourite:
-                    logger.debug(f"Favourite {favourite['BookID']} {favourite['BookName']} "
-                                 f"({favourite['Status']}/{favourite['AudioStatus']})")
-                for copy in copies:
-                    if copy['BookID'] != favourite['BookID']:
-                        logger.debug(f"Copy {copy['BookID']} {copy['BookName']} "
-                                     f"({copy['Status']}/{copy['AudioStatus']})")
-                for copy in copies:
-                    if copy['BookID'] != favourite['BookID']:
-                        members = db.select("SELECT SeriesID,SeriesNum from member WHERE BookID=?",
-                                            (copy['BookID'],))
-                        if members:
-                            for member in members:
-                                logger.debug(f"Updating BookID for member {member['SeriesNum']} of series "
-                                             f"{member['SeriesID']}")
-                                db.action("UPDATE member SET BookID=? WHERE BookID=? and SeriesID=?",
-                                          (favourite['BookID'], copy['BookID'], member['SeriesID']), suppress='UNIQUE')
-                        for key in booktable_keys:
-                            if not favourite[key] and copy[key]:
-                                cmd = f"UPDATE books SET {key}=? WHERE BookID=?"
-                                logger.debug(f"Copy {key} from {copy['BookID']}: {copy['BookName']}")
-                                db.action(cmd, (copy[key], favourite['BookID']))
-                                if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
-                                    if key == 'BookFile' and favourite['Status'] not in ['Open', 'Have']:
-                                        logger.debug(f"Copy Status from {copy['BookID']}")
-                                        db.action('UPDATE books SET Status=? WHERE BookID=?',
-                                                  (copy['Status'], favourite['BookID']))
-                                    if key == 'AudioFile' and favourite['AudioStatus'] not in ['Open', 'Have']:
-                                        logger.debug(f"Copy AudioStatus from {copy['BookID']}")
-                                        db.action('UPDATE books SET AudioStatus=? WHERE BookID=?',
-                                                  (copy['AudioStatus'], favourite['BookID']))
+                        if copy['BookID'] != favourite['BookID']:
+                            logger.debug(f"Copy {copy['BookID']} {copy['BookName']} "
+                                         f"({copy['Status']}/{copy['AudioStatus']})")
+                    for copy in copies:
+                        if copy['BookID'] != favourite['BookID']:
+                            members = db.select("SELECT SeriesID,SeriesNum from member WHERE BookID=?",
+                                                (copy['BookID'],))
+                            if members:
+                                for member in members:
+                                    logger.debug(f"Updating BookID for member {member['SeriesNum']} of series "
+                                                 f"{member['SeriesID']}")
+                                    db.action("UPDATE member SET BookID=? WHERE BookID=? and SeriesID=?",
+                                              (favourite['BookID'], copy['BookID'], member['SeriesID']),
+                                              suppress='UNIQUE')
+                            for key in booktable_keys:
+                                if not favourite[key] and copy[key]:
+                                    cmd = f"UPDATE books SET {key}=? WHERE BookID=?"
+                                    logger.debug(f"Copy {key} from {copy['BookID']}: {copy['BookName']}")
+                                    db.action(cmd, (copy[key], favourite['BookID']))
+                                    if copy['Status'] not in ['Ignored'] and copy['AudioStatus'] not in ['Ignored']:
+                                        if key == 'BookFile' and favourite['Status'] not in ['Open', 'Have']:
+                                            logger.debug(f"Copy Status from {copy['BookID']}")
+                                            db.action('UPDATE books SET Status=? WHERE BookID=?',
+                                                      (copy['Status'], favourite['BookID']))
+                                        if key == 'AudioFile' and favourite['AudioStatus'] not in ['Open', 'Have']:
+                                            logger.debug(f"Copy AudioStatus from {copy['BookID']}")
+                                            db.action('UPDATE books SET AudioStatus=? WHERE BookID=?',
+                                                      (copy['AudioStatus'], favourite['BookID']))
 
-                        if copy['Status'] in ['Ignored'] or copy['AudioStatus'] in ['Ignored']:
-                            logger.debug(f"Keeping duplicate {copy['BookID']},  {copy['Status']}/{copy['AudioStatus']}")
-                        else:
-                            logger.debug(f"Delete {copy['BookID']} keeping {favourite['BookID']}")
-                            db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
-                            db.action("UPDATE readinglists SET Bookid=? WHERE BookID=?",
-                                      (favourite['BookID'], copy['BookID']))
-                            total += 1
+                            if copy['Status'] in ['Ignored'] or copy['AudioStatus'] in ['Ignored']:
+                                logger.debug(f"Keeping duplicate {copy['BookID']},  {copy['Status']}/"
+                                             f"{copy['AudioStatus']}")
+                            else:
+                                logger.debug(f"Delete {copy['BookID']} keeping {favourite['BookID']}")
+                                db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
+                                db.action("UPDATE readinglists SET Bookid=? WHERE BookID=?",
+                                          (favourite['BookID'], copy['BookID']))
+                                total += 1
     except Exception:
         msg = f'Unhandled exception in de_duplicate: {traceback.format_exc()}'
         logger.warning(msg)
