@@ -15,6 +15,7 @@ import os
 import re
 import string
 import time
+import traceback
 
 import cherrypy
 from rapidfuzz import fuzz
@@ -368,7 +369,7 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
             msg = f"{username} sync updated: {ll_changes} calibre, {calibre_changes} lazylibrarian"
 
     except Exception as e:
-        logger.error(str(e))
+        logger.error(f"{e}: {traceback.format_exc()}")
 
     db.close()
     return msg
