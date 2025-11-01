@@ -689,28 +689,35 @@ def collate_fuzzy(string1, string2):
         fuzzlogger.debug(f"[{set1}][{set2}] match")
         return 0
 
-    differences = set1.symmetric_difference(set2)
-    numbers = []
-    for word in differences:
-        # see if word coerces to an integer or a float
-        word = word.replace('-', '')
-        try:
-            numbers.append(float(re.findall(r'\d+\.\d+', word)[0]))
-        except IndexError:
-            try:
-                numbers.append(int(re.findall(r'\d+', word)[0]))
-            except IndexError:
-                pass
-    fuzzlogger.debug(f"[{string1}][{string2}]{numbers}")
-    if len(numbers) == 2:
-        return 1 if numbers[0] > numbers[1] else -1 if numbers[0] < numbers[1] else 0
-    elif len(numbers) == 1:
-        return 1
-
     match_fuzz = fuzz.ratio(str1, str2)
     fuzzlogger.debug(f"[{string1}][{string2}]{match_fuzz}")
     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
-        return 0
+        # if it's a close enough match, check for purely number differences
+        num1 = []
+        num2 = []
+        for word in set1:
+            # see if word coerces to an integer or a float
+            word = word.replace('-', '')
+            try:
+                num1.append(float(re.findall(r'\d+\.\d+', word)[0]))
+            except IndexError:
+                try:
+                    num1.append(int(re.findall(r'\d+', word)[0]))
+                except IndexError:
+                    pass
+        for word in set2:
+            word = word.replace('-', '')
+            try:
+                num2.append(float(re.findall(r'\d+\.\d+', word)[0]))
+            except IndexError:
+                try:
+                    num2.append(int(re.findall(r'\d+', word)[0]))
+                except IndexError:
+                    pass
+        fuzzlogger.debug(f"[{string1}][{string2}]{num1}:{num2}")
+        if num1 == num2:
+            return 0
+        return 1
     if str1 < str2:
         return -1
     return 1

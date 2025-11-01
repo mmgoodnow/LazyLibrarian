@@ -408,32 +408,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             numbers = []
             for word in differences:
                 # see if word coerces to an integer or a float
-                try:
-                    numbers.append(float(re.findall(r'\d+\.\d+', word)[0]))
-                except IndexError:
-                    try:
-                        numbers.append(int(re.findall(r'\d+', word)[0]))
-                    except IndexError:
-                        pass
-            if len(numbers) == 2 and numbers[0] != numbers[1]:
-                # make sure we are below match threshold
-                if ratio > CONFIG.get_int('NAME_RATIO'):
-                    ratio = CONFIG.get_int('NAME_RATIO') - 1
-                if partial > CONFIG.get_int('NAME_PARTIAL'):
-                    partial = CONFIG.get_int('NAME_PARTIAL') - 1
-                if partname > CONFIG.get_int('NAME_PARTNAME'):
-                    partname = CONFIG.get_int('NAME_PARTNAME') - 1
-                fuzzlogger.debug(f"Downgraded ratios as different numbers")
-
-            # lose points if the difference is just numbers so we don't match "book 2" and "book 3"
-            # eg "He Who Fights With Monsters #7" is not the same as "He Who Fights With Monsters 05"
-            set1 = set(book_lower.split())
-            set2 = set(a_book_lower.split())
-            differences = set1.symmetric_difference(set2)
-            numbers = []
-            for word in differences:
-                # see if word coerces to an integer or a float
-                word = word.replace('-', '')
+                word = word.replace('-', '')  # merge ranges so books 1-3 is different to books 1-5
                 try:
                     numbers.append(float(re.findall(r'\d+\.\d+', word)[0]))
                 except IndexError:
