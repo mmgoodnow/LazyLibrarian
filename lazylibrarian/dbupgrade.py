@@ -426,6 +426,8 @@ def check_db(upgradelog=None):
                 res = db.select(cmd)
                 if len(res):
                     logger.debug(f"Deleting {len(res)} single-book series from database")
+                    for item in res:
+                        logger.warning(f"Removing single book series {item['SeriesID']}:{item['SeriesName']}")
                     db.action("DELETE from series where total=1")
 
             # Extract any librarything workids from workpage url

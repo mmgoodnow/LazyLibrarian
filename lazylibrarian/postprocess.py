@@ -3302,6 +3302,7 @@ def process_auto_add(src_path=None, booktype='book'):
                     CONFIG.is_valid_booktype(name, booktype="mag"):
                 logger.debug(f'Skipping {name}')
             else:
+                logger.debug(f"booktype [{booktype}] bookonly [{CONFIG.get_bool('IMP_AUTOADD_BOOKONLY')}] validtype [{CONFIG.is_valid_booktype(name, booktype="book")}]")
                 srcname = os.path.join(src_path, name)
                 dstname = os.path.join(autoadddir, name)
                 try:
