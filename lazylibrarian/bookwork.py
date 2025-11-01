@@ -17,6 +17,7 @@ import threading
 import time
 import traceback
 from urllib.parse import quote_plus, quote, urlencode
+
 from rapidfuzz import fuzz
 
 import lazylibrarian
@@ -26,7 +27,6 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, \
     split_title
-from lazylibrarian.processcontrol import get_info_on_caller
 
 
 def set_all_book_authors():
@@ -149,7 +149,6 @@ def set_series(serieslist=None, bookid=None, reason=""):
     api_hits = 0
     originalpubdate = ''
     try:
-        newserieslist = []
         if bookid:
             # delete any old series-member entries
             db.action('DELETE from member WHERE BookID=?', (bookid,))
@@ -166,13 +165,13 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     key = 2
                 match = db.match(cmd, (item[key],))
 
+                seriesid = ''
+                members = []
                 if match:
                     seriesid = match['SeriesID']
                     debug_msg = f"Series {item[2]} exists ({seriesid}) {match['Status']}"
                     logger.info(debug_msg)
-                    if match['Status'] in ['Paused', 'Ignored']:
-                        members = []
-                    else:
+                    if match['Status'] not in ['Paused', 'Ignored']:
                         members, _api_hits, _src = get_series_members(seriesid, item[2])
                         debug_msg = f"Existing series {item[2]} has {len(members)} members"
                         logger.info(debug_msg)
@@ -187,30 +186,6 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         debug_msg = f"New series {item[2]}:{seriesid} has {len(members)} members"
                         logger.info(debug_msg)
                         api_hits += _api_hits
-                    else:
-                        # no seriesid so generate it (first available unused integer)
-                        res = 1
-                        while True:
-                            cnt = db.match('select * from series where seriesid=?', (f"LL{res}",))
-                            if not cnt:
-                                break
-                            res += 1
-                        seriesid = f"LL{str(res)}"
-                        debug_msg = f"Series {item[2]} set LL seriesid {seriesid}"
-                        logger.info(debug_msg)
-                        members = []
-                        newserieslist.append(item)
-                        if not reason:
-                            program, method, lineno = get_info_on_caller(depth=1)
-                            reason = f"{program}:{method}:{lineno}"
-
-                        reason = f"Bookid {bookid}: {reason}"
-                        debug_msg = f"Adding new series {item[2]}:{seriesid}"
-                        logger.info(debug_msg)
-                        db.action('INSERT into series (SeriesID, SeriesName, Status, Updated, Reason) '
-                                  'VALUES (?, ?, ?, ?, ?)',
-                                  (seriesid, item[2], CONFIG['NEWSERIES_STATUS'],
-                                   time.time(), reason), suppress='UNIQUE')
 
                 book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
                 authorid = book['AuthorID']
@@ -218,26 +193,29 @@ def set_series(serieslist=None, bookid=None, reason=""):
                 if not workid:
                     workid = book['LT_WorkID']
 
-                control_value_dict = {"BookID": bookid, "SeriesID": seriesid}
-                new_value_dict = {"SeriesNum": item[1]}
-                if workid:
-                    new_value_dict['WorkID'] = workid
-                db.upsert("member", new_value_dict, control_value_dict)
+                if seriesid:
+                    control_value_dict = {"BookID": bookid, "SeriesID": seriesid}
+                    new_value_dict = {"SeriesNum": item[1]}
+                    if reason and not match:
+                        new_value_dict['Reason'] = reason
+                    if workid:
+                        new_value_dict['WorkID'] = workid
+                    db.upsert("member", new_value_dict, control_value_dict)
 
-                if workid:
-                    for member in members:
-                        if member[3] == workid:
-                            if check_year(member[5], past=1800, future=0):
-                                bookdate = member[5]
-                                if check_int(member[6], 0) and check_int(member[7], 0):
-                                    bookdate = f"{member[5]}-{member[6]}-{member[7]}"
-                                control_value_dict = {"BookID": bookid}
-                                new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
-                                db.upsert("books", new_value_dict, control_value_dict)
-                                originalpubdate = bookdate
+                    if workid:
+                        for member in members:
+                            if member[3] == workid:
+                                if check_year(member[5], past=1800, future=0):
+                                    bookdate = member[5]
+                                    if check_int(member[6], 0) and check_int(member[7], 0):
+                                        bookdate = f"{member[5]}-{member[6]}-{member[7]}"
+                                    control_value_dict = {"BookID": bookid}
+                                    new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
+                                    db.upsert("books", new_value_dict, control_value_dict)
+                                    originalpubdate = bookdate
 
-                db.action("INSERT INTO seriesauthors ('SeriesID', 'AuthorID') VALUES (?, ?)",
-                          (seriesid, authorid), suppress='UNIQUE')
+                    db.action("INSERT INTO seriesauthors ('SeriesID', 'AuthorID') VALUES (?, ?)",
+                              (seriesid, authorid), suppress='UNIQUE')
     except Exception as e:
         logger.error(str(e))
 
