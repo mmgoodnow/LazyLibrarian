@@ -3284,23 +3284,23 @@ def process_auto_add(src_path=None, booktype='book'):
         match = False
         if booktype == 'book' and CONFIG.get_bool('ONE_FORMAT'):
             booktype_list = get_list(CONFIG['EBOOK_TYPE'])
-            for booktype in booktype_list:
+            for bktype in booktype_list:
                 while not match:
                     for name in names:
                         extn = os.path.splitext(name)[1].lstrip('.')
-                        if extn and extn.lower() == booktype:
-                            match = booktype
+                        if extn and extn.lower() == bktype:
+                            match = bktype
                             break
         copied = False
         for name in names:
             if match and CONFIG.is_valid_booktype(name, booktype=booktype) and not name.endswith(match):
-                logger.debug(f'Skipping {os.path.splitext(name)[1]}')
+                logger.debug(f'Skipping book format {os.path.splitext(name)[1]}')
             elif booktype == 'book' and CONFIG.get_bool('IMP_AUTOADD_BOOKONLY') and not \
                     CONFIG.is_valid_booktype(name, booktype="book"):
-                logger.debug(f'Skipping {name}')
+                logger.debug(f'Skipping non-book {name}')
             elif booktype == 'mag' and CONFIG.get_bool('IMP_AUTOADD_MAGONLY') and not \
                     CONFIG.is_valid_booktype(name, booktype="mag"):
-                logger.debug(f'Skipping {name}')
+                logger.debug(f'Skipping non-mag {name}')
             else:
                 logger.debug(f"booktype [{booktype}] bookonly [{CONFIG.get_bool('IMP_AUTOADD_BOOKONLY')}] "
                              f"validtype [{CONFIG.is_valid_booktype(name, booktype='book')}]")
