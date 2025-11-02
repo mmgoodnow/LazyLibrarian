@@ -486,9 +486,6 @@ def add_series_members(seriesid, refresh=False):
             bookid = member[8]
             # Ensure just title, strip out subtitle, series
             member[1], _, _ = split_title(member[2], member[1])
-            if member[0] is None:
-                logger.debug(f"Rejecting {member[1]} - {member[2]}")
-                continue
             logger.debug(f"{member[0]}:{member[1]} - {member[2]}")
             book = None
             if bookid:
@@ -807,6 +804,9 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
             order = 0
             bookname = ''
             rejected = True
+        if item[0] is None:
+            rejected = 'no index'
+            logger.debug(f'Rejected {bookname}: {rejected}')
         if not rejected and CONFIG.get_bool('NO_SETS'):
             is_set, msg = is_set_or_part(str(order))
             if is_set:
@@ -814,8 +814,20 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
                 logger.debug(f'Rejected {bookname}: {order}, {rejected}')
 
         if not rejected and CONFIG.get_bool('NO_NONINTEGER_SERIES') and '.' in str(item[0]):
-            rejected = f'Rejected non-integer {item[0]}'
+            rejected = f'non-integer {item[0]}'
             logger.debug(f'Rejected {bookname}, {rejected}')
+        if not rejected:
+            word = item[0].replace('-', '')
+            try:
+                valid = float(re.findall(r'\d+\.\d+', word)[0])
+            except IndexError:
+                try:
+                    valid = int(re.findall(r'\d+', word)[0])
+                except IndexError:
+                    valid = False
+            if valid is False:
+                rejected = f'non-indexed {item[0]}'
+                logger.debug(f'Rejected {bookname}, {rejected}')
         if not rejected and check_int(item[0], 0) == 1:
             first = True
 
