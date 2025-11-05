@@ -2322,7 +2322,7 @@ class WebInterface:
 
     @cherrypy.expose
     @require_auth()
-    def author_page(self, authorid, book_lang=None, library='eBook', ignored=False, book_filter=''):
+    def author_page(self, authorid, book_lang=None, library='eBook', ignored=False, **args):
         global lastauthor
         self.check_permitted(lazylibrarian.perm_ebook + lazylibrarian.perm_audio)
         db = database.DBConnection()
@@ -2381,7 +2381,7 @@ class WebInterface:
             templatename="author.html", title=authorname, author=author,
             languages=languages, booklang=book_lang, types=types, library=library, ignored=ignored,
             showseries=CONFIG.get_int('SERIES_TAB'), firstpage=firstpage, user=user, email=email,
-            book_filter=book_filter)
+            book_filter=args.get('book_filter', ''))
 
     @cherrypy.expose
     @require_auth()
@@ -4281,6 +4281,9 @@ class WebInterface:
     @require_auth()
     @cherrypy.tools.json_out()
     def mark_books_ajax(self, authorid=None, seriesid=None, action=None, redirect=None, **args):
+        book_filter = None
+        if 'bookfilter' in args:
+            book_filter = args['bookfilter']
         self.check_permitted(lazylibrarian.perm_status)
         logger = logging.getLogger(__name__)
         if 'library' in args:
@@ -4296,7 +4299,7 @@ class WebInterface:
         if 'AuthorID' in args and authorid is None:
             authorid = args['AuthorID']
 
-        for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype', 'AuthorID']:
+        for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype', 'AuthorID', 'bookfilter']:
             args.pop(arg, None)
 
         passed = 0
@@ -4495,7 +4498,8 @@ class WebInterface:
             redirect = f"manage?library=AudioBook"
         else:
             redirect = f"manage?library=eBook"
-
+        if book_filter:
+            redirect = f"{redirect}&book_filter={book_filter}"
         # Return JSON response instead of redirect
         total = passed + failed
         summary = f"Mark Books '{action}' completed."
