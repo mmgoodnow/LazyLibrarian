@@ -1289,13 +1289,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 iss_date = book['AuxInfo']
                                 dateparts = get_dateparts(iss_date)
                                 if iss_date == '1970-01-01':
-                                    logger.debug(f"Looks like an invalid or missing date, retrying {book['NZBtitle']}")
+                                    logger.debug(f"Invalid or missing date, retrying {book['NZBtitle']} "
+                                                 f"for datetype [{data['DateType']}]")
                                     dateparts = get_dateparts(book['NZBtitle'], data['DateType'])
-                                    iss_date = dateparts['dbdate']
-                                    # suppress the "-01" day on monthly magazines
-                                    # if re.match(r'\d+-\d\d-01', str(iss_date)):
-                                    #    iss_date = iss_date[:-3]
-                                    book['AuxInfo'] = iss_date
+                                    if dateparts['dbdate']:
+                                        iss_date = dateparts['dbdate']
+                                        book['AuxInfo'] = dateparts['dbdate']
                                 logger.debug(iss_date)
                                 logger.debug(str(dateparts))
                                 dest_path = format_issue_filename(CONFIG['MAG_DEST_FOLDER'], mag_name, dateparts)
