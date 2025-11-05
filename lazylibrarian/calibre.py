@@ -24,7 +24,7 @@ from lazylibrarian import database
 from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.common import run_script
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import get_directory
+from lazylibrarian.filesystem import get_directory, DIRS
 from lazylibrarian.formatter import unaccented, get_list
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
@@ -55,6 +55,8 @@ def calibre_list(col_read, col_toread):
             return res
         return err
     else:
+        logger = logging.getLogger(__name__)
+        logger.debug(f"{res}")
         return json.loads(res)
 
 
