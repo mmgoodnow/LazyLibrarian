@@ -792,6 +792,7 @@ def get_dateparts(title_or_issue, datetype=''):
             datetype_ok = False
     if not datetype_ok:
         dateparts['style'] = 0
+        dateparts['dbdate'] = ''
     else:
         if dateparts['issue'] and ('I' in datetype or dateparts['inoun']):
             issuenum = str(dateparts['issue']).zfill(4)
