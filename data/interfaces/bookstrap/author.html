@@ -6,7 +6,6 @@
 <%def name="headerIncludes()">
     <div id="subhead_container">
         <form id="subhead_menu" class="form-inline">
-        <input type="hidden" name="bookfilter" id="bookfilter" value=''>
         %if perm&lazylibrarian.perm_force:
             %if author['Status'] == 'Paused':
                 <a href="resume_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-pause"></i> Paused</a>
@@ -223,6 +222,7 @@
     <input type="hidden" name="booklang" value=${booklang}>
     <input type="hidden" name="library" value=${library}>
     <input type="hidden" name="ignored" value=${ignored}>
+    <input type="hidden" name="bookfilter" id="bookfilter" value=''>
     %if perm&lazylibrarian.perm_status or  CONFIG['USER_ACCOUNTS']:
     <div class="col-xs-12 col-sm-5">
       <div class="form-group">
@@ -511,7 +511,10 @@
               }
               $(this).toggleClass('selected');
           } );
-
+            oTable.on('search.dt', function() {
+              var input = $('.dataTables_filter input')[0];
+              $('#bookfilter').val(input.value);
+            })
             oTable.on( 'xhr', function () {
               var json = oTable.ajax.json();
               if (json.loading) {
@@ -564,7 +567,6 @@
     function submitFormAjax() {
         var form = document.getElementById("mark_books");
         var formData = new FormData(form);
-
         // Show loading modal
         bootbox.dialog({
             message: '<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i><br><br>Processing...</div>',
@@ -611,7 +613,7 @@
                         label: 'OK',
                         className: 'btn-primary',
                         callback: function() {
-                            window.location.reload(data.redirect);
+                            window.location = data.redirect;
                         }
                     }
                 }
