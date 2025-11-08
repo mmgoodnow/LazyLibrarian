@@ -118,7 +118,6 @@ def search_book(books=None, library=None):
                 logger.debug(f"Searching for {len(books)} {plural(len(books), library)}")
                 searchinglogger.debug(f"{books}")
             for book in books:
-                print(type(book), book)
                 if book['bookid'] not in ['booklang', 'library', 'ignored']:
                     cmd = ("SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus "
                            "from books,authors WHERE BookID=? AND books.AuthorID = authors.AuthorID")
