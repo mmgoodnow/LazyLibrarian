@@ -42,13 +42,13 @@ from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, get_list, \
-    thread_name, split_author_names
+    thread_name, split_author_names, is_valid_isbn
 from lazylibrarian.grsync import grfollow, grsync
 from lazylibrarian.hc import hc_sync
 from lazylibrarian.images import get_author_image, get_author_images, get_book_cover, get_book_covers, \
     create_mag_covers, create_mag_cover, shrink_mag, read_pdf_tags, write_pdf_tags
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, de_duplicate, \
-    get_all_author_details
+    get_all_author_details, search_for
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
@@ -133,7 +133,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'findAuthorID': (0, '&name= [&source=] find AuthorID for named author'),
             'findMissingAuthorID': (0, '[&source=] find authorid from named source for any authors without id'),
             'findBook': (0, '&name= search goodreads/googlebooks for named book'),
-            'addBook': (1, '&id= add book details to the database'),
+            'addBook': (1, '&id= add one or more books to the database by bookid'),
+            'addBookByISBN': (1, '&isbn= add one or more books to the database by isbn'),
             'moveBooks': (1, '&fromname= &toname= move all books from one author to another by AuthorName'),
             'moveBook': (1, '&id= &toid= move one book to new author by BookID and AuthorID'),
             'addAuthor': (1, '&name= [&books] add author to database by name, optionally add their books'),
@@ -2069,7 +2070,44 @@ class Api(object):
         search_api.join()
         self.data = myqueue.get()
 
+    def _addbookbyisbn(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'isbn' not in kwargs:
+            self.data = 'Missing parameter: isbn'
+            return
+        summary = ''
+        for item in get_list(kwargs['isbn']):
+            self._addonebookbyisbn(isbn=item)
+            summary += self.data + '<br>'
+        self.data = summary
+
+    def _addonebookbyisbn(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'isbn' not in kwargs:
+            self.data = 'Missing parameter: isbn'
+            return
+        if not is_valid_isbn(kwargs['isbn']):
+            self.data = f"Invalid isbn {kwargs['isbn']}"
+            return
+
+        searchresults = search_for(kwargs['isbn'])
+        self.data = f"No results for {kwargs['isbn']}"
+        if searchresults:
+            sortedlist = sorted(searchresults, key=lambda x: (x['highest_fuzz'], x['bookrate_count']),
+                                reverse=True)
+            if sortedlist[0].get('bookid'):
+                self._addbook(id=sortedlist[0].get('bookid'))
+                self.data = f"Added {kwargs['isbn']}:{sortedlist[0].get('authorname')}:{sortedlist[0].get('bookname')}"
+
     def _addbook(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        for item in get_list(kwargs['id']):
+            self._addbook(id=item)
+
+    def _addonebook(self, **kwargs):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
