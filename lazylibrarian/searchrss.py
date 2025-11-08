@@ -48,7 +48,7 @@ def cron_search_wishlist():
 
 
 def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
-    # calculate wanted status according to existing/author/series statuses
+    # calculate status according to existing/author/series statuses
     logger = logging.getLogger(__name__)
     want_book = False
     want_audio = False
