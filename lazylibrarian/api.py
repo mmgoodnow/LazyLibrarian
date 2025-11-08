@@ -2096,7 +2096,7 @@ class Api(object):
             sortedlist = sorted(searchresults, key=lambda x: (x['highest_fuzz'], x['bookrate_count']),
                                 reverse=True)
             if sortedlist[0].get('bookid'):
-                self._addbook(id=sortedlist[0].get('bookid'))
+                self._addonebook(id=sortedlist[0].get('bookid'))
                 self.data = f"Added {kwargs['isbn']}:{sortedlist[0].get('authorname')}:{sortedlist[0].get('bookname')}"
 
     def _addbook(self, **kwargs):
@@ -2105,14 +2105,13 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         for item in get_list(kwargs['id']):
-            self._addbook(id=item)
+            self._addonebook(id=item)
 
     def _addonebook(self, **kwargs):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
-
         this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
         api = this_source['api']
         threading.Thread(target=api.add_bookid_to_db,
