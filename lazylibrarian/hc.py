@@ -787,13 +787,13 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     if searchtitle:
                         if book_title.endswith(')'):
                             book_title = book_title.rsplit(' (', 1)[0]
-                        book_fuzz = fuzz.token_set_ratio(book_title, searchtitle)
+                        book_fuzz = fuzz.token_set_ratio(book_title.lower(), searchtitle.lower())
                         # lose a point for each extra word in the fuzzy matches, so we get the closest match
                         words = len(get_list(book_title))
                         words -= len(get_list(searchtitle))
                         book_fuzz -= abs(words)
                     else:
-                        book_fuzz = fuzz.token_set_ratio(book_title, searchterm)
+                        book_fuzz = fuzz.token_set_ratio(book_title.lower(), searchterm.lower())
                         words = len(get_list(book_title))
                         words -= len(get_list(searchterm))
                         book_fuzz -= abs(words)

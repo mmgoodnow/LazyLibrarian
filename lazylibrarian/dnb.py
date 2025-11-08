@@ -967,13 +967,13 @@ class DNB:
                     if title:
                         if title.endswith(')'):
                             title = title.rsplit('(', 1)[0]
-                        book_fuzz = fuzz.token_set_ratio(book['bookname'], title)
+                        book_fuzz = fuzz.token_set_ratio(book['bookname'].lower(), title.lower())
                         # lose a point for each extra word in the fuzzy matches so we get the closest match
                         words = len(get_list(book['bookname']))
                         words -= len(get_list(title))
                         book_fuzz -= abs(words)
                     else:
-                        book_fuzz = fuzz.token_set_ratio(book['bookname'], fullterm)
+                        book_fuzz = fuzz.token_set_ratio(book['bookname'].lower(), fullterm.lower())
                     isbn_fuzz = 0
                     if is_valid_isbn(fullterm):
                         isbn_fuzz = 100
