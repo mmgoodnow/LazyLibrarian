@@ -390,10 +390,10 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         except IndexError:
             m = 0
     if not m:
-        msg = f"Unrecognised datestr {datestr}"
+        msg = f"Unrecognised datestr [{datestr[:40]}]"
         if context:
             msg = f'{msg} for {context}'
-        logger.error(msg)
+        logger.warning(msg)
         return datestr
 
     m = m.zfill(2)
