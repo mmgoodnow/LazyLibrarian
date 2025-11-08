@@ -235,7 +235,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
         match = db.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
         if not match:
             db.close()
-            logger.debug(f"Status {bookid}: {default} {adefault}")
+            logger.debug(f"Status new book {bookid}: {default} {adefault}")
             return default, adefault
 
         authorid = match['AuthorID']
