@@ -49,6 +49,7 @@ def cron_search_wishlist():
 
 def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
     # calculate status according to existing/author/series statuses
+    # return whether status/audiostatus is "Wanted""
     logger = logging.getLogger(__name__)
     want_book = False
     want_audio = False
@@ -198,7 +199,7 @@ def search_wishlist():
                     item['category'] = book['rss_category']
                 bookmatch = None
                 bookid, _ = find_book_in_db(book['rss_author'], book['rss_title'], ignored=None, library='eBook',
-                                         reason=f"wishlist: {book['dispname']}", source='')
+                                            reason=f"wishlist: {book['dispname']}", source='')
                 if bookid:  # it's in the database
                     bookmatch = db.match('SELECT * from books WHERE bookid=?', (bookid,))
                     authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (bookmatch['AuthorID'], ))
@@ -206,10 +207,16 @@ def search_wishlist():
                     bookmatch['AuthorName'] = authormatch['AuthorName']
                     want_book, want_audio = calc_status(bookmatch, book, search_start, ebook_status, audio_status)
                     item['BookID'] = bookmatch['BookID']
-                    if want_book:
-                        new_books.append(item)
-                    if want_audio:
-                        new_audio.append(item)
+                    if want_book and bookmatch['Status'] not in ['Wanted', 'Ignored', 'Open', 'Have']:
+                        cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='eBook' and Status='Snatched'"
+                        snatched = db.match(cmd, (bookmatch["BookID"],))
+                        if not snatched:
+                            new_books.append(item)
+                    if want_audio and bookmatch['AudioStatus'] not in ['Wanted', 'Ignored', 'Open', 'Have']:
+                        cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='AudioBook' and Status='Snatched'"
+                        snatched = db.match(cmd, (bookmatch["BookID"],))
+                        if not snatched:
+                            new_audio.append(item)
                 else:  # not in database yet
                     results = []
                     authorname = format_author_name(book['rss_author'],
@@ -245,11 +252,12 @@ def search_wishlist():
                                     bookmatch = finditem(item, result['authorname'],
                                                          reason=f"wishlist: {book['dispname']}")
                                     if bookmatch:  # it's in the database under isbn authorname
-                                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (bookmatch['AuthorID']))
+                                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
+                                                               (bookmatch['AuthorID']))
                                         bookmatch = dict(bookmatch)
                                         bookmatch['AuthorName'] = authormatch['AuthorName']
                                         want_book, want_audio = calc_status(bookmatch, book, search_start,
-                                                                              ebook_status, audio_status)
+                                                                            ebook_status, audio_status)
                                         item['BookID'] = bookmatch['BookID']
                                         if want_book:
                                             new_books.append(item)
@@ -295,28 +303,35 @@ def search_wishlist():
                     if authorname and bookmatch:
                         bookmatch = dict(bookmatch)
                         # dict may have come from results or a database search
+                        # results keys are all lowercase, database is mixed case
+                        # TODO this needs tidying up
                         for key in ['authorid', 'authorname', 'bookid', 'bookname']:
                             if key in bookmatch:
-                                newkey = key.replace('author', 'Author').replace('book', 'Book').replace('id', 'ID').replace('name','Name')
+                                newkey = key.replace('author', 'Author').replace(
+                                    'book', 'Book').replace(
+                                    'id', 'ID').replace(
+                                    'name', 'Name')
                                 bookmatch[newkey] = bookmatch[key]
 
-                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (bookmatch['AuthorID'], ))
+                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
+                                               (bookmatch['AuthorID'], ))
                         bookmatch['AuthorName'] = authormatch['AuthorName']
+                        item['BookID'] = bookmatch['bookid']
                         want_book, want_audio = calc_status(bookmatch, book, search_start, ebook_status, audio_status)
+                        new_value_dict = {}
                         if want_book:
                             ebook_status = "Wanted"
+                            new_books.append(item)
+                            new_value_dict["Requester"] = f"{book['dispname']} "
                         if want_audio:
                             audio_status = "Wanted"
+                            new_audio.append(item)
+                            new_value_dict["AudioRequester"] = f"{book['dispname']} "
                         import_book(bookmatch['bookid'], ebook_status, audio_status,
                                     reason=f"Added from wishlist {book['dispname']}")
-                        item['BookID'] = bookmatch['bookid']
-                        if want_book:
-                            new_books.append(item)
-                        if want_audio:
-                            new_audio.append(item)
-                        new_value_dict = {"Requester": f"{book['dispname']} ", "AudioRequester": f"{book['dispname']} "}
-                        control_value_dict = {"BookID": bookmatch['bookid']}
-                        db.upsert("books", new_value_dict, control_value_dict)
+                        if new_value_dict:
+                            control_value_dict = {"BookID": bookmatch['bookid']}
+                            db.upsert("books", new_value_dict, control_value_dict)
 
                     if not bookmatch:
                         msg = f"Skipping book {book['rss_title']} by {book['rss_author']}"
