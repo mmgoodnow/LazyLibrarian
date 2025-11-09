@@ -817,7 +817,7 @@ def get_series_members(seriesid=None, seriesname=None, refresh=False):
             rejected = f'non-integer {item[0]}'
             logger.debug(f'Rejected {bookname}, {rejected}')
         if not rejected:
-            word = item[0].replace('-', '')
+            word = str(item[0]).replace('-', '')
             try:
                 valid = float(re.findall(r'\d+\.\d+', word)[0])
             except IndexError:
