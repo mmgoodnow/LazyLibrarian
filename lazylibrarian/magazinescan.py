@@ -215,9 +215,23 @@ def magazine_scan(title=None):
                                 # it's a calibre folder, title is probably parent folder
                                 parent = os.path.dirname(rootdir)
                                 title = os.path.basename(parent)
-                                logger.debug(f"Using {title} from calibre parent folder")
+                                logger.debug(f"Using {title} from calibre folder {rootdir}")
                             else:
-                                logger.debug(f"Using {title} from basename {rootdir}")
+                                try:
+                                    parts = CONFIG['MAG_DEST_FOLDER'].split(os.sep)
+                                    parts.reverse()
+                                    title_part = parts.index('$Title')
+                                    title_part = title_part * -1 - 1
+                                    title = rootdir.split(os.sep)[title_part]
+                                    logger.debug(f"Using {title} as part {title_part} from {rootdir}")
+                                except (ValueError, IndexError):
+                                    dateparts = get_dateparts(title)
+                                    if dateparts['style']:
+                                        parent = os.path.dirname(rootdir)
+                                        title = os.path.basename(parent)
+                                        logger.debug(f"Using {title} from parent folder {rootdir}")
+                                    else:
+                                        logger.debug(f"Using {title} from basename {rootdir}")
 
                         datetype = ''
                         # is this magazine already in the database?
