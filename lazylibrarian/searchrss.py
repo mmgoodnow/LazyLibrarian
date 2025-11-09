@@ -93,7 +93,7 @@ def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
         elif ebook_status == 'Wanted':
             # still wanted...
-            logger.info(f'Found book {bookname} by {authorname}, marking as "Wanted"')
+            logger.info(f"Found book {bookname} by {authorname}, marking as Wanted (was {bookmatch['Status']})")
             control_value_dict = {"BookID": bookid}
             new_value_dict = {"Status": "Wanted"}
             db.upsert("books", new_value_dict, control_value_dict)
@@ -125,7 +125,7 @@ def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
         elif audio_status == 'Wanted':
             # still wanted...
-            logger.info(f'Found audiobook {bookname} by {authorname}, marking as "Wanted"')
+            logger.info(f"Found audiobook {bookname} by {authorname}, marking as Wanted (was {bookmatch['AudioStatus']})")
             control_value_dict = {"BookID": bookid}
             new_value_dict = {"AudioStatus": "Wanted"}
             db.upsert("books", new_value_dict, control_value_dict)
