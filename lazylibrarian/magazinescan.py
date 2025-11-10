@@ -535,6 +535,24 @@ def get_dateparts(title_or_issue, datetype=''):
         style = 1
     if months:
         month = months[0]
+    pos = 0
+
+    # Radio.Times.31.May-06.June.2025 should return 31 May 2025
+    # and Radio.Times.08-14.November.2025 should return 08 November 2025
+    if months:
+        while pos < len(words):
+            if pos > 0 and month2num(words[pos]) == month:
+                first = check_int(re.sub(r"\D", "", words[pos - 1]), 0)
+                if first and first < 32:
+                    style = 3
+                    day = first
+                if pos > 1:
+                    first = check_int(re.sub(r"\D", "", words[pos - 2]), 0)
+                    if first and first < 32:
+                        style = 3
+                        day = first
+                break
+            pos += 1
 
     if volume and issue:
         if year:
@@ -690,7 +708,9 @@ def get_dateparts(title_or_issue, datetype=''):
                             dateparts['day'] = day
                             dateparts['style'] = style
                         except (ValueError, OverflowError):
-                            dateparts['style'] = 0
+                            dateparts['issue'] = day
+                            dateparts['day'] = 0
+                            dateparts['style'] = 2
                 pos += 1
         # Issue/No/Nr/Vol/# nn with/without year in any position
         if not dateparts['style']:
