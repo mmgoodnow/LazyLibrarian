@@ -869,10 +869,16 @@ class GoodReads:
                             if (not bookdate or bookdate == '0000') and booklink:
                                 result, in_cache = html_request(booklink)
                                 try:
-                                    pubdate = result.split(b"publicationInfo")[1].split(b"ublished ")[1].split(b"<")[0]
+                                    pubdate = result.split(b"publicationInfo")[1].split(
+                                        b"ublication ")[1].split(b"<")[0]
                                     bookdate = date_format(pubdate.decode('utf-8'))
                                 except IndexError:
-                                    pass
+                                    try:
+                                        pubdate = result.split(b"publicationInfo")[1].split(
+                                            b"ublished ")[1].split(b"<")[0]
+                                        bookdate = date_format(pubdate.decode('utf-8'))
+                                    except IndexError:
+                                        pass
 
                             # Leave alone if locked
                             if locked:
