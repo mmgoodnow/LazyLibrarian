@@ -29,7 +29,6 @@ from lazylibrarian.formatter import plural, today, replace_all, book_series, una
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name, date_format
 from lazylibrarian.images import cache_bookimg, get_book_cover
-from lazylibrarian.magazinescan import get_dateparts
 
 
 class GoodReads:
@@ -876,7 +875,7 @@ class GoodReads:
 
                                 # Expected publication November 17, 2026
                                 # First published October 2, 2001
-                                dateparts = get_dateparts(pubdate.decode('utf-8'))
+                                dateparts = lazylibrarian.magazinescan.get_dateparts(pubdate.decode('utf-8'))
                                 if dateparts['style']:
                                     pubdate = dateparts['dbdate']
                                     bookdate = date_format(pubdate)
