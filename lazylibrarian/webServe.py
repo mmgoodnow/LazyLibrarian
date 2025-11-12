@@ -583,6 +583,46 @@ class WebInterface:
             if len(rowlist):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
                     arow = list(row)
+                    reasonlist = arow[12].split()
+                    reasonstring = ''
+                    match reasonlist[0].lower().strip(":"):
+                        case 'webserver':  # manual search and add of author
+                            reasonstring = "Manual search"
+                        case 'wishlist':  # added via wishlist rss search
+                            reasonstring = "Wishlist search " + ' '.join(reasonlist[1:])
+                        case 'process_alternate':  # added via import of alt folder
+                            reasonstring = f"Import {' '.join(reasonlist[1:])} from alternate folder"
+                        case 'ol.find_book':
+                            reasonstring = "OpenLibrary search"
+                        case 'ol_get_author_books':
+                            reasonstring = "OpenLibrary search"
+                        case 'gr.find_book':
+                            reasonstring = "GoodReads search"
+                        case 'gr_get_author_books':
+                            reasonstring = "GoodReads search"
+                        case 'hc.find_book':
+                            reasonstring = "HardCover search"
+                        case 'hc_get_author_books':
+                            reasonstring = "HardCover search"
+                        case 'gb.find_book':
+                            reasonstring = "GoogleBooks search"
+                        case 'gb_get_author_books':
+                            reasonstring = "GoogleBooks search"
+                        case 'import_csv':
+                            reasonstring = "CSV import"
+                        case 'sync_calibre_list':
+                            reasonstring = "Calibre Sync"
+                        case 'api':  # by name, id, and refresh
+                            reasonstring = "API"
+                        case 'add':
+                            reasonstring = f"Import author of {' '.join(reasonlist[3:])}"
+                        case 'contributor':
+                            reasonstring = ' '.join(reasonlist)
+                        case 'series':
+                            reasonstring = "Search for series " + ' '.join(reasonlist[1:])
+                        case _:
+                            reasonstring = ''
+
                     if CONFIG.get_bool('SORT_SURNAME'):
                         arow[1] = surname_first(arow[1], postfixes=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     if CONFIG.get_bool('SORT_DEFINITE'):
@@ -607,7 +647,7 @@ class WebInterface:
                     else:
                         css = 'success'
 
-                    arow[12] = strip_quotes(arow[12])
+                    arow[12] = strip_quotes(reasonstring)
                     nrow.append(percent)
                     nrow.extend(arow[4:-2])
                     bar = ''
