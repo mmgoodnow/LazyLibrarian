@@ -2214,8 +2214,11 @@ def get_download_progress(source, downloadid):
                                 progress = -1
                             break
             if not found:
-                logger.debug(f'{downloadid} not found at {source}')
-                progress = 0
+                errorstring = f'{downloadid} not found at {source}'
+                logger.debug(errorstring)
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
+                db.action(cmd, (errorstring, downloadid, source))
+                progress = -1
 
         elif source == 'NZBGET':
             res, _ = nzbget.send_nzb(cmd='listgroups')
@@ -2254,8 +2257,11 @@ def get_download_progress(source, downloadid):
                                 progress = -1
                             break
             if not found:
-                logger.debug(f'{downloadid} not found at {source}')
-                progress = 0
+                errorstring = f'{downloadid} not found at {source}'
+                logger.debug(errorstring)
+                cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
+                db.action(cmd, (errorstring, downloadid, source))
+                progress = -1
 
         elif source == 'QBITTORRENT':
             progress, status, finished = qbittorrent.get_progress(downloadid)
