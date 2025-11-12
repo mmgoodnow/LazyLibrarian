@@ -428,10 +428,14 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
+            title_length = len(get_list(a_book_lower))
             words = len(get_list(book_lower))
-            words -= len(get_list(a_book_lower))
+            words -= title_length
             ratio -= abs(words)
             partial -= abs(words)
+            if title_length <= 2:  # very short titles can't use partial match, too many false positives
+                fuzzlogger.debug(f"Not using partial ratio as short title [{title_length}]")
+                partial = CONFIG.get_int('NAME_PARTIAL') - 5
             # don't subtract extra words from partname so we can compare books with/without subtitle
             # partname -= abs(words)
 
