@@ -390,9 +390,10 @@ def check_db(upgradelog=None):
                         f"Information source is {info} but {miss[0]} active authors "
                         f"(from {tot[0]}) do not have {info} ID")
 
-            # correct any invalid/unpadded dates
+            # correct any invalid/unpadded dates, longest we expect is yyyy-mm-dd but could just be yyyy
             lazylibrarian.UPDATE_MSG = 'Checking dates'
-            cmd = "SELECT BookID,BookDate from books WHERE BookDate LIKE '%-_-%' or BookDate LIKE '%-_'"
+            cmd = ("SELECT BookID,BookDate from books WHERE BookDate LIKE '%-_-%' or BookDate LIKE '%-_'"
+                   " or length(BookDate) > 10")
             res = db.select(cmd)
             tot = len(res)
             if tot:
@@ -409,9 +410,10 @@ def check_db(upgradelog=None):
                             db.action("UPDATE books SET BookDate=? WHERE BookID=?", (bookdate, item['BookID']))
                         else:
                             logger.warning(f"Invalid Month/Day ({item['BookDate']}) for {item['BookID']}")
+                            db.action("UPDATE books SET BookDate='0000' WHERE BookID=?", (item['BookID'], ))
                     else:
                         logger.warning(f"Invalid BookDate ({item['BookDate']}) for {item['BookID']}")
-                        db.action("UPDATE books SET BookDate=? WHERE BookID=?", ("0000", item['BookID']))
+                        db.action("UPDATE books SET BookDate='0000' WHERE BookID=?", (item['BookID'], ))
 
             # update any series "Skipped" to series "Paused"
             res = db.match("SELECT count(*) as counter from series WHERE Status='Skipped'")
