@@ -870,17 +870,18 @@ class GoodReads:
                                 result, in_cache = html_request(booklink)
                                 try:
                                     pubdate = result.split(b"publicationInfo")[1].split(b"<")[0]
+                                    pubdate = make_unicode(pubdate)
                                 except IndexError:
                                     pubdate = ''
 
                                 # Expected publication November 17, 2026
                                 # First published October 2, 2001
-                                dateparts = lazylibrarian.magazinescan.get_dateparts(pubdate.decode('utf-8'))
+                                dateparts = lazylibrarian.magazinescan.get_dateparts(pubdate)
                                 if dateparts['style']:
                                     pubdate = dateparts['dbdate']
                                     bookdate = date_format(pubdate)
                                 else:
-                                    for keyword in [b"ublication ", b"ublished "]:
+                                    for keyword in ["ublication ", "ublished "]:
                                         if keyword in pubdate:
                                             pubdate = pubdate.split(keyword)[1]
                                             bookdate = date_format(pubdate.decode('utf-8'))
