@@ -195,13 +195,6 @@ def test_provider(name: str, host=None, api=None):
                             provider['API'] = ap
                             provider.set_int('SEEDERS', seed)
 
-                        provider_copy = deepcopy(provider)
-                        updated = get_capabilities(provider_copy, force=True)
-                        if updated:
-                            for item in provider:
-                                if provider[item] != provider_copy[item]:
-                                    caps_changed.append([provider, item, provider_copy[item]])
-
                     if provider['BOOKSEARCH']:
                         success, error_msg = newznab_plus(book, provider, 'book', 'torznab', True)
                         if not success:
@@ -238,12 +231,6 @@ def test_provider(name: str, host=None, api=None):
                         if api:
                             provider['API'] = api
 
-                        provider_copy = deepcopy(provider)
-                        updated = get_capabilities(provider_copy, force=True)
-                        if updated:
-                            for item in provider:
-                                if provider[item] != provider_copy[item]:
-                                    caps_changed.append([provider, item, provider_copy[item]])
                     if provider['BOOKSEARCH']:
                         success, error_msg = newznab_plus(book, provider, 'book', 'newznab', True)
                         if not success:
@@ -557,20 +544,6 @@ def iterate_over_znab_sites(book=None, search_type=None):
     iterateproviderslogger.debug(f"ZNAB: Book:{book}, SearchType:{search_type}")
     resultslist = []
     providers = 0
-    caps_changed = []
-    for provider in CONFIG.providers('NEWZNAB'):
-        if provider['ENABLED']:
-            provider_copy = deepcopy(provider)
-            updated = get_capabilities(provider_copy)
-            if updated:
-                for item in provider:
-                    if provider[item] != provider_copy[item]:
-                        caps_changed.append([provider, item, provider_copy[item]])
-    for item in caps_changed:
-        item[0][item[1]] = item[2]
-    if caps_changed:
-        CONFIG.save_config_and_backup_old(section='Capabilities')
-
     last_used = []
     api_count = []
     try:
@@ -631,21 +604,6 @@ def iterate_over_znab_sites(book=None, search_type=None):
     for item in api_count:
         logger.debug(f"Updating APICOUNT for {item[0]['NAME']}")
         item[0].set_int('APICOUNT', item[1])
-
-    caps_changed = []
-    # can't update while iterating so copy and update after
-    for provider in CONFIG.providers('TORZNAB'):
-        if provider['ENABLED']:
-            provider_copy = deepcopy(provider)
-            updated = get_capabilities(provider_copy)
-            if updated:
-                for item in provider:
-                    if provider[item] != provider_copy[item]:
-                        caps_changed.append([provider, item, provider_copy[item]])
-    for item in caps_changed:
-        item[0][item[1]] = item[2]
-    if caps_changed:
-        CONFIG.save_config_and_backup_old(section='Capabilities')
 
     last_used = []
     api_count = []

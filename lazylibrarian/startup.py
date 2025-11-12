@@ -43,6 +43,7 @@ from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.logconfig import LOGCONFIG
+from lazylibrarian.providers import get_capabilities
 from lazylibrarian.notifiers import APPRISE_VER
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler, SchedulerCommand
 
@@ -633,6 +634,23 @@ class StartupLazyLibrarian:
 
         monthnames = [table, cleantable]
         return monthnames, seasons
+
+    def update_znab_caps(self):
+        caps_changed = False
+        for provider in CONFIG.providers('NEWZNAB'):
+            if provider['ENABLED']:
+                updated = get_capabilities(provider)
+                if updated:
+                    self.logger.debug(f"Updated caps for {provider['DISPNAME']}")
+                    caps_changed = True
+        for provider in CONFIG.providers('TORZNAB'):
+            if provider['ENABLED']:
+                updated = get_capabilities(provider)
+                if updated:
+                    self.logger.debug(f"Updated caps for {provider['DISPNAME']}")
+                    caps_changed = True
+        if caps_changed:
+            CONFIG.save_config_and_backup_old(section='Capabilities')
 
     def create_version_file(self, filename):
         # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
