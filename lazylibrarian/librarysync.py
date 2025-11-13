@@ -402,6 +402,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
             # lose points if the difference is just numbers so we don't match "book 2" and "book 3"
             # eg "He Who Fights With Monsters #7" is not the same as "He Who Fights With Monsters 05"
+            # AND "He Who Fights With Monsters" is not the same as "He Who Fights With Monsters #2"
+            # BUT The Secret of Secrets (Robert Langdon, #6) IS the same as The Secret of Secrets
             set1 = set(book_lower.split())
             set2 = set(a_book_lower.split())
             differences = set1.symmetric_difference(set2)
@@ -416,7 +418,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                         numbers.append(int(re.findall(r'\d+', word)[0]))
                     except IndexError:
                         pass
-            if len(numbers) == 1 or (len(numbers) == 2 and numbers[0] != numbers[1]):
+
+            if len(numbers) == 2 and numbers[0] != numbers[1]:
                 # make sure we are below match threshold
                 if ratio >= CONFIG.get_int('NAME_RATIO'):
                     ratio = CONFIG.get_int('NAME_RATIO') - 5
@@ -424,7 +427,33 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                     partial = CONFIG.get_int('NAME_PARTIAL') - 5
                 if partname >= CONFIG.get_int('NAME_PARTNAME'):
                     partname = CONFIG.get_int('NAME_PARTNAME') - 5
-                fuzzlogger.debug(f"Downgraded ratios as different numbers [{numbers}]")
+                fuzzlogger.debug(f"Downgraded ratios as different numbers {numbers}")
+
+            if len(numbers) == 1:
+                # If the number is in braces and other words are in the braces,
+                # looks like it's series details eg (Robert Langdon, #6)
+                # and the comparison book doesn't include series details
+                ok = False
+                try:
+                    series_details = book_lower.split('(')[1].split(')')[0].split()
+                    for word in series_details:
+                         if word.replace('-', '') == numbers[0]
+                            ok = True  # found the number
+                    if len(series_details) == 1:
+                        # don't accept only number, eg (#6)
+                        # as some books have the first book in the series as the series title
+                        ok = False
+                except IndexError:
+                    ok = False
+                if not ok:
+                    # make sure we are below match threshold
+                    if ratio >= CONFIG.get_int('NAME_RATIO'):
+                        ratio = CONFIG.get_int('NAME_RATIO') - 5
+                    if partial >= CONFIG.get_int('NAME_PARTIAL'):
+                        partial = CONFIG.get_int('NAME_PARTIAL') - 5
+                    if partname >= CONFIG.get_int('NAME_PARTNAME'):
+                        partname = CONFIG.get_int('NAME_PARTNAME') - 5
+                    fuzzlogger.debug(f"Downgraded ratios as one has number {numbers}")
 
             # lose a point for each extra word in the fuzzy matches so we get the closest match
             # this should also stop us matching single books against omnibus editions
