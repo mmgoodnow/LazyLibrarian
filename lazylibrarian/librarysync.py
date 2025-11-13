@@ -437,19 +437,27 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                 try:
                     series_details = book_lower.split('(')[1].split(')')[0].split()
                     for word in series_details:
-                         if word.replace('-', '') == numbers[0]:
+                        word = word.replace('-', '')
+                        try:
+                            n = float(re.findall(r'\d+\.\d+', word)[0])
+                        except IndexError:
+                            try:
+                                n = int(re.findall(r'\d+', word)[0])
+                            except IndexError:
+                                n = None
+                        if n is not None and n == numbers[0]:
                             ok = True  # found the number
+                            break
                     if len(series_details) == 1:
                         # don't accept only number, eg (#6)
-                        # as some books have the first book in the series as the series title
                         ok = False
-                    if numbers[0] == 1:
-                        # unless first book in series, so
-                        # He Who Fights With Monsters (He Who Fights With Monsters #1)
-                        # and He Who Fights With Monsters (#1)
-                        # and He Who Fights With Monsters
-                        # are all the same book
-                        ok = True
+                        if numbers[0] == 1:
+                            # unless first book in series, so
+                            # He Who Fights With Monsters (He Who Fights With Monsters #1)
+                            # and He Who Fights With Monsters (#1)
+                            # and He Who Fights With Monsters
+                            # are all the same book
+                            ok = True
                 except IndexError:
                     ok = False
                 if not ok:
