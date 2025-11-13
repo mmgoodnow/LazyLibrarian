@@ -415,6 +415,37 @@ def check_db(upgradelog=None):
                         logger.warning(f"Invalid BookDate ({item['BookDate']}) for {item['BookID']}")
                         db.action("UPDATE books SET BookDate='0000' WHERE BookID=?", (item['BookID'], ))
 
+            cmd = ("SELECT AuthorID,LastDate from authors WHERE LastDate LIKE '%-_-%' or LastDate LIKE '%-_'"
+                   " or length(LastDate) > 10")
+            res = db.select(cmd)
+            tot = len(res)
+            if tot:
+                cnt += tot
+                msg = f"Updating {tot} {plural(tot, 'author')} with invalid/unpadded lastdate"
+                logger.warning(msg)
+                for item in res:
+                    parts = item['LastDate'].split('-')
+                    if len(parts) == 3:
+                        mn = check_int(parts[1], 0)
+                        dy = check_int(parts[2], 0)
+                        if mn and dy:
+                            lastdate = "%s-%02d-%02d" % (parts[0], mn, dy)
+                            db.action("UPDATE authors SET LastDate=? WHERE AuthorID=?", (lastdate, item['AuthorID']))
+                        else:
+                            logger.warning(f"Invalid Month/Day ({item['LastDate']}) for {item['AuthorID']}")
+                            db.action("UPDATE authors SET LastDate='0000' WHERE AuthorID=?", (item['AuthorID'], ))
+                    else:
+                        logger.warning(f"Invalid LastDate ({item['LastDate']}) for {item['AuthorID']}")
+                        db.action("UPDATE authors SET LastDate='0000' WHERE AuthorID=?", (item['AuthorID'], ))
+
+            # delete any null wanted entries
+            res = db.match("SELECT count(*) as counter from wanted WHERE BookID is null")
+            tot = res['counter']
+            if tot:
+                cnt += tot
+                logger.warning(f"Found {tot} wanted items marked null")
+                db.action("DELETE from wanted WHERE BookID is null")
+
             # update any series "Skipped" to series "Paused"
             res = db.match("SELECT count(*) as counter from series WHERE Status='Skipped'")
             tot = res['counter']
