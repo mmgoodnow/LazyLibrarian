@@ -40,7 +40,6 @@ def get_client():
         logger.error(f"qBittorrent login Error: {e}")
         return None
 
-    api = None
     try:
         api = qb.api_version
     except Exception as e:
