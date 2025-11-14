@@ -315,7 +315,7 @@ def search_wishlist():
 
                         authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
                                                (bookmatch['AuthorID'], ))
-                        bookmatch['AuthorName'] = authormatch['AuthorName']
+                        bookmatch['AuthorName'] = authormatch[0]
                         item['BookID'] = bookmatch['bookid']
                         want_book, want_audio = calc_status(bookmatch, book, search_start, ebook_status, audio_status)
                         new_value_dict = {}
