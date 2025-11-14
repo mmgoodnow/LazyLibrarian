@@ -34,13 +34,20 @@ def get_client():
     try:
         qb = Client(url, CONFIG['QBITTORRENT_USER'], CONFIG['QBITTORRENT_PASS'])
     except WrongCredentials:
-        logger.debug("qBittorrent reports Wrong Credentials")
+        logger.error("qBittorrent reports Wrong Credentials")
         return None
     except Exception as e:
-        logger.debug(f"qBittorrent Error: {e}")
+        logger.error(f"qBittorrent login Error: {e}")
         return None
 
-    if not qb.api_version:
+    api = None
+    try:
+        api = qb.api_version
+    except Exception as e:
+        logger.error(f"qBittorrent api_version Error: {e}")
+        return None
+
+    if not api:
         logger.debug("Failed to login to qBittorrent")
         return None
     return qb
