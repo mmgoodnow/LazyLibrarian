@@ -444,7 +444,7 @@ def check_db(upgradelog=None):
             if tot:
                 cnt += tot
                 logger.warning(f"Found {tot} wanted items marked null")
-                db.action("DELETE from wanted WHERE BookID is null")
+                db.action("DELETE from wanted WHERE BookID is null or AuxInfo is null")
 
             # update any series "Skipped" to series "Paused"
             res = db.match("SELECT count(*) as counter from series WHERE Status='Skipped'")
