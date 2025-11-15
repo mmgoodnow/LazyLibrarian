@@ -1450,7 +1450,7 @@ class WebInterface:
                    "authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID and "
                    "member.seriesid=series.seriesid")  # and seriesnum=1"
 
-            if 'active' in kwargs and kwargs['active']:
+            if 'active' in kwargs and kwargs['active'] and not author_id:
                 cmd += " and authors.status IN ('Active', 'Wanted')"
 
             args = []
