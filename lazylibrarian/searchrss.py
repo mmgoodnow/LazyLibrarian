@@ -206,6 +206,9 @@ def search_wishlist():
                     bookmatch = db.match('SELECT * from books WHERE bookid=?', (bookid,))
                     authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (bookmatch['AuthorID'], ))
                     bookmatch = dict(bookmatch)
+                    authormatch = dict(authormatch)
+                    logger.debug(f"Found in database, {authormatch['AuthorName']}:{bookmatch['BookName']} "
+                                 f"Status {bookmatch['Status']}:{bookmatch['AudioStatus']}")
                     bookmatch['AuthorName'] = authormatch['AuthorName']
                     want_book, want_audio = calc_status(bookmatch, book, search_start, ebook_status, audio_status)
                     item['BookID'] = bookmatch['BookID']
@@ -221,21 +224,25 @@ def search_wishlist():
                             new_audio.append(item)
                 else:  # not in database yet
                     results = []
+                    authorid = None
                     authorname = format_author_name(book['rss_author'],
                                                     postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
                     if authmatch:
                         logger.debug(f"Author {authorname} found in database, {authmatch['Status']}")
+                        authorid = authmatch['AuthorID']
                         if authmatch['Status'] == 'Ignored':
                             authorname = ''
+
                     else:
                         logger.debug(f"Author {authorname} not found")
-                        newauthor, _, _ = add_author_name_to_db(author=authorname, addbooks=False,
-                                                                reason=f"wishlist: {book['rss_title']}",
-                                                                title=book['rss_title'])
+                        newauthor, newid, _ = add_author_name_to_db(author=authorname, addbooks=False,
+                                                                    reason=f"wishlist: {book['rss_title']}",
+                                                                    title=book['rss_title'])
                         if newauthor and newauthor != authorname:
                             logger.debug(f"Preferred authorname changed from [{authorname}] to [{newauthor}]")
                             authorname = newauthor
+                            authorid = newid
                         if not newauthor:
                             logger.warning(f"Authorname {authorname} not added to database")
                             authorname = ''
@@ -254,9 +261,9 @@ def search_wishlist():
                                     bookmatch = finditem(item, result['authorname'],
                                                          reason=f"wishlist: {book['dispname']}")
                                     if bookmatch:  # it's in the database under isbn authorname
-                                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
-                                                               (bookmatch['AuthorID']))
                                         bookmatch = dict(bookmatch)
+                                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
+                                                               (bookmatch['AuthorID'],))
                                         bookmatch['AuthorName'] = authormatch['AuthorName']
                                         want_book, want_audio = calc_status(bookmatch, book, search_start,
                                                                             ebook_status, audio_status)
@@ -315,9 +322,8 @@ def search_wishlist():
                                     'name', 'Name')
                                 bookmatch[newkey] = bookmatch[key]
 
-                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
-                                               (bookmatch['AuthorID'], ))
-                        bookmatch['AuthorName'] = authormatch[0]
+                        bookmatch['AuthorName'] = authorname
+                        bookmatch['AuthorID'] = authorid
                         item['BookID'] = bookmatch['bookid']
                         want_book, want_audio = calc_status(bookmatch, book, search_start, ebook_status, audio_status)
                         new_value_dict = {}
