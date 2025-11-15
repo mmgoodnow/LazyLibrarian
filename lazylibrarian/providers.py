@@ -195,6 +195,13 @@ def test_provider(name: str, host=None, api=None):
                             provider['API'] = ap
                             provider.set_int('SEEDERS', seed)
 
+                        provider_copy = deepcopy(provider)
+                        updated = get_capabilities(provider_copy, force=True)
+                        if updated:
+                            for item in provider:
+                                if provider[item] != provider_copy[item]:
+                                    caps_changed.append([provider, item, provider_copy[item]])
+
                     if provider['BOOKSEARCH']:
                         success, error_msg = newznab_plus(book, provider, 'book', 'torznab', True)
                         if not success:
@@ -230,6 +237,13 @@ def test_provider(name: str, host=None, api=None):
                             provider['HOST'] = host
                         if api:
                             provider['API'] = api
+
+                        provider_copy = deepcopy(provider)
+                        updated = get_capabilities(provider_copy, force=True)
+                        if updated:
+                            for item in provider:
+                                if provider[item] != provider_copy[item]:
+                                    caps_changed.append([provider, item, provider_copy[item]])
 
                     if provider['BOOKSEARCH']:
                         success, error_msg = newznab_plus(book, provider, 'book', 'newznab', True)
