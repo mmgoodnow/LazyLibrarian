@@ -107,7 +107,7 @@ def set_all_book_series():
     logger = logging.getLogger(__name__)
     db = database.DBConnection()
     try:
-        books = db.select('select BookID,WorkID,BookName from books where Manual is not "1"')
+        books = db.select("select BookID,WorkID,BookName from books where Manual is not '1'")
     finally:
         db.close()
     counter = 0

@@ -1487,7 +1487,7 @@ class Api(object):
 
     def _listignoredseries(self):
         TELEMETRY.record_usage_data()
-        q = 'SELECT SeriesID,SeriesName from series where Status="Ignored"'
+        q = "SELECT SeriesID,SeriesName from series where Status='Ignored'"
         self.data = self._dic_from_query(q)
 
     def _listdupebooks(self):
@@ -1518,12 +1518,12 @@ class Api(object):
 
     def _listignoredbooks(self):
         TELEMETRY.record_usage_data()
-        q = 'SELECT BookID,BookName from books where Status="Ignored"'
+        q = "SELECT BookID,BookName from books where Status='Ignored'"
         self.data = self._dic_from_query(q)
 
     def _listignoredauthors(self):
         TELEMETRY.record_usage_data()
-        q = 'SELECT AuthorID,AuthorName from authors where Status="Ignored"'
+        q = "SELECT AuthorID,AuthorName from authors where Status='Ignored'"
         self.data = self._dic_from_query(q)
 
     def _getauthor(self, **kwargs):
