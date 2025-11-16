@@ -65,7 +65,7 @@ def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
                          f"[{book_res['Status']}:{book_res['AudioStatus']}]")
             bookmatch['Status'] = book_res['Status']
             bookmatch['AudioStatus'] = book_res['AudioStatus']
-        cmd = ("SELECT authors.Status,Updated,AuthorID,AuthorName from authors,books "
+        cmd = ("SELECT authors.Status,Updated,authors.AuthorID,AuthorName from authors,books "
                "WHERE authors.authorid=books.authorid and bookid=?")
         auth_res = db.match(cmd, (bookid,))
         if auth_res:
