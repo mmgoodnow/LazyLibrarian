@@ -344,8 +344,11 @@ def search_wishlist():
                             audio_status = "Wanted"
                             new_audio.append(item)
                             new_value_dict["AudioRequester"] = f"{book['dispname']} "
-                        import_book(bookmatch['bookid'], ebook_status, audio_status,
-                                    reason=f"Added from wishlist {book['dispname']}")
+
+                        book_res = db.match("SELECT * from books WHERE bookid=?", (bookmatch['bookid'],))
+                        if not book_res:
+                            import_book(bookmatch['bookid'], ebook_status, audio_status,
+                                        reason=f"Added from wishlist {book['dispname']}")
                         if new_value_dict:
                             control_value_dict = {"BookID": bookmatch['bookid']}
                             db.upsert("books", new_value_dict, control_value_dict)
