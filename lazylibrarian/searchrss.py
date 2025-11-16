@@ -58,9 +58,18 @@ def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
         bookid = bookmatch['BookID']
         authorname = bookmatch['AuthorName']
         bookname = bookmatch['BookName']
-        cmd = "SELECT authors.Status,Updated from authors,books WHERE authors.authorid=books.authorid and bookid=?"
+        cmd = "SELECT Status,AudioStatus,BookName from books WHERE bookid=?"
+        book_res = db.match(cmd, (bookid,))
+        if book_res:
+            logger.debug(f"Found book in db {bookid}:{book_res['BookName']} "
+                         f"[{book_res['Status']}:{book_res['AudioStatus']}]")
+            bookmatch['Status'] = book_res['Status']
+            bookmatch['AudioStatus'] = book_res['AudioStatus']
+        cmd = ("SELECT authors.Status,Updated,AuthorID,AuthorName from authors,books "
+               "WHERE authors.authorid=books.authorid and bookid=?")
         auth_res = db.match(cmd, (bookid,))
         if auth_res:
+            logger.debug(f"Found author in db {auth_res['AuthorID']}:{auth_res['AuthorName']} [{auth_res['Status']}]")
             auth_status = auth_res['Status']
         else:
             auth_status = 'Unknown'
