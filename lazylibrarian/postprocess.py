@@ -121,10 +121,8 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         if not dest_path or not make_dirs(dest_path):
             logger.error(f'Unable to create destination directory {dest_path}')
             return False
-        # logger.warning(f"{title}:{dateparts}")
         global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, dateparts)
         tempdir = tempfile.mkdtemp()
-        # logger.warning(f"{tempdir}:{global_name}")
         try:
             _ = safe_copy(source_file, os.path.join(tempdir, f"{global_name}.{extn}"))
         except Exception as e:
@@ -676,7 +674,6 @@ def unpack_multipart(source_dir, download_dir, title):
         returns new directory in download_dir with book in it, or empty string
     """
     logger = logging.getLogger(__name__)
-    # postprocesslogger = logging.getLogger('special.postprocess')
     TELEMETRY.record_usage_data('Process/MultiPart')
     # noinspection PyBroadException
     try:
@@ -889,6 +886,52 @@ def book_type(book):
     return booktype
 
 
+def update_download_status(book, progress, finished, db, logger, dlresult=None):
+    """
+    Update the status of a completed download based on its current state.
+
+    Args:
+        book: The book/download record
+        progress: Download progress (0-100)
+        finished: Whether seeding is finished (from torrent client)
+        db: Database connection
+        logger: Logger instance
+        dlresult: Optional result message for the download
+
+    Returns:
+        str: The new status ('Seeding', 'Processed', or None if not updated)
+    """
+    if progress != 100:
+        return None
+
+    current_status = book.get('Status', 'Unknown')
+
+    # Determine if this should be marked as Seeding
+    is_torrent = book.get('NZBmode') in ['torrent', 'magnet', 'torznab']
+    should_keep_seeding = is_torrent and CONFIG.get_bool('KEEP_SEEDING') and not finished
+
+    if should_keep_seeding:
+        # Mark as Seeding - download complete but still active in client
+        cmd = "UPDATE wanted SET Status='Seeding' WHERE NZBurl=? and Status IN ('Snatched', 'Processed')"
+        db.action(cmd, (book['NZBurl'],))
+        logger.info(f"STATUS: {book['NZBtitle']} [{current_status} -> Seeding] "
+                   f"Download complete, continuing to seed")
+        return 'Seeding'
+    else:
+        # Mark as Processed - download complete
+        if not dlresult:
+            dlresult = "Download complete"
+        cmd = "UPDATE wanted SET Status='Processed', DLResult=? WHERE NZBurl=? and Status='Snatched'"
+        db.action(cmd, (dlresult, book['NZBurl']))
+        logger.info(f"STATUS: {book['NZBtitle']} [{current_status} -> Processed] {dlresult}")
+
+        # Optionally delete from client if configured
+        if finished and CONFIG.get_bool('DEL_COMPLETED'):
+            logger.debug(f"Deleting {book['NZBtitle']} from {book.get('Source')} (DEL_COMPLETED=True)")
+            delete_task(book.get('Source'), book.get('DownloadID'), False)
+        return 'Processed'
+
+
 def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
     logger = logging.getLogger(__name__)
     postprocesslogger = logging.getLogger('special.postprocess')
@@ -936,6 +979,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         if len(snatched):
             TELEMETRY.record_usage_data('Process/Snatched')
             for book in snatched:
+
                 # see if we can get current status from the downloader as the name
                 # may have been changed once magnet resolved, or download started or completed
                 # depending on torrent downloader. Usenet doesn't change the name. We like usenet.
@@ -956,6 +1000,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 # If downloader says it hasn't completed, no need to look for it.
                 rejected = check_contents(book['Source'], book['DownloadID'], booktype, matchtitle)
                 if rejected:
+                    logger.debug(f"Rejected: {matchtitle}")
+
                     # change status to "Failed", and ask downloader to delete task and files
                     # Only reset book status to wanted if still snatched in case another download task succeeded
                     if book['BookID'] != 'unknown':
@@ -968,6 +1014,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             db.action(cmd, (book['BookID'],))
                         db.action("UPDATE wanted SET Status='Failed',DLResult=? WHERE BookID=?",
                                   (rejected, book['BookID']))
+                        logger.info(f"STATUS: {book['NZBtitle']} [Snatched -> Failed] Content rejected: {rejected}")
                         if CONFIG.get_bool('DEL_FAILED'):
                             delete_task(book['Source'], book['DownloadID'], True)
                 else:
@@ -979,9 +1026,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             if dlfolder.startswith(download_dir):
                                 match = True
                                 break
-                        if not match:
-                            logger.debug(f"{book['Source']} is downloading to [{dlfolder}]")
+                        logger.debug(f"{book['Source']} is downloading to [{dlfolder}]")
 
+        logger.debug(f"Looking in the following directories: {dirlist}")
         for download_dir in dirlist:
             try:
                 downloads = listdir(download_dir)
@@ -1486,15 +1533,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             elif book['Source'] != 'DIRECT':
                                 progress, finished = get_download_progress(book['Source'], book['DownloadID'])
                                 logger.debug(f"Progress for {book['NZBtitle']} {progress}/{finished}")
-                                if progress == 100 and finished:
-                                    if book['NZBmode'] in ['torrent', 'magnet', 'torznab'] and \
-                                            CONFIG.get_bool('KEEP_SEEDING'):
-                                        cmd = "UPDATE wanted SET Status='Seeding' WHERE NZBurl=? and Status='Processed'"
-                                        db.action(cmd, (book['NZBurl'],))
-                                        logger.debug(f"{book['NZBtitle']} still seeding at {book['Source']}")
-                                    elif CONFIG.get_bool('DEL_COMPLETED'):
-                                        logger.debug(f"Deleting completed {book['NZBtitle']} from {book['Source']}")
-                                        delete_task(book['Source'], book['DownloadID'], False)
+                                if progress == 100:
+                                    # Process files when download is complete, regardless of seed status
+                                    update_download_status(book, progress, finished, db, logger)
                                 elif progress < 0:
                                     logger.debug(f"{book['NZBtitle']} not found at {book['Source']}")
 
@@ -1526,7 +1567,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             else:
                                 logger.debug(f"Not removing {pp_path} as in download root")
 
-                        logger.info(f'Successfully processed: {global_name}')
+                        logger.info(f'Successfully processed:{global_name}')
 
                         ppcount += 1
                         dispname = CONFIG.disp_name(book['NZBprov'])
@@ -1609,9 +1650,22 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
             if book['Status'] == "Seeding":
                 postprocesslogger.debug(
-                    f"Progress:{progress} Finished:{finished} Waiting:{CONFIG.get_bool('SEED_WAIT')}")
-                if not CONFIG.get_bool('KEEP_SEEDING') and (finished or progress < 0
-                                                            and not CONFIG.get_bool('SEED_WAIT')):
+                        f"Progress:{progress} Finished:{finished} Waiting:{CONFIG.get_bool('SEED_WAIT')} "
+                        f"Keep Seeding: {CONFIG.get_bool('KEEP_SEEDING')}")
+                # Handle case where torrent not found in client (was removed after seeding)
+                if progress < 0:
+                    # Torrent not found in client - it was removed after seeding completed
+                    # Files should still be on disk, but file processing loop has already run
+                    # Change status to Snatched so file matching logic will run next cycle to find and process files
+                    logger.info(f"{book['NZBtitle']} not found at {book['Source']}, "
+                                f"torrent was removed, changing status to Snatched to process files from download directory")
+                    if book['BookID'] != 'unknown':
+                        cmd = "UPDATE wanted SET status='Snatched' WHERE status='Seeding' and BookID=?"
+                        db.action(cmd, (book['BookID'],))
+                    # File matching will process it next cycle
+                    continue
+                # Handle normal seeding completion
+                elif not CONFIG.get_bool('KEEP_SEEDING') and (finished or not CONFIG.get_bool('SEED_WAIT')):
                     if finished:
                         logger.debug(f"{book['NZBtitle']} finished seeding at {book['Source']}")
                     else:
@@ -1626,6 +1680,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     if book['BookID'] != 'unknown':
                         cmd = "UPDATE wanted SET status='Processed',NZBDate=? WHERE status='Seeding' and BookID=?"
                         db.action(cmd, (now(), book['BookID']))
+                        logger.info(f"STATUS: {book['NZBtitle']} [Seeding -> Processed] Seeding complete")
                         abort = False
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
                     # This is for downloaders (rtorrent) that don't let us tell them to delete files
@@ -1656,15 +1711,58 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                 # has it been aborted (wait a short while before checking)
                 if mins > 5 and progress < 0:
-                    abort = True
+                    # Torrent/download not found in client
+                    # Give slow magnets and client issues more time before aborting
+                    if mins < 30:
+                        # Less than 30 minutes - could be slow magnet link or temporary client issue
+                        logger.debug(f"{book['NZBtitle']} not found at {book['Source']} but only "
+                                     f"{mins} {plural(mins, 'minute')} old, waiting for torrent to appear")
+                        abort = False
+                    else:
+                        # Over 30 minutes and never appeared - probably failed to add or was rejected
+                        logger.warning(f"{book['NZBtitle']} not found at {book['Source']} after "
+                                       f"{mins} {plural(mins, 'minute')}, aborting")
+                        abort = True
 
-                if CONFIG.get_int('TASK_AGE') and hours >= CONFIG.get_int('TASK_AGE'):
+                max_hours = CONFIG.get_int('TASK_AGE')
+                if max_hours and hours >= max_hours:
                     # SAB can report 100% (or more) and not finished if missing blocks and needs repair
-                    if check_int(progress, 0) < 95:
+                    # For torrents, check if download is complete before timing out
+                    # This handles edge cases where:
+                    # - Torrent reached 100% but files aren't accessible yet (client still moving/verifying)
+                    # - Race condition where torrent completes just as timeout expires
+                    # - Large torrents that take time to post-process and hit timeout during processing
+                    # - Any case where a complete torrent somehow wasn't processed in the normal flow
+                    if check_int(progress, 0) >= 100:
+                        # Download is complete - attempt direct processing if it's a book/audiobook
+                        logger.info(f"{book['NZBtitle']} reached timeout but is 100% complete - attempting direct processing")
+                        abort = False
+
+                        # Try to process directly, bypassing filename matching which may have failed
+                        if booktype in ['eBook', 'AudioBook']:
+                            dlfolder = get_download_folder(book['Source'], book['DownloadID'])
+                            if dlfolder:
+                                logger.debug(f"Processing {booktype} directly from {dlfolder}")
+                                if process_book(pp_path=dlfolder, bookid=book['BookID']):
+                                    logger.info(f"Successfully processed {book['NZBtitle']} directly")
+                                    status['status'] = 'success'
+                                    abort = False
+                                    continue  # Skip abort logic, book was processed
+                                else:
+                                    logger.warning(f"Direct processing failed for {book['NZBtitle']}, will retry next cycle")
+                            else:
+                                logger.warning(f"Could not get download folder for {book['NZBtitle']} from {book['Source']}")
+                        else:
+                            # For magazines/comics, just don't abort and let it retry next cycle
+                            logger.debug(f"{booktype} {book['NZBtitle']} will retry on next postprocessor run")
+
+                    elif check_int(progress, 0) < 95:
+                        # Less than 95% after timeout - likely stuck
                         abort = True
-                    # allow a little more time for repair or if nearly finished
-                    elif hours >= CONFIG.get_int('TASK_AGE') + 1:
+                    elif hours >= max_hours + 1: # Progress is 95-99% so let's give it an extra hour
+                        # Still not complete after extended timeout
                         abort = True
+
             if abort:
                 dlresult = ''
                 if book['Source'] and book['Source'] != 'DIRECT':
@@ -1705,14 +1803,15 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         logger.warning(f'{dlresult}, deleting failed task')
                         delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
-                book = dict(book)
-                skipped = book.get('skipped', '')
-                source = book.get('Source', 'somewhere??')
+                book_dict = dict(book) # Convert the sqlite row to a dict so we can use get()
+                skipped = book_dict.get('skipped', '')
+                source = book_dict.get('Source', 'somewhere??')
                 if source == 'DIRECT':
-                    source = book.get('NZBprov')
+                    source = book_dict.get('NZBprov')
                 logger.debug(
                     f"{book['NZBtitle']} was sent to {source} {mins} {plural(mins, 'minute')} ago."
-                    f" Progress {progress} {skipped}")
+                    f" Progress {progress} {skipped}"
+                    f" Status {book['Status']}")
 
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         # Check if postprocessor needs to run again
@@ -1980,7 +2079,6 @@ def get_download_name(title, source, downloadid):
                     logger.debug(f"SAB history returned {len(res['history']['slots'])} for {downloadid}")
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
-                            # logger.debug(str(item))
                             dlname = item['name']
                             break
         return dlname
@@ -2100,7 +2198,6 @@ def get_download_folder(source, downloadid):
                     logger.debug(f"SAB history returned {len(res['history']['slots'])} for {downloadid}")
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
-                            # logger.debug(str(item))
                             dlfolder = item.get('storage')
                             break
 
@@ -2183,7 +2280,6 @@ def get_download_progress(source, downloadid):
                 for item in res['queue']['slots']:
                     if item['nzo_id'] == downloadid:
                         found = True
-                        # logger.debug(str(item))
                         progress = item['percentage']
                         break
             if not found:  # not in queue, try history in case completed or error
@@ -2201,7 +2297,6 @@ def get_download_progress(source, downloadid):
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
                             found = True
-                            # logger.debug(str(item))
                             # 100% if completed, 99% if still extracting or repairing, -1 if not found or failed
                             if item['status'] == 'Completed' and not item['fail_message']:
                                 progress = 100
@@ -2267,7 +2362,7 @@ def get_download_progress(source, downloadid):
             progress, status, finished = qbittorrent.get_progress(downloadid)
             if progress == -1:
                 logger.debug(f'{downloadid} not found at {source}')
-                progress = 0
+                # Keep progress as -1 to signal "not found" rather than "0% progress"
             if status == 'error':
                 cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, ("QBITTORRENT returned error", downloadid, source))
@@ -2277,7 +2372,7 @@ def get_download_progress(source, downloadid):
             progress, status, finished = utorrent.progress_torrent(downloadid)
             if progress == -1:
                 logger.debug(f'{downloadid} not found at {source}')
-                progress = 0
+                # Keep progress as -1 to signal "not found" rather than "0% progress"
             if status & 16:  # Error
                 cmd = "UPDATE wanted SET Status='Aborted',DLResult=? WHERE DownloadID=? and Source=?"
                 db.action(cmd, (f"UTORRENT returned error status {status}", downloadid, source))
@@ -2287,7 +2382,7 @@ def get_download_progress(source, downloadid):
             progress, status = rtorrent.get_progress(downloadid)
             if progress == -1:
                 logger.debug(f'{downloadid} not found at {source}')
-                progress = 0
+                # Keep progress as -1 to signal "not found" rather than "0% progress"
             if status == 'finished':
                 progress = 100
                 finished = True
@@ -3033,7 +3128,6 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     else:  # mag, comic or audiobook or multi-format book
         match = False
         for fname in listdir(pp_path):
-            # logger.warning(fname)
             if CONFIG.is_valid_booktype(fname, booktype=booktype):
                 match = True
                 break
