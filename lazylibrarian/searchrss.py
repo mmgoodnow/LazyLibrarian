@@ -47,7 +47,7 @@ def cron_search_wishlist():
         logger.debug("SEARCHWISHLIST is already running")
 
 
-def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
+def calc_status(bookmatch, wishlist, search_start, ebook_status, audio_status):
     # calculate status according to existing/author/series statuses
     # return whether status/audiostatus is "Wanted""
     logger = logging.getLogger(__name__)
@@ -87,12 +87,12 @@ def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
             logger.info(
                 f"Found book {bookname} by {authorname}, already marked as \"{bookmatch['Status']}\"")
             if bookmatch.get("Requester", ''):  # Already on a wishlist
-                if book["dispname"] not in bookmatch["Requester"]:
-                    new_value_dict = {"Requester": f"{bookmatch['Requester'] + book['dispname']} "}
+                if wishlist not in bookmatch["Requester"]:
+                    new_value_dict = {"Requester": f"{bookmatch['Requester'] + wishlist} "}
                     control_value_dict = {"BookID": bookid}
                     db.upsert("books", new_value_dict, control_value_dict)
             else:
-                new_value_dict = {"Requester": f"{book['dispname']} "}
+                new_value_dict = {"Requester": f"{wishlist} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
         elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
@@ -109,23 +109,23 @@ def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
             db.upsert("books", new_value_dict, control_value_dict)
             want_book = True
             if bookmatch.get("Requester", ''):  # Already on a wishlist
-                if book["dispname"] not in bookmatch["Requester"]:
-                    new_value_dict = {"Requester": f"{bookmatch['Requester'] + book['dispname']} "}
+                if wishlist not in bookmatch["Requester"]:
+                    new_value_dict = {"Requester": f"{bookmatch['Requester'] + wishlist} "}
                     control_value_dict = {"BookID": bookid}
                     db.upsert("books", new_value_dict, control_value_dict)
             else:
-                new_value_dict = {"Requester": f"{book['dispname']} "}
+                new_value_dict = {"Requester": f"{wishlist} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
         if bookmatch.get('AudioStatus', '') in ['Open', 'Wanted', 'Have']:
             logger.info(f"Found audiobook {bookname} by {authorname}, already marked as \"{bookmatch['AudioStatus']}\"")
             if bookmatch.get("AudioRequester", ''):  # Already on a wishlist
-                if book["dispname"] not in bookmatch["AudioRequester"]:
-                    new_value_dict = {"AudioRequester": f"{bookmatch['AudioRequester'] + book['dispname']} "}
+                if wishlist not in bookmatch["AudioRequester"]:
+                    new_value_dict = {"AudioRequester": f"{bookmatch['AudioRequester'] + wishlist} "}
                     control_value_dict = {"BookID": bookid}
                     db.upsert("books", new_value_dict, control_value_dict)
             else:
-                new_value_dict = {"AudioRequester": f"{book['dispname']} "}
+                new_value_dict = {"AudioRequester": f"{wishlist} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
         elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
@@ -142,12 +142,12 @@ def calc_status(bookmatch, book, search_start, ebook_status, audio_status):
             db.upsert("books", new_value_dict, control_value_dict)
             want_audio = True
             if bookmatch.get("AudioRequester", ''):  # Already on a wishlist
-                if book["dispname"] not in bookmatch["AudioRequester"]:
-                    new_value_dict = {"AudioRequester": f"{bookmatch['AudioRequester'] + book['dispname']} "}
+                if wishlist not in bookmatch["AudioRequester"]:
+                    new_value_dict = {"AudioRequester": f"{bookmatch['AudioRequester'] + wishlist} "}
                     control_value_dict = {"BookID": bookid}
                     db.upsert("books", new_value_dict, control_value_dict)
             else:
-                new_value_dict = {"AudioRequester": f"{book['dispname']} "}
+                new_value_dict = {"AudioRequester": f"{wishlist} "}
                 control_value_dict = {"BookID": bookid}
                 db.upsert("books", new_value_dict, control_value_dict)
     except Exception as e:
@@ -219,7 +219,8 @@ def search_wishlist():
                     logger.debug(f"Found in database, {authormatch['AuthorName']}:{bookmatch['BookName']} "
                                  f"Status {bookmatch['Status']}:{bookmatch['AudioStatus']}")
                     bookmatch['AuthorName'] = authormatch['AuthorName']
-                    want_book, want_audio = calc_status(bookmatch, book, search_start, ebook_status, audio_status)
+                    want_book, want_audio = calc_status(bookmatch, book.get('dispname', ''), search_start,
+                                                        ebook_status, audio_status)
                     item['BookID'] = bookmatch['BookID']
                     if want_book and bookmatch['Status'] not in ['Wanted', 'Ignored', 'Open', 'Have']:
                         cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='eBook' and Status='Snatched'"
@@ -274,8 +275,8 @@ def search_wishlist():
                                         authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
                                                                (bookmatch['AuthorID'],))
                                         bookmatch['AuthorName'] = authormatch['AuthorName']
-                                        want_book, want_audio = calc_status(bookmatch, book, search_start,
-                                                                            ebook_status, audio_status)
+                                        want_book, want_audio = calc_status(bookmatch, book.get('dispname', ''),
+                                                                            search_start, ebook_status, audio_status)
                                         item['BookID'] = bookmatch['BookID']
                                         if want_book:
                                             new_books.append(item)
@@ -334,7 +335,8 @@ def search_wishlist():
                         bookmatch['AuthorName'] = authorname
                         bookmatch['AuthorID'] = authorid
                         item['BookID'] = bookmatch['bookid']
-                        want_book, want_audio = calc_status(bookmatch, book, search_start, ebook_status, audio_status)
+                        want_book, want_audio = calc_status(bookmatch, book.get('dispname', ''), search_start,
+                                                            ebook_status, audio_status)
                         new_value_dict = {}
                         if want_book:
                             ebook_status = "Wanted"
