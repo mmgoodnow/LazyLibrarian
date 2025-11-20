@@ -190,16 +190,6 @@
             <div class="collapse navbar-collapse" id="MainNav">
               <ul class="nav navbar-nav">
                 <!--li><a href="home" class="navbarele">Authors</a></li-->
-                %if perm > 0:
-                  %if CONFIG['USER_ACCOUNTS']:
-                    %if lazylibrarian.SHOWLOGOUT == 1:
-                      <li><a href="logout" class="navbarele" id="logout">Logout</a></li>
-                    %endif
-                    %if perm&lazylibrarian.perm_config == 0:
-                      <li><a href="profile" class="navbarele" id="profile">User</a></li>
-                    %endif
-                  %endif
-                %endif
                 % if CONFIG['HOMEPAGE'] != 'Authors':
                   <li><a id="authors" href="authors" class="navbarele">Authors</a></li>
                 % endif
@@ -263,6 +253,16 @@
                   <li><a id="config" href="config" class="navbarcfg"><i class="fa fa-cog"></i> Config</a></li>
                 % endif
                 <li><a id="help" href="help" target="_new"><i class="fa fa-question-circle"></i> Help</a></li>
+                %if perm > 0:
+                  %if CONFIG['USER_ACCOUNTS']:
+                    %if perm&lazylibrarian.perm_config == 0:
+                      <li><a href="profile" class="navbarele" id="profile">User</a></li>
+                    %endif
+                    %if lazylibrarian.SHOWLOGOUT == 1:
+                      <li>&nbsp<button class="button btn btn-primary" type="button" value="removeme" id="removeme">  Logout</button></li>
+                    %endif
+                  %endif
+                %endif
               </ul>
             </div>
           </div>
@@ -326,7 +326,7 @@
       % endif
 
       $(document).ready(function() {
-          
+
         if (msg != '') {
           $.notify({
               icon: "images/ll48.png",
@@ -384,6 +384,27 @@
             });
         });
       });
+
+        $('#removeme').click(function () {
+            bootbox.confirm({
+                message: "Are you sure you want to logout?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                  if (result) { $.get("logout", { },
+                      function (data) { }); }
+                window.location = "home"
+                }
+            });
+        });
 
       // Initialise tooltips
       $(function () {
