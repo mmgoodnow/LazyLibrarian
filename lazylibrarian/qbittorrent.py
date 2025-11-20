@@ -184,7 +184,10 @@ def get_progress(hashid):
             else:
                 progress = 0
             finished = False
-            if max_ratio and max_ratio <= ratio and state == 'pausedUP':
+
+            # state was changed from pausedUP to stoppedUP in web API 2.11.0, but wiki doesn't reflect change
+            # See: https://qbittorrent-api.readthedocs.io/en/latest/apidoc/definitions.html
+            if max_ratio <= ratio and (state == 'pausedUP' or state == 'stoppedUP'):
                 finished = True
             return progress, state, finished
     return -1, '', False
