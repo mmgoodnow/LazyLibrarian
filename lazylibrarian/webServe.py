@@ -583,7 +583,10 @@ class WebInterface:
             if len(rowlist):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
                     arow = list(row)
-                    reasonlist = arow[12].split()
+                    reasonlist = arow[12]
+                    if not reasonlist:
+                        reasonlist = "Unknown"
+                    reasonlist = reasonlist.split()
                     reasonstring = ''
                     match reasonlist[0].lower().strip(":"):
                         case 'webserver':  # manual search and add of author

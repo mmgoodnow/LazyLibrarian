@@ -438,6 +438,14 @@ def check_db(upgradelog=None):
                         logger.warning(f"Invalid LastDate ({item['LastDate']}) for {item['AuthorID']}")
                         db.action("UPDATE authors SET LastDate='0000' WHERE AuthorID=?", (item['AuthorID'], ))
 
+            # update any null author reason entries
+            res = db.match("SELECT count(*) as counter from authors WHERE reason is null")
+            tot = res['counter']
+            if tot:
+                cnt += tot
+                logger.warning(f"Found {tot} authors with null reason")
+                db.action("UPDATE authors SET reason='Unknown' WHERE reason is null")
+
             # delete any null wanted entries
             res = db.match("SELECT count(*) as counter from wanted WHERE BookID is null")
             tot = res['counter']
