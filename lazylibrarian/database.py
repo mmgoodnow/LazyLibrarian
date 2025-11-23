@@ -32,7 +32,7 @@ db_lock = threading.Lock()
 class DBConnection:
     def __init__(self):
         try:
-            self.connection = sqlite3.connect(DIRS.get_dbfile(), 20,)
+            self.connection = sqlite3.connect(DIRS.get_dbfile(), timeout=20)
             # Use write-ahead logging to do fewer disk writes
             self.connection.execute("PRAGMA journal_mode = WAL")
             # sync less often as using WAL mode

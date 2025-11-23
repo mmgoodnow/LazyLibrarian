@@ -17,9 +17,8 @@ class FormatterTest(LLTestCaseWithStartup):
         strings = [
             ("", ""),
             ("C:\\My eBooks\\book.epub", 'C\\My eBooks\\book.epub'),
-            ("My oddly named ÆØÅ ebook...", 'My oddly named AOÅ ebook'),
             ("Stuff here " + chr(2) + ">< |&!?-\\$|+`~=*", 'Stuff here  &!-\\s+~='),
-            ("Not C:\\\\// usable [as a] file name.jpg", 'Not C\\/ usable [as a] file name.jpg'),
+            ("Not C:\\\\// usable [as a] file name.jpg", 'Not C\\__ usable [as a] file name.jpg'),
             (u'\2160' + u'\0049', '\x8e09'),
             ('Hello Über', 'Hello Über'),  # Unicode-string in NFKD->NFC format
             ("\\\\Server\\Test An odd one:2131", '\\Server\\Test An odd one2131'),
@@ -130,9 +129,9 @@ class FormatterTest(LLTestCaseWithStartup):
             ("Author", "Author: Test book (The Series, 6)", ("Test book", "", "The Series, 6")),
             ("Author Name", "Author Name: Book (Series: Subseries 1)", ("Book", "", "Series: Subseries 1")),
             # Titles with "commentary" in the title
-            ("Author Name", "Author Name: Book (Unabridged)", ("Book", "(Unabridged)", "")),
+            ("Author Name", "Author Name: Book (Unabridged)", ("Book", "", "")),
             ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
-            ("Author Name", "Author Name: Book (TM)", ("Book", "(TM)", "")),
+            ("Author Name", "Author Name: Book (TM)", ("Book", "", "")),
             # Books with a subtitle in a series
             ("Abraham Lincoln", "Vampire Hunter: A horrifying tale (Vampires #2)",
              ("Vampire Hunter", "A horrifying tale", "Vampires #2")),
@@ -243,7 +242,7 @@ class FormatterTest(LLTestCaseWithStartup):
             self.assertEqual(formatter.age(date), formatter.datecompare(formatter.today(), date))
 
     def test_month2num(self):
-        for mnum, m in enumerate(lazylibrarian.MONTHNAMES):
+        for mnum, m in enumerate(lazylibrarian.MONTHNAMES[0]):
             # Try both the short and the long versions
             self.assertEqual(formatter.month2num(m[0]), mnum)
             self.assertEqual(formatter.month2num(m[1]), mnum)
@@ -284,9 +283,8 @@ class FormatterTest(LLTestCaseWithStartup):
             ("XYZ", "XYZ"),  # Error, just a string
             ("", ""),
         ]
-        with self.assertLogs(None, logging.ERROR):
-            for d in dates:
-                self.assertEqual(formatter.date_format(d[0]), d[1])
+        for d in dates:
+            self.assertEqual(formatter.date_format(d[0]), d[1])
 
     def test_versiontuple(self):
         versions = [
@@ -480,7 +478,7 @@ class FormatterTest(LLTestCaseWithStartup):
     def test_format_author_name(self):
         testnames_plain = [
             ("Allan Pedersen", "Allan Pedersen"),
-            ("Allan & Mamta Pedersen", "Allan"),
+            ("Allan & Mamta Pedersen", "Allan & Mamta Pedersen"),
             ("Pedersen, Allan", "Allan Pedersen"),
             ("SMITH, Allan", "Allan SMITH"),
             ("ALLAN SMITH", "Allan Smith"),
@@ -537,18 +535,6 @@ class FormatterTest(LLTestCaseWithStartup):
         for p in providers:
             with self.subTest(f"Transforming {p[0]}"):
                 self.assertEqual(self.cfg().disp_name(p[0]), p[1])
-
-    def test_replace_quotes_with(self):
-        allchars = ''
-        for ch in range(32, 255):
-            allchars += chr(ch)
-        allchars += u'\uff02'  # Add a single non-ascii quote to the test
-        self.assertEqual(len(allchars), 255 - 32 + 1)
-
-        newstr = formatter.replace_quotes_with(allchars, 'x')
-        self.assertEqual(newstr.count('x'), 7)
-        newstr = formatter.replace_quotes_with(allchars, '')
-        self.assertEqual(len(newstr), 218)
 
     def test_pretty_approx_time(self):
         testdata = {

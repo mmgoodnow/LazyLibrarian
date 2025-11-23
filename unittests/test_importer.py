@@ -51,14 +51,14 @@ class ImporterTest(LLTestCaseWithStartup):
 
     def test_get_preferred_author_name_NotInDB(self):
         testname = 'Allan Mertner'
-        name, found = importer.get_preferred_author_name(testname)
+        name, found = importer.get_preferred_author(testname)
         self.assertEqual(name, testname)
-        self.assertEqual(found, False)
+        self.assertEqual(found, '')
 
         longertestname = testname + ' & Someone Else'
-        name, found = importer.get_preferred_author_name(longertestname)
+        name, found = importer.get_preferred_author(longertestname)
         self.assertEqual(name, testname)
-        self.assertEqual(found, False)
+        self.assertEqual(found, '')
 
     def test_add_author_name_to_db_UnknownPerson(self):
         testname = 'Mr Allan Mertner The Tester'

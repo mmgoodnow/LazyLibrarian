@@ -597,7 +597,7 @@ def check_db(upgradelog=None):
                 db.action("DELETE from magazines WHERE Title IS NULL or Title = ''")
 
             # remove authors with no books
-            lazylibrarian.UPDATE_MSG = 'Removing authors with no books'
+            lazylibrarian.UPDATE_MSG = 'Removing authors with no listed books'
             authors = db.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
             if authors:
                 for author in authors:  # check we haven't mis-counted
@@ -605,7 +605,7 @@ def check_db(upgradelog=None):
                 authors = db.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
                 if authors:
                     cnt += len(authors)
-                    msg = f"Removing {len(authors)} {plural(len(authors), 'author')} with no books"
+                    msg = f"Removing {len(authors)} {plural(len(authors), 'author')} with no listed books"
                     logger.warning(msg)
                     for author in authors:
                         db.action("DELETE from authors WHERE AuthorID=?", (author['AuthorID'],))
@@ -754,7 +754,7 @@ def check_db(upgradelog=None):
             authors = db.select(cmd)
             if authors:
                 msg = (f"Found {len(authors)} {plural(len(authors), 'author')} "
-                       f"with no books in the library or marked wanted")
+                       f"with no existing or wanted books")
                 logger.warning(msg)
                 # Don't auto delete them, may be in a reading list?
                 for author in authors:
@@ -1424,7 +1424,7 @@ def update_schema(db, upgradelog):
             for item in res:
                 db.action("INSERT into readinglists (UserID, BookID, Status) VALUES (?, ?, ?)",
                           (item['UserID'], item['BookID'], tbl[1]), suppress='UNIQUE')
-        db.action(f"DROP table {tbl[0]}")
+            db.action(f"DROP table {tbl[0]}")
 
     res = db.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='series'")
     if 'SeriesID INTEGER' in res[0]:

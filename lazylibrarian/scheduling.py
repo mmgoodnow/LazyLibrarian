@@ -24,6 +24,7 @@ from enum import Enum
 from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers import SchedulerNotRunningError
 
 import lazylibrarian
 from lazylibrarian import database
@@ -72,7 +73,7 @@ def shutdownscheduler():
         if SCHED:
             # noinspection PyUnresolvedReferences
             SCHED.shutdown(wait=False)
-    except NameError:
+    except (NameError, SchedulerNotRunningError):
         pass
 
 
@@ -148,6 +149,7 @@ def get_next_run_time(target: str, minutes=0, action=SchedulerCommand.NONE) -> d
     for job in SCHED.get_jobs():
         if target in str(job):
             nextruntime = str(job).split('at: ')[1].split('.')[0].strip(')')
+            nextruntime = ' '.join(nextruntime.split()[:2])  # strip any timezone
             break
 
     if nextruntime:

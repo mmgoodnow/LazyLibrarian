@@ -830,6 +830,13 @@ def format_author_name(author: str, postfix: List[str]) -> str:
             if author != f"{forename} {surname}":
                 fuzzlogger.debug(f'Formatted authorname [{author}] to [{forename} {surname}]')
                 author = f"{forename} {surname}"
+    # ensure initials have a '.' on the end
+    words = author.split()
+    author = ''
+    for word in words:
+        if len(word) == 1 and word.isalpha():
+            word = word + '.'
+        author = f"{author} {word}"
     # reformat any initials, we want to end up with L.E. Modesitt Jr, Charles H. Elliott PhD
     if '.' in author:
         forename, surname = author.rsplit('.', 1)

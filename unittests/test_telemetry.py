@@ -92,8 +92,8 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
         # print(json_fromcfg)
         json_good = json.loads("""
             {"switches": "EBOOK_TAB COMIC_TAB SERIES_TAB API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ",
-            "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ",
-            "BOOK_API": "OpenLibrary",
+            "params": "PRIMARY_OL IMP_CALIBREDB DOWNLOAD_DIR API_KEY ",
+            "BOOK_API": "",
             "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 1}
         """)
         self.assertEqual(cfg, json_good, "Config not as expected. Check that ini file has not changed")
@@ -130,7 +130,7 @@ class TelemetryTest(LLTestCaseWithConfigandDIRS):
             ['server',
              'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt","python_ver":"3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]"}'],
             ['config',
-             'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
+             'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"PRIMARY_OL IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
             ['usage',
              'usage={"API/getHelp":2,"web/test":1,"Download/NZB":1}'],
         ]
