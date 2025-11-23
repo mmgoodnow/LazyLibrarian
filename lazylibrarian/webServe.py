@@ -3414,7 +3414,7 @@ class WebInterface:
 
                 title = f"{booktype}: {bookdata['BookName']}"
 
-                if 'email' in kwargs and kwargs['email']:
+                if 'Email' in kwargs and kwargs['Email']:
                     result = notifiers.email_notifier.notify_message('Request from LazyLibrarian User',
                                                                      msg, CONFIG['ADMIN_EMAIL'])
                     if result:
