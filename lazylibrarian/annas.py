@@ -248,12 +248,12 @@ def parse_result(raw_content: Tag) -> SearchResult:
         link = raw_content.find("a", class_="js-vim-focus")
         if not link:
             return None
-        
+
         title = link.text.strip()
         hashid = link.get("href", "").split("md5/")[-1]
         if not hashid:
             return None
-            
+
     except (AttributeError, IndexError):
         return None
 
@@ -271,21 +271,21 @@ def parse_result(raw_content: Tag) -> SearchResult:
             if "✅" in div.text:
                 metadata_div = div
                 break
-    
+
     if metadata_div:
         metadata_text = metadata_div.text
-        
+
         lang_match = re.search(r'([A-Za-z]+)\s*\[([a-z]{2})\]', metadata_text)
         language = lang_match.group(2) if lang_match else ""
-        
+
         size_match = re.search(r'(\d+\.?\d*\s*[MKG]B)', metadata_text)
         size = size_match.group(1) if size_match else ""
-        
+
         format_match = re.search(r'·\s*(PDF|EPUB|MOBI|AZW3|FB2|TXT|DJVU|CBR|CBZ|RTF|LIT|DOC|DOCX|HTML|HTM|LRF|MHT|ZIP|RAR)\s*·', metadata_text, re.IGNORECASE)
         extension = format_match.group(1).lower() if format_match else ""
-        
+
         file_info = FileInfo(extension, size, language)
-    
+
     # Fallback: extract extension from file path
     if not file_info.extension:
         file_path_div = raw_content.find("div", class_="text-gray-500")
@@ -296,13 +296,13 @@ def parse_result(raw_content: Tag) -> SearchResult:
 
     publisher = ''
     publish_date = ''
-    
+
     if metadata_div and metadata_div.text:
         metadata_text = metadata_div.text
         year_match = re.search(r'·\s*(\d{4})\s*·', metadata_text)
         if year_match:
             publish_date = year_match.group(1)
-    
+
     thumbnail = ''
     try:
         img = raw_content.find("img")
@@ -325,12 +325,14 @@ def parse_result(raw_content: Tag) -> SearchResult:
 
 def annas_download(md5, folder, title, extn):
     logger = logging.getLogger(__name__)
+    downloadlogger = logging.getLogger('special.dlcomms')
     url = urljoin(CONFIG['ANNA_HOST'], '/dyn/api/fast_download.json')
     secret_key = CONFIG['ANNA_KEY']
     params = {'md5': md5, 'key': secret_key, 'domain_index': 0}
     response = get(url, params=params)
     if str(response.status_code).startswith('2'):
         res = response.json()
+        downloadlogger.debug(res)
         counters = res['account_fast_download_info']
         CONFIG.set_int('ANNA_DLLIMIT', counters['downloads_per_day'])
         lazylibrarian.TIMERS['ANNA_REMAINING'] = counters['downloads_left']
