@@ -3,7 +3,6 @@
 # Purpose:
 #   Test functions in formatter.py
 
-import logging
 
 import lazylibrarian
 from lazylibrarian import formatter
@@ -11,6 +10,19 @@ from unittests.unittesthelpers import LLTestCaseWithStartup
 
 
 class FormatterTest(LLTestCaseWithStartup):
+
+    def test_split_author_names(self):
+        data = [
+            ("Tom Holt", ['Tom Holt']),
+            ("L.E. Modesitt, Jnr", ['L.E. Modesitt']),
+            ("Tom Holt with Robert Rankin", ['Tom Holt', 'Robert Rankin']),
+            ("Tom Holt and Robert Rankin", ['Tom Holt', 'Robert Rankin']),
+            ("Tom Holt & Robert Rankin", ['Tom Holt', 'Robert Rankin']),
+            ("Tom Holt, Robert Rankin", ['Tom Holt', 'Robert Rankin']),
+            ("Tom Holt; Robert Rankin", ['Tom Holt', 'Robert Rankin'])
+        ]
+        for d in data:
+            self.assertEqual(formatter.split_author_names(d[0], ['with', 'and']), d[1])
 
     def test_sanitize(self):
         import unicodedata
@@ -259,6 +271,19 @@ class FormatterTest(LLTestCaseWithStartup):
         for special in specialmonths:
             self.assertEqual(formatter.month2num(special[0]), special[1])
 
+    def test_two_months(self):
+        magdates = [
+            ("SepOct", (9, 10)),
+            ("SepOctNov", (9, 11)),
+            ("SeptemberOctober", (9, 10)),
+            ("SepOctober", (9, 10)),
+            ("AprApril", (0, 0)),
+            ("April", (0, 0)),
+            ("Not A Date", (0, 0)),
+        ]
+        for magdate in magdates:
+            self.assertEqual(formatter.two_months(magdate[0]), magdate[1])
+
     def test_nzbdate2format(self):
         nzbdates = [
             ("mon 22 oct 1998", "1998-10-22"),
@@ -335,7 +360,8 @@ class FormatterTest(LLTestCaseWithStartup):
             ("", b'', ""),
             ("This is a test", b'This is a test', ''),
             ("ÆØÅ, æøå and ½é",
-            b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5 and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9', 'ISO-8859-15'),
+             b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5'
+             b' and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9', 'ISO-8859-15'),
         ]
         for teststr in strings:
             encoded, name = formatter.make_utf8bytes(teststr[0])
@@ -343,8 +369,8 @@ class FormatterTest(LLTestCaseWithStartup):
 
     def test_make_unicode(self):
         strings = [
-            (None, None),
             (b'', ''),
+            (None, None),
             (b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85', 'Ã\x86Ã\x98Ã\x85'),
             ('Hello Über', 'Hello Über'),
             (123, "123"),

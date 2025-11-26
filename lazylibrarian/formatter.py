@@ -433,6 +433,8 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
 
 
 def two_months(word):
+    # compound months as a single word eg AprilMay
+    # found in some magazine titles
     a = 0
     b = 0
     cleanword = unaccented(word).lower()
@@ -636,7 +638,7 @@ def make_utf8bytes(txt):
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-def make_unicode(txt: [str, bytes]) -> Optional[Union[str, bytes]]:
+def make_unicode(txt: Union[str, bytes]) -> Optional[Union[str, bytes]]:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     # return is unicode if possible, else bytestring

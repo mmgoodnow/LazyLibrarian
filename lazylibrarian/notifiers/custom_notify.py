@@ -53,16 +53,16 @@ class CustomNotifier:
                     book = db.match('SELECT * from magazines where Title=?', (bookid,))
 
                 if event == 'Added to Library':
-                    wanted_status = 'Processed'
+                    wanted_status = " in ('Processed', 'Seeding')"
                 else:
-                    wanted_status = 'Snatched'
+                    wanted_status = "='Snatched'"
 
                 if ident in ['eBook', 'AudioBook']:
-                    wanted = db.match('SELECT * from wanted where BookID=? AND AuxInfo=? AND Status=?',
-                                      (bookid, ident, wanted_status))
+                    cmd = f"SELECT * from wanted where BookID=? AND AuxInfo=? AND Status{wanted_status}"
+                    wanted = db.match(cmd, (bookid, ident))
                 else:
-                    wanted = db.match('SELECT * from wanted where BookID=? AND NZBUrl=? AND Status=?',
-                                      (bookid, ident, wanted_status))
+                    cmd = f"SELECT * from wanted where BookID=? AND NZBUrl=? AND Status{wanted_status}"
+                    wanted = db.match(cmd, (bookid, ident))
         finally:
             db.close()
 

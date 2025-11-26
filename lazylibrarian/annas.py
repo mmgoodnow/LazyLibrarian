@@ -201,7 +201,7 @@ def annas_search(
     language: Language = Language.ANY,
     file_type: FileType = FileType.ANY,
     order_by: OrderBy = OrderBy.MOST_RELEVANT,
-) -> str:
+) -> str | None:
 
     logger = logging.getLogger(__name__)
     if not query.strip():
@@ -243,7 +243,7 @@ def annas_search(
     return hashfilename
 
 
-def parse_result(raw_content: Tag) -> SearchResult:
+def parse_result(raw_content: Tag) -> SearchResult | None:
     try:
         link = raw_content.find("a", class_="js-vim-focus")
         if not link:
@@ -281,7 +281,9 @@ def parse_result(raw_content: Tag) -> SearchResult:
         size_match = re.search(r'(\d+\.?\d*\s*[MKG]B)', metadata_text)
         size = size_match.group(1) if size_match else ""
 
-        format_match = re.search(r'·\s*(PDF|EPUB|MOBI|AZW3|FB2|TXT|DJVU|CBR|CBZ|RTF|LIT|DOC|DOCX|HTML|HTM|LRF|MHT|ZIP|RAR)\s*·', metadata_text, re.IGNORECASE)
+        format_match = re.search(
+            r'·\s*(PDF|EPUB|MOBI|AZW3|FB2|TXT|DJVU|CBR|CBZ|RTF|LIT|DOC|DOCX|HTML|HTM|LRF|MHT|ZIP|RAR)\s*·',
+            metadata_text, re.IGNORECASE)
         extension = format_match.group(1).lower() if format_match else ""
 
         file_info = FileInfo(extension, size, language)
@@ -490,7 +492,7 @@ def block_annas(dl_limit=0):
     BLOCKHANDLER.block_provider("annas", res, delay=delay)
 
 
-def anna_grabs() -> (int, int):
+def anna_grabs() -> tuple[int, int]:
     # we might be out of sync with download counter, eg we might not be the only downloader
     # so although we can count how many we downloaded, normally we ask anna and use their counter
     # If we are over limit we try to use our datestamp to find out when the counter will reset
@@ -500,5 +502,5 @@ def anna_grabs() -> (int, int):
                       (eighteen_hours_ago,))
     db.close()
     if grabs:
-        return len(grabs), grabs[0]['completed']
+        return len(grabs), int(grabs[0]['completed'])
     return 0, 0
