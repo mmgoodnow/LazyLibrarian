@@ -39,7 +39,7 @@ LazyLibrarian runs by default on port 5299 at http://localhost:5299
 
 
 ## Documentation:
-There is extensive documentation at https://lazylibrarian.gitlab.io/lazylibrarian.gitlab.io/
+There is extensive documentation at https://lazylibrarian.gitlab.io/
 and a reddit at https://www.reddit.com/r/LazyLibrarian/
 
 Docker tutorial  http://sasquatters.com/lazylibrarian-docker/
