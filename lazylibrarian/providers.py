@@ -1822,54 +1822,72 @@ def goodreads(host=None, feednr=None, priority=0, dispname=None, types='E', test
         host = f"http://{host}"
 
     url = host
+    maxpage = priority
+    page = 1
+    next_page = True
 
-    result, success = fetch_url(url)
+    while next_page:
+        if page > 1:
+            if '?' in host:
+                url = f"{host}&page={page}"
+            else:
+                url = f"{host}?page={page}"
 
-    if success:
-        data = feedparser.parse(result)
-    else:
-        logger.error(f'Error fetching data from {host}: {result}')
-        if not test:
-            BLOCKHANDLER.block_provider(basehost, result)
-        data = None
+        result, success = fetch_url(url)
+        next_page = False
 
-    if data:
-        logger.debug(f'Parsing results from {url}')
-        provider = data['feed']['link']
-        if not dispname:
-            dispname = provider
-        logger.debug(f"rss {provider} returned {len(data.entries)} {plural(len(data.entries), 'result')}")
-        for post in data.entries:
-            title = ''
-            book_id = ''
-            author_name = ''
-            isbn = ''
-            if 'title' in post:
-                title = post.title
-            if 'book_id' in post:
-                book_id = post.book_id
-            if 'author_name' in post:
-                author_name = post.author_name
-            if 'isbn' in post:
-                isbn = post.isbn
-            if title and author_name:
-                results.append({
-                    'rss_prov': provider,
-                    'rss_feed': feednr,
-                    'rss_title': title,
-                    'rss_author': author_name,
-                    'rss_bookid': book_id,
-                    'rss_isbn': isbn,
-                    'priority': priority,
-                    'dispname': dispname,
-                    'types': types,
-                    'label': label,
-                })
-        logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {host}")
-    else:
-        logger.debug(f'No data returned from {host}')
-    if test:
-        return len(results)
+        if success:
+            data = feedparser.parse(result)
+        else:
+            logger.error(f'Error fetching data from {host}: {result}')
+            if not test:
+                BLOCKHANDLER.block_provider(basehost, result)
+            data = None
+
+        if data:
+            logger.debug(f'Parsing results from {url}')
+            provider = data['feed']['link']
+            if not dispname:
+                dispname = provider
+            logger.debug(f"rss {provider} returned {len(data.entries)} {plural(len(data.entries), 'result')}")
+            for post in data.entries:
+                title = ''
+                book_id = ''
+                author_name = ''
+                isbn = ''
+                if 'title' in post:
+                    title = post.title
+                if 'book_id' in post:
+                    book_id = post.book_id
+                if 'author_name' in post:
+                    author_name = post.author_name
+                if 'isbn' in post:
+                    isbn = post.isbn
+                if title and author_name:
+                    results.append({
+                        'rss_prov': provider,
+                        'rss_feed': feednr,
+                        'rss_title': title,
+                        'rss_author': author_name,
+                        'rss_bookid': book_id,
+                        'rss_isbn': isbn,
+                        'priority': priority,
+                        'dispname': dispname,
+                        'types': types,
+                        'label': label,
+                    })
+                    next_page = True
+        if test:
+            logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} from {host}")
+            return len(results)
+
+        page += 1
+        if maxpage:
+            if page > maxpage:
+                logger.warning('Maximum results page reached, still more results available')
+                next_page = False
+
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {host}")
     return results
 
 
