@@ -3,7 +3,7 @@
     import lazylibrarian
     import logging
     from lazylibrarian.common import docker
-    from lazylibrarian.config2 import CONFIG
+    from lazylibrarian.config2 import CONFIG, wishlist_type
     from lazylibrarian.logconfig import LOGCONFIG
     from lazylibrarian.notifiers import APPRISE_VER
     from lazylibrarian import MONTHNAMES, SEASONS
@@ -1565,11 +1565,7 @@
                     </div>
                       <%
                         label = 'Priority'
-                        if 'list_rss' in provider['HOST']:
-                          label = 'Pages'
-                        if '/book/' in provider['HOST']:
-                          label = 'Pages'
-                        if '/show/' in provider['HOST']:
+                        if bool(wishlist_type(provider['HOST'])):
                           label = 'Pages'
                       %>
                     <div class="input-group">
