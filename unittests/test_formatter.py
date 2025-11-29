@@ -303,8 +303,10 @@ class FormatterTest(LLTestCaseWithStartup):
             ("2018-04-25", "2018-04-25"),
             ("May 1995", "1995-05-01"),  # openlibrary
             ("June 20, 2008", "2008-06-20"),
-            ("28Dec2008", "2008-12-28"),  # Compressed into one string
-            ("XYZ is not a date", "XYZ-00-not"),  # Error, but seen as a date
+            ("28Dec2008", "2008-12-28"),  # Compressed into one string, valid
+            ("XYZ01ABC", "XYZ01ABC"),  # Error, just a string
+            ("01XYZ01", "01XYZ01"),  # Error, just a string
+            ("XYZ is not a date", "XYZ is not a date"),  # Error, return unchanged
             ("XYZ", "XYZ"),  # Error, just a string
             ("", ""),
         ]

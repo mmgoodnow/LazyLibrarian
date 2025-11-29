@@ -365,16 +365,17 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         m, d, hh, mm = dateparts
         y = now()[:4]
     elif len(dateparts) == 3:  # 2018-04-25 or June 20 2008 or 20 June 2008
-        if check_year(dateparts[0]):
+        y, m, d, = 0, 0, 0
+        if check_year(dateparts[0]) and dateparts[2].isdigit():
             y, m, d = dateparts
-        else:
+        elif check_year(dateparts[2]):
             if dateparts[0].isdigit():
                 d, m, y = dateparts
-            else:
+            elif dateparts[1].isdigit():
                 m, d, y = dateparts
         hh = '00'
         mm = '00'
-    elif len(dateparts) == 2:  # May 1995
+    elif len(dateparts) == 2 and check_year(dateparts[1]):  # May 1995
         m, y = dateparts
         d = '01'
         hh = '00'
@@ -389,7 +390,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
             m = "%02d" % month2num(m)
         except IndexError:
             m = 0
-    if not m:
+    if not m or m == "00":
         msg = f"Unrecognised datestr [{datestr[:40]}]"
         if context:
             msg = f'{msg} for {context}'
