@@ -2024,7 +2024,7 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict, e
 
         if not match:
             errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
-                         'bad request', 'bad_request', 'incorrect parameter', 'does not support']
+                         'bad request', 'bad_request', 'incorrect parameter', 'does not support', 'validation failed']
 
             errormsg = make_unicode(error_msg).lower()
 
