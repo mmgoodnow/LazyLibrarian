@@ -380,6 +380,11 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         d = '01'
         hh = '00'
         mm = '00'
+    elif len(dateparts) == 2 and check_year(dateparts[0]):  # 1995-05
+        y, m = dateparts
+        d = '01'
+        hh = '00'
+        mm = '00'
     else:
         d, m, y, hh, mm = 0, 0, 0, 0, 0
 
