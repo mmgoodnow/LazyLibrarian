@@ -1195,10 +1195,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                                                          book_filename))[0],
                                                                                      overwrite=False)
                                             if CONFIG.get_bool('IMP_RENAME'):
-                                                book_filename, _ = book_rename(bookid)
-
-                                            db.action("UPDATE books SET BookFile=? where BookID=?",
-                                                      (book_filename, bookid))
+                                                new_filename, _ = book_rename(bookid)
+                                                if new_filename and new_filename != check_status['BookFile']:
+                                                    book_filename = new_filename
+                                                    db.action("UPDATE books SET BookFile=?,Status=? where BookID=?",
+                                                              (book_filename, CONFIG['FOUND_STATUS'], bookid))
 
                                             # check preferred type and store book location
                                             # so we can check if it gets (re)moved
@@ -1208,10 +1209,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 preferred_type = f"{book_basename}.{book_type}"
                                                 if path_exists(preferred_type):
                                                     book_filename = preferred_type
-                                                    logger.debug(f"Librarysync link to preferred type {book_type}")
-                                                    db.action("UPDATE books SET BookFile=? where BookID=?",
-                                                              (book_filename, bookid))
-                                                    modified_count += 1
+                                                    if book_filename != check_status['BookFile']:
+                                                        modified_count += 1
+                                                        logger.debug(f"Librarysync link to preferred type {book_type}")
+                                                        db.action("UPDATE books SET BookFile=?,Status=? where BookID=?",
+                                                                  (book_filename, CONFIG['FOUND_STATUS'], bookid))
                                                     break
 
                                             if 'unknown' in check_status['AuthorName'].lower():
@@ -1264,20 +1266,21 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                       (book_filename, bookid))
 
                                             if CONFIG['AUDIOBOOK_DEST_FILE']:
-                                                if CONFIG.get_bool('IMP_RENAME'):
-                                                    book_filename = audio_rename(bookid, rename=True, playlist=True)
+                                                rename = True if CONFIG.get_bool('IMP_RENAME') else False
+                                                new_filename = audio_rename(bookid, rename=rename, playlist=True)
+                                                if new_filename and new_filename != book_filename:
+                                                    book_filename = new_filename
+                                                if rename:
                                                     preprocess_audio(os.path.dirname(book_filename), bookid,
                                                                      author, book, tag=True)
-                                                else:
-                                                    book_filename = audio_rename(bookid, rename=False, playlist=True)
 
                                             # location may have changed since last scan
-                                            if book_filename and book_filename != check_status['AudioFile']:
+                                            if book_filename != check_status['AudioFile']:
                                                 modified_count += 1
                                                 logger.warning(f"Updating audiobook location for {author} {book} from "
                                                                f"{check_status['AudioFile']} to {book_filename}")
-                                                db.action('UPDATE books set AudioFile=? where BookID=?',
-                                                          (book_filename, bookid))
+                                                db.action('UPDATE books set AudioFile=?,AudioStatus=? where BookID=?',
+                                                          (book_filename, CONFIG['FOUND_STATUS'], bookid))
 
                                         # update cover file to any .jpg in book folder, prefer cover.jpg
                                         if book_filename:

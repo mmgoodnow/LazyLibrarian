@@ -669,7 +669,7 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
     return cnt
 
 
-def unpack_multipart(source_dir, download_dir, title):
+def unpack_multipart(source_dir, download_dir, title='multi'):
     """ unpack multipart zip/rar files into one directory
         returns new directory in download_dir with book in it, or empty string
     """
@@ -713,7 +713,7 @@ def unpack_multipart(source_dir, download_dir, title):
         return ''
 
 
-def unpack_archive(archivename, download_dir, title, targetdir=''):
+def unpack_archive(archivename, download_dir, title='archive', targetdir=''):
     """ See if archivename is an archive containing a book
         returns new directory in download_dir with book in it, or empty string
     """
@@ -766,7 +766,8 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
                 logger.error(f"Failed to untar {archivename}: {e}")
                 return ''
 
-            targetdir = os.path.join(download_dir, f"{title}.unpack")
+            if not target_dir:
+                targetdir = os.path.join(download_dir, f"{title}.unpack")
             if not make_dirs(targetdir, new=True):
                 logger.error(f"Failed to create target dir {targetdir}")
                 return ''
@@ -796,7 +797,8 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
                 logger.error(f"Failed to unrar {archivename}: {e}")
                 return ''
 
-            targetdir = os.path.join(download_dir, f"{title}.unpack")
+            if not target_dir:
+                targetdir = os.path.join(download_dir, f"{title}.unpack")
             if not make_dirs(targetdir, new=True):
                 logger.error(f"Failed to create target dir {targetdir}")
                 return ''
@@ -829,7 +831,8 @@ def unpack_archive(archivename, download_dir, title, targetdir=''):
                 z = None  # not a rar archive
 
             if z:
-                targetdir = os.path.join(download_dir, f"{title}.unpack")
+                if not target_dir:
+                    targetdir = os.path.join(download_dir, f"{title}.unpack")
                 if not make_dirs(targetdir, new=True):
                     logger.error(f"Failed to create target dir {targetdir}")
                     return ''
@@ -915,7 +918,7 @@ def update_download_status(book, progress, finished, db, logger, dlresult=None):
         cmd = "UPDATE wanted SET Status='Seeding' WHERE NZBurl=? and Status IN ('Snatched', 'Processed')"
         db.action(cmd, (book['NZBurl'],))
         logger.info(f"STATUS: {book['NZBtitle']} [{current_status} -> Seeding] "
-                   f"Download complete, continuing to seed")
+                    f"Download complete, continuing to seed")
         return 'Seeding'
     else:
         # Mark as Processed - download complete
@@ -1021,10 +1024,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     _ = get_download_progress(book['Source'], book['DownloadID'])  # set completion time
                     dlfolder = get_download_folder(book['Source'], book['DownloadID'])
                     if dlfolder:
-                        match = False
                         for download_dir in dirlist:
                             if dlfolder.startswith(download_dir):
-                                match = True
                                 break
                         logger.debug(f"{book['Source']} is downloading to [{dlfolder}]")
 
@@ -1074,9 +1075,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                     for fname in downloads:
                         # skip if failed before or incomplete torrents, or incomplete btsync etc
-                        postprocesslogger.debug(f"Checking extn on {fname}")
-                        extn = os.path.splitext(fname)[1]
-                        if not extn or extn.strip('.') not in skipped_extensions:
+                        postprocesslogger.debug(f"Checking {fname}")
+                        base, extn = os.path.splitext(fname)
+                        if not base.startswith('.') and not extn or extn.strip('.') not in skipped_extensions:
                             # This is to get round differences in torrent filenames.
                             # Usenet is ok, but Torrents aren't always returned with the name we searched for
                             # We ask the torrent downloader for the torrent name, but don't always get an answer,
@@ -1541,6 +1542,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                         # only delete the files if not in download root dir and DESTINATION_COPY not set
                         if '.unpack' in pp_path:  # always delete files we unpacked
+                            logger.debug(f"Unpack: {pp_path}")
                             pp_path = f"{pp_path.split('.unpack')[0]}.unpack"
                             to_delete = True
                         elif CONFIG.get_bool('DESTINATION_COPY'):
@@ -1658,7 +1660,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # Files should still be on disk, but file processing loop has already run
                     # Change status to Snatched so file matching logic will run next cycle to find and process files
                     logger.info(f"{book['NZBtitle']} not found at {book['Source']}, "
-                                f"torrent was removed, changing status to Snatched to process files from download directory")
+                                f"torrent was removed, changing status to Snatched "
+                                f"to process files from download directory")
                     if book['BookID'] != 'unknown':
                         cmd = "UPDATE wanted SET status='Snatched' WHERE status='Seeding' and BookID=?"
                         db.action(cmd, (book['BookID'],))
@@ -1735,7 +1738,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # - Any case where a complete torrent somehow wasn't processed in the normal flow
                     if check_int(progress, 0) >= 100:
                         # Download is complete - attempt direct processing if it's a book/audiobook
-                        logger.info(f"{book['NZBtitle']} reached timeout but is 100% complete - attempting direct processing")
+                        logger.info(f"{book['NZBtitle']} reached timeout but is 100% complete "
+                                    f"- attempting direct processing")
                         abort = False
 
                         # Try to process directly, bypassing filename matching which may have failed
@@ -1746,12 +1750,13 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 if process_book(pp_path=dlfolder, bookid=book['BookID']):
                                     logger.info(f"Successfully processed {book['NZBtitle']} directly")
                                     status['status'] = 'success'
-                                    abort = False
                                     continue  # Skip abort logic, book was processed
                                 else:
-                                    logger.warning(f"Direct processing failed for {book['NZBtitle']}, will retry next cycle")
+                                    logger.warning(f"Direct processing failed for {book['NZBtitle']}, "
+                                                   f"will retry next cycle")
                             else:
-                                logger.warning(f"Could not get download folder for {book['NZBtitle']} from {book['Source']}")
+                                logger.warning(f"Could not get download folder for {book['NZBtitle']} "
+                                               f"from {book['Source']}")
                         else:
                             # For magazines/comics, just don't abort and let it retry next cycle
                             logger.debug(f"{booktype} {book['NZBtitle']} will retry on next postprocessor run")
@@ -1759,7 +1764,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     elif check_int(progress, 0) < 95:
                         # Less than 95% after timeout - likely stuck
                         abort = True
-                    elif hours >= max_hours + 1: # Progress is 95-99% so let's give it an extra hour
+                    elif hours >= max_hours + 1:  # Progress is 95-99% so let's give it an extra hour
                         # Still not complete after extended timeout
                         abort = True
 
@@ -1803,7 +1808,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         logger.warning(f'{dlresult}, deleting failed task')
                         delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
-                book_dict = dict(book) # Convert the sqlite row to a dict so we can use get()
+                book_dict = dict(book)  # Convert the sqlite row to a dict so we can use get()
                 skipped = book_dict.get('skipped', '')
                 source = book_dict.get('Source', 'somewhere??')
                 if source == 'DIRECT':
@@ -2614,6 +2619,7 @@ def process_book(pp_path=None, bookid=None, library=None):
                     process_extras(dest_file, global_name, bookid, booktype)
 
                 if '.unpack' in pp_path:
+                    logger.debug(f"Unpack: {pp_path}")
                     pp_path = f"{pp_path.split('.unpack')[0]}.unpack"
 
                 if '.unpack' in pp_path or not CONFIG.get_bool('DESTINATION_COPY') and pp_path != dest_dir:
@@ -3143,7 +3149,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
         dest_dir = f"{pp_path}.unpack"
         logger.debug(f"Copying to target {dest_dir}")
-        failed, err = copy_tree(pp_path, f"{pp_path}.unpack")
+        failed, err = copy_tree(pp_path, dest_dir)
         if not failed:
             pp_path = dest_dir
         else:
@@ -3228,7 +3234,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     elif not make_dirs(dest_path):
         return False, f'Unable to create directory {dest_path}', pp_path
 
-    udest_path = make_unicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
+    udest_path = make_unicode(dest_path)  # we can't mix Unicode and bytes in log messages or joins
     global_name, encoding = make_utf8bytes(global_name)
     if encoding:
         postprocesslogger.debug(f"global_name was {encoding}")
@@ -3373,7 +3379,7 @@ def process_auto_add(src_path=None, booktype='book'):
     try:
         names = listdir(src_path)
         # files jpg, opf & book(s) should have same name
-        # Caution - book may be pdf, mobi, epub or all 3.
+        # Caution - book may be PDF, mobi, epub or all 3.
         # for now simply copy all files, and let the autoadder sort it out
         #
         # Update - seems Calibre will only use the jpeg if named same as book, not cover.jpg
@@ -3632,8 +3638,8 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         db.close()
 
     opfinfo = '<?xml version="1.0"  encoding="UTF-8"?>\n\
-<package version="2.0" xmlns="http://www.idpf.org/2007/opf" >\n\
-    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">\n\
+<package version="2.0" xmlns="https://www.idpf.org/2007/opf" >\n\
+    <metadata xmlns:dc=https:///purl.org/dc/elements/1.1/" xmlns:opfhttps:////www.idpf.org/2007/opf">\n\
         <dc:title>%s</dc:title>\n\
         <dc:language>%s</dc:language>\n' % (data.get('BookName', ''), data.get('BookLang', ''))
 
