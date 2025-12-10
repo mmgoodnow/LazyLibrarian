@@ -979,6 +979,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         else:
             snatched = db.select("SELECT * from wanted WHERE Status='Snatched'")
         logger.debug(f"Found {len(snatched)} {plural(len(snatched), 'file')} marked \"Snatched\"")
+
+        # Track books that are ready for processing (not still downloading)
+        processable_snatched = []
+
         if len(snatched):
             TELEMETRY.record_usage_data('Process/Snatched')
             for book in snatched:
@@ -1021,7 +1025,21 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         if CONFIG.get_bool('DEL_FAILED'):
                             delete_task(book['Source'], book['DownloadID'], True)
                 else:
-                    _ = get_download_progress(book['Source'], book['DownloadID'])  # set completion time
+                    # Check if download is complete before processing
+                    progress, finished = get_download_progress(book['Source'], book['DownloadID'])
+
+                    # Skip if still downloading (0-99% and not finished)
+                    # Process if: 100% complete, finished=True, or removed from client (progress=-1)
+                    if 0 <= progress < 100 and not finished:
+                        logger.debug(
+                            f"Download not yet complete for {book['NZBtitle']} "
+                            f"(progress: {progress}%), skipping"
+                        )
+                        continue
+
+                    # Book passed all checks - ready for processing
+                    processable_snatched.append(book)
+
                     dlfolder = get_download_folder(book['Source'], book['DownloadID'])
                     if dlfolder:
                         for download_dir in dirlist:
@@ -1041,13 +1059,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             logger.debug(f"Found {len(downloads)} {plural(len(downloads), 'file')} in {download_dir}")
 
             # any books left to look for...
-
-            if downloadid:
-                snatched = db.select("SELECT * from wanted WHERE DownloadID=? AND Status='Snatched'", (downloadid,))
-            else:
-                snatched = db.select("SELECT * from wanted WHERE Status='Snatched'")
-            if len(snatched):
-                for book in snatched:
+            # Use the pre-filtered list of processable books from the first loop
+            # This ensures we don't try to process incomplete downloads
+            if len(processable_snatched):
+                for book in processable_snatched:
                     # check if we need to wait awhile before processing, might be copying/unpacking/moving
                     delay = CONFIG.get_int('PP_DELAY')
                     if delay:
@@ -1668,36 +1683,45 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # File matching will process it next cycle
                     continue
                 # Handle normal seeding completion
-                elif not CONFIG.get_bool('KEEP_SEEDING') and (finished or not CONFIG.get_bool('SEED_WAIT')):
+                elif finished or not CONFIG.get_bool('SEED_WAIT'):
                     if finished:
                         logger.debug(f"{book['NZBtitle']} finished seeding at {book['Source']}")
                     else:
                         logger.debug(f"{book['NZBtitle']} not seeding at {book['Source']}")
-                    if CONFIG.get_bool('DEL_COMPLETED'):
-                        logger.debug(f"Removing seeding completed {book['NZBtitle']} from {book['Source']}")
-                        if CONFIG.get_bool('DESTINATION_COPY'):
-                            delfiles = False
-                        else:
-                            delfiles = True
-                        delete_task(book['Source'], book['DownloadID'], delfiles)
+
+                    # Optionally delete from client if not keeping seeding torrents
+                    if not CONFIG.get_bool('KEEP_SEEDING'):
+                        if CONFIG.get_bool('DEL_COMPLETED'):
+                            logger.debug(f"Removing seeding completed {book['NZBtitle']} from {book['Source']}")
+                            if CONFIG.get_bool('DESTINATION_COPY'):
+                                delfiles = False
+                            else:
+                                delfiles = True
+                            delete_task(book['Source'], book['DownloadID'], delfiles)
+                    else:
+                        logger.debug(f"Keeping {book['NZBtitle']} seeding at {book['Source']} as KEEP_SEEDING is enabled")
+
+                    # Always update status to Processed when seeding is done
                     if book['BookID'] != 'unknown':
                         cmd = "UPDATE wanted SET status='Processed',NZBDate=? WHERE status='Seeding' and BookID=?"
                         db.action(cmd, (now(), book['BookID']))
                         logger.info(f"STATUS: {book['NZBtitle']} [Seeding -> Processed] Seeding complete")
                         abort = False
+
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
                     # This is for downloaders (rtorrent) that don't let us tell them to delete files
                     # NOTE it will silently fail if the torrent client downloadfolder is not local
                     # e.g. in a docker or on a remote machine
-                    pp_path = get_download_folder(book['Source'], book['DownloadID'])
-                    if CONFIG.get_bool('DESTINATION_COPY'):
-                        logger.debug("Not removing original files as Keep Files is set")
-                    elif pp_path in get_list(CONFIG['DOWNLOAD_DIR']):
-                        logger.debug("Not removing original files as in download root")
-                    else:
-                        shutil.rmtree(pp_path, ignore_errors=True)
-                        logger.debug(
-                            f"Deleted {pp_path} for {book['NZBtitle']}, {book['NZBmode']} from {book['Source']}")
+                    if not CONFIG.get_bool('KEEP_SEEDING'):
+                        pp_path = get_download_folder(book['Source'], book['DownloadID'])
+                        if CONFIG.get_bool('DESTINATION_COPY'):
+                            logger.debug("Not removing original files as Keep Files is set")
+                        elif pp_path in get_list(CONFIG['DOWNLOAD_DIR']):
+                            logger.debug("Not removing original files as in download root")
+                        else:
+                            shutil.rmtree(pp_path, ignore_errors=True)
+                            logger.debug(
+                                f"Deleted {pp_path} for {book['NZBtitle']}, {book['NZBmode']} from {book['Source']}")
                 else:
                     logger.debug(f"{book['NZBtitle']} still seeding at {book['Source']}")
 
