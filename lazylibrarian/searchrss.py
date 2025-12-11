@@ -268,13 +268,10 @@ def search_wishlist():
                                 if result['authorname'] != authorname:
                                     logger.debug(f"isbn authorname mismatch {result['authorname']}:{authorname}")
                                     authorname = result['authorname']
-                                    bookmatch = finditem(item, result['authorname'],
+                                    bookmatch = finditem(item, authorname,
                                                          reason=f"wishlist: {book['dispname']}")
                                     if bookmatch:  # it's in the database under isbn authorname
                                         bookmatch = dict(bookmatch)
-                                        authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?',
-                                                               (bookmatch['AuthorID'],))
-                                        bookmatch['AuthorName'] = authormatch['AuthorName']
                                         want_book, want_audio = calc_status(bookmatch, book.get('dispname', ''),
                                                                             search_start, ebook_status, audio_status)
                                         item['BookID'] = bookmatch['BookID']

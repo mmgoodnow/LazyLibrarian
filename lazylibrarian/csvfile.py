@@ -220,10 +220,10 @@ def export_csv(search_dir=None, status="Wanted", library=''):
 def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem'):
     """
     Try to find book matching the csv item in the database
-    Return database entry, or False if not found
+    Return database entry, or empty dict if not found
     """
     db = database.DBConnection()
-    bookmatch = ""
+    bookmatch = {}
     try:
         isbn10 = ""
         isbn13 = ""
