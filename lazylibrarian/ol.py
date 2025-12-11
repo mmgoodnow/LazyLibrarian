@@ -200,7 +200,7 @@ class OpenLibrary:
         if authorbooks and authorbooks["docs"]:
             for book in authorbooks['docs']:
                 if not book.get('author_name'):
-                    return {}
+                    continue
                 author_name = format_author_name(book.get('author_name')[0],
                                                  postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                 if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
@@ -219,6 +219,8 @@ class OpenLibrary:
                 self.logger.debug(f"No books found for {authorname}")
                 return {}
             for book in authorbooks['docs']:
+                if not book.get('author_name'):
+                    continue
                 author_name = format_author_name(book.get('author_name')[0],
                                                  postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                 if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
@@ -547,6 +549,8 @@ class OpenLibrary:
                 self.logger.debug(f"{hit + miss} books on page, {hit} with LT_ID, {miss} without")
                 total_count += hit + miss
                 for book in docs:
+                    if not book.get('author_name'):
+                        continue
                     auth_name = book.get('author_name')[0]
                     auth_id = book.get('author_key')[0]
                     title = book.get('title')
