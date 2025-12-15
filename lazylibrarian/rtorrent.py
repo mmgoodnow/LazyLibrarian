@@ -72,13 +72,13 @@ def add_torrent(tor_url, hash_id, data=None):
     try:
         if data:
             logger.debug(f'Sending rTorrent content [{str(data)[:40]}...]')
-            if versiontuple(version) > versiontuple('0.15.0'):
+            if versiontuple(version) > versiontuple('0.9.7'):
                 _ = server.load.raw('', Binary(data))
             else:
                 _ = server.load_raw(Binary(data))
         else:
             logger.debug(f'Sending rTorrent url [{str(tor_url)[:40]}...]')
-            if versiontuple(version) > versiontuple('0.15.0'):
+            if versiontuple(version) > versiontuple('0.9.7'):
                 _ = server.load.normal('', tor_url)  # response isn't anything useful, always 0
             else:
                 _ = server.load(tor_url)
@@ -94,14 +94,14 @@ def add_torrent(tor_url, hash_id, data=None):
 
         label = CONFIG['RTORRENT_LABEL']
         if label:
-            if versiontuple(version) > versiontuple('0.15.0'):
+            if versiontuple(version) > versiontuple('0.9.7'):
                 server.d.custom1.set(hash_id, label)
             else:
                 server.d.set_custom1(hash_id, label)
 
         directory = CONFIG['RTORRENT_DIR']
         if directory:
-            if versiontuple(version) > versiontuple('0.15.0'):
+            if versiontuple(version) > versiontuple('0.9.7'):
                 server.d.directory.set(hash_id, directory)
             else:
                 server.d.set_directory(hash_id, directory)
@@ -117,7 +117,7 @@ def add_torrent(tor_url, hash_id, data=None):
     # wait a while for download to start, that's when rtorrent fills in the name
     name = get_name(hash_id)
     if name:
-        if versiontuple(version) > versiontuple('0.15.0'):
+        if versiontuple(version) > versiontuple('0.9.7'):
             directory = get_directory(hash_id)
             label = server.d.custom1(hash_id)
         else:
@@ -177,7 +177,7 @@ def get_name(hash_id):
             retries = 5
             name = ''
             while retries:
-                if versiontuple(version) > versiontuple('0.15.0'):
+                if versiontuple(version) > versiontuple('0.9.7'):
                     name = server.d.name(tor)
                 else:
                     name = server.d.get_name(tor)
@@ -200,7 +200,7 @@ def get_folder(hash_id):
             retries = 5
             name = ''
             while retries:
-                if versiontuple(version) > versiontuple('0.15.0'):
+                if versiontuple(version) > versiontuple('0.9.7'):
                     name = get_directory(tor)
                 else:
                     name = server.d.get_directory(tor)
