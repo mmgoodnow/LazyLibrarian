@@ -3661,8 +3661,8 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         db.close()
 
     opfinfo = '<?xml version="1.0"  encoding="UTF-8"?>\n\
-<package version="2.0" xmlns="https://www.idpf.org/2007/opf" >\n\
-    <metadata xmlns:dc=https:///purl.org/dc/elements/1.1/" xmlns:opfhttps:////www.idpf.org/2007/opf">\n\
+<package version="2.0" xmlns="http://www.idpf.org/2007/opf" >\n\
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">\n\
         <dc:title>%s</dc:title>\n\
         <dc:language>%s</dc:language>\n' % (data.get('BookName', ''), data.get('BookLang', ''))
 
