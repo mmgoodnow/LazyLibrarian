@@ -26,7 +26,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
 from lazylibrarian.formatter import plural, check_int, now, get_list, sanitize
 from lazylibrarian.images import create_mag_cover
-from lazylibrarian.postprocess import create_comic_opf
+from lazylibrarian.metadata_opf import create_comic_opf
 
 
 def comic_scan(comicid=None):

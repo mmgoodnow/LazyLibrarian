@@ -36,7 +36,7 @@ from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.filesystem import DIRS, path_isdir, path_isfile, syspath, remove_file, setperm, \
     make_dirs, get_directory
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, sanitize
-from lazylibrarian.postprocess import delete_task, check_contents
+from lazylibrarian.download_client import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
 from lazylibrarian.directparser import bok_login, session_get, bok_grabs
 from lazylibrarian.soulseek import SLSKD

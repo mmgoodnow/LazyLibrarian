@@ -14,6 +14,7 @@
 
 # import chardet
 import datetime
+from functools import wraps
 from hashlib import md5
 import os
 import re
@@ -69,6 +70,46 @@ def thread_name(name=None) -> str:
         return name
     else:
         return threading.current_thread().name
+
+
+def restore_thread_name(thread_prefix, restore_to='WEBSERVER'):
+    """
+    Decorator to restore thread name on function exit.
+
+    Used for functions that run in spawned threads (IMPORTISSUES, IMPORTALT, etc.)
+    which need to reset their thread name before the thread terminates.
+
+    This decorator ensures the thread name is always restored, even if the
+    function returns early or raises an exception.
+
+    Args:
+        thread_prefix: Prefix to check for in thread name (e.g., 'IMPORTISSUES', 'IMPORTALT')
+        restore_to: Thread name to restore to (default: 'WEBSERVER')
+
+    Example:
+        @restore_thread_name('IMPORTISSUES')  # Restores to 'WEBSERVER' (default)
+        def process_issues(source_dir, title):
+            if not source_dir:
+                return False  # Thread name automatically restored to 'WEBSERVER'
+            # ... processing ...
+            return True
+
+        @restore_thread_name('CUSTOMTASK', restore_to='SCHEDULER')  # Restores to 'SCHEDULER'
+        def custom_task():
+            # ... processing ...
+            return  # Thread name automatically restored to 'SCHEDULER'
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            finally:
+                # Restore thread name if this is a spawned thread with our prefix
+                if thread_prefix in threading.current_thread().name:
+                    threading.current_thread().name = restore_to
+        return wrapper
+    return decorator
 
 
 def split_author_names(namelist, splitlist):

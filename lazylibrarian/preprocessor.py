@@ -303,7 +303,10 @@ def write_audio_tags(bookfolder, filename, track, metatags):
     try:
         extn = os.path.splitext(filename)[1]
         params = [ffmpeg, '-i', os.path.join(bookfolder, filename),
-                  '-y', '-c:a', 'copy']
+                  '-y', '-c:a', 'copy',
+                  '-c:v', 'copy']  # ffmpeg will detect cover art in m4a as a video
+                                   # and try to convert to mjpeg to h264 and will fail
+                                   #when codec is not installed. This copies image as is
         params.extend(metatags)
         params.extend(['-metadata', f'track={track}'])
         tempfile = os.path.join(bookfolder, f"tempaudio{extn}")
@@ -349,7 +352,7 @@ def write_audio_tags(bookfolder, filename, track, metatags):
     return True
 
 
-def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
+def preprocess_audio(bookfolder, bookid='', authorname='', bookname='', merge=None, tag=None, zipp=None):
     logger = logging.getLogger(__name__)
     postprocesslogger = logging.getLogger('special.postprocess')
     if merge is None:

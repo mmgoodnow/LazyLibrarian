@@ -54,9 +54,21 @@ from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.multiauth import get_authors_from_hc, get_authors_from_ol, get_authors_from_book_files
-from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
-    process_book_from_dir, process_mag_from_file, send_ebook_to_calibre, send_mag_issue_to_calibre, \
-    send_comic_issue_to_calibre
+from lazylibrarian.calibre_integration import (
+    send_ebook_to_calibre,
+    send_mag_issue_to_calibre,
+    send_comic_issue_to_calibre,
+)
+from lazylibrarian.metadata_opf import create_opf
+from lazylibrarian.manual_import import (
+    process_alternate,
+    process_book_from_dir,
+    process_mag_from_file,
+)
+from lazylibrarian.postprocess_refactor import (
+    process_dir,
+    process_img,
+)
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory, get_threads
 from lazylibrarian.providers import get_capabilities

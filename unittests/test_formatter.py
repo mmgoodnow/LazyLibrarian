@@ -578,3 +578,113 @@ class FormatterTest(LLTestCaseWithStartup):
             with self.subTest(seconds=seconds):
                 pretty = formatter.pretty_approx_time(seconds)
                 self.assertEqual(pretty, testdata[seconds])
+
+    def test_restore_thread_name_decorator_normal_return(self):
+        """Test that decorator restores thread name on normal return"""
+        import threading
+        from lazylibrarian.formatter import restore_thread_name, thread_name
+
+        # Set initial thread name
+        thread_name('IMPORTISSUES_TestMag')
+
+        @restore_thread_name('IMPORTISSUES')
+        def test_func():
+            return True
+
+        result = test_func()
+        self.assertTrue(result)
+        self.assertEqual(thread_name(), 'WEBSERVER')
+
+    def test_restore_thread_name_decorator_exception(self):
+        """Test that decorator restores thread name even when exception raised"""
+        import threading
+        from lazylibrarian.formatter import restore_thread_name, thread_name
+
+        # Set initial thread name
+        thread_name('IMPORTALT_eBook')
+
+        @restore_thread_name('IMPORTALT')
+        def test_func():
+            raise ValueError("Test error")
+
+        with self.assertRaises(ValueError):
+            test_func()
+
+        # Thread name should still be restored
+        self.assertEqual(thread_name(), 'WEBSERVER')
+
+    def test_restore_thread_name_decorator_wrong_prefix(self):
+        """Test that decorator doesn't change unrelated thread names"""
+        import threading
+        from lazylibrarian.formatter import restore_thread_name, thread_name
+
+        # Set thread name without the expected prefix
+        thread_name('SCHEDULER')
+
+        @restore_thread_name('IMPORTISSUES')
+        def test_func():
+            return True
+
+        test_func()
+
+        # Thread name should be unchanged
+        self.assertEqual(thread_name(), 'SCHEDULER')
+
+    def test_restore_thread_name_decorator_multiple_returns(self):
+        """Test that decorator works with multiple return paths"""
+        import threading
+        from lazylibrarian.formatter import restore_thread_name, thread_name
+
+        @restore_thread_name('IMPORTISSUES')
+        def test_func(condition):
+            if not condition:
+                return False  # Early return
+            # ... processing ...
+            return True  # Normal return
+
+        # Test early return
+        thread_name('IMPORTISSUES_EarlyTest')
+        result = test_func(False)
+        self.assertFalse(result)
+        self.assertEqual(thread_name(), 'WEBSERVER')
+
+        # Test normal return
+        thread_name('IMPORTISSUES_NormalTest')
+        result = test_func(True)
+        self.assertTrue(result)
+        self.assertEqual(thread_name(), 'WEBSERVER')
+
+    def test_restore_thread_name_decorator_custom_restore_target(self):
+        """Test that decorator can restore to custom thread name"""
+        import threading
+        from lazylibrarian.formatter import restore_thread_name, thread_name
+
+        # Set thread name
+        thread_name('CUSTOMTASK_MyTask')
+
+        @restore_thread_name('CUSTOMTASK', restore_to='SCHEDULER')
+        def test_func():
+            return True
+
+        result = test_func()
+        self.assertTrue(result)
+        # Should restore to SCHEDULER, not WEBSERVER
+        self.assertEqual(thread_name(), 'SCHEDULER')
+
+    def test_restore_thread_name_decorator_default_webserver(self):
+        """Test that decorator defaults to WEBSERVER when restore_to not specified"""
+        import threading
+        from lazylibrarian.formatter import restore_thread_name, thread_name
+
+        # Set thread name
+        thread_name('IMPORTISSUES_DefaultTest')
+
+        @restore_thread_name('IMPORTISSUES')  # No restore_to specified
+        def test_func():
+            return True
+
+        result = test_func()
+        self.assertTrue(result)
+        # Should restore to WEBSERVER (default)
+
+        self.assertEqual(thread_name(), 'WEBSERVER')

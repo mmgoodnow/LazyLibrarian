@@ -70,7 +70,7 @@ def startscheduler():
 
 def shutdownscheduler():
     try:
-        if SCHED:
+        if SCHED and SCHED.running:
             # noinspection PyUnresolvedReferences
             SCHED.shutdown(wait=False)
     except (NameError, SchedulerNotRunningError):

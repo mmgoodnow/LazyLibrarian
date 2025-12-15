@@ -1056,7 +1056,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         f"Book {book} by {author} is marked Ignored in database, importing anyway")
 
                                 if not bookid and forced_bookid:
-                                    if lazylibrarian.postprocess.process_book_from_dir(source_dir=rootdir,
+                                    if lazylibrarian.manual_import.process_book_from_dir(source_dir=rootdir,
                                                                                        library=library,
                                                                                        bookid=forced_bookid):
                                         bookid = forced_bookid
@@ -1189,7 +1189,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                             # create an opf file if there isn't one
                                             book_filename = os.path.join(rootdir, files)
-                                            _ = lazylibrarian.postprocess.create_opf(os.path.dirname(book_filename),
+                                            _ = lazylibrarian.metadata_opf.create_opf(os.path.dirname(book_filename),
                                                                                      check_status,
                                                                                      os.path.splitext(os.path.basename(
                                                                                          book_filename))[0],
@@ -1244,7 +1244,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             # store audiobook location so we can check if it gets (re)moved
                                             book_filename = os.path.join(rootdir, files)
                                             # create an opf if there isn't one
-                                            _ = lazylibrarian.postprocess.create_opf(os.path.dirname(book_filename),
+                                            _ = lazylibrarian.metadata_opf.create_opf(os.path.dirname(book_filename),
                                                                                      check_status,
                                                                                      check_status['BookName'],
                                                                                      overwrite=False)
