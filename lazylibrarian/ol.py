@@ -20,7 +20,7 @@ from rapidfuzz import fuzz
 
 import lazylibrarian
 from lazylibrarian import database, ROLE
-from lazylibrarian.bookdict import warn_about_bookdict, add_bookdict_to_db
+from lazylibrarian.bookdict import warn_about_bookdict, add_bookdict_to_db, validate_bookdict
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
     isbnlang, is_set_or_part, delete_empty_series
 from lazylibrarian.cache import json_request, html_request
