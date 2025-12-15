@@ -345,7 +345,7 @@ def magazine_scan(title=None):
                         if not CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')
                         else:
-                            lazylibrarian.postprocess.create_mag_opf(issuefile, title, issuedate,
+                            lazylibrarian.metadata_opf.create_mag_opf(issuefile, title, issuedate,
                                                                      issue_id, language=maglanguage,
                                                                      overwrite=new_entry)
                         # see if this issues date values are useful
@@ -926,7 +926,7 @@ def rename_issue(issueid, tags=None):
     if CONFIG.get_bool('IMP_MAGOPF'):
         logger.debug(f"Writing opf for {new_filename}")
         entry = db.match('SELECT Language FROM magazines where Title=?', (match['Title'],))
-        _, _ = lazylibrarian.postprocess.create_mag_opf(new_filename, match['Title'],
+        _, _ = lazylibrarian.metadata_opf.create_mag_opf(new_filename, match['Title'],
                                                         match['IssueDate'], issueid, language=entry[0],
                                                         overwrite=True)
     db.close()

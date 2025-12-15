@@ -70,8 +70,15 @@ from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
-from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
-    create_opf, process_book_from_dir, process_issues, send_mag_issue_to_calibre
+from lazylibrarian.calibre_integration import send_mag_issue_to_calibre
+from lazylibrarian.download_client import delete_task, get_download_progress
+from lazylibrarian.metadata_opf import create_opf
+from lazylibrarian.manual_import import (
+    process_alternate,
+    process_book_from_dir,
+    process_issues,
+)
+from lazylibrarian.postprocess_refactor import process_dir
 from lazylibrarian.processcontrol import get_info_on_caller
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
@@ -6412,7 +6419,7 @@ class WebInterface:
                             passed += 1
                             if CONFIG.get_bool('IMP_MAGOPF'):
                                 logger.debug(f"Writing opf for {issuefile}")
-                                _, _ = lazylibrarian.postprocess.create_mag_opf(issuefile, title,
+                                _, _ = lazylibrarian.metadata_opf.create_mag_opf(issuefile, title,
                                                                                 issue['IssueDate'], itm,
                                                                                 language=entry[0],
                                                                                 genres=genres,
@@ -6649,7 +6656,7 @@ class WebInterface:
                         passed += 1
                         if CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug(f"Writing opf for {issue['IssueFile']}")
-                            _, _ = lazylibrarian.postprocess.create_mag_opf(issue['IssueFile'], title,
+                            _, _ = lazylibrarian.metadata_opf.create_mag_opf(issue['IssueFile'], title,
                                                                             issue["IssueDate"],
                                                                             issue["IssueID"],
                                                                             language=mag[0],
