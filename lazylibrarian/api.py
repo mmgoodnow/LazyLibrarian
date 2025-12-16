@@ -56,7 +56,7 @@ from lazylibrarian.manualbook import search_item
 from lazylibrarian.multiauth import get_authors_from_hc, get_authors_from_ol, get_authors_from_book_files
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
     process_book_from_dir, process_mag_from_file, send_ebook_to_calibre, send_mag_issue_to_calibre, \
-    send_comic_issue_to_calibre
+    send_comic_issue_to_calibre, get_download_progress
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory, get_threads
 from lazylibrarian.providers import get_capabilities
@@ -260,7 +260,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'setpdftags': (1, '&id= &tags= Set embedded tags in a pdf issue file'),
             'listsecondaries': (0, 'list all authors that are not primary author of any book in the database'),
             'deletesecondaries': (1, 'delete all secondary authors in the database'),
-            'isbnwords': (0, 'find an isbn for a title')
+            'isbnwords': (0, 'find an isbn for a title'),
+            'getDownloadProgress': (0, '[&source=] [&downloadid=] [&limit=] show active download progress')
             }
 
 
@@ -418,6 +419,7 @@ class Api(object):
         cmd = f"SELECT issueid,issuefile from issues WHERE title=\'{kwargs['title']}\'"
         issues = db.select(cmd)
         db.close()
+
         if not issues:
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 200,
                                                                  'Message': f"No Issues for {kwargs['title']}"}}
@@ -437,6 +439,49 @@ class Api(object):
                         hit += 1
             self.data = {'Success': miss == 0, 'Data': f"Renamed {hit}: Failed {miss}",
                          'Error': {'Code': 200, 'Message': ''}}
+        return
+
+    def _getdownloadprogress(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        source = kwargs.get('source')
+        downloadid = kwargs.get('downloadid')
+        limit = check_int(kwargs.get('limit'), 0)
+
+        if (source and not downloadid) or (downloadid and not source):
+            self.data = {'Success': False, 'Data': '',
+                         'Error': {'Code': 400, 'Message': 'Both source and downloadid are required'}}
+            return
+
+        if source and downloadid:
+            progress, finished = get_download_progress(source, downloadid)
+            self.data = {'Success': True,
+                         'Data': {'source': source, 'downloadid': downloadid,
+                                  'progress': progress, 'finished': finished},
+                         'Error': {'Code': 200, 'Message': 'OK'}}
+            return
+
+        db = database.DBConnection()
+        try:
+            cmd = ("SELECT NZBTitle,BookID,AuxInfo,NZBProv,NZBmode,Status,Source,DownloadID,Completed,DLResult,rowid "
+                   "FROM wanted WHERE Status IN ('Snatched','Seeding') ORDER BY rowid DESC")
+            rows = db.select(cmd)
+        finally:
+            db.close()
+
+        items = []
+        for row in rows[:limit] if limit else rows:
+            row = dict(row)
+            dl_source = row.get('Source')
+            dl_id = row.get('DownloadID')
+            if dl_source and dl_id:
+                progress, finished = get_download_progress(dl_source, dl_id)
+            else:
+                progress, finished = -1, False
+            row['progress'] = progress
+            row['finished'] = finished
+            items.append(row)
+
+        self.data = {'Success': True, 'Data': items, 'Error': {'Code': 200, 'Message': 'OK'}}
         return
 
     def _newauthorid(self, **kwargs):
