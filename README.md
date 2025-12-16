@@ -53,3 +53,12 @@ LinuxServer : https://hub.docker.com/r/linuxserver/lazylibrarian/
 The docker package includes ghostscript for magazine cover generation and calibredb (via optional variable)
 LinuxServer docker is multi-arch and works on X86_64, armhf and aarch64 (calibredb only available on X86_64)
 The dockers can be upgraded using the lazylibrarian internal upgrade mechanism
+
+## Docker (this repo)
+Build:
+`docker build -t lazylibrarian:local .`
+
+Run (persists config in `./config`, listens on port 5299):
+`docker run --rm -p 5299:5299 -v "$PWD/config:/config" lazylibrarian:local`
+
+If you see `TopLevelLookupException` for missing templates, rebuild the image; the UI templates live under `data/interfaces` and must be included in the image.
