@@ -17,6 +17,8 @@ startlazy.sh
 unittests/Logs
 unittests/cache
 python_version.txt
+.env
+llapi
 
 #  Bookstrap related  #
 #######################
