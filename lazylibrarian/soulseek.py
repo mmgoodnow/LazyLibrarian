@@ -219,7 +219,8 @@ class SLSKD:
                             else:
                                 directory = self.slskd.users.directory(username=username, directory=file_dir)
                         except Exception as e:
-                            self.logger.warning(str(e))
+                            self.logger.warning(f"Ignoring {username}, {str(e)}")
+                            self.ignored_users.append(username)
                             continue
 
                         if not CONFIG.is_valid_booktype(file_name, booktype=searchtype):
