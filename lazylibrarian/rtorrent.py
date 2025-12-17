@@ -57,8 +57,11 @@ def get_server():
         socket.setdefaulttimeout(None)  # reset timeout if failed
         logger.error(f"xmlrpc_client error: {repr(e)}")
         return False, ''
-    if version:
+    if version and versiontuple(version) >= versiontuple('0.9.8'):
         return server, version
+    if version:
+        logger.error(f"rTorrent {version} is not supported, require >= 0.9.8")
+        return False, version
     else:
         logger.warning('No response from rTorrent server')
         return False, ''
@@ -68,46 +71,40 @@ def add_torrent(tor_url, hash_id, data=None):
     logger = logging.getLogger(__name__)
     server, version = get_server()
     if server is False:
+        if version:
+            return False, f'rTorrent {version} is not supported (require >= 0.9.8)'
         return False, 'rTorrent unable to connect to server'
     try:
+        paused = CONFIG.get_bool('TORRENT_PAUSED')
+        label = CONFIG['RTORRENT_LABEL']
+        directory = CONFIG['RTORRENT_DIR']
+
+        post_load_cmds = []
+        if label:
+            post_load_cmds.append(f'd.custom1.set="{label}"')
+        if directory:
+            post_load_cmds.append(f'd.directory.set="{directory}"')
+
         if data:
             logger.debug(f'Sending rTorrent content [{str(data)[:40]}...]')
-            if versiontuple(version) > versiontuple('0.9.7'):
-                _ = server.load.raw('', Binary(data))
+            if paused:
+                _ = server.load.raw('', Binary(data), *post_load_cmds)
             else:
-                _ = server.load_raw(Binary(data))
+                _ = server.load.raw_start('', Binary(data), *post_load_cmds)
         else:
             logger.debug(f'Sending rTorrent url [{str(tor_url)[:40]}...]')
-            if versiontuple(version) > versiontuple('0.9.7'):
-                _ = server.load.normal('', tor_url)  # response isn't anything useful, always 0
+            if paused:
+                _ = server.load.normal('', tor_url, *post_load_cmds)  # response isn't anything useful, always 0
             else:
-                _ = server.load(tor_url)
+                _ = server.load.start('', tor_url, *post_load_cmds)
         # need a short pause while rtorrent loads it
         retries = 5
         while retries:
             mainview = server.download_list("", "main")
-            for tor in mainview:
-                if tor.upper() == hash_id.upper():
-                    break
+            if any(tor.upper() == hash_id.upper() for tor in mainview):
+                break
             sleep(1)
             retries -= 1
-
-        label = CONFIG['RTORRENT_LABEL']
-        if label:
-            if versiontuple(version) > versiontuple('0.9.7'):
-                server.d.custom1.set(hash_id, label)
-            else:
-                server.d.set_custom1(hash_id, label)
-
-        directory = CONFIG['RTORRENT_DIR']
-        if directory:
-            if versiontuple(version) > versiontuple('0.9.7'):
-                server.d.directory.set(hash_id, directory)
-            else:
-                server.d.set_directory(hash_id, directory)
-
-        if not CONFIG.get_bool('TORRENT_PAUSED'):
-            server.d.start(hash_id)
 
     except Exception as e:
         res = f"rTorrent Error: {type(e).__name__}: {str(e)}"
@@ -117,12 +114,8 @@ def add_torrent(tor_url, hash_id, data=None):
     # wait a while for download to start, that's when rtorrent fills in the name
     name = get_name(hash_id)
     if name:
-        if versiontuple(version) > versiontuple('0.9.7'):
-            directory = get_directory(hash_id)
-            label = server.d.custom1(hash_id)
-        else:
-            directory = server.d.get_directory(hash_id)
-            label = server.d.get_custom1(hash_id)
+        directory = get_directory(hash_id)
+        label = server.d.custom1(hash_id)
 
         if label:
             logger.debug(f'rTorrent downloading {name} to {directory} with label {label}')
@@ -177,10 +170,7 @@ def get_name(hash_id):
             retries = 5
             name = ''
             while retries:
-                if versiontuple(version) > versiontuple('0.9.7'):
-                    name = server.d.name(tor)
-                else:
-                    name = server.d.get_name(tor)
+                name = server.d.name(tor)
                 if tor.upper() not in name:
                     break
                 sleep(5)
@@ -200,10 +190,7 @@ def get_folder(hash_id):
             retries = 5
             name = ''
             while retries:
-                if versiontuple(version) > versiontuple('0.9.7'):
-                    name = get_directory(tor)
-                else:
-                    name = server.d.get_directory(tor)
+                name = get_directory(tor)
                 if tor.upper() not in name:
                     break
                 sleep(5)
