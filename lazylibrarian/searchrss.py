@@ -22,6 +22,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.downloadmethods import tor_dl_method
 from lazylibrarian.csvfile import finditem
 from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name, get_list, now
+from lazylibrarian.images import get_book_cover
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
 from lazylibrarian.librarysync import find_book_in_db
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
@@ -47,7 +48,7 @@ def cron_search_wishlist():
         logger.debug("SEARCHWISHLIST is already running")
 
 
-def calc_status(bookmatch, wishlist, search_start, ebook_status, audio_status):
+def calc_status(bookmatch, search_start, ebook_status, audio_status):
     # calculate status according to existing/author/series statuses
     # return whether status/audiostatus is "Wanted""
     logger = logging.getLogger(__name__)
@@ -86,15 +87,6 @@ def calc_status(bookmatch, wishlist, search_start, ebook_status, audio_status):
         if bookmatch.get('Status', '') in ['Open', 'Wanted', 'Have']:
             logger.info(
                 f"Found book {bookname} by {authorname}, already marked as \"{bookmatch['Status']}\"")
-            if bookmatch.get("Requester", ''):  # Already on a wishlist
-                if wishlist not in bookmatch["Requester"]:
-                    new_value_dict = {"Requester": f"{bookmatch['Requester'] + wishlist} "}
-                    control_value_dict = {"BookID": bookid}
-                    db.upsert("books", new_value_dict, control_value_dict)
-            else:
-                new_value_dict = {"Requester": f"{wishlist} "}
-                control_value_dict = {"BookID": bookid}
-                db.upsert("books", new_value_dict, control_value_dict)
         elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
             # not wanted if author is ignored (changed, was paused/ignored)
             logger.info(f'Found book {bookname}, but author is "{auth_status}"')
@@ -102,32 +94,10 @@ def calc_status(bookmatch, wishlist, search_start, ebook_status, audio_status):
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
         elif ebook_status == 'Wanted':
             # still wanted...
-            logger.info(f"Found book {bookname} by {authorname}, marking as Wanted "
-                        f"(was {bookmatch.get('Status', 'new')})")
-            control_value_dict = {"BookID": bookid}
-            new_value_dict = {"Status": "Wanted"}
-            db.upsert("books", new_value_dict, control_value_dict)
+            logger.info(f"Book {bookname} by {authorname} is Wanted (was {bookmatch.get('Status', 'new')})")
             want_book = True
-            if bookmatch.get("Requester", ''):  # Already on a wishlist
-                if wishlist not in bookmatch["Requester"]:
-                    new_value_dict = {"Requester": f"{bookmatch['Requester'] + wishlist} "}
-                    control_value_dict = {"BookID": bookid}
-                    db.upsert("books", new_value_dict, control_value_dict)
-            else:
-                new_value_dict = {"Requester": f"{wishlist} "}
-                control_value_dict = {"BookID": bookid}
-                db.upsert("books", new_value_dict, control_value_dict)
         if bookmatch.get('AudioStatus', '') in ['Open', 'Wanted', 'Have']:
             logger.info(f"Found audiobook {bookname} by {authorname}, already marked as \"{bookmatch['AudioStatus']}\"")
-            if bookmatch.get("AudioRequester", ''):  # Already on a wishlist
-                if wishlist not in bookmatch["AudioRequester"]:
-                    new_value_dict = {"AudioRequester": f"{bookmatch['AudioRequester'] + wishlist} "}
-                    control_value_dict = {"BookID": bookid}
-                    db.upsert("books", new_value_dict, control_value_dict)
-            else:
-                new_value_dict = {"AudioRequester": f"{wishlist} "}
-                control_value_dict = {"BookID": bookid}
-                db.upsert("books", new_value_dict, control_value_dict)
         elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
             # not wanted if author is ignored (changed, was paused/ignored)
             logger.info(f'Found book {bookname}, but author is "{auth_status}"')
@@ -135,21 +105,8 @@ def calc_status(bookmatch, wishlist, search_start, ebook_status, audio_status):
             logger.info(f"Found book {bookname}, but series \"{reject_series['Name']}\" is {reject_series['Status']}")
         elif audio_status == 'Wanted':
             # still wanted...
-            logger.info(f"Found audiobook {bookname} by {authorname}, marking as Wanted "
-                        f"(was {bookmatch.get('AudioStatus', 'new')})")
-            control_value_dict = {"BookID": bookid}
-            new_value_dict = {"AudioStatus": "Wanted"}
-            db.upsert("books", new_value_dict, control_value_dict)
+            logger.info(f"Audiobook {bookname} by {authorname} is Wanted (was {bookmatch.get('AudioStatus', 'new')})")
             want_audio = True
-            if bookmatch.get("AudioRequester", ''):  # Already on a wishlist
-                if wishlist not in bookmatch["AudioRequester"]:
-                    new_value_dict = {"AudioRequester": f"{bookmatch['AudioRequester'] + wishlist} "}
-                    control_value_dict = {"BookID": bookid}
-                    db.upsert("books", new_value_dict, control_value_dict)
-            else:
-                new_value_dict = {"AudioRequester": f"{wishlist} "}
-                control_value_dict = {"BookID": bookid}
-                db.upsert("books", new_value_dict, control_value_dict)
     except Exception as e:
         logger.error(str(e))
         logger.error(f"{traceback.format_exc()}")
@@ -211,6 +168,8 @@ def search_wishlist():
                 bookmatch = None
                 bookid, _ = find_book_in_db(book['rss_author'], book['rss_title'], ignored=None, library='eBook',
                                             reason=f"wishlist: {book['dispname']}", source='')
+                wishlist = book.get('dispname', '')
+                want_book = want_audio = False
                 if bookid:  # it's in the database
                     bookmatch = db.match('SELECT * from books WHERE bookid=?', (bookid,))
                     authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (bookmatch['AuthorID'], ))
@@ -219,7 +178,7 @@ def search_wishlist():
                     logger.debug(f"Found in database, {authormatch['AuthorName']}:{bookmatch['BookName']} "
                                  f"Status {bookmatch['Status']}:{bookmatch['AudioStatus']}")
                     bookmatch['AuthorName'] = authormatch['AuthorName']
-                    want_book, want_audio = calc_status(bookmatch, book.get('dispname', ''), search_start,
+                    want_book, want_audio = calc_status(bookmatch, search_start,
                                                         ebook_status, audio_status)
                     item['BookID'] = bookmatch['BookID']
                     if want_book and bookmatch['Status'] not in ['Wanted', 'Ignored', 'Open', 'Have']:
@@ -272,8 +231,8 @@ def search_wishlist():
                                                          reason=f"wishlist: {book['dispname']}")
                                     if bookmatch:  # it's in the database under isbn authorname
                                         bookmatch = dict(bookmatch)
-                                        want_book, want_audio = calc_status(bookmatch, book.get('dispname', ''),
-                                                                            search_start, ebook_status, audio_status)
+                                        want_book, want_audio = calc_status(bookmatch, search_start,
+                                                                            ebook_status, audio_status)
                                         item['BookID'] = bookmatch['BookID']
                                         if want_book:
                                             new_books.append(item)
@@ -332,8 +291,7 @@ def search_wishlist():
                         bookmatch['AuthorName'] = authorname
                         bookmatch['AuthorID'] = authorid
                         item['BookID'] = bookmatch['bookid']
-                        want_book, want_audio = calc_status(bookmatch, book.get('dispname', ''), search_start,
-                                                            ebook_status, audio_status)
+                        want_book, want_audio = calc_status(bookmatch, search_start, ebook_status, audio_status)
                         new_value_dict = {}
                         if want_book:
                             ebook_status = "Wanted"
@@ -364,6 +322,28 @@ def search_wishlist():
                                 f"Closest match ({round(results[0]['author_fuzz'], 2)}% "
                                 f"{round(results[0]['book_fuzz'], 2)}%) "
                                 f"{results[0]['authorname']}: {results[0]['bookname']}")
+                if bookmatch:
+                    new_value_dict = {}
+                    if bookmatch.get("Requester", ''):  # Already on a wishlist
+                        if wishlist and wishlist not in bookmatch["Requester"]:
+                            new_value_dict["Requester"] = f"{bookmatch['Requester'] + wishlist} "
+                    if bookmatch.get("AudioRequester", ''):
+                        if wishlist and wishlist not in bookmatch["AudioRequester"]:
+                            new_value_dict["AudioRequester"] = f"{bookmatch['AudioRequester'] + wishlist} "
+                    if want_book:
+                        new_value_dict['Status'] = "Wanted"
+                    if want_audio:
+                        new_value_dict['AudioStatus'] = "Wanted"
+
+                    coverlink = bookmatch.get('BookImg', 'nocover')
+                    if 'nocover' in coverlink:
+                        coverlink, _ = get_book_cover(bookid)
+                        if coverlink and "nocover" not in coverlink:
+                            new_value_dict["BookImg"] = coverlink
+
+                    if new_value_dict:
+                        control_value_dict = {"BookID": bookid}
+                        db.upsert("books", new_value_dict, control_value_dict)
 
             if new_books or new_audio:
                 tot = len(new_books) + len(new_audio)
