@@ -118,7 +118,7 @@ class BookState:
 
     Attributes:
         book_id: Unique identifier for the book/magazine
-        title: Normalized title for matching
+        book_title: Normalized title for matching
         aux_type: Type of media from aux_info field (eBook, AudioBook, Magazine)
         aux_info: Auxiliary information (e.g., issue date for magazines)
         completed_at: Unix timestamp when download completed
@@ -501,14 +501,14 @@ def process_img(
         return
 
 
-def _update_downloads_provider_count(db, provider: str = "manually added"):
+def _update_downloads_provider_count(provider: str = "manually added"):
     """
     Count the number of times that each provider was used for each download.
 
     Args:
-        db: Externally managed db connector
         provider: Optional name of provider of download
     """
+    db = database.DBConnection()
     entry = dict(db.match("SELECT Count FROM downloads where Provider=?", (provider,)))
     if entry:
         counter = int(entry["Count"])
@@ -519,6 +519,7 @@ def _update_downloads_provider_count(db, provider: str = "manually added"):
         db.action(
             "INSERT into downloads (Count, Provider) VALUES  (?, ?)", (1, provider)
         )
+    db.close()
 
 
 def _transfer_matching_files(
@@ -654,7 +655,7 @@ def _get_ready_from_snatched(db, snatched_list: List[dict]):
 
     Args:
         db: Database connection
-        unprocessed: List of books with Status='Snatched'
+        snatched_list: List of books with Status='Snatched'
 
     Returns:
         List of book rows ready to process (download complete and content valid)
@@ -662,7 +663,7 @@ def _get_ready_from_snatched(db, snatched_list: List[dict]):
     logger = logging.getLogger(__name__)
 
     books_to_process = []  # the filtered list of books ready for processing
-    DELETE_FAILED = CONFIG.get_bool("DEL_FAILED")
+    delete_failed = CONFIG.get_bool("DEL_FAILED")
 
     for book_row in snatched_list:
         # Get current status from the downloader as the name may have changed
@@ -712,7 +713,7 @@ def _get_ready_from_snatched(db, snatched_list: List[dict]):
                 logger.info(
                     f"STATUS: {title} [Snatched -> Failed] Content rejected: {rejected}"
                 )
-                if DELETE_FAILED:
+                if delete_failed:
                     delete_task(source, download_id, True)
             continue
 
@@ -720,7 +721,8 @@ def _get_ready_from_snatched(db, snatched_list: List[dict]):
         progress, finished = get_download_progress(source, download_id)
         # progress can be: -1 (not found/removed - may be seeding complete), 0-99 (in progress), 100+ (complete)
         # finished is True only when downloader confirms completion
-        # Process if: progress >= 100 (complete/seeding), finished == True, or progress == -1 (torrent removed after seeding)
+        # Process if: progress >= 100 (complete/seeding), finished == True, or progress == -1
+        # (torrent removed after seeding)
         # Skip only if: 0 <= progress < 100 and not finished (actively downloading)
         if 0 <= progress < 100 and not finished:
             logger.debug(
@@ -866,7 +868,7 @@ def _extract_best_match_from_collection(
         - skipped: Whether extraction was skipped
         - skip_reason: Reason for skipping, if applicable
     """
-    MATCH_THRESHOLD = CONFIG.get_int("DLOAD_RATIO")
+    match_threshold = CONFIG.get_int("DLOAD_RATIO")
     best_match = None
     best_score = 0
 
@@ -878,7 +880,7 @@ def _extract_best_match_from_collection(
             normalized_fname = _normalize_title(filename_stem)
 
             match_percent = fuzz.token_set_ratio(target_title, normalized_fname)
-            is_match = match_percent >= MATCH_THRESHOLD
+            is_match = match_percent >= match_threshold
             fuzzlogger.debug(
                 f"{round(match_percent, 2)}% match {target_title} : {normalized_fname}"
             )
@@ -2222,7 +2224,6 @@ def _handle_seeding_status(
 
     Args:
         book_state: SimpleNamespace with download state
-        book_row: Original database row dict
         keep_seeding: CONFIG['KEEP_SEEDING'] value
         wait_for_seeding: CONFIG['SEED_WAIT'] value
         db: Database connection
@@ -2304,7 +2305,7 @@ def _handle_seeding_status(
 
 
 def _handle_snatched_timeout(
-    book_state, hours: int, mins: int, max_hours: int, db, logger: logging.Logger
+    book_state, hours: int, mins: int, max_hours: int, logger: logging.Logger
 ) -> tuple:
     """
     Handle timeout logic for downloads in 'Snatched' status.
@@ -2321,7 +2322,6 @@ def _handle_snatched_timeout(
         hours: Hours since download was snatched
         mins: Minutes since download was snatched
         max_hours: CONFIG['TASK_AGE'] maximum age before abort
-        db: Database connection
         logger: Logger instance
 
     Returns:
@@ -2496,9 +2496,9 @@ def _manage_download_status(db, logger: logging.Logger) -> None:
     logger.info(f"Found {len(incomplete)} items for status management")
 
     # Get config values once
-    KEEP_SEEDING = CONFIG.get_bool("KEEP_SEEDING")
-    WAIT_FOR_SEEDING = CONFIG.get_bool("SEED_WAIT")
-    MAX_HOURS = CONFIG.get_int("TASK_AGE")
+    keep_seeding = CONFIG.get_bool("KEEP_SEEDING")
+    wait_for_seeding = CONFIG.get_bool("SEED_WAIT")
+    max_hours = CONFIG.get_int("TASK_AGE")
 
     for book_row in incomplete:
         book_dict = dict(book_row)
@@ -2527,7 +2527,7 @@ def _manage_download_status(db, logger: logging.Logger) -> None:
         # Route to appropriate handler based on status
         if book_state.status == "Seeding":
             should_skip = _handle_seeding_status(
-                book_state, KEEP_SEEDING, WAIT_FOR_SEEDING, db, logger
+                book_state, keep_seeding, wait_for_seeding, db, logger
             )
             if should_skip:
                 continue
@@ -2535,7 +2535,7 @@ def _manage_download_status(db, logger: logging.Logger) -> None:
         elif book_state.status == "Snatched":
             hours, mins, _ = _calculate_download_age(book_state.snatched_date)
             should_abort, should_skip = _handle_snatched_timeout(
-                book_state, hours, mins, MAX_HOURS, db, logger
+                book_state, hours, mins, max_hours, logger
             )
 
             if should_skip:
@@ -2668,6 +2668,7 @@ def _compile_all_downloads(dirlist, logger):
     return all_downloads
 
 
+# noinspection PyBroadException
 def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
     """
     Main postprocessor entry point with book-centric workflow.
@@ -2723,7 +2724,6 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
 
         # Now we will get a list of wanted books that are snatched and ready for processing
-        snatched_books = []
         if downloadid:
             snatched_books = db.select(
                 "SELECT * from wanted WHERE DownloadID=? AND Status='Snatched'",
@@ -2787,7 +2787,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         # and performing file operations on the downloaded items
 
         # This will provide a little bit of padding between dl completion and processing
-        PROCESSING_DELAY = CONFIG.get_int("PP_DELAY")
+        processing_delay = CONFIG.get_int("PP_DELAY")
 
         ppcount = 0
         for book_row in books_to_process:
@@ -2796,14 +2796,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
             # Check processing delay (once per book, not per directory!)
             # Legacy-compatible: processes even if Completed==0 (some clients don't set it)
-            if PROCESSING_DELAY:
+            if processing_delay:
                 should_delay, elapsed = book_state.should_delay_processing(
-                    PROCESSING_DELAY
+                    processing_delay
                 )
                 if should_delay:
                     postprocesslogger.warning(
                         f"Ignoring {book_state.download_title} as completion was only {elapsed} "
-                        f"{plural(elapsed, 'second')} ago, delay is {PROCESSING_DELAY}"
+                        f"{plural(elapsed, 'second')} ago, delay is {processing_delay}"
                     )
                     continue
                 # Only log completion time if we have a valid timestamp
@@ -2904,10 +2904,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         #  Supplemental Search: Look for and process books in LL.(bookid) Folders
         # ==========================================================================
         postprocesslogger.info("Supplemental Search: Processing LL.(bookid) folders")
-
-        ppcount += _process_ll_bookid_folders_from_list(
-            all_downloads, db, postprocesslogger
-        )
+        if all_downloads:
+            ppcount += _process_ll_bookid_folders_from_list(
+                all_downloads, db, postprocesslogger
+            )
 
         postprocesslogger.info(f"{ppcount} {plural(ppcount, 'download')} processed.")
 
@@ -3641,7 +3641,7 @@ def _process_destination(
 
     Args:
         book_path: Source path containing the book files
-        metadata: BookMetadata object with all book information and destination paths
+        book_metadata: BookMetadata object with all book information and destination paths
         mode: Download mode (torrent, magnet, nzb, etc.) for copy/seeding logic
         preprocess: Whether to run preprocessing steps
 
@@ -3925,25 +3925,25 @@ def _process_auto_add(src_path: str, book_type_enum: BookType = BookType.EBOOK):
         copied = False
         for name in names:
             name = enforce_str(name)
-            is_valid_type = CONFIG.is_valid_booktype(name, book_type_str)
-            if match and is_valid_type and not name.endswith(match):
+            valid_type = CONFIG.is_valid_booktype(name, book_type_str)
+            if match and valid_type and not name.endswith(match):
                 logger.debug(f"Skipping book format {os.path.splitext(name)[1]}")
             elif (
                 book_type_enum == BookType.EBOOK
                 and CONFIG.get_bool("IMP_AUTOADD_BOOKONLY")
-                and not is_valid_type
+                and not valid_type
             ):
                 logger.debug(f"Skipping non-book {name}")
             elif (
                 book_type_enum == BookType.MAGAZINE
                 and CONFIG.get_bool("IMP_AUTOADD_MAGONLY")
-                and not is_valid_type
+                and not valid_type
             ):
                 logger.debug(f"Skipping non-mag {name}")
             else:
                 logger.debug(
                     f"booktype [{book_type_str}] bookonly [{CONFIG.get_bool('IMP_AUTOADD_BOOKONLY')}] "
-                    f"validtype [{is_valid_type}]"
+                    f"validtype [{valid_type}]"
                 )
                 srcname = os.path.join(src_path, name)
                 dstname = os.path.join(autoadddir, name)

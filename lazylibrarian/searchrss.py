@@ -336,7 +336,7 @@ def search_wishlist():
                         new_value_dict['AudioStatus'] = "Wanted"
 
                     if new_value_dict:
-                        control_value_dict = {"BookID": bookmatch['bookid']}
+                        control_value_dict = {"BookID": bookmatch['BookID']}
                         db.upsert("books", new_value_dict, control_value_dict)
 
             if new_books or new_audio:

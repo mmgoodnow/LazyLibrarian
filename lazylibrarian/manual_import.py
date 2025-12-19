@@ -39,7 +39,6 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.bookrename import name_vars
 from lazylibrarian.common import multibook
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (
@@ -47,7 +46,6 @@ from lazylibrarian.filesystem import (
     get_directory,
     listdir,
     opf_file,
-    path_exists,
     path_isdir,
     path_isfile,
 )
@@ -612,11 +610,11 @@ def process_alternate(source_dir=None, library="eBook"):
                         f"{unaccented(authorname, only_ascii=False)}"
                     )
                     match = {}
-                    SEARCH_MATCH_THRESHOLD = CONFIG.get_int("MATCH_RATIO")
+                    search_match_threshold = CONFIG.get_int("MATCH_RATIO")
                     results = search_for(searchterm)
                     for result in results:
                         if (
-                            result["book_fuzz"] >= SEARCH_MATCH_THRESHOLD
+                            result["book_fuzz"] >= search_match_threshold
                             and result["authorid"] == authorid
                         ):
                             match = result
@@ -632,7 +630,7 @@ def process_alternate(source_dir=None, library="eBook"):
                             results = search_for(searchterm)
                             for result in results:
                                 if (
-                                    result["book_fuzz"] >= SEARCH_MATCH_THRESHOLD
+                                    result["book_fuzz"] >= search_match_threshold
                                     and result["authorid"] == authorid
                                 ):
                                     match = result
