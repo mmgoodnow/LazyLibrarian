@@ -41,7 +41,8 @@ from lazylibrarian.filesystem import (
     remove_file,
     safe_move,
 )
-from lazylibrarian.formatter import plural, unaccented
+from lazylibrarian.formatter import unaccented
+
 
 def send_to_calibre(booktype, global_name, folder, data):
     """
@@ -552,3 +553,4 @@ def send_ebook_to_calibre(data):
                 shutil.copyfile(
                     os.path.join(sourcedir, item), os.path.join(temp_dir, item)
                 )
+        return send_to_calibre("ebook", global_name, temp_dir, data)

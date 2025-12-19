@@ -296,7 +296,7 @@ def add_bookdict_to_db(book, reason, source):
     exists = db.match('SELECT * from books where bookid=?', (book['bookid'], ))
     if exists:
         locked = exists['Manual']
-        if locked is None:
+        if not locked:
             locked = False
         elif locked.isdigit():
             locked = bool(int(locked))
