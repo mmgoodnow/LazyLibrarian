@@ -335,14 +335,8 @@ def search_wishlist():
                     if want_audio:
                         new_value_dict['AudioStatus'] = "Wanted"
 
-                    coverlink = bookmatch.get('BookImg', 'nocover')
-                    if 'nocover' in coverlink:
-                        coverlink, _ = get_book_cover(bookid)
-                        if coverlink and "nocover" not in coverlink:
-                            new_value_dict["BookImg"] = coverlink
-
                     if new_value_dict:
-                        control_value_dict = {"BookID": bookid}
+                        control_value_dict = {"BookID": bookmatch['bookid']}
                         db.upsert("books", new_value_dict, control_value_dict)
 
             if new_books or new_audio:
@@ -356,6 +350,16 @@ def search_wishlist():
             db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
 
         logger.debug(f"Wishlist found eBook:{len(new_books)}, Audio:{len(new_audio)}")
+
+        for item in new_books + new_audio:
+            bookid = item.get('BookID')
+            res = db.match("SELECT BookImg from books where bookid=?", (bookid,))
+            coverlink = res['BookImg']
+            if not coverlink or 'nocover' in coverlink:
+                coverlink, _ = get_book_cover(bookid)
+                if coverlink and "nocover" not in coverlink:
+                    db.action('UPDATE books SET BookImg=? WHERE BookID=?', (coverlink, bookid))
+
         search_books = []
         dl_books = []
         for item in new_books:
