@@ -1065,7 +1065,8 @@ def _find_matching_subdir(
 
                 if has_book:
                     # Fuzzy match the subdirectory name against target
-                    normalized_dirname = _normalize_title(item)
+                    subdir_stem, _ = _tokenize_file(item)
+                    normalized_dirname = _normalize_title(subdir_stem)
                     match_percent = _calculate_fuzzy_match(
                         target_title, normalized_dirname
                     )
@@ -1506,6 +1507,9 @@ def _try_match_candidate_file(
             if book_state.book_title
             else book_state.download_title
         )
+
+        search_stem, _ = _tokenize_file(search_title)
+        search_title = _normalize_title(search_stem)
 
         # Try 1: Match subdirectories (for collections organized in folders)
         # This is common for audiobook series and some ebook collections
