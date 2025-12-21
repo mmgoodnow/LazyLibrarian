@@ -754,11 +754,10 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
             book_id="book123",
         )
 
-        mock_db = mock.Mock()
         mock_logger = mock.Mock()
 
         should_abort, should_skip = _handle_snatched_timeout(
-            book_state, 0, 25, 24, mock_db, mock_logger
+            book_state, 0, 25, 24, mock_logger
         )
 
         self.assertFalse(should_abort)
@@ -778,11 +777,10 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
             book_id="book123",
         )
 
-        mock_db = mock.Mock()
         mock_logger = mock.Mock()
 
         should_abort, should_skip = _handle_snatched_timeout(
-            book_state, 1, 35, 24, mock_db, mock_logger
+            book_state, 1, 35, 24, mock_logger
         )
 
         self.assertTrue(should_abort)
@@ -800,11 +798,10 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
             book_id="book123",
         )
 
-        mock_db = mock.Mock()
         mock_logger = mock.Mock()
 
         should_abort, should_skip = _handle_snatched_timeout(
-            book_state, 25, 1500, 24, mock_db, mock_logger
+            book_state, 25, 1500, 24, mock_logger
         )
 
         # Should not abort 100% downloads, let them retry
@@ -823,11 +820,10 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
             book_id="book123",
         )
 
-        mock_db = mock.Mock()
         mock_logger = mock.Mock()
 
         should_abort, should_skip = _handle_snatched_timeout(
-            book_state, 25, 1500, 24, mock_db, mock_logger
+            book_state, 25, 1500, 24, mock_logger
         )
 
         self.assertTrue(should_abort)
@@ -845,18 +841,17 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
             book_id="book123",
         )
 
-        mock_db = mock.Mock()
         mock_logger = mock.Mock()
 
         # Just at timeout
         should_abort, _ = _handle_snatched_timeout(
-            book_state, 24, 1440, 24, mock_db, mock_logger
+            book_state, 24, 1440, 24, mock_logger
         )
         self.assertFalse(should_abort)  # Don't abort yet
 
         # Past extra hour
         should_abort, _ = _handle_snatched_timeout(
-            book_state, 25, 1500, 24, mock_db, mock_logger
+            book_state, 25, 1500, 24, mock_logger
         )
         self.assertTrue(should_abort)  # Now abort
 
