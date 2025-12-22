@@ -133,8 +133,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'findAuthorID': (0, '&name= [&source=] find AuthorID for named author'),
             'findMissingAuthorID': (0, '[&source=] find authorid from named source for any authors without id'),
             'findBook': (0, '&name= search goodreads/googlebooks for named book'),
-            'addBook': (1, '&id= add one or more books to the database by bookid'),
-            'addBookByISBN': (1, '&isbn= add one or more books to the database by isbn'),
+            'addBook': (1, '&id= [&wait] add one or more books to the database by bookid'),
+            'addBookByISBN': (1, '&isbn= [&wait] add one or more books to the database by isbn'),
             'moveBooks': (1, '&fromname= &toname= move all books from one author to another by AuthorName'),
             'moveBook': (1, '&id= &toid= move one book to new author by BookID and AuthorID'),
             'addAuthor': (1, '&name= [&books] add author to database by name, optionally add their books'),
@@ -2075,9 +2075,11 @@ class Api(object):
         if 'isbn' not in kwargs:
             self.data = 'Missing parameter: isbn'
             return
+        pass_kwargs = dict(kwargs)
+        pass_kwargs.pop('isbn', None)
         summary = ''
         for item in get_list(kwargs['isbn']):
-            self._addonebookbyisbn(isbn=item)
+            self._addonebookbyisbn(isbn=item, **pass_kwargs)
             summary += self.data + '<br>'
         self.data = summary
 
@@ -2096,7 +2098,7 @@ class Api(object):
             sortedlist = sorted(searchresults, key=lambda x: (x['highest_fuzz'], x['bookrate_count']),
                                 reverse=True)
             if sortedlist[0].get('bookid'):
-                self._addonebook(id=sortedlist[0].get('bookid'))
+                self._addonebook(id=sortedlist[0].get('bookid'), **kwargs)
                 self.data = f"Added {kwargs['isbn']}:{sortedlist[0].get('authorname')}:{sortedlist[0].get('bookname')}"
 
     def _addbook(self, **kwargs):
@@ -2104,8 +2106,10 @@ class Api(object):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
+        pass_kwargs = dict(kwargs)
+        pass_kwargs.pop('id', None)
         for item in get_list(kwargs['id']):
-            self._addonebook(id=item)
+            self._addonebook(id=item, **pass_kwargs)
 
     def _addonebook(self, **kwargs):
         TELEMETRY.record_usage_data()
@@ -2114,9 +2118,12 @@ class Api(object):
             return
         this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
         api = this_source['api']
-        threading.Thread(target=api.add_bookid_to_db,
-                         name=f"API-{this_source['src']}RESULTS",
-                         args=[kwargs['id'], None, None, "Added by API"]).start()
+        if 'wait' in kwargs:
+            api.add_bookid_to_db(kwargs['id'], None, None, "Added by API")
+        else:
+            threading.Thread(target=api.add_bookid_to_db,
+                             name=f"API-{this_source['src']}RESULTS",
+                             args=[kwargs['id'], None, None, "Added by API"]).start()
 
     def _movebook(self, **kwargs):
         TELEMETRY.record_usage_data()
