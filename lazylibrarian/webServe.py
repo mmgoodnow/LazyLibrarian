@@ -3317,7 +3317,7 @@ class WebInterface:
         else:
             this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
             api = this_source['api']
-            t = threading.Thread(target=api.add_bookid_to_db(bookid=bookid),
+            t = threading.Thread(target=api.add_bookid_to_db,
                                  name=f"{this_source['src']}-BOOK",
                                  args=[bookid, ebook_status, audio_status, "Added by user"])
             t.start()
