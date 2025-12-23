@@ -38,7 +38,7 @@ import lazylibrarian
 from lazylibrarian import database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, \
     grsync, hc, ROLE
-from lazylibrarian.auth import AuthController, require_auth
+from lazylibrarian.auth import AuthController, require_auth, require_api_key
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members
@@ -3460,6 +3460,61 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         logger.debug(f"Serve Book [{feedid}]")
         return self.serve_item(feedid, "book")
+
+    @cherrypy.expose
+    @require_api_key()
+    def api_book(self, id=None, booktype=None, **kwargs):
+        logger = logging.getLogger(__name__)
+        if not id:
+            raise cherrypy.HTTPError(400, 'Missing parameter: id')
+
+        bookid_key = 'BookID'
+        for itm in api_sources:
+            if CONFIG['BOOK_API'] == itm[0]:
+                bookid_key = itm[2]
+                break
+
+        db = database.DBConnection()
+        try:
+            cmd = f"SELECT BookFile,BookName from books WHERE {bookid_key}=? or BookID=?"
+            res = db.match(cmd, (id, id))
+        finally:
+            db.close()
+
+        if not res or not res.get('BookFile'):
+            raise cherrypy.HTTPError(404, f"No file found for book {id}")
+
+        myfile = res['BookFile']
+        fname, extn = os.path.splitext(myfile)
+        types = []
+        for itm in get_list(CONFIG['EBOOK_TYPE']):
+            target = fname + '.' + itm
+            if path_isfile(target):
+                types.append(itm)
+
+        if not types and path_isfile(myfile):
+            extn = extn.lstrip('.')
+            if extn:
+                types = [extn]
+
+        if booktype:
+            if booktype not in types:
+                raise cherrypy.HTTPError(404, f"Requested type {booktype} not found for book {id}")
+            extn = booktype
+        else:
+            if not types:
+                raise cherrypy.HTTPError(404, f"No file found for book {id}")
+            extn = types[0]
+
+        if types:
+            myfile = fname + '.' + extn
+
+        if not path_isfile(myfile):
+            raise cherrypy.HTTPError(404, f"No file found for book {id}")
+
+        name = f"{res['BookName']}.{extn}" if extn else res['BookName']
+        logger.debug(f'API book download {myfile}')
+        return serve_file(myfile, mime_type(myfile), "attachment", name=name)
 
     @cherrypy.expose
     @require_auth()
