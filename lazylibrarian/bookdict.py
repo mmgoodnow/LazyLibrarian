@@ -293,7 +293,7 @@ def add_bookdict_to_db(book, reason, source):
     locked = False
     exists = db.match('SELECT * from books where bookid=?', (book['bookid'], ))
     if exists:
-        locked = exists.get('Manual', False)
+        locked = exists['Manual']
         if locked is None:
             locked = False
         elif locked.isdigit():
@@ -357,7 +357,7 @@ def add_bookdict_to_db(book, reason, source):
             if not exists:
                 if src:
                     exists = db.match("SELECT * from series WHERE seriesname=? "
-                                      "and instr(seriesid, src) = 1", (ser_name,))
+                                      "and instr(seriesid, ?) = 1", (ser_name, src))
                 else:
                     exists = db.match("SELECT * from series WHERE seriesname=? ", (ser_name,))
 
@@ -728,7 +728,7 @@ def add_series_entries(bookdict, get_series_members, get_bookdict_for_bookid):
         exists = db.match("SELECT * from series WHERE seriesid=?", (ser_id,))
         if not exists:
             exists = db.match("SELECT * from series WHERE seriesname=? "
-                              "and instr(seriesid, source) = 1", (ser_name,))
+                              "and instr(seriesid, ?) = 1", (ser_name, source))
             if exists:
                 ser_id = exists['SeriesID']
         if not exists:

@@ -3310,7 +3310,7 @@ class WebInterface:
         else:
             this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
             api = this_source['api']
-            t = threading.Thread(target=api.add_bookid_to_db(bookid=bookid),
+            t = threading.Thread(target=api.add_bookid_to_db,
                                  name=f"{this_source['src']}-BOOK",
                                  args=[bookid, ebook_status, audio_status, "Added by user"])
             t.start()
@@ -3463,9 +3463,9 @@ class WebInterface:
 
     @cherrypy.expose
     @require_api_key()
-    def api_book(self, id=None, booktype=None, **kwargs):
+    def api_book(self, bookid=None, booktype=None, **kwargs):
         logger = logging.getLogger(__name__)
-        if not id:
+        if not bookid:
             raise cherrypy.HTTPError(400, 'Missing parameter: id')
 
         bookid_key = 'BookID'
@@ -3477,12 +3477,12 @@ class WebInterface:
         db = database.DBConnection()
         try:
             cmd = f"SELECT BookFile,BookName from books WHERE {bookid_key}=? or BookID=?"
-            res = db.match(cmd, (id, id))
+            res = db.match(cmd, (bookid, bookid))
         finally:
             db.close()
 
         if not res or not res.get('BookFile'):
-            raise cherrypy.HTTPError(404, f"No file found for book {id}")
+            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
 
         myfile = res['BookFile']
         fname, extn = os.path.splitext(myfile)
@@ -3499,18 +3499,18 @@ class WebInterface:
 
         if booktype:
             if booktype not in types:
-                raise cherrypy.HTTPError(404, f"Requested type {booktype} not found for book {id}")
+                raise cherrypy.HTTPError(404, f"Requested type {booktype} not found for book {bookid}")
             extn = booktype
         else:
             if not types:
-                raise cherrypy.HTTPError(404, f"No file found for book {id}")
+                raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
             extn = types[0]
 
         if types:
             myfile = fname + '.' + extn
 
         if not path_isfile(myfile):
-            raise cherrypy.HTTPError(404, f"No file found for book {id}")
+            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
 
         name = f"{res['BookName']}.{extn}" if extn else res['BookName']
         logger.debug(f'API book download {myfile}')

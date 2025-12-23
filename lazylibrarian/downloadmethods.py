@@ -378,6 +378,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
         logger.debug(f"File download got {len(filecontent)} bytes for {filename}")
         basename = sanitize(dl_title, is_folder_or_file=True)
+        # zlib sometimes includes the filetype as an extension in the title
+        # strip from dl_title so we don't include extension in destdir, or twice in destfile
+        basename, _ = os.path.splitext(basename)
         destdir = os.path.join(get_directory('Download'), basename)
         if not path_isdir(destdir):
             _ = make_dirs(destdir)
