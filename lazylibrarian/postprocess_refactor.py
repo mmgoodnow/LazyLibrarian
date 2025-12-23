@@ -13,6 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import contextlib
 import datetime
 import logging
 import os
@@ -27,7 +28,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from rapidfuzz import fuzz
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Final
 
 import lazylibrarian
 from lazylibrarian import database
@@ -290,7 +291,7 @@ class BookState:
         try:
             book_type_str = self.get_book_type_enum().value
         except ValueError:
-            pass
+            contextlib.suppress(ValueError)
 
         return book_type_str
 
@@ -324,9 +325,7 @@ class BookState:
             return False
         if not self.download_id or self.download_id == "unknown":
             return False
-        if self.source == "DIRECT":
-            return False
-        return True
+        return (self.source != "DIRECT")
 
     def get_display_name(self, config) -> str:
         """
@@ -393,11 +392,6 @@ class BookState:
         """
         # Get specific download folder by combining general folder + download name
         if self.source and self.download_id:
-            from lazylibrarian.download_client import (
-                get_download_folder,
-                get_download_name,
-            )
-
             general_folder = get_download_folder(self.source, self.download_id)
             download_name = get_download_name(
                 self.download_title, self.source, self.download_id
@@ -496,7 +490,7 @@ def process_img(
         setperm(coverfile)
     except Exception as e:
         logger.error(
-            f"Error copying image {bookimg} to {coverfile}, {type(e).__name__} {str(e)}"
+            f"Error copying image {bookimg} to {coverfile}, {type(e).__name__} {e!s}"
         )
         return
 
@@ -549,12 +543,10 @@ def _transfer_matching_files(
     list_dir = listdir(sourcedir)
     valid_extensions = CONFIG.get_all_types_list()
 
-    for ourfile in list_dir:
-        ourfile = str(ourfile)
-        # Only transfer files that start with our book's name
-        if ourfile.startswith(fname_prefix):
-            # Only transfer valid media files
-            if is_valid_type(ourfile, extensions=valid_extensions):
+    for _ourfile in list_dir:
+        ourfile = str(_ourfile)
+        # Only transfer files that start with our book's name and are valid media files
+        if ourfile.startswith(fname_prefix) and is_valid_type(ourfile, extensions=valid_extensions):
                 try:
                     srcfile = os.path.join(sourcedir, ourfile)
                     dstfile = os.path.join(targetdir, ourfile)
@@ -571,7 +563,7 @@ def _transfer_matching_files(
                 except Exception as why:
                     logger.warning(
                         f"Failed to transfer file {ourfile} to [{targetdir}], "
-                        f"{type(why).__name__} {str(why)}"
+                        f"{type(why).__name__} {why!s}"
                     )
                     continue
     return cnt
@@ -583,10 +575,7 @@ def _extract_aux_type(book: dict) -> str:
     """
     book_type = book["AuxInfo"]
     if book_type not in ["AudioBook", "eBook", "comic"]:
-        if not book_type:
-            book_type = "eBook"
-        else:
-            book_type = "Magazine"
+        book_type = "eBook" if not book_type else "Magazine"
     return book_type
 
 
@@ -742,6 +731,26 @@ def _normalize_title(title: str) -> str:
     new_title = str(unaccented(title, only_ascii=False))
     # torrent names might have words_separated_by_underscores
     new_title = new_title.split(" LL.(")[0].replace("_", " ")
+    year_len: Final[int] = 4
+    # Strip known file extensions and special suffixes from the end
+    # This handles cases like "Book Name.2013" or "folder.unpack" or "Book.epub"
+    # but preserves periods in names like "J.R.R. Tolkien" or "Dr. Seuss"
+    if '.' in new_title:
+        # Get the part after the last period
+        last_dot_index = new_title.rfind('.')
+        suffix = new_title[last_dot_index + 1:].lower()
+
+        # Strip if it matches known patterns:
+        # 1. Known file extensions
+        known_extensions = CONFIG.get_all_types_list() if CONFIG else []
+        # 2. Special suffixes
+        special_suffixes = ['unpack']
+        # 3. 4-digit years
+        is_year = suffix.isdigit() and len(suffix) == year_len
+
+        if suffix in known_extensions or suffix in special_suffixes or is_year:
+            new_title = new_title[:last_dot_index]
+
     # strip noise characters
     return sanitize(new_title).strip()
 
@@ -799,8 +808,8 @@ def _count_zipfiles_in_directory(directory_path: str) -> int:
         Number of zip files found (excluding ebook/comic formats)
     """
     zipcount = 0
-    for f in listdir(directory_path):
-        f = enforce_str(f)  # Ensure string for path operations
+    for _f in listdir(directory_path):
+        f = enforce_str(_f)  # Ensure string for path operations
         file_path = os.path.join(directory_path, f)
         _, extn = _tokenize_file(f)
         extn = extn.lower()
@@ -826,17 +835,17 @@ def _find_valid_file_in_directory(
         Path to first valid file found, or empty string if none found
     """
     if recurse:
-        for dirpath, _, files in walk(directory_path):
-            dirpath = enforce_str(dirpath)  # Ensure string for path operations
-            for item in files:
-                item = enforce_str(item)  # Ensure string for path operations
+        for _dirpath, _, files in walk(directory_path):
+            dirpath = enforce_str(_dirpath)  # Ensure string for path operations
+            for _item in files:
+                item = enforce_str(_item)  # Ensure string for path operations
                 if _is_valid_media_file(
                     item, book_type=book_type, include_archives=True
                 ):
                     return os.path.join(dirpath, item)
     else:
-        for f in listdir(directory_path):
-            f = enforce_str(f)  # Ensure string for path operations
+        for _f in listdir(directory_path):
+            f = enforce_str(_f)  # Ensure string for path operations
             if _is_valid_media_file(f, book_type=book_type, include_archives=True):
                 return os.path.join(directory_path, f)
     return ""
@@ -873,8 +882,8 @@ def _extract_best_match_from_collection(
     best_score = 0
 
     # Find the best matching file
-    for f in listdir(candidate_dir):
-        f = enforce_str(f)  # Ensure string for validation
+    for _f in listdir(candidate_dir):
+        f = enforce_str(_f)  # Ensure string for validation
         if CONFIG.is_valid_booktype(f, booktype=BookType.EBOOK.value):
             filename_stem, _ = _tokenize_file(f)
             normalized_fname = _normalize_title(filename_stem)
@@ -906,17 +915,16 @@ def _extract_best_match_from_collection(
     best_match_stem, _ = _tokenize_file(best_match)
 
     # Copy all files related to the best match (including .opf, .jpg)
-    for f in listdir(candidate_dir):
-        f = enforce_str(f)  # Ensure string for validation and path operations
+    for _f in listdir(candidate_dir):
+        f = enforce_str(_f)  # Ensure string for validation and path operations
         filename_stem, _ = _tokenize_file(f)
 
-        if filename_stem == best_match_stem:
-            if CONFIG.is_valid_booktype(
-                f, booktype=BookType.EBOOK.value
-            ) or _is_metadata_file(f):
-                source = os.path.join(candidate_dir, f)
-                dest = os.path.join(target_dir, f)
-                shutil.copyfile(source, dest)
+        if filename_stem == best_match_stem and (CONFIG.is_valid_booktype(
+            f, booktype=BookType.EBOOK.value
+        ) or _is_metadata_file(f)):
+            source = os.path.join(candidate_dir, f)
+            dest = os.path.join(target_dir, f)
+            shutil.copyfile(source, dest)
 
     return target_dir, False, ""
 
@@ -985,8 +993,8 @@ def _extract_archives_in_directory(
             candidate_ptr = unpacked_path
 
     # Extract remaining archives
-    for dirpath, _, files in walk(candidate_ptr):
-        dirpath = enforce_str(dirpath)  # Ensure string for path operations
+    for _dirpath, _, files in walk(candidate_ptr):
+        dirpath = enforce_str(_dirpath)  # Ensure string for path operations
         for item in files:
             _, extn = _tokenize_file(item)
             extn = extn.lower()
@@ -1049,8 +1057,8 @@ def _find_matching_subdir(
         logger.debug(f"Error listing directory {directory}: {e}")
         return "", 0
 
-    for item in items:
-        item = enforce_str(item)  # Ensure string for path operations
+    for _item in items:
+        item = enforce_str(_item)  # Ensure string for path operations
         item_path = os.path.join(directory, item)
 
         # Only consider subdirectories
@@ -1065,8 +1073,8 @@ def _find_matching_subdir(
 
                 if has_book:
                     # Fuzzy match the subdirectory name against target
-                    subdir_stem, _ = _tokenize_file(item)
-                    normalized_dirname = _normalize_title(subdir_stem)
+                    # _normalize_title now handles stripping known extensions intelligently
+                    normalized_dirname = _normalize_title(item)
                     match_percent = _calculate_fuzzy_match(
                         target_title, normalized_dirname
                     )
@@ -1109,8 +1117,8 @@ def _find_matching_file_in_directory(
         Tuple of (matched_file_path, match_percent)
         Returns ("", 0) if no match found
     """
-    for f in listdir(directory):
-        f = enforce_str(f)  # Ensure string for path operations
+    for _f in listdir(directory):
+        f = enforce_str(_f)  # Ensure string for path operations
         if _is_valid_media_file(f, book_type="ebook", include_archives=True):
             filename_stem, _ = _tokenize_file(f)
             normalized_filename = _normalize_title(filename_stem)
@@ -1295,13 +1303,12 @@ def _cleanup_successful_download(book_path, download_dir, book_state, logger) ->
             )
         except Exception as why:
             logger.warning(
-                f"Unable to remove {deletion_path}, {type(why).__name__} {str(why)}"
+                f"Unable to remove {deletion_path}, {type(why).__name__} {why!s}"
             )
-    else:
-        if CONFIG.get_bool("DESTINATION_COPY"):
+    elif CONFIG.get_bool("DESTINATION_COPY"):
             logger.debug(f"Not removing {deletion_path} as Keep Files is set")
-        else:
-            logger.debug(f"Not removing {deletion_path} as in download root")
+    else:
+        logger.debug(f"Not removing {deletion_path} as in download root")
 
 
 def _send_download_notifications(
@@ -1350,7 +1357,7 @@ def _handle_failed_processing(
     book_type_enum = metadata.book_type_enum
     book_type_str = metadata.book_type
     logger.error(
-        f"Postprocessing for {repr(global_name)} has failed: {repr(dest_file)}"
+        f"Postprocessing for {global_name!r} has failed: {dest_file!r}"
     )
 
     # Mark failure in BookState
@@ -1415,16 +1422,16 @@ def _cleanup_failed_download(book_path, logger) -> None:
             logger.warning(f"Residual files remain in {fail_path}")
         except Exception as why:
             logger.error(
-                f"Unable to rename {repr(book_path)}, {type(why).__name__} {str(why)}"
+                f"Unable to rename {book_path!r}, {type(why).__name__} {why!s}"
             )
 
             # Diagnose permission issues
             if not os.access(syspath(book_path), os.R_OK):
-                logger.error(f"{repr(book_path)} is not readable")
+                logger.error(f"{book_path!r} is not readable")
             if not os.access(syspath(book_path), os.W_OK):
-                logger.error(f"{repr(book_path)} is not writeable")
+                logger.error(f"{book_path!r} is not writeable")
             if not os.access(syspath(book_path), os.X_OK):
-                logger.error(f"{repr(book_path)} is not executable")
+                logger.error(f"{book_path!r} is not executable")
 
             # Test parent directory writability
             parent = os.path.dirname(book_path)
@@ -1508,8 +1515,8 @@ def _try_match_candidate_file(
             else book_state.download_title
         )
 
-        search_stem, _ = _tokenize_file(search_title)
-        search_title = _normalize_title(search_stem)
+        # _normalize_title now handles stripping known extensions intelligently
+        search_title = _normalize_title(search_title)
 
         # Try 1: Match subdirectories (for collections organized in folders)
         # This is common for audiobook series and some ebook collections
@@ -1620,7 +1627,7 @@ def _process_matched_directory(
                 try:
                     os.rmdir(targetdir)
                 except OSError:
-                    pass
+                    contextlib.suppress(OSError)
                 return False, "Failed to isolate file to subdirectory"
 
         # File not in root - update candidate_ptr to parent directory
@@ -1770,9 +1777,8 @@ def _find_best_match_in_downloads(
                     break
             else:
                 book_state.mark_skipped(skip_reason)
-        else:
-            # Even non-matches get tracked to report closest match
-            if match_percent > 0:
+        # Even non-matches get tracked to report closest match
+        elif match_percent > 0:
                 matches.append([match_percent, book_state.candidate_ptr])
 
     # Find the best match
@@ -1842,10 +1848,7 @@ def _process_comic_post(
 
     if comicid:
         # Determine if this is an older issue
-        if mostrecentissue:
-            older = int(mostrecentissue) > int(issueid)
-        else:
-            older = False
+        older = int(mostrecentissue) > int(issueid) if mostrecentissue else False
 
         # Create and cache cover
         coverfile = _create_and_cache_cover(dest_file, BookType.COMIC, pagenum=1) or ""
@@ -2335,12 +2338,14 @@ def _handle_snatched_timeout(
     """
     should_abort = False
     should_skip = False
+    short_wait = 5
+    longer_wait = 30
 
     # has it been aborted (wait a short while before checking)
-    if mins > 5 and isinstance(book_state.progress, int) and book_state.progress < 0:
+    if mins > short_wait and isinstance(book_state.progress, int) and book_state.progress < 0:
         # Torrent/download not found in client
         # Give slow magnets and client issues more time before aborting
-        if mins < 30:
+        if mins < longer_wait:
             # Less than 30 minutes - could be slow magnet link or temporary client issue
             logger.debug(
                 f"{book_state.download_title} not found at {book_state.source} but only "
@@ -2462,7 +2467,6 @@ def _check_and_schedule_next_run(db, logger: logging.Logger, reset: bool) -> Non
         logger: Logger instance
         reset: Whether to force restart
     """
-    from lazylibrarian.scheduling import schedule_job
 
     # Check if postprocessor needs to run again
     snatched = db.select("SELECT * from wanted WHERE Status='Snatched'")
@@ -2660,7 +2664,7 @@ def _compile_all_downloads(dirlist, logger):
             downloads = listdir(download_dir)
             all_downloads.extend([(download_dir, f) for f in downloads])
             logger.debug(f"Found {len(downloads)} items in {download_dir}")
-        except OSError as why:
+        except OSError as why:  # noqa: PERF203
             logger.error(
                 f"Could not access [{download_dir}]: {why.strerror} - skipping"
             )
@@ -2955,8 +2959,8 @@ def _process_ll_bookid_folders_from_list(all_downloads, db, logger):
 
     logger.debug(f"Scanning {len(all_downloads)} items for LL.(bookid) pattern")
 
-    for parent_dir, entry in all_downloads:
-        entry = str(entry)
+    for parent_dir, _entry in all_downloads:
+        entry = enforce_str(_entry)
         if "LL.(" in entry:
             _, extn = os.path.splitext(entry)
             if not extn or extn.strip(".") not in skipped_extensions:
@@ -3166,25 +3170,21 @@ def process_book(book_path: str, book_id: str, logger=None, library=""):
 
                 if (
                     ".unpack" in book_path
-                    or not CONFIG.get_bool("DESTINATION_COPY")
-                    and book_path != dest_dir
+                    or (not CONFIG.get_bool("DESTINATION_COPY")
+                    and book_path != dest_dir)
                 ):
                     if path_isdir(book_path):
                         # calibre might have already deleted it?
                         logger.debug(f"Deleting {book_path}")
                         shutil.rmtree(book_path, ignore_errors=True)
+                elif CONFIG.get_bool("DESTINATION_COPY"):
+                    logger.debug(f"Not removing {book_path} as Keep Files is set")
                 else:
-                    if CONFIG.get_bool("DESTINATION_COPY"):
-                        logger.debug(f"Not removing {book_path} as Keep Files is set")
-                    else:
-                        logger.debug(f"Not removing {book_path} as in download root")
+                    logger.debug(f"Not removing {book_path} as in download root")
 
                 logger.info(f"Successfully processed: {global_name}")
                 custom_notify_download(f"{book_id} {book_type_aux}")
-                if snatched_from == "manually added":
-                    frm = ""
-                else:
-                    frm = "from "
+                frm = "" if snatched_from == "manually added" else "from "
 
                 notify_download(
                     f"{book_type_aux} {global_name} {frm}{snatched_from} at {now()}",
@@ -3200,7 +3200,7 @@ def process_book(book_path: str, book_id: str, logger=None, library=""):
                 return True
             else:
                 logger.error(
-                    f"Postprocessing for {repr(global_name)} has failed: {repr(dest_file)}"
+                    f"Postprocessing for {global_name!r} has failed: {dest_file!r}"
                 )
                 shutil.rmtree(f"{book_path}.fail", ignore_errors=True)
                 try:
@@ -3208,12 +3208,12 @@ def process_book(book_path: str, book_id: str, logger=None, library=""):
                     logger.warning(f"Residual files remain in {book_path}.fail")
                 except Exception as e:
                     logger.error(
-                        f"Unable to rename {repr(book_path)}, {type(e).__name__} {str(e)}"
+                        f"Unable to rename {book_path!r}, {type(e).__name__} {e!s}"
                     )
                     if not os.access(syspath(book_path), os.R_OK):
-                        logger.error(f"{repr(book_path)} is not readable")
+                        logger.error(f"{book_path!r} is not readable")
                     if not os.access(syspath(book_path), os.W_OK):
-                        logger.error(f"{repr(book_path)} is not writeable")
+                        logger.error(f"{book_path!r} is not writeable")
                     parent = os.path.dirname(book_path)
                     try:
                         with open(
@@ -3345,8 +3345,8 @@ def _find_best_format(
     found_set: set[str] = set()
 
     # Collect all valid extension types in a set
-    for fname in dir_list:
-        fname = enforce_str(fname)  # Ensure string for path operations
+    for _fname in dir_list:
+        fname = enforce_str(_fname)  # Ensure string for path operations
         _, extn = _tokenize_file(fname)
         extn = extn.lower()
         if extn in prioritized_list:
@@ -3365,7 +3365,7 @@ def _find_best_format(
 def _is_metadata_file(fname: str) -> bool:
     """Check if file is a metadata file (.jpg or .opf)"""
     fname_lower = fname.lower()
-    return fname_lower.endswith(".jpg") or fname_lower.endswith(".opf")
+    return fname_lower.endswith((".jpg", ".opf"))
 
 
 def _should_use_calibre(book_type: str) -> bool:
@@ -3438,8 +3438,7 @@ def _should_copy_file(fname: str, best_format: str, book_type: str) -> bool:
     """
     # If we're filtering for a specific format and this is a valid booktype
     # but not the best format, skip it
-    if best_format and CONFIG.is_valid_booktype(fname, booktype=book_type):
-        if not fname.endswith(best_format):
+    if best_format and CONFIG.is_valid_booktype(fname, booktype=book_type) and not fname.endswith(best_format):
             return False
 
     # Copy valid book files or metadata files
@@ -3581,8 +3580,8 @@ def _handle_magazine_comic_metadata(
         ignorefile = os.path.join(udest_path, ".ll_ignore")
         with open(syspath(ignorefile), "w") as f:
             f.write(book_type)
-    except (IOError, TypeError) as e:
-        logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
+    except (OSError, TypeError) as e:
+        logger.warning(f"Unable to create/write to ignorefile: {e!s}")
 
     if book_type == BookType.COMIC.value:
         cmd = (
@@ -3607,30 +3606,29 @@ def _handle_magazine_comic_metadata(
         else:
             logger.debug(f"No data found for {bookid}")
 
-    else:  # magazine
-        if CONFIG.get_bool("IMP_MAGOPF"):
-            db = database.DBConnection()
-            try:
-                entry = dict(
-                    db.match(
-                        "SELECT Language,Genre FROM magazines where Title=? COLLATE NOCASE",
-                        (title,),
-                    )
+    elif CONFIG.get_bool("IMP_MAGOPF"):
+        db = database.DBConnection()
+        try:
+            entry = dict(
+                db.match(
+                    "SELECT Language,Genre FROM magazines where Title=? COLLATE NOCASE",
+                    (title,),
                 )
-                if entry:
-                    _, _ = create_mag_opf(
-                        book_path,
-                        title,
-                        issuedate,
-                        issueid,
-                        language=entry["Language"],
-                        genres=mag_genres,
-                        overwrite=True,
-                    )
-            finally:
-                db.close()
-        else:
-            logger.debug("create_mag_opf is disabled")
+            )
+            if entry:
+                _, _ = create_mag_opf(
+                    book_path,
+                    title,
+                    issuedate,
+                    issueid,
+                    language=entry["Language"],
+                    genres=mag_genres,
+                    overwrite=True,
+                )
+        finally:
+            db.close()
+    else:
+        logger.debug("create_mag_opf is disabled")
 
 
 def _process_destination(
@@ -3701,8 +3699,8 @@ def _process_destination(
             f"One format import, found {','.join(found_types)}, best match {best_format}"
         )
     else:  # mag, comic or audiobook or multi-format book
-        for fname in dir_list:
-            fname = enforce_str(fname)
+        for _fname in dir_list:
+            fname = enforce_str(_fname)
             if CONFIG.is_valid_booktype(fname, booktype=book_type):
                 match = True
                 break
@@ -3716,7 +3714,7 @@ def _process_destination(
         )
 
     _, path_extn = _tokenize_file(book_path)
-    if not path_extn == "unpack" and (
+    if path_extn != "unpack" and (
         CONFIG.get_bool("DESTINATION_COPY")
         or (
             mode in ["torrent", "magnet", "torznab"] and CONFIG.get_bool("KEEP_SEEDING")
@@ -3804,8 +3802,8 @@ def _process_destination(
     copied_count = 0
 
     # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
-    for fname in dir_list:
-        fname = enforce_str(fname)
+    for _fname in dir_list:
+        fname = enforce_str(_fname)
         if not _should_copy_file(fname, best_format, book_type):
             logger.debug(f"Skip: {fname}")
             continue
@@ -3839,7 +3837,7 @@ def _process_destination(
                 logger.error(f"Destination Directory [{parent}] is not writeable: {w}")
             return (
                 False,
-                f"Unable to copy file {srcfile} to {destfile}: {type(why).__name__} {str(why)}",
+                f"Unable to copy file {srcfile} to {destfile}: {type(why).__name__} {why!s}",
                 book_path,
             )
 
@@ -3920,15 +3918,15 @@ def _process_auto_add(src_path: str, book_type_enum: BookType = BookType.EBOOK):
             booktype_list = get_list(CONFIG["EBOOK_TYPE"])
             for bktype in booktype_list:
                 while not match:
-                    for name in names:
-                        name = enforce_str(name)
+                    for _name in names:
+                        name = enforce_str(_name)
                         extn = os.path.splitext(name)[1].lstrip(".")
                         if extn and extn.lower() == bktype:
                             match = bktype
                             break
         copied = False
-        for name in names:
-            name = enforce_str(name)
+        for _name in names:
+            name = enforce_str(_name)
             valid_type = CONFIG.is_valid_booktype(name, book_type_str)
             if match and valid_type and not name.endswith(match):
                 logger.debug(f"Skipping book format {os.path.splitext(name)[1]}")
@@ -3965,7 +3963,7 @@ def _process_auto_add(src_path: str, book_type_enum: BookType = BookType.EBOOK):
                     copied = True
                 except Exception as why:
                     logger.error(
-                        f"AutoAdd - Failed to copy/move file [{name}] {type(why).__name__} [{str(why)}] "
+                        f"AutoAdd - Failed to copy/move file [{name}] {type(why).__name__} [{why!s}] "
                     )
                     return False
                 try:
