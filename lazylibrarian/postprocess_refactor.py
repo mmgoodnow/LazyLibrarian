@@ -720,7 +720,9 @@ def _get_ready_from_snatched(db, snatched_list: List[dict]):
             continue
 
         # If we reach this point, this book can be processed
-        logger.debug(f"Download for '{title}' of type {type} ready to process.")
+        logger.debug(
+            f"Download for '{title}' of type {book_type_str} ready to process."
+        )
         books_to_process.append(book_row)
 
     return books_to_process
@@ -2671,7 +2673,7 @@ def _compile_all_downloads(dirlist, logger):
             continue
 
     logger.info(
-        f"Compiled {len(all_downloads)} total items from {len(dirlist)} directories"
+        f"Compiled {len(all_downloads)} total items from {len(dirlist)} download {plural(len(dirlist), 'directory')}"
     )
     return all_downloads
 
@@ -2712,6 +2714,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
     # Thread safety check - prevent concurrent execution
     count = 0
+    logger.debug("Attempt to run POSTPROCESSOR")
     for name in [t.name for t in threading.enumerate()]:
         if name == "POSTPROCESSOR":
             count += 1
@@ -2723,6 +2726,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
     if count:
         logger.debug("POSTPROCESSOR is already running")
         return  # Exit early if already running
+
+    logger.debug("No concurrent POSTPROCESSOR threads detected")
 
     # Set thread name for this execution
     thread_name("POSTPROCESS")
@@ -2753,8 +2758,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             TELEMETRY.record_usage_data("Process/Snatched")
             books_to_process = _get_ready_from_snatched(db, snatched_books)
 
-        postprocesslogger.debug(
-            f"Found {len(books_to_process)} {plural(len(books_to_process), 'book')} to process"
+        postprocesslogger.info(
+            f"Found {len(books_to_process)} {plural(len(books_to_process), 'book')} ready to process"
         )
 
         # Build the list of directories that will will use to process downloaded assets
@@ -2798,6 +2803,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         processing_delay = CONFIG.get_int("PP_DELAY")
 
         ppcount = 0
+
         for book_row in books_to_process:
             # Create BookState from database row
             book_state = BookState.from_db_row(book_row, CONFIG)
@@ -2832,16 +2838,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 f"book_title='{book_state.book_title[:50] if book_state.book_title else '(empty)'}'"
             )
 
-            postprocesslogger.info(
-                f"Downloaded Processing Stage: Processing {len(books_to_process)} snatched books"
-            )
-
             # ========================================================
             #  Downloaded Processing Stage | Targeted Location Pass
             # ========================================================
             if book_state.download_folder:
                 postprocesslogger.debug(
-                    f"Targeted Location Pass: Processing  search for {book_state.download_title}"
+                    f"Targeted Location Pass: Processing search for {book_state.download_title}"
                 )
                 result = _search_in_known_location(
                     book_state, ignoreclient, db, postprocesslogger, fuzzlogger
@@ -3732,7 +3734,7 @@ def _process_destination(
             return False, msg, ""
 
     if preprocess:
-        logger.debug(f"preprocess ({book_type}) {book_path}")
+        logger.debug(f"PreProcess ({book_type}) {book_path}")
         if book_type == BookType.EBOOK.value:
             preprocess_ebook(book_path)
         elif book_type == BookType.AUDIOBOOK.value:
@@ -3767,7 +3769,7 @@ def _process_destination(
             if rc:
                 return (
                     False,
-                    f"Preprocessor returned {rc}: res[{res}] err[{err}]",
+                    f"PreProcessor returned {rc}: res[{res}] err[{err}]",
                     book_path,
                 )
             logger.debug(f"PreProcessor: {res}", book_path)
@@ -3776,7 +3778,7 @@ def _process_destination(
             ebook_extn_list = get_list(CONFIG["EBOOK_TYPE"])
             best_format, found_types = _find_best_format(book_path, ebook_extn_list)
             logger.debug(
-                f"After preprocessing, found {','.join(found_types)}, best match {best_format}"
+                f"After PreProcessing, found {','.join(found_types)}, best match {best_format}"
             )
 
     # If ebook, magazine or comic, do we want calibre to import it for us
@@ -3802,6 +3804,7 @@ def _process_destination(
     copied_count = 0
 
     # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
+    logger.info(f"COPY FILES STARTING - {book_path} ==> {udest_path}")
     for _fname in dir_list:
         fname = enforce_str(_fname)
         if not _should_copy_file(fname, best_format, book_type):
@@ -3812,8 +3815,6 @@ def _process_destination(
         destfile = _get_dest_filename(fname, uglobal_name, book_type, udest_path)
 
         try:
-            logger.info("COPYING FILES - {book_path} ==> {udest_path}")
-
             destfile = safe_copy(srcfile, destfile)
             setperm(destfile)
             copied_count += 1
@@ -3840,6 +3841,8 @@ def _process_destination(
                 f"Unable to copy file {srcfile} to {destfile}: {type(why).__name__} {why!s}",
                 book_path,
             )
+
+    logger.info(f"COPY FILES COMPLETE - Files copied: {copied_count} to {udest_path}")
 
     if book_type in [BookType.EBOOK.value, BookType.AUDIOBOOK.value]:
         # Use metadata we already have instead of querying database again
@@ -3880,8 +3883,7 @@ def _process_destination(
             logger,
         )
 
-    logger.info("COPY COMPLETE - Files copied: {copied_count} to {udest_path}")
-
+    logger.info(f"DESTINATION PROCESSING COMPLETE - {uglobal_name}")
     return True, newbookfile, book_path
 
 
