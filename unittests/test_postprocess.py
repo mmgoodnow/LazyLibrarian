@@ -3,38 +3,47 @@
 # Purpose:
 #   Test functions in postprocess_refactor.py
 
+import datetime
 import logging
 import os
+import shutil
 import tempfile
 import time
+import uuid
+import zipfile
 from pathlib import Path
 from unittest import mock
 
-from lazylibrarian.postprocess_refactor import (
-    BookState,
-    _normalize_title,
-    _tokenize_file,
-    _is_valid_media_file,
-    _count_zipfiles_in_directory,
-    _find_valid_file_in_directory,
-    _calculate_fuzzy_match,
-    _validate_candidate_directory,
-    _should_delete_processed_files,
-    _calculate_download_age,
-    _handle_seeding_status,
-    _handle_snatched_timeout,
-    _handle_aborted_download,
-    _check_and_schedule_next_run,
-)
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.database import DBConnection
 from lazylibrarian.postprocess_metadata import (
     BookType,
     prepare_book_metadata,
-    prepare_magazine_metadata,
     prepare_comic_metadata,
+    prepare_magazine_metadata,
 )
-
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.database import DBConnection
+from lazylibrarian.postprocess_refactor import (
+    BookState,
+    _calculate_download_age,
+    _calculate_fuzzy_match,
+    _check_and_schedule_next_run,
+    _count_zipfiles_in_directory,
+    _find_valid_file_in_directory,
+    _handle_aborted_download,
+    _handle_seeding_status,
+    _handle_snatched_timeout,
+    _is_valid_media_file,
+    _normalize_title,
+    _should_delete_processed_files,
+    _tokenize_file,
+    _validate_candidate_directory,
+    process_dir,
+)
+from lazylibrarian.postprocess_utils import (
+        enforce_str,
+        enforce_bytes,
+)
+from lazylibrarian.scheduling import SchedulerCommand
 from unittests.unittesthelpers import LLTestCaseWithStartup
 
 
@@ -243,8 +252,7 @@ class BookStateTest(LLTestCaseWithStartup):
 
     def test_enrich_with_download_info_ebook(self):
         """Test enrichment with download folder and book title for ebook"""
-        from unittest import mock
-        from lazylibrarian.database import DBConnection
+
 
         db = DBConnection()
         try:
@@ -266,9 +274,9 @@ class BookStateTest(LLTestCaseWithStartup):
                 download_id="dl123",
             )
 
-            # Mock get_download_folder
+            # Mock get_download_folder where it's used (not where it's defined)
             with mock.patch(
-                "lazylibrarian.download_client.get_download_folder"
+                "lazylibrarian.postprocess_refactor.get_download_folder"
             ) as mock_get_folder:
                 mock_get_folder.return_value = "/downloads/test_folder"
 
@@ -283,8 +291,6 @@ class BookStateTest(LLTestCaseWithStartup):
 
     def test_enrich_with_download_info_no_folder(self):
         """Test enrichment when client doesn't provide download folder"""
-        from unittest import mock
-        from lazylibrarian.database import DBConnection
 
         db = DBConnection()
         try:
@@ -305,9 +311,9 @@ class BookStateTest(LLTestCaseWithStartup):
                 download_id="nzb123",
             )
 
-            # Mock get_download_folder returning None
+            # Mock get_download_folder returning None (mock where it's used)
             with mock.patch(
-                "lazylibrarian.download_client.get_download_folder"
+                "lazylibrarian.postprocess_refactor.get_download_folder"
             ) as mock_get_folder:
                 mock_get_folder.return_value = None
 
@@ -321,7 +327,6 @@ class BookStateTest(LLTestCaseWithStartup):
 
     def test_enrich_with_download_info_magazine(self):
         """Test enrichment for magazine gets title"""
-        from lazylibrarian.database import DBConnection
 
         db = DBConnection()
         try:
@@ -358,15 +363,23 @@ class PostprocessHelperTest(LLTestCaseWithStartup):
             ("Über_Book_Name", "Uber Book Name"),
             ("  Spaces   Everywhere  ", "Spaces   Everywhere"),
             ("Book/With:Special*Chars", "Book_WithSpecialChars"),
+            # Test extension stripping (new behavior)
+            ("Book Name.epub", "Book Name"),
+            ("Book Name.2013", "Book Name"),
+            ("folder.unpack", "folder"),
+            ("AudioBook.mp3", "AudioBook"),
+            # Test that periods in names are preserved
+            ("J.R.R. Tolkien - Book", "J.R.R. Tolkien - Book"),
+            ("Dr. Seuss - The Cat", "Dr. Seuss - The Cat"),
+            ("H.P. Lovecraft - Story", "H.P. Lovecraft - Story"),
         ]
 
         for input_title, expected in test_cases:
             result = _normalize_title(input_title)
-            self.assertEqual(result, expected)
+            self.assertEqual(result, expected, f"Failed for input: {input_title}")
 
     def test_enforce_str(self):
         """Test enforce_str wrapper"""
-        from lazylibrarian.postprocess_utils import enforce_str
 
         # Test with string (passthrough)
         result = enforce_str("test string")
@@ -389,7 +402,6 @@ class PostprocessHelperTest(LLTestCaseWithStartup):
 
     def test_enforce_bytes(self):
         """Test enforce_bytes wrapper"""
-        from lazylibrarian.postprocess_utils import enforce_bytes
 
         # Test with string
         result = enforce_bytes("test string")
@@ -572,7 +584,6 @@ class PostprocessIntegrationTest(LLTestCaseWithStartup):
     def tearDown(self):
         super().tearDown()
         if os.path.exists(self.test_dir):
-            import shutil
 
             shutil.rmtree(self.test_dir, ignore_errors=True)
 
@@ -654,7 +665,6 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
 
     def test_calculate_download_age_valid(self):
         """Test age calculation with valid date"""
-        import datetime
 
         # 2 hours 15 minutes ago
         past_date = datetime.datetime.now() - datetime.timedelta(hours=2, minutes=15)
@@ -673,13 +683,7 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         hours, mins, secs = _calculate_download_age("invalid date")
         self.assertEqual((hours, mins, secs), (0, 0, 0))
 
-    @mock.patch("lazylibrarian.postprocess_refactor.get_download_folder")
-    @mock.patch("lazylibrarian.postprocess_refactor.delete_task")
-    @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
-    @mock.patch("lazylibrarian.postprocess_refactor.get_list")
-    def test_handle_seeding_status_torrent_removed(
-        self, mock_get_list, mock_get_bool, mock_delete_task, mock_get_download_folder
-    ):
+    def test_handle_seeding_status_torrent_removed(self):
         """Test that torrent removed from client changes status to Snatched"""
 
         book_state = BookState(
@@ -707,17 +711,16 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         self.assertTrue(result)
 
     @mock.patch("lazylibrarian.postprocess_refactor.get_download_folder")
-    @mock.patch("lazylibrarian.postprocess_refactor.delete_task")
     @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
     @mock.patch("lazylibrarian.postprocess_refactor.get_list")
     @mock.patch("lazylibrarian.postprocess_refactor.now")
     def test_handle_seeding_status_completed(
-        self, mock_now, mock_get_list, mock_get_bool, mock_delete_task, mock_get_download_folder
+        self, mock_now, mock_get_list, mock_get_bool, mock_get_download_folder
     ):
         """Test that seeding complete changes status to Processed"""
 
         mock_now.return_value = "2025-12-06 12:00:00"
-        mock_get_bool.side_effect = lambda x: False if x == "DEL_COMPLETED" else False
+        mock_get_bool.return_value = False
         mock_get_download_folder.return_value = "/downloads/book"
         mock_get_list.return_value = []
 
@@ -857,10 +860,9 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
 
     @mock.patch("lazylibrarian.postprocess_refactor.custom_notify_snatch")
     @mock.patch("lazylibrarian.postprocess_refactor.notify_snatch")
-    @mock.patch("lazylibrarian.postprocess_refactor.delete_task")
     @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
     def test_handle_aborted_download_sends_notifications(
-        self, mock_get_bool, mock_delete_task, mock_notify, mock_custom
+        self, mock_get_bool, mock_notify, mock_custom
     ):
         """Test that aborted downloads send failure notifications"""
         mock_get_bool.return_value = False  # DEL_FAILED = False
@@ -885,12 +887,9 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         mock_custom.assert_called_once_with("book123 TRANSMISSION", fail=True)
         self.assertTrue(mock_notify.called)
 
-    @mock.patch("lazylibrarian.postprocess_refactor.custom_notify_snatch")
-    @mock.patch("lazylibrarian.postprocess_refactor.notify_snatch")
-    @mock.patch("lazylibrarian.postprocess_refactor.delete_task")
     @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
     def test_handle_aborted_download_updates_status(
-        self, mock_get_bool, mock_delete, mock_notify, mock_custom
+        self, mock_get_bool
     ):
         """Test that aborted downloads update status to Failed"""
         mock_get_bool.return_value = False
@@ -917,12 +916,10 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         calls = [str(call) for call in mock_db.action.call_args_list]
         self.assertTrue(any("Failed" in call for call in calls))
 
-    @mock.patch("lazylibrarian.postprocess_refactor.custom_notify_snatch")
-    @mock.patch("lazylibrarian.postprocess_refactor.notify_snatch")
     @mock.patch("lazylibrarian.postprocess_refactor.delete_task")
     @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
     def test_handle_aborted_download_deletes_if_configured(
-        self, mock_get_bool, mock_delete_task, mock_notify, mock_custom
+        self, mock_get_bool, mock_delete_task
     ):
         """Test that when DEL_FAILED=True, aborted downloads are deleted from client"""
 
@@ -947,7 +944,7 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         # Should delete from client
         mock_delete_task.assert_called_once_with("QBITTORRENT", "dl123", True)
 
-    @mock.patch("lazylibrarian.scheduling.schedule_job")
+    @mock.patch("lazylibrarian.postprocess_refactor.schedule_job")
     def test_check_and_schedule_next_run_stop_when_empty(self, mock_schedule):
         """Test that postprocessor stops when no items remain"""
         mock_db = mock.Mock()
@@ -957,13 +954,11 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         _check_and_schedule_next_run(mock_db, mock_logger, False)
 
         # Should stop the postprocessor
-        from lazylibrarian.scheduling import SchedulerCommand
-
         mock_schedule.assert_called_once()
         call_args = mock_schedule.call_args
         self.assertEqual(call_args[0][0], SchedulerCommand.STOP)
 
-    @mock.patch("lazylibrarian.scheduling.schedule_job")
+    @mock.patch("lazylibrarian.postprocess_refactor.schedule_job")
     def test_check_and_schedule_next_run_restart_when_seeding(self, mock_schedule):
         """Test that postprocessor restarts when items are seeding"""
         mock_db = mock.Mock()
@@ -976,8 +971,444 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         _check_and_schedule_next_run(mock_db, mock_logger, False)
 
         # Should restart the postprocessor
-        from lazylibrarian.scheduling import SchedulerCommand
-
         mock_schedule.assert_called_once()
         call_args = mock_schedule.call_args
         self.assertEqual(call_args[0][0], SchedulerCommand.RESTART)
+
+
+class ProcessDirEndToEndTest(LLTestCaseWithStartup):
+    """End-to-end tests for process_dir with real file operations"""
+
+    def setUp(self):
+        super().setUp()
+        # Create temporary directories
+        self.test_root = tempfile.mkdtemp()
+        self.download_dir = os.path.join(self.test_root, "downloads")
+        self.library_dir = os.path.join(self.test_root, "library")
+        self.audio_library = os.path.join(self.test_root, "audiobooks")
+
+        os.makedirs(self.download_dir)
+        os.makedirs(self.library_dir)
+        os.makedirs(self.audio_library)
+
+        # Save original config values
+        self.original_download_dir = CONFIG["DOWNLOAD_DIR"]
+        self.original_ebook_dir = CONFIG["EBOOK_DIR"]
+        self.original_audio_dir = CONFIG["AUDIO_DIR"]
+        self.original_dest_copy = CONFIG["DESTINATION_COPY"]
+        self.original_pp_delay = CONFIG["PP_DELAY"]
+
+        # Configure test directories
+        CONFIG["DOWNLOAD_DIR"] = self.download_dir
+        CONFIG["EBOOK_DIR"] = self.library_dir
+        CONFIG["AUDIO_DIR"] = self.audio_library
+        # Note: DESTINATION_COPY is a ConfigBool and cannot be set via dictionary access
+        # Tests that need to change it should mock CONFIG.get_bool() instead
+        CONFIG.set_int("PP_DELAY", 0)  # Use set_int for integer configs
+
+        self.db = DBConnection()
+
+    def tearDown(self):
+        super().tearDown()
+        self.db.close()
+
+        # Restore original config values
+        CONFIG["DOWNLOAD_DIR"] = self.original_download_dir
+        CONFIG["EBOOK_DIR"] = self.original_ebook_dir
+        CONFIG["AUDIO_DIR"] = self.original_audio_dir
+        CONFIG["DESTINATION_COPY"] = self.original_dest_copy
+        CONFIG["PP_DELAY"] = self.original_pp_delay
+
+        # Clean up test directories
+        if os.path.exists(self.test_root):
+            shutil.rmtree(self.test_root, ignore_errors=True)
+
+    def create_test_author_and_book(self, book_id, author_name, book_name):
+        """Create test author and book in database"""
+        author_id = str(uuid.uuid4())
+
+        self.db.action(
+            "INSERT OR REPLACE INTO authors (AuthorID, AuthorName, Status) VALUES (?, ?, ?)",
+            (author_id, author_name, "Active")
+        )
+
+        self.db.action(
+            """INSERT OR REPLACE INTO books
+               (BookID, AuthorID, BookName, BookDate, BookDesc, BookGenre, BookLang)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (book_id, author_id, book_name, "2024-01-01", "Test book", "Fiction", "en")
+        )
+
+        return author_id, book_id
+
+    def create_snatched_download(self, book_id, download_title, book_type="eBook",
+                                source="SABnzbd", download_id=None):
+        """Create a snatched download entry"""
+        if download_id is None:
+            download_id = str(uuid.uuid4())
+
+        completed_time = int(time.time())
+
+        self.db.action(
+            """INSERT OR REPLACE INTO wanted
+               (BookID, NZBtitle, NZBmode, AuxInfo, Completed, Source, DownloadID,
+                Status, NZBurl, NZBprov, NZBdate)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (book_id, download_title, "nzb", book_type, completed_time, source,
+             download_id, "Snatched", "http://test.com/book.nzb", "TestProvider",
+             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
+
+        return download_id
+
+    def create_ebook_file(self, filepath, content="Test ebook content"):
+        """Create a fake ebook file"""
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w') as f:
+            f.write(content)
+        return filepath
+
+    def create_audiobook_files(self, directory, num_files=10):
+        """Create multiple audio files for audiobook"""
+        os.makedirs(directory, exist_ok=True)
+        files = []
+        for i in range(1, num_files + 1):
+            filepath = os.path.join(directory, f"chapter_{i:02d}.mp3")
+            with open(filepath, 'w') as f:
+                f.write(f"Audio chapter {i}")
+            files.append(filepath)
+        return files
+
+    def create_zip_archive(self, zip_path, files_dict):
+        """Create a zip archive with specified files
+
+        Args:
+            zip_path: Path to create zip file
+            files_dict: Dict of {filename: content} to add to zip
+        """
+        os.makedirs(os.path.dirname(zip_path), exist_ok=True)
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            for filename, content in files_dict.items():
+                zf.writestr(filename, content)
+        return zip_path
+
+    def assert_file_in_library(self, author, book_name, extension=".epub", library_type="ebook"):
+        """Helper to assert file exists in correct library location"""
+        if library_type == "ebook":
+            base_dir = self.library_dir
+        elif library_type == "audio":
+            base_dir = self.audio_library
+        else:
+            raise ValueError(f"Unknown library type: {library_type}")
+
+        expected = os.path.join(base_dir, author, book_name + extension)
+        self.assertTrue(os.path.exists(expected),
+                       f"Expected file at {expected}")
+        return expected
+
+    def assert_status_updated(self, book_id, expected_status):
+        """Helper to verify database status was updated"""
+        result = self.db.match("SELECT Status FROM wanted WHERE BookID=?", (book_id,))
+        self.assertIsNotNone(result, f"Book {book_id} not found in wanted table")
+        self.assertEqual(result['Status'], expected_status,
+                        f"Expected status {expected_status}, got {result['Status']}")
+
+    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    def test_process_single_epub_flat_structure(self, mock_get_name, mock_get_progress, mock_check_contents):
+        """Test processing a single EPUB in flat download structure"""
+        # Mock download client functions
+        mock_check_contents.return_value = None  # No rejection
+        mock_get_progress.return_value = (100, True)  # Complete
+        mock_get_name.return_value = None  # No name change
+
+        # Setup
+        book_id = "test_book_001"
+        author_name = "John Doe"
+        book_name = "Test Book One"
+        download_title = "John_Doe-Test_Book_One"
+
+        # Create database entries
+        self.create_test_author_and_book(book_id, author_name, book_name)
+        self.create_snatched_download(book_id, download_title, "eBook")
+
+        # Create download file
+        download_file = os.path.join(self.download_dir, "John_Doe-Test_Book_One.epub")
+        self.create_ebook_file(download_file)
+
+        # Execute
+        process_dir(ignoreclient=True)
+
+        # Verify
+        # 1. File moved to library (in a book-specific directory)
+        author_dir = os.path.join(self.library_dir, author_name)
+        self.assertTrue(os.path.exists(author_dir), f"Author directory should exist at {author_dir}")
+
+        # The postprocessor creates: Author/BookName/BookName - Author.epub
+        book_dir = os.path.join(author_dir, book_name)
+        self.assertTrue(os.path.exists(book_dir), f"Book directory should exist at {book_dir}")
+
+        # Check for the epub file (name format: "BookName - Author.epub")
+        epub_files = [f for f in os.listdir(book_dir) if f.endswith('.epub')]
+        self.assertEqual(len(epub_files), 1, f"Should have exactly 1 epub file, found {epub_files}")
+        self.assertIn(book_name, epub_files[0], "EPUB filename should contain book name")
+
+        # Check that metadata.opf was created
+        opf_files = [f for f in os.listdir(book_dir) if f.endswith('.opf')]
+        self.assertEqual(len(opf_files), 1, "Should have metadata.opf file")
+
+        # 2. File removed from download dir (moved, not copied)
+        self.assertFalse(os.path.exists(download_file),
+                        "Original file should be moved (not copied)")
+
+        # 3. Database updated
+        self.assert_status_updated(book_id, 'Processed')
+
+    @mock.patch('lazylibrarian.postprocess_refactor._is_valid_media_file')
+    @mock.patch('lazylibrarian.postprocess_refactor.CONFIG.get_bool')
+    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    def test_process_audiobook_collection_with_subdirs(self, mock_get_name, mock_get_progress, mock_check_contents, mock_get_bool, mock_is_valid_media):
+        """Test processing audiobook from collection with subdirectories
+
+        Tests the drill-down matching functionality for collections like:
+        Lord of the Rings Trilogy/
+          |-- Lord of the Rings 1 - Fellowship of the Ring/
+          |-- Lord of the Rings 2 - The Two Towers/
+          |-- Lord of the Rings 3 - Return of the King/
+        """
+        # Mock download client functions
+        mock_check_contents.return_value = None  # No rejection
+        mock_get_progress.return_value = (100, True)  # Complete
+        mock_get_name.return_value = None  # No name change
+
+        # Mock file validation to accept our empty test files
+        mock_is_valid_media.return_value = True  # All files are valid
+
+        # Mock CONFIG.get_bool to ensure audiobooks are enabled
+        def get_bool_side_effect(key):
+            return key == "AUDIO_TAB"
+
+        mock_get_bool.side_effect = get_bool_side_effect
+
+        # Setup
+        book_id = "audio_002"
+        author_name = "J.R.R. Tolkien"
+        book_name = "Lord of the Rings: The Two Towers"  # Series name in book title
+        download_title = "J.R.R._Tolkien-Lord_of_the_Rings_Trilogy"
+
+        self.create_test_author_and_book(book_id, author_name, book_name)
+        self.create_snatched_download(book_id, download_title, "AudioBook")
+
+        # Create collection structure
+        collection_root = os.path.join(self.download_dir, "J.R.R._Tolkien-Lord_of_the_Rings_Trilogy")
+
+        # Create subdirectories for each book
+        book1_dir = os.path.join(collection_root, "Lord of the Rings 1 - Fellowship of the Ring")
+        book2_dir = os.path.join(collection_root, "Lord of the Rings 2 - The Two Towers")
+        book3_dir = os.path.join(collection_root, "Lord of the Rings 3 - Return of the King")
+
+        self.create_audiobook_files(book1_dir, num_files=35)
+        self.create_audiobook_files(book2_dir, num_files=30)  # This is the one we want
+        self.create_audiobook_files(book3_dir, num_files=38)
+
+        # Execute
+        process_dir(ignoreclient=True)
+
+        # Verify
+        # 1. Correct book extracted to audio library
+        author_dir = os.path.join(self.audio_library, author_name)
+        self.assertTrue(os.path.exists(author_dir), f"Author directory should exist at {author_dir}")
+
+        # The book directory name will be sanitized (colons removed)
+        # "Lord of the Rings: The Two Towers" → "Lord of the Rings The Two Towers"
+        book_dirs = os.listdir(author_dir)
+        self.assertEqual(len(book_dirs), 1, f"Should have exactly 1 book directory, found: {book_dirs}")
+
+        book_dir = os.path.join(author_dir, book_dirs[0])
+        self.assertIn("Two Towers", book_dirs[0], "Book directory should contain 'Two Towers'")
+
+        # 2. Verify it has the right number of audio files
+        audio_files = [f for f in os.listdir(book_dir) if f.endswith('.mp3')]
+        self.assertEqual(len(audio_files), 30,
+                        "Should have exactly 30 audio files from The Two Towers")
+
+        # 3. Other books should NOT be processed
+        # Verify only 1 book directory exists (not all 3 from the trilogy)
+        self.assertEqual(len(book_dirs), 1,
+                        "Should only process The Two Towers, not all 3 books in trilogy")
+
+        # 4. Database updated
+        self.assert_status_updated(book_id, 'Processed')
+
+    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    def test_process_epub_in_zip(self, mock_get_name, mock_get_progress, mock_check_contents):
+        """Test extracting and processing EPUB from ZIP archive"""
+        # Mock download client functions
+        mock_check_contents.return_value = None  # No rejection
+        mock_get_progress.return_value = (100, True)  # Complete
+        mock_get_name.return_value = None  # No name change
+
+        # Setup
+        book_id = "test_book_003"
+        author_name = "Jane Smith"
+        book_name = "Archive Test"
+        download_title = "Jane_Smith-Archive_Test"
+
+        self.create_test_author_and_book(book_id, author_name, book_name)
+        self.create_snatched_download(book_id, download_title, "eBook")
+
+        # Create ZIP with EPUB inside in a matching folder
+        # The postprocessor looks for directories matching the download title
+        download_folder = os.path.join(self.download_dir, "Jane_Smith-Archive_Test")
+        os.makedirs(download_folder)
+        zip_path = os.path.join(download_folder, "book.zip")
+        self.create_zip_archive(zip_path, {
+            "Jane_Smith-Archive_Test.epub": "Ebook content here",
+            "cover.jpg": "Image data",
+            "metadata.opf": "<metadata></metadata>"
+        })
+
+        # Execute
+        process_dir(ignoreclient=True)
+
+        # Verify
+        # Archive should be extracted and book moved to library
+        author_dir = os.path.join(self.library_dir, author_name)
+        self.assertTrue(os.path.exists(author_dir), f"Author directory should exist at {author_dir}")
+
+        book_dir = os.path.join(author_dir, book_name)
+        self.assertTrue(os.path.exists(book_dir), f"Book directory should exist at {book_dir}")
+
+        # Check for the epub file
+        epub_files = [f for f in os.listdir(book_dir) if f.endswith('.epub')]
+        self.assertGreaterEqual(len(epub_files), 1, "Should have at least 1 epub file after extraction")
+
+        # Database should be updated
+        self.assert_status_updated(book_id, 'Processed')
+
+    @mock.patch('lazylibrarian.postprocess_refactor.CONFIG.get_bool')
+    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    def test_process_with_destination_copy_enabled(self, mock_get_name, mock_get_progress, mock_check_contents, mock_get_bool):
+        """Test that DESTINATION_COPY copies instead of moving files"""
+        # Mock download client functions
+        mock_check_contents.return_value = None  # No rejection
+        mock_get_progress.return_value = (100, True)  # Complete
+        mock_get_name.return_value = None  # No name change
+
+        # Mock CONFIG.get_bool to return True for DESTINATION_COPY
+        def get_bool_side_effect(key):
+            if key == "DESTINATION_COPY":
+                return True
+            elif key == "KEEP_SEEDING":
+                return False
+            return False
+        mock_get_bool.side_effect = get_bool_side_effect
+
+        # Setup
+        book_id = "test_book_004"
+        author_name = "Copy Test"
+        book_name = "Copy Mode Test"
+        download_title = "Copy_Test-Copy_Mode_Test"
+
+        self.create_test_author_and_book(book_id, author_name, book_name)
+        self.create_snatched_download(book_id, download_title, "eBook")
+
+        download_file = os.path.join(self.download_dir, "Copy_Test-Copy_Mode_Test.epub")
+        self.create_ebook_file(download_file)
+
+        # Execute
+        process_dir(ignoreclient=True)  # Ignore download client checks since we're testing file processing
+
+        # Verify
+        # 1. File copied to library (in book directory structure)
+        author_dir = os.path.join(self.library_dir, author_name)
+        self.assertTrue(os.path.exists(author_dir), "Author directory should exist")
+
+        book_dir = os.path.join(author_dir, book_name)
+        self.assertTrue(os.path.exists(book_dir), "Book directory should exist")
+
+        epub_files = [f for f in os.listdir(book_dir) if f.endswith('.epub')]
+        self.assertEqual(len(epub_files), 1, "Should have exactly 1 epub file")
+
+        # 2. Original file STILL in download dir (because DESTINATION_COPY is enabled)
+        self.assertTrue(os.path.exists(download_file),
+                       "Original file should remain when DESTINATION_COPY is True")
+
+    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    def test_process_file_in_download_root_with_unpack_isolation(self, mock_get_name, mock_get_progress, mock_check_contents):
+        """Test that files in download root are isolated to .unpack directory to protect other files
+
+        When a single file exists in the download root alongside other unrelated files,
+        the postprocessor should:
+        1. Create a .unpack subdirectory
+        2. Copy/move only files matching this book's name to .unpack
+        3. Process from .unpack (protecting other files in root)
+        4. Clean up .unpack after processing
+        """
+        # Mock download client functions
+        mock_check_contents.return_value = None  # No rejection
+        mock_get_progress.return_value = (100, True)  # Complete
+        mock_get_name.return_value = None  # No name change
+
+        # Setup
+        book_id = "test_book_005"
+        author_name = "Isolation Test"
+        book_name = "Root File Test"
+        download_title = "Isolation_Test-Root_File_Test"
+
+        self.create_test_author_and_book(book_id, author_name, book_name)
+        self.create_snatched_download(book_id, download_title, "eBook")
+
+        # Create the target book file in download ROOT
+        target_file = os.path.join(self.download_dir, "Isolation_Test-Root_File_Test.epub")
+        self.create_ebook_file(target_file, "Target book content")
+
+        # Create other unrelated files in download root that should be protected
+        other_file1 = os.path.join(self.download_dir, "Other_Book.epub")
+        other_file2 = os.path.join(self.download_dir, "Random_File.txt")
+        self.create_ebook_file(other_file1, "Other book content")
+        self.create_ebook_file(other_file2, "Random content")
+
+        # Create a matching metadata file (should be isolated with the book)
+        cover_file = os.path.join(self.download_dir, "Isolation_Test-Root_File_Test.jpg")
+        self.create_ebook_file(cover_file, "Cover image")
+
+        # Execute
+        process_dir(ignoreclient=True)
+
+        # Verify
+        # 1. Book processed to library
+        author_dir = os.path.join(self.library_dir, author_name)
+        self.assertTrue(os.path.exists(author_dir), "Author directory should exist")
+
+        book_dirs = os.listdir(author_dir)
+        self.assertEqual(len(book_dirs), 1, "Should have 1 book directory")
+
+        book_dir = os.path.join(author_dir, book_dirs[0])
+        epub_files = [f for f in os.listdir(book_dir) if f.endswith('.epub')]
+        self.assertEqual(len(epub_files), 1, "Should have the processed epub")
+
+        # 2. Target file and matching files removed from root
+        self.assertFalse(os.path.exists(target_file), "Target file should be moved from root")
+        self.assertFalse(os.path.exists(cover_file), "Cover file should be moved with book")
+
+        # 3. OTHER FILES PROTECTED - should still exist in download root
+        self.assertTrue(os.path.exists(other_file1), "Other book file should NOT be touched")
+        self.assertTrue(os.path.exists(other_file2), "Random file should NOT be touched")
+
+        # 4. .unpack directory cleaned up
+        if os.path.exists(self.download_dir):
+            unpack_dirs = [d for d in os.listdir(self.download_dir) if '.unpack' in d]
+            self.assertEqual(len(unpack_dirs), 0, ".unpack directory should be cleaned up after processing")
+
+        # 5. Database updated
+        self.assert_status_updated(book_id, 'Processed')
