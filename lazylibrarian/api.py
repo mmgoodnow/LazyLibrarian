@@ -219,6 +219,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'removeMagazine': (1, '&name= remove magazine and all of its issues from database by name'),
             'queueBook': (1, '&id= [&type=eBook/AudioBook] mark book as Wanted, default eBook'),
             'unqueueBook': (1, '&id= [&type=eBook/AudioBook] mark book as Skipped, default eBook'),
+            'deleteBook': (1, '&id= [&type=eBook/AudioBook] delete book files and update database'),
             'readCFG': (1, '&name=&group= read value of config variable "name" in section "group"'),
             'writeCFG': (1, '&name=&group=&value= set config variable "name" in section "group" to value'),
             'loadCFG': (1, 'reload config from file'),
@@ -1936,6 +1937,70 @@ class Api:
                     self.data = 'OK'
             finally:
                 db.close()
+
+    def _deletebook(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        bookid = kwargs.get('id')
+        if not bookid:
+            self.data = 'Missing parameter: id'
+            return
+
+        delete_type = kwargs.get('type', 'eBook').lower()
+        if delete_type not in ['ebook', 'audiobook']:
+            self.data = f"Invalid type: {kwargs.get('type')}"
+            return
+
+        delete_ebook = delete_type == 'ebook'
+        delete_audio = delete_type == 'audiobook'
+
+        db = database.DBConnection()
+        try:
+            cmd = ("SELECT AuthorName,Bookname,BookFile,AudioFile,books.AuthorID from books,authors "
+                   "WHERE BookID=? and books.AuthorID = authors.AuthorID")
+            bookdata = db.match(cmd, (bookid,))
+            if not bookdata:
+                self.data = f"Invalid id: {bookid}"
+                return
+
+            bookname = bookdata['BookName']
+            authorid = bookdata['AuthorID']
+
+            if delete_audio:
+                bookfile = bookdata['AudioFile']
+                if bookfile and path_isfile(bookfile):
+                    try:
+                        shutil.rmtree(os.path.dirname(bookfile), ignore_errors=True)
+                        self.logger.info(f'AudioBook {bookname} deleted from disc')
+                    except Exception as e:
+                        self.logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
+
+            if delete_ebook:
+                bookfile = bookdata['BookFile']
+                if bookfile and path_isfile(bookfile):
+                    try:
+                        shutil.rmtree(os.path.dirname(bookfile), ignore_errors=True)
+                        self.logger.info(f'eBook {bookname} deleted from disc')
+                        if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
+                            delete_from_calibre(bookdata)
+                    except Exception as e:
+                        self.logger.warning(f'rmtree failed on {bookfile}, {type(e).__name__} {str(e)}')
+
+            authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
+            if authorcheck and authorcheck['Status'] in ['Active', 'Wanted']:
+                if delete_ebook:
+                    db.upsert("books", {"Status": "Ignored", "ScanResult": "User deleted"},
+                              {"BookID": bookid})
+                if delete_audio:
+                    db.upsert("books", {"AudioStatus": "Ignored", "ScanResult": "User deleted"},
+                              {"BookID": bookid})
+            else:
+                for table in ['books', 'wanted', 'readinglists']:
+                    db.action(f"DELETE from {table} WHERE BookID=?", (bookid,))
+
+            update_totals(authorid)
+            self.data = 'OK'
+        finally:
+            db.close()
 
     def _addmagazine(self, **kwargs):
         TELEMETRY.record_usage_data()
