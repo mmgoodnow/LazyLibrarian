@@ -325,7 +325,8 @@ def get_latest_version_from_git():
             if not project:
                 project = '9317860'  # default lazylibrarian
 
-            url = f"https://gitlab.com/api/v4/projects/{project}/repository/commits?per_page=1"
+            url = f"https://gitlab.com/api/v4/projects/{project}/repository/branches"
+
             # Get the latest commit available from git
             logger.debug(f'Retrieving latest version information from git command=[{url}]')
 
@@ -354,9 +355,13 @@ def get_latest_version_from_git():
 
                 if str(r.status_code).startswith('2'):
                     try:
-                        latest_version = r.json()[0]['id']
-                        created_at = r.json()[0]['created_at']
-                        logger.debug(f"Branch {branch} Latest Version [{latest_version}] {created_at}")
+                        res = r.json()
+                        for item in res:
+                            if item['name'] == branch:
+                                latest_version = item['commit']['id']
+                                created_at = item['commit']['created_at']
+                                logger.debug(f"Branch {branch} Latest Version [{latest_version}] {created_at}")
+                                break
                     except Exception as err:
                         logger.warning(f'Error {type(err).__name__} reading json response')
                         logger.error(f'{r.json()}')
