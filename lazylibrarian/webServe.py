@@ -38,7 +38,7 @@ import lazylibrarian
 from lazylibrarian import database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, \
     grsync, hc, ROLE
-from lazylibrarian.auth import AuthController, require_auth, require_api_key
+from lazylibrarian.auth import AuthController, require_auth
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members
@@ -2493,6 +2493,7 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         authorsearch = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
+        db.close()
         if authorsearch:  # to stop error if try to refresh an author while they are still loading
             authorname = authorsearch['AuthorName']
             if not authorname or 'unknown' in authorname.lower() or 'anonymous' in authorname.lower():
@@ -2500,11 +2501,9 @@ class WebInterface:
             threading.Thread(target=add_author_to_db, name=f"REFRESHAUTHOR_{authorid}",
                              args=[authorname, True, authorid, True,
                                    f"WebServer refresh_author {authorid}"]).start()
-            db.close()
             raise cherrypy.HTTPRedirect(f"author_page?authorid={authorid}")
         else:
             logger.debug(f'refresh_author Invalid authorid [{authorid}]')
-            db.close()
             raise cherrypy.HTTPError(404, f"AuthorID {authorid} not found")
 
     @cherrypy.expose
@@ -3460,61 +3459,6 @@ class WebInterface:
         logger = logging.getLogger(__name__)
         logger.debug(f"Serve Book [{feedid}]")
         return self.serve_item(feedid, "book")
-
-    @cherrypy.expose
-    @require_api_key()
-    def api_book(self, bookid=None, booktype=None, **kwargs):
-        logger = logging.getLogger(__name__)
-        if not bookid:
-            raise cherrypy.HTTPError(400, 'Missing parameter: id')
-
-        bookid_key = 'BookID'
-        for itm in api_sources:
-            if CONFIG['BOOK_API'] == itm[0]:
-                bookid_key = itm[2]
-                break
-
-        db = database.DBConnection()
-        try:
-            cmd = f"SELECT BookFile,BookName from books WHERE {bookid_key}=? or BookID=?"
-            res = db.match(cmd, (bookid, bookid))
-        finally:
-            db.close()
-
-        if not res or not res.get('BookFile'):
-            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
-
-        myfile = res['BookFile']
-        fname, extn = os.path.splitext(myfile)
-        types = []
-        for itm in get_list(CONFIG['EBOOK_TYPE']):
-            target = fname + '.' + itm
-            if path_isfile(target):
-                types.append(itm)
-
-        if not types and path_isfile(myfile):
-            extn = extn.lstrip('.')
-            if extn:
-                types = [extn]
-
-        if booktype:
-            if booktype not in types:
-                raise cherrypy.HTTPError(404, f"Requested type {booktype} not found for book {bookid}")
-            extn = booktype
-        else:
-            if not types:
-                raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
-            extn = types[0]
-
-        if types:
-            myfile = fname + '.' + extn
-
-        if not path_isfile(myfile):
-            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
-
-        name = f"{res['BookName']}.{extn}" if extn else res['BookName']
-        logger.debug(f'API book download {myfile}')
-        return serve_file(myfile, mime_type(myfile), "attachment", name=name)
 
     @cherrypy.expose
     @require_auth()

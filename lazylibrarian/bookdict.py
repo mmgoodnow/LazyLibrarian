@@ -98,7 +98,7 @@ id_key = {'DNB': 'dnb_id', 'HardCover': 'hc_id', 'GoodReads': 'gr_id',
           'GoogleBooks': 'gb_id', 'OpenLibrary': 'ol_id'}
 
 
-def validate_bookdict(bookdict):
+def validate_bookdict(bookdict, current_db=None):
     """Validate a book dictionary for required fields and rules.
        Try to look up isbn and/or language if not provided
        Return bookdict with amendments """
@@ -110,9 +110,11 @@ def validate_bookdict(bookdict):
             rejected.append(['name', f"{item} not found"])
             return bookdict, rejected
 
-    db = database.DBConnection()
-
-    db.connection.create_collation('fuzzy', lazylibrarian.importer.collate_fuzzy)
+    if not current_db:
+        db = database.DBConnection()
+        db.connection.create_collation('fuzzy', lazylibrarian.importer.collate_fuzzy)
+    else:
+        db = current_db
 
     # noinspection PyBroadException
     try:
@@ -245,14 +247,14 @@ def validate_bookdict(bookdict):
             if CONFIG.get_bool('NO_PUBDATE'):
                 if not publish_date or publish_date == '0000':
                     rejected.append(['date', 'No publication date'])
-        db.close()
-        return bookdict, rejected
 
     except Exception:
         logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
         logger.error(f"{bookdict}")
-        db.close()
-        return bookdict, rejected
+    finally:
+        if not current_db:
+            db.close()
+    return bookdict, rejected
 
 
 def warn_about_bookdict(bookdict):
@@ -405,9 +407,12 @@ def add_bookdict_to_db(book, reason, source):
 
 def add_author_books_to_db(resultqueue, bookstatus, audiostatus, entrystatus, entryreason, authorid,
                            get_series_members=None, get_bookdict_for_bookid=None, cache_hits=0):
+    """ There are some time.sleep() calls in the loops to stop the method hogging all the cpu,
+        possibly the database calls? Needs more investigation """
     logger = logging.getLogger(__name__)
     searchinglogger = logging.getLogger('special.searching')
     db = database.DBConnection()
+    db.connection.create_collation('fuzzy', lazylibrarian.importer.collate_fuzzy)
     threadname = thread_name()
     authorname = ''
     auth_start = time.time()
@@ -436,6 +441,7 @@ def add_author_books_to_db(resultqueue, bookstatus, audiostatus, entrystatus, en
                }
 
     for bookdict in resultqueue.get():
+        time.sleep(0.25)
         """  resultqueue returns dicts...
         'authorname'
         'authorid'
@@ -467,7 +473,9 @@ def add_author_books_to_db(resultqueue, bookstatus, audiostatus, entrystatus, en
         summary['total'] += 1
         bookdict['status'] = bookstatus
         bookdict['audiostatus'] = audiostatus
-        bookdict, rejected = validate_bookdict(bookdict)
+        # since we're using this in a loop, pass a preconfigured db
+        # to save opening a new cursor and setting fuzzy collation for each entry
+        bookdict, rejected = validate_bookdict(bookdict, current_db=db)
         fatal = False
         reason = ''
         ignore_book = False
@@ -594,6 +602,7 @@ def add_author_books_to_db(resultqueue, bookstatus, audiostatus, entrystatus, en
                             lazylibrarian.importer.update_totals(auth_id)
                         else:
                             logger.debug(f"Unable to add {auth_id}")
+                        time.sleep(0.25)
 
             # Leave alone if locked
             if locked:
