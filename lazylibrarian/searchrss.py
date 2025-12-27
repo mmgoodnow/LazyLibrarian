@@ -290,7 +290,7 @@ def search_wishlist():
 
                         bookmatch['AuthorName'] = authorname
                         bookmatch['AuthorID'] = authorid
-                        item['BookID'] = bookmatch['bookid']
+                        item['BookID'] = bookmatch['BookID']
                         want_book, want_audio = calc_status(bookmatch, search_start, ebook_status, audio_status)
                         new_value_dict = {}
                         if want_book:
@@ -302,12 +302,12 @@ def search_wishlist():
                             new_audio.append(item)
                             new_value_dict["AudioRequester"] = f"{book['dispname']} "
 
-                        book_res = db.match("SELECT * from books WHERE bookid=?", (bookmatch['bookid'],))
+                        book_res = db.match("SELECT * from books WHERE bookid=?", (bookmatch['BookID'],))
                         if not book_res:
-                            import_book(bookmatch['bookid'], ebook_status, audio_status,
+                            import_book(bookmatch['BookID'], ebook_status, audio_status,
                                         reason=f"Added from wishlist {book['dispname']}")
                         if new_value_dict:
-                            control_value_dict = {"BookID": bookmatch['bookid']}
+                            control_value_dict = {"BookID": bookmatch['BookID']}
                             db.upsert("books", new_value_dict, control_value_dict)
 
                     if not bookmatch:
@@ -336,7 +336,7 @@ def search_wishlist():
                         new_value_dict['AudioStatus'] = "Wanted"
 
                     if new_value_dict:
-                        control_value_dict = {"BookID": bookmatch['bookid']}
+                        control_value_dict = {"BookID": bookmatch['BookID']}
                         db.upsert("books", new_value_dict, control_value_dict)
 
             if new_books or new_audio:

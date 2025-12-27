@@ -328,7 +328,7 @@ def add_torrent(link, hashid, provider_options):
 
 def get_args(provider_options):
     """ Get optional arguments based on configuration"""
-    args = {'paused': 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'}
+    args = {'paused': True if CONFIG.get_bool('TORRENT_PAUSED') else False}
     if CONFIG['QBITTORRENT_DIR']:
         args['savepath'] = CONFIG['QBITTORRENT_DIR']
 
