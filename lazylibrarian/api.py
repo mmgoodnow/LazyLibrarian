@@ -22,6 +22,7 @@ from queue import Queue
 from urllib.parse import urlsplit, urlunsplit, unquote_plus
 
 import cherrypy
+from cherrypy.lib.static import serve_file
 import dateutil.parser as dp
 
 import lazylibrarian
@@ -36,7 +37,7 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list, delete_from_c
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header, create_support_zip, get_readinglist, dbbackup
+from lazylibrarian.common import log_header, create_support_zip, get_readinglist, dbbackup, mime_type
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
@@ -161,6 +162,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
+            'getBookFileDirect': (1, '&id= [&booktype=] download book file directly'),
             'getAllBooks': (0, '[&sort=] [&limit=] [&status=] [&audiostatus=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
@@ -290,6 +292,7 @@ class Api(object):
         self.kwargs = None
         self.data = None
         self.callback = None
+        self.file_response = None
         self.lower_cmds = [key.lower() for key, _ in cmd_dict.items()]
         self.logger = logging.getLogger(__name__)
         self.dlcommslogger = logging.getLogger('special.dlcomms')
@@ -355,6 +358,10 @@ class Api(object):
             self.logger.debug(f'Received API command from {remote_ip}: {self.cmd} {self.kwargs}')
             method_to_call = getattr(self, f"_{self.cmd.lower()}")
             method_to_call(**self.kwargs)
+
+            if self.file_response:
+                file_path, file_name = self.file_response
+                return serve_file(file_path, mime_type(file_path), "attachment", name=file_name)
 
             if 'callback' not in self.kwargs:
                 self.dlcommslogger.debug(str(self.data))
@@ -1163,6 +1170,62 @@ class Api(object):
         else:
             self.data = get_book_pubdate(kwargs['id'])
 
+    def _getbookfiledirect(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        bookid = kwargs.get('id') or kwargs.get('bookid')
+        booktype = kwargs.get('booktype')
+        if not bookid:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Missing parameter: id'}}
+            return
+
+        bookid_key = 'BookID'
+        for item, info_source in lazylibrarian.INFOSOURCES.items():
+            if CONFIG['BOOK_API'] == item:
+                bookid_key = info_source['book_key']
+                break
+
+        db = database.DBConnection()
+        try:
+            cmd = f"SELECT BookFile,BookName from books WHERE {bookid_key}=? or BookID=?"
+            res = db.match(cmd, (bookid, bookid))
+        finally:
+            db.close()
+
+        if not res or not res['BookFile']:
+            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
+
+        myfile = res['BookFile']
+        fname, extn = os.path.splitext(myfile)
+        types = []
+        for item in get_list(CONFIG['EBOOK_TYPE']):
+            target = fname + '.' + item
+            if path_isfile(target):
+                types.append(item)
+
+        if not types and path_isfile(myfile):
+            extn = extn.lstrip('.')
+            if extn:
+                types = [extn]
+
+        if booktype:
+            if booktype not in types:
+                raise cherrypy.HTTPError(404, f"Requested type {booktype} not found for book {bookid}")
+            extn = booktype
+        else:
+            if not types:
+                raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
+            extn = types[0]
+
+        if types:
+            myfile = fname + '.' + extn
+
+        if not path_isfile(myfile):
+            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
+
+        name = f"{res['BookName']}.{extn}" if extn else res['BookName']
+        self.logger.debug(f'API book download {myfile}')
+        self.file_response = (myfile, name)
     def _createplaylist(self, **kwargs):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
