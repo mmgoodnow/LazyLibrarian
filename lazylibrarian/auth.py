@@ -90,32 +90,6 @@ def require_auth(*conditions):
     return decorate
 
 
-# noinspection PyUnusedLocal
-def check_api_key(*args, **kwargs):
-    """A tool that checks for a valid API key when enabled by config."""
-    if not cherrypy.request.config.get('apikey.require', None):
-        return
-    apikey = cherrypy.request.params.get('apikey') or cherrypy.request.headers.get('X-API-Key')
-    if not apikey:
-        raise cherrypy.HTTPError(401, 'Missing parameter: apikey')
-    if apikey != CONFIG.get_str('API_KEY'):
-        raise cherrypy.HTTPError(401, 'Incorrect API key')
-
-
-cherrypy.tools.apikey = cherrypy.Tool('before_handler', check_api_key)
-
-
-def require_api_key():
-    """A decorator that requires the full API key (not read-only)."""
-    # noinspection PyProtectedMember
-    def decorate(f):
-        if not hasattr(f, '_cp_config'):
-            f._cp_config = dict()
-        f._cp_config['apikey.require'] = True
-        return f
-    return decorate
-
-
 # Conditions are callables that return True
 # if the user fulfills the conditions they define, False otherwise
 #
