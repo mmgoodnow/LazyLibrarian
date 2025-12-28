@@ -46,7 +46,7 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configdefs import CONFIG_GIT
-from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm, remove_file, path_isfile
+from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm, remove_file, path_isfile, splitext
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.logconfig import LOGCONFIG
 
@@ -469,7 +469,7 @@ def zip_audio(source, zipname, bookid):
                 for filename in filenames:
                     # don't include self or our special index file
                     if not filename.endswith('.zip') and not filename.endswith('.ll'):
-                        bname, extn = os.path.splitext(filename)
+                        bname, extn = splitext(filename)
                         # don't include singlefile
                         if bname != singlefile:
                             cnt += 1

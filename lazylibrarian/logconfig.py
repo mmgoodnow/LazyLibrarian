@@ -12,7 +12,7 @@ import os
 from typing import Dict, List, Set, Optional
 
 from lazylibrarian.configenums import OnChangeReason
-from lazylibrarian.filesystem import DIRS, syspath
+from lazylibrarian.filesystem import DIRS, syspath, splitext
 
 
 class RecentMemoryHandler(logging.handlers.MemoryHandler):
@@ -428,7 +428,7 @@ class LogConfig:
         If redact is true, insert '-redacted' in the name. """
         if redact:
             justfilename = os.path.basename(filename)
-            basefilename, ext = os.path.splitext(justfilename)
+            basefilename, ext = splitext(justfilename)
             filename = f"{basefilename}-redacted{ext}"
         return DIRS.get_logfile(filename)
 

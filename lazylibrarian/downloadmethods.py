@@ -34,7 +34,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.filesystem import DIRS, path_isdir, path_isfile, syspath, remove_file, setperm, \
-    make_dirs, get_directory
+    make_dirs, get_directory, splitext
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.ircbot import irc_query
@@ -316,7 +316,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             block_annas(dl_limit)
             return False, f"Download limit {dl_limit} reached"
 
-        title, extn = os.path.splitext(dl_title)
+        title, extn = splitext(dl_title)
         folder = ''
         db = database.DBConnection()
         res = db.match('SELECT bookname from books WHERE bookid=?', (bookid,))
@@ -380,11 +380,11 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         basename = sanitize(dl_title, is_folder_or_file=True)
         # zlib sometimes includes the filetype as an extension in the title
         # strip from dl_title so we don't include extension in destdir, or twice in destfile
-        basename, _ = os.path.splitext(basename)
+        basename, _ = splitext(basename)
         destdir = os.path.join(get_directory('Download'), basename)
         if not path_isdir(destdir):
             _ = make_dirs(destdir)
-        _, extn = os.path.splitext(filename)
+        _, extn = splitext(filename)
         destfile = os.path.join(destdir, basename + extn)
         if os.name == 'nt':  # Windows has max path length of 256
             destfile = '\\\\?\\' + destfile

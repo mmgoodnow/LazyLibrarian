@@ -296,16 +296,16 @@ def search_wishlist():
                         if want_book:
                             ebook_status = "Wanted"
                             new_books.append(item)
-                            new_value_dict["Requester"] = f"{book['dispname']} "
+                            new_value_dict["Requester"] = f"{wishlist}"
                         if want_audio:
                             audio_status = "Wanted"
                             new_audio.append(item)
-                            new_value_dict["AudioRequester"] = f"{book['dispname']} "
+                            new_value_dict["AudioRequester"] = f"{wishlist}"
 
                         book_res = db.match("SELECT * from books WHERE bookid=?", (bookmatch['BookID'],))
                         if not book_res:
                             import_book(bookmatch['BookID'], ebook_status, audio_status,
-                                        reason=f"Added from wishlist {book['dispname']}")
+                                        reason=f"Added from wishlist {wishlist}")
                         if new_value_dict:
                             control_value_dict = {"BookID": bookmatch['BookID']}
                             db.upsert("books", new_value_dict, control_value_dict)
@@ -326,10 +326,10 @@ def search_wishlist():
                     new_value_dict = {}
                     if bookmatch.get("Requester", ''):  # Already on a wishlist
                         if wishlist and wishlist not in bookmatch["Requester"]:
-                            new_value_dict["Requester"] = f"{bookmatch['Requester'] + wishlist} "
+                            new_value_dict["Requester"] = f"{bookmatch['Requester']} {wishlist}"
                     if bookmatch.get("AudioRequester", ''):
                         if wishlist and wishlist not in bookmatch["AudioRequester"]:
-                            new_value_dict["AudioRequester"] = f"{bookmatch['AudioRequester'] + wishlist} "
+                            new_value_dict["AudioRequester"] = f"{bookmatch['AudioRequester']} {wishlist}"
                     if want_book:
                         new_value_dict['Status'] = "Wanted"
                     if want_audio:

@@ -19,7 +19,7 @@ import time
 import lazylibrarian
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
+from lazylibrarian.filesystem import DIRS, path_isfile, remove_file, splitext
 from lazylibrarian.formatter import md5_utf8, plural, check_int, get_list
 
 try:
@@ -239,7 +239,7 @@ class SLSKD:
                             new_files = []
                             extns = []
                             for item in directory['files']:
-                                title, extn = os.path.splitext(item['filename'])
+                                title, extn = splitext(item['filename'])
                                 extn = extn.lstrip('.').lower()
                                 if extn in extns:  # reject if multiple files of the same type
                                     new_files = []

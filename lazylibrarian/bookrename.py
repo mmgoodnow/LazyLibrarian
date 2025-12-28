@@ -21,7 +21,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation
 from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory, copy_tree, \
-    path_isdir, path_isfile
+    path_isdir, path_isfile, splitext
 from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, \
     sanitize, replacevars
 from lazylibrarian.opfedit import opf_read
@@ -497,7 +497,7 @@ def audio_rename(bookid, rename=False, playlist=False, overwrite=False):
         bookfile = namevars['AudioSingleFile']
         if not bookfile:
             bookfile = f"{exists['AuthorName']} - {exists['BookName']}"
-        out_type = os.path.splitext(part[3])[1]
+        out_type = splitext(part[3])[1]
         outfile = bookfile + out_type
         if playlist:
             if rename:
@@ -528,7 +528,7 @@ def audio_rename(bookid, rename=False, playlist=False, overwrite=False):
                 '$Part', str(part[0]).zfill(len(str(len(parts))))).replace(
                 '$Total', str(len(parts)))
             pattern = ' '.join(pattern.split()).strip()
-            pattern = pattern + os.path.splitext(part[3])[1]
+            pattern = pattern + splitext(part[3])[1]
             if rename:
                 pattern = sanitize(pattern)
 
@@ -622,7 +622,7 @@ def book_rename(bookid, overwrite=False):
     new_basename = namevars['BookFile']
 
     if fullname and not os.path.isfile(fullname):
-        _, extn = os.path.splitext(fullname)
+        _, extn = splitext(fullname)
         if extn:
             new_location = os.path.join(dest_path, new_basename + extn)
             if os.path.isfile(new_location):
@@ -653,7 +653,7 @@ def book_rename(bookid, overwrite=False):
     for fname in listdir(old_path):
         extn = ''
         if CONFIG.is_valid_booktype(fname, booktype='ebook'):
-            extn = os.path.splitext(fname)[1]
+            extn = splitext(fname)[1]
         elif fname.endswith('.opf') and not fname == 'metadata.opf':
             extn = '.opf'
         elif fname.endswith('.jpg') and not fname == 'cover.jpg':

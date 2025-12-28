@@ -41,7 +41,7 @@ from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file,
                                       listdir, setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file,
-                                      jpg_file, book_file, get_directory, walk, copy_tree, remove_dir)
+                                      jpg_file, book_file, get_directory, walk, copy_tree, remove_dir, splitext)
 from lazylibrarian.formatter import unaccented, plural, now, today, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, sanitize, thread_name
@@ -84,7 +84,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         if not source_file or not path_isfile(source_file):
             logger.warning(f"{source_file} is not a file")
             return False
-        _, extn = os.path.splitext(source_file)
+        _, extn = splitext(source_file)
         extn = extn.lstrip('.')
         if not extn or extn not in get_list(CONFIG['MAG_TYPE']):
             logger.warning(f"{source_file} is not a valid issue file")
@@ -136,7 +136,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             return False
 
         old_folder = os.path.dirname(source_file)
-        basename, extn = os.path.splitext(source_file)
+        basename, extn = splitext(source_file)
         remove_file(source_file)
         remove_file(f"{basename}.opf")
         remove_file(f"{basename}.jpg")
@@ -185,7 +185,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         if not CONFIG.get_bool('IMP_MAGOPF'):
             logger.debug('create_mag_opf is disabled')
         else:
-            basename, extn = os.path.splitext(source_file)
+            basename, extn = splitext(source_file)
             opffile = f"{basename}.opf"
             remove_file(opffile)
             _ = create_mag_opf(dest_file, title, issuenum, issueid,
@@ -289,7 +289,7 @@ def process_issues(source_dir=None, title=''):
 
         # import any files in this directory that match the title, are a magazine file, and have a parseable date
         for f in listdir(source_dir):
-            _, extn = os.path.splitext(f)
+            _, extn = splitext(f)
             extn = extn.lstrip('.')
             if not extn or extn.lower() not in get_list(CONFIG['MAG_TYPE']):
                 continue
@@ -436,7 +436,7 @@ def process_alternate(source_dir=None, library='eBook'):
                 # if we haven't already got metadata from an LL.num
                 # see if there is a metadata file in this folder with the info we need
                 # try book_name.opf first, or fall back to any filename.opf
-                metafile = f"{os.path.splitext(new_book)[0]}.opf"
+                metafile = f"{splitext(new_book)[0]}.opf"
                 if not path_isfile(metafile):
                     metafile = opf_file(source_dir)
                 if metafile and path_isfile(metafile):
@@ -449,7 +449,7 @@ def process_alternate(source_dir=None, library='eBook'):
 
             if 'title' not in metadata or 'creator' not in metadata:
                 # if not got both, try to get metadata from the book file
-                extn = os.path.splitext(new_book)[1]
+                extn = splitext(new_book)[1]
                 if extn.lower() in [".epub", ".mobi"]:
                     try:
                         metadata = get_book_info(new_book)
@@ -683,7 +683,7 @@ def unpack_multipart(source_dir, download_dir, title='multi'):
             return ''
         for f in listdir(source_dir):
             archivename = os.path.join(source_dir, f)
-            xtn = os.path.splitext(archivename)[1].lower()
+            xtn = splitext(archivename)[1].lower()
             if xtn not in ['.epub', '.cbz'] and zipfile.is_zipfile(archivename):
                 try:
                     z = zipfile.ZipFile(archivename)
@@ -725,7 +725,7 @@ def unpack_archive(archivename, download_dir, title='archive', targetdir=''):
 
     # noinspection PyBroadException
     try:
-        xtn = os.path.splitext(archivename)[1].lower()
+        xtn = splitext(archivename)[1].lower()
         if xtn not in ['.epub', '.cbz'] and zipfile.is_zipfile(archivename):
             TELEMETRY.record_usage_data('Process/Archive/Zip')
             postprocesslogger.debug(f'{archivename} is a zip file')
@@ -1089,7 +1089,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 for fname in downloads:
                     # skip if failed before or incomplete torrents, or incomplete btsync etc
                     postprocesslogger.debug(f"Checking {fname}")
-                    base, extn = os.path.splitext(fname)
+                    base, extn = splitext(fname)
                     if not base.startswith('.') and not extn or extn.strip('.') not in skipped_extensions:
                         # This is to get round differences in torrent filenames.
                         # Usenet is ok, but Torrents aren't always returned with the name we searched for
@@ -1132,7 +1132,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     if bts_file(download_dir):
                                         logger.debug(f"Skipping {download_dir}, found a .bts file")
                                     else:
-                                        aname = os.path.splitext(fname)[0]
+                                        aname = splitext(fname)[0]
                                         while aname[-1] in '_. ':
                                             aname = aname[:-1]
 
@@ -1172,7 +1172,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 zipfiles = 0
                                 for f in listdir(pp_path):
                                     archivename = os.path.join(pp_path, f)
-                                    xtn = os.path.splitext(archivename)[1].lower()
+                                    xtn = splitext(archivename)[1].lower()
                                     if xtn not in ['.epub', '.cbz'] and zipfile.is_zipfile(archivename):
                                         zipfiles += 1
                                 if zipfiles > 1:
@@ -1194,7 +1194,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     # maybe it's in an archive...
                                     for r, _, f in walk(pp_path):
                                         for item in f:
-                                            xtn = os.path.splitext(item)[1].lower()
+                                            xtn = splitext(item)[1].lower()
                                             if xtn not in ['.epub', '.cbr', '.cbz']:
                                                 res = unpack_archive(os.path.join(r, item),
                                                                      download_dir, matchtitle)
@@ -1239,10 +1239,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                 logger.debug(
                                                     f"Found {found_file} ({round(found_score, 2)}%) "
                                                     f"for {matchtitle}")
-                                                found_file, _ = os.path.splitext(found_file)
+                                                found_file, _ = splitext(found_file)
                                                 # copy all valid types of this title, plus opf, jpg
                                                 for f in listdir(pp_path):
-                                                    base, extn = os.path.splitext(f)
+                                                    base, extn = splitext(f)
                                                     if base == found_file:
                                                         if CONFIG.is_valid_booktype(f, booktype="book") or \
                                                                 extn in ['.opf', '.jpg']:
@@ -1927,7 +1927,7 @@ def check_contents(source, downloadid, booktype, title):
                 fsize = entry['filesize']
             if 'length' in entry:  # transmission
                 fsize = entry['length']
-            extn = os.path.splitext(fname)[1].lstrip('.').lower()
+            extn = splitext(fname)[1].lstrip('.').lower()
             if extn and extn in banned_extensions:
                 rejected = f"{title} extension {extn}"
                 logger.warning(f"{rejected}. Rejecting download")
@@ -1992,7 +1992,7 @@ def check_residual(download_dir):
         TELEMETRY.record_usage_data('Process/Residual')
         for entry in downloads:
             if "LL.(" in entry:
-                _, extn = os.path.splitext(entry)
+                _, extn = splitext(entry)
                 if not extn or extn.strip('.') not in skipped_extensions:
                     book_id = entry.split("LL.(")[1].split(")")[0]
                     logger.debug(f"Book with id: {book_id} found in download directory")
@@ -2802,7 +2802,7 @@ def send_to_calibre(booktype, global_name, folder, data):
         # and ignores opf data if there is data embedded in the book file,
         # so we send separate "set_metadata" commands after the import
         for fname in listdir(folder):
-            extn = os.path.splitext(fname)[1]
+            extn = splitext(fname)[1]
             srcfile = os.path.join(folder, fname)
             if CONFIG.is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
                 if bestformat and not fname.endswith(bestformat) and extn not in ['.opf', '.jpg']:
@@ -2847,7 +2847,7 @@ def send_to_calibre(booktype, global_name, folder, data):
             magfile = book_file(folder, "magazine", config=CONFIG)
             coverfile = os.path.join(folder, 'cover.jpg')
             # calibre likes "cover.jpg"
-            jpgfile = f"{os.path.splitext(magfile)[0]}.jpg"
+            jpgfile = f"{splitext(magfile)[0]}.jpg"
             if path_isfile(jpgfile):
                 try:
                     jpgfile = safe_copy(jpgfile, coverfile)
@@ -3145,7 +3145,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         booktype_list = get_list(CONFIG['EBOOK_TYPE'])
         for btype in booktype_list:
             for fname in listdir(pp_path):
-                extn = os.path.splitext(fname)[1].lstrip('.')
+                extn = splitext(fname)[1].lstrip('.')
                 if extn and extn.lower() == btype:
                     found_types.append(btype)
                     if not bestformat:
@@ -3219,7 +3219,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             booktype_list = get_list(CONFIG['EBOOK_TYPE'])
             for btype in booktype_list:
                 for fname in listdir(pp_path):
-                    extn = os.path.splitext(fname)[1].lstrip('.')
+                    extn = splitext(fname)[1].lstrip('.')
                     if extn and extn.lower() == btype:
                         found_types.append(btype)
                         if not bestformat:
@@ -3273,11 +3273,11 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 srcfile = os.path.join(pp_path, fname)
                 if booktype in ['audiobook', 'comic']:
                     if fname.lower().endswith(".jpg") or fname.lower().endswith(".opf"):
-                        destfile = os.path.join(udest_path, make_unicode(global_name) + os.path.splitext(fname)[1])
+                        destfile = os.path.join(udest_path, make_unicode(global_name) + splitext(fname)[1])
                     else:
                         destfile = os.path.join(udest_path, fname)  # don't rename audio or comic files, just copy
                 else:
-                    destfile = os.path.join(udest_path, make_unicode(global_name) + os.path.splitext(fname)[1])
+                    destfile = os.path.join(udest_path, make_unicode(global_name) + splitext(fname)[1])
                 try:
                     logger.debug(f'Copying {fname} to directory {udest_path}')
                     destfile = safe_copy(srcfile, destfile)
@@ -3415,14 +3415,14 @@ def process_auto_add(src_path=None, booktype='book'):
             for bktype in booktype_list:
                 while not match:
                     for name in names:
-                        extn = os.path.splitext(name)[1].lstrip('.')
+                        extn = splitext(name)[1].lstrip('.')
                         if extn and extn.lower() == bktype:
                             match = bktype
                             break
         copied = False
         for name in names:
             if match and CONFIG.is_valid_booktype(name, booktype=booktype) and not name.endswith(match):
-                logger.debug(f'Skipping book format {os.path.splitext(name)[1]}')
+                logger.debug(f'Skipping book format {splitext(name)[1]}')
             elif booktype == 'book' and CONFIG.get_bool('IMP_AUTOADD_BOOKONLY') and not \
                     CONFIG.is_valid_booktype(name, booktype="book"):
                 logger.debug(f'Skipping non-book {name}')
@@ -3544,7 +3544,7 @@ def create_mag_opf(issuefile, title, issue, issue_id, language='en', genres='', 
         f"Creating opf with file:{issuefile} authors:{authors} title:{title} issue:{issue} "
         f"issueid:{issue_id} language:{language} overwrite:{overwrite}")
     dest_path, global_name = os.path.split(issuefile)
-    global_name = os.path.splitext(global_name)[0]
+    global_name = splitext(global_name)[0]
 
     if CONFIG.get_bool('IMP_CALIBRE_MAGISSUE'):
         iname = issue
@@ -3796,7 +3796,7 @@ def send_mag_issue_to_calibre(data):
         return 'Exists', filename, pp_path
 
     logger.debug(f"Calibre ID does not exist: {data['Title']}:{data['IssueDate']}:{data['IssueFile']}")
-    global_name = os.path.splitext(os.path.basename(data['IssueFile']))[0]
+    global_name = splitext(os.path.basename(data['IssueFile']))[0]
     logger.debug(f" Global name = [{global_name}]")
     sourcedir = os.path.dirname(data['IssueFile'])
     logger.debug(f" Source Dir = [{sourcedir}]")
@@ -3818,7 +3818,7 @@ def send_comic_issue_to_calibre(data):
         return 'Exists', filename, pp_path
 
     logger.debug(f"Calibre ID does not exist: {data['ComicID']}:{data['IssueID']}")
-    global_name = os.path.splitext(os.path.basename(data['IssueFile']))[0]
+    global_name = splitext(os.path.basename(data['IssueFile']))[0]
     sourcedir = os.path.dirname(data['IssueFile'])
     with tempfile.TemporaryDirectory() as temp_dir:
         for item in listdir(sourcedir):
@@ -3838,7 +3838,7 @@ def send_ebook_to_calibre(data):
         return 'Exists', filename, pp_path
 
     logger.debug(f"Calibre ID does not exist: {data['AuthorName']} {data['BookName']}")
-    global_name = os.path.splitext(os.path.basename(data['BookFile']))[0]
+    global_name = splitext(os.path.basename(data['BookFile']))[0]
     with tempfile.TemporaryDirectory() as temp_dir:
         sourcedir = os.path.dirname(data['IssueFile'])
         for item in listdir(sourcedir):

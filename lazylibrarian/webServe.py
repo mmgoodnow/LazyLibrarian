@@ -55,7 +55,7 @@ from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
     irc_dl_method
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
-    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
+    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, splitext
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, md5_utf8, date_format, check_year, \
     strip_quotes, format_author_name, check_float, thread_name
@@ -3517,7 +3517,7 @@ class WebInterface:
                     if not target:
                         target = os.path.join(DIRS.DATADIR, res['BookImg'])
                     if path_isfile(target):
-                        return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
+                        return self.send_file(target, name=res['BookName'] + splitext(res['BookImg'])[1])
                 else:
                     res = db.match('SELECT Title,Cover from issues WHERE IssueID=?', (itemid,))
                     if res:
@@ -3527,7 +3527,7 @@ class WebInterface:
                         if not target:
                             target = os.path.join(DIRS.DATADIR, res['Cover'])
                         if path_isfile(target):
-                            return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
+                            return self.send_file(target, name=res['Title'] + splitext(res['Cover'])[1])
                     else:
                         try:
                             comicid, issueid = itemid.split('_')
@@ -3543,7 +3543,7 @@ class WebInterface:
                             if not target:
                                 target = os.path.join(DIRS.DATADIR, res['Cover'])
                             if path_isfile(target):
-                                return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
+                                return self.send_file(target, name=res['Title'] + splitext(res['Cover'])[1])
 
             logger.debug(f"Itemid {itemid} no match")
             target = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'll192.png')
@@ -3564,7 +3564,7 @@ class WebInterface:
                 target = res['IssueFile']
                 if target and path_isfile(target):
                     logger.debug(f'Opening {ftype} {target}')
-                    return self.send_file(target, name=f"{res['Title']} {issueid}{os.path.splitext(target)[1]}")
+                    return self.send_file(target, name=f"{res['Title']} {issueid}{splitext(target)[1]}")
 
         elif ftype == 'audio':
             res = db.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
@@ -3593,7 +3593,7 @@ class WebInterface:
             res = db.match('SELECT BookFile,BookName from books WHERE BookID=?', (itemid,))
             if res:
                 myfile = res['BookFile']
-                fname, extn = os.path.splitext(myfile)
+                fname, extn = splitext(myfile)
                 types = []
                 for itm in get_list(CONFIG['EBOOK_TYPE']):
                     target = fname + '.' + itm
@@ -3616,7 +3616,7 @@ class WebInterface:
                 myfile = res['IssueFile']
                 if myfile and path_isfile(myfile):
                     logger.debug(f'Opening {ftype} {myfile}')
-                    return self.send_file(myfile, name=f"{res['Title']} {itemid}{os.path.splitext(myfile)[1]}")
+                    return self.send_file(myfile, name=f"{res['Title']} {itemid}{splitext(myfile)[1]}")
         db.close()
         logger.warning(f"No file found for {ftype} {itemid}")
         return None
@@ -3679,7 +3679,7 @@ class WebInterface:
                         try:
                             for fname in listdir(parentdir):
                                 if CONFIG.is_valid_booktype(fname, booktype='audio'):
-                                    bname, extn = os.path.splitext(fname)
+                                    bname, extn = splitext(fname)
                                     if bname == singlename:
                                         # found name matching the AudioSingleFile
                                         singlefile = os.path.join(parentdir, fname)
@@ -3715,7 +3715,7 @@ class WebInterface:
                                     else:
                                         logger.debug(f'Opening {library} {bookfile}')
                                     return self.send_file(bookfile, name=f"{book_name} "
-                                                                         f"part{idx}{os.path.splitext(bookfile)[1]}",
+                                                                         f"part{idx}{splitext(bookfile)[1]}",
                                                           email=email)
                             # noinspection PyUnusedLocal
                             cnt = sum(1 for line in open(index))
@@ -3757,7 +3757,7 @@ class WebInterface:
                     library = 'eBook'
                     bookfile = bookdata["BookFile"]
                     if bookfile and path_isfile(bookfile):
-                        fname, _ = os.path.splitext(bookfile)
+                        fname, _ = splitext(bookfile)
                         types = []
                         for itm in get_list(CONFIG['EBOOK_TYPE']):
                             target = fname + '.' + itm
@@ -3930,7 +3930,7 @@ class WebInterface:
                         if not path_isfile(authorimg):
                             logger.warning(f"Failed to find file {authorimg}")
                         else:
-                            extn = os.path.splitext(authorimg)[1].lower()
+                            extn = splitext(authorimg)[1].lower()
                             if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
                                 image_id = img_id()
                                 destfile = os.path.join(DIRS.CACHEDIR, 'author', image_id + '.jpg')
@@ -4303,7 +4303,7 @@ class WebInterface:
                                         "books.authorid=authors.authorid and BookID=?", (bookid,))
                         if data['BookFile'] and path_isfile(data['BookFile']):
                             dest_path = os.path.dirname(data['BookFile'])
-                            global_name = os.path.splitext(os.path.basename(data['BookFile']))[0]
+                            global_name = splitext(os.path.basename(data['BookFile']))[0]
                             if opf_template:  # we already have a valid (new) opffile
                                 dest_opf = os.path.join(dest_path, global_name + '.opf')
                                 if opffile != dest_opf:
@@ -4591,7 +4591,7 @@ class WebInterface:
                 if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
-                    fname, extn = os.path.splitext(this_issue['Cover'])
+                    fname, extn = splitext(this_issue['Cover'])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     if path_isfile(imgfile):
                         this_issue['Cover'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
@@ -4639,7 +4639,7 @@ class WebInterface:
                 if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
-                    fname, extn = os.path.splitext(this_issue['Cover'])
+                    fname, extn = splitext(this_issue['Cover'])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     if path_isfile(imgfile):
                         this_issue['Cover'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
@@ -4690,7 +4690,7 @@ class WebInterface:
             if not itm.get('BookImg') or not itm['BookImg'].startswith('cache/'):
                 itm['BookImg'] = 'images/nocover.jpg'
             else:
-                fname, extn = os.path.splitext(itm['BookImg'])
+                fname, extn = splitext(itm['BookImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
                     itm['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
@@ -4729,7 +4729,7 @@ class WebInterface:
             if not itm.get('AuthorImg') or not itm['AuthorImg'].startswith('cache/'):
                 itm['AuthorImg'] = 'images/nocover.jpg'
             else:
-                fname, extn = os.path.splitext(itm['AuthorImg'])
+                fname, extn = splitext(itm['AuthorImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
                     itm['AuthorImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
@@ -4767,7 +4767,7 @@ class WebInterface:
             if not itm.get('BookImg') or not itm['BookImg'].startswith('cache/'):
                 itm['BookImg'] = 'images/nocover.jpg'
             else:
-                fname, extn = os.path.splitext(itm['BookImg'])
+                fname, extn = splitext(itm['BookImg'])
                 imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                 if path_isfile(imgfile):
                     itm['BookImg'] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
@@ -4998,7 +4998,7 @@ class WebInterface:
                     if not row[1] or not row[1].startswith('cache/'):
                         row[1] = 'images/nocover.jpg'
                     else:
-                        fname, extn = os.path.splitext(row[1])
+                        fname, extn = splitext(row[1])
                         imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                         if path_isfile(imgfile):
                             row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
@@ -5126,7 +5126,7 @@ class WebInterface:
                     if issue_file and path_isfile(issue_file):
                         logger.debug(f'Opening file {issue_file}')
                         return self.send_file(issue_file, name=f"{iss_data['Title']} {issueid}"
-                                                               f"{os.path.splitext(issue_file)[1]}")
+                                                               f"{splitext(issue_file)[1]}")
 
             # or we may just have a comicid to find comic in comicissues table
             cmd = ("SELECT Title,IssueFile,IssueID from comics,comicissues WHERE comics.ComicID=comicissues.ComicID "
@@ -5144,7 +5144,7 @@ class WebInterface:
             issue_file = iss_data[0]["IssueFile"]
             if issue_file and path_isfile(issue_file):
                 logger.debug(f'Opening {comicid} - {issue_id}')
-                return self.send_file(issue_file, name=f"{title} {issue_id}{os.path.splitext(issue_file)[1]}")
+                return self.send_file(issue_file, name=f"{title} {issue_id}{splitext(issue_file)[1]}")
             else:
                 logger.warning(f"No issue {issue_id} for comic {title}")
                 raise cherrypy.HTTPError(404, f"Comic Issue {issue_id} not found for {title}")
@@ -5209,7 +5209,7 @@ class WebInterface:
                 if not row[1] or not row[1].startswith('cache/'):
                     row[1] = 'images/nocover.jpg'
                 else:
-                    fname, extn = os.path.splitext(row[1])
+                    fname, extn = splitext(row[1])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     if path_isfile(imgfile):
                         row[1] = f"cache/{imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep)}"
@@ -5450,7 +5450,7 @@ class WebInterface:
                         cover = ''
                         issuefile = newest['IssueFile']
                         if path_exists(issuefile):
-                            cover = os.path.splitext(issuefile)[0] + '.jpg'
+                            cover = splitext(issuefile)[0] + '.jpg'
                             mtime = os.path.getmtime(syspath(issuefile))
                             new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
                         issuefile = oldest['IssueFile']
@@ -5573,7 +5573,7 @@ class WebInterface:
                     if not row[1] or not row[1].startswith('cache/'):
                         row[1] = 'images/nocover.jpg'
                     else:
-                        fname, extn = os.path.splitext(row[1])
+                        fname, extn = splitext(row[1])
                         imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                         fullsize = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}{extn}')
                         if path_isfile(imgfile):
@@ -5801,7 +5801,7 @@ class WebInterface:
                 if not row[1] or not row[1].startswith('cache/'):
                     row[1] = 'images/nocover.jpg'
                 else:
-                    fname, extn = os.path.splitext(row[1])
+                    fname, extn = splitext(row[1])
                     imgfile = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}_w200{extn}')
                     fullsize = os.path.join(DIRS.CACHEDIR, f'{fname[6:]}{extn}')
                     if path_isfile(imgfile):
@@ -6229,7 +6229,7 @@ class WebInterface:
                     else:
                         logger.debug(f'Opening file {issue_file}')
                     return self.send_file(issue_file, name=f"{mag_data['Title']} {mag_data['IssueDate']}"
-                                                           f"{os.path.splitext(issue_file)[1]}", email=email)
+                                                           f"{splitext(issue_file)[1]}", email=email)
 
             # or we may just have a title to find magazine in issues table
             mag_data = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (unquote(bookid),))
@@ -6249,7 +6249,7 @@ class WebInterface:
                     logger.debug(f'Emailing {bookid} - {issue_date}')
                 else:
                     logger.debug(f'Opening {bookid} - {issue_date}')
-                return self.send_file(issue_file, name=f"{bookid} {issue_date}{os.path.splitext(issue_file)[1]}",
+                return self.send_file(issue_file, name=f"{bookid} {issue_date}{splitext(issue_file)[1]}",
                                       email=email)
             else:
                 logger.warning(f"No issue {issue_date} for magazine {bookid}")
@@ -6562,7 +6562,7 @@ class WebInterface:
         try:
             # delete the magazine file and any cover image / opf
             remove_file(issuefile)
-            fname, extn = os.path.splitext(issuefile)
+            fname, extn = splitext(issuefile)
             for extn in ['.opf', '.jpg']:
                 remove_file(fname + extn)
             # if the directory is now empty, delete that too

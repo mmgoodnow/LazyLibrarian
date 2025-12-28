@@ -720,7 +720,7 @@ def is_valid_type(filename: str, extensions: List[str], extras='jpg, opf') -> bo
     returns True or False
     """
     type_list = extensions + get_list(extras)
-    extn = os.path.splitext(filename)[1].lstrip('.')
+    extn = lazylibrarian.filesystem.splitext(filename)[1].lstrip('.')
     return extn and extn.lower() in type_list
 
 

@@ -1,10 +1,9 @@
 import logging
-from os.path import splitext
 
 import lazylibrarian
 from lazylibrarian import database, ROLE
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import path_isfile
+from lazylibrarian.filesystem import path_isfile, splitext
 from lazylibrarian.formatter import split_author_names, get_list
 from lazylibrarian.hc import HardCover
 from lazylibrarian.importer import add_author_name_to_db, add_author_to_db, update_totals

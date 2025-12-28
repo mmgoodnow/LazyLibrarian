@@ -40,7 +40,7 @@ from lazylibrarian.common import log_header, create_support_zip, get_readinglist
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, splitext
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, get_list, \
     thread_name, split_author_names, is_valid_isbn
 from lazylibrarian.grsync import grfollow, grsync
@@ -1287,7 +1287,7 @@ class Api(object):
             self.data = f"No bookfile found for bookid {kwargs['id']}"
             return
         dest_path = os.path.dirname(res['BookFile'])
-        global_name = os.path.splitext(os.path.basename(res['BookFile']))[0]
+        global_name = splitext(os.path.basename(res['BookFile']))[0]
         refresh = 'refresh' in kwargs
         process_img(dest_path, kwargs['id'], res['BookImg'], global_name, refresh)
         self.data = create_opf(dest_path, res, global_name, refresh)
@@ -1658,7 +1658,7 @@ class Api(object):
             if dirname:
                 title = os.path.basename(dirname)
                 global_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], title, dateparts)
-                self.data = os.path.join(dirname, f"{global_name}.{os.path.splitext(kwargs['name'])[1]} {dateparts}")
+                self.data = os.path.join(dirname, f"{global_name}.{splitext(kwargs['name'])[1]} {dateparts}")
                 return
         self.data = f"Regex {dateparts['style']} [{issuedate}] {dateparts}"
 
@@ -2550,7 +2550,7 @@ class Api(object):
         msg = f"{table} Image [{img}] rejected"
         # Cache file image
         if path_isfile(img):
-            extn = os.path.splitext(img)[1].lower()
+            extn = splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
                 destfile = os.path.join(DIRS.CACHEDIR, table, f"{itemid}.jpg")
                 try:
@@ -2564,7 +2564,7 @@ class Api(object):
 
         if img.startswith('http'):
             # cache image from url
-            extn = os.path.splitext(img)[1].lower()
+            extn = splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
                 _, success, _ = cache_img(ImageType(table), itemid, img)
                 if success:

@@ -178,9 +178,9 @@ def set_series(serieslist=None, bookid=None, reason=""):
                         api_hits += _api_hits
                 else:
                     # new series, need to set status and get SeriesID
-                    debug_msg = f"Series {item[2]} is new"
+                    debug_msg = f"Series {item[0]}:{item[2]} is new"
                     logger.info(debug_msg)
-                    if item[0]:
+                    if item[0]:  # ignore incomplete info with no seriesid
                         seriesid = item[0]
                         members, _api_hits, _src = get_series_members(seriesid, item[2])
                         debug_msg = f"New series {item[2]}:{seriesid} has {len(members)} members"

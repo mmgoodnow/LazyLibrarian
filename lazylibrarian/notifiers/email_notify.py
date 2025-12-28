@@ -31,7 +31,7 @@ import lazylibrarian
 from lazylibrarian import database, ebook_convert
 from lazylibrarian.common import is_valid_email, run_script, mime_type
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, splitext
 from lazylibrarian.formatter import check_int, get_list, unaccented
 from lazylibrarian.librarysync import get_book_info
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
@@ -131,7 +131,7 @@ class EmailNotifier:
                             # send-to-kindle needs embedded metadata
                             metadata = get_book_info(f)
                             if 'title' not in metadata or 'creator' not in metadata:
-                                basename, _ = os.path.splitext(f)
+                                basename, _ = splitext(f)
                                 if os.path.exists(f"{basename}.opf"):
                                     lazylibrarian.postprocess.write_meta(os.path.dirname(f), f"{basename}.opf")
                         subtype = mime_type(syspath(f)).split('/')[1]
@@ -252,7 +252,7 @@ class EmailNotifier:
                             bookfile = data['BookFile']
                             types = []
                             if bookfile and path_isfile(bookfile):
-                                basename, extn = os.path.splitext(bookfile)
+                                basename, extn = splitext(bookfile)
                                 for item in set(
                                         typelist + custom_typelist):
                                     # Search download and email formats for existing book formats

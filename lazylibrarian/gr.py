@@ -1464,16 +1464,19 @@ class GoodReads:
                     "ScanResult": reason,
                     "OriginalPubDate": originalpubdate
                 }
+                db.upsert("books", new_value_dict, control_value_dict)
 
+                # get_book_cover needs the bookid to already exist in db
                 if 'nocover' in bookimg or 'nophoto' in bookimg:
                     # try to get a cover from another source
                     link, _ = get_book_cover(bookid, ignore='goodreads')
                     if link:
-                        new_value_dict["BookImg"] = link
+                        new_value_dict = {"BookImg": link}
+                        db.upsert("books", new_value_dict, control_value_dict)
                 elif bookimg and bookimg.startswith('http'):
-                    new_value_dict["BookImg"] = cache_bookimg(bookimg, bookid, 'gr')
+                    new_value_dict = {"BookImg": cache_bookimg(bookimg, bookid, 'gr')}
+                    db.upsert("books", new_value_dict, control_value_dict)
 
-                db.upsert("books", new_value_dict, control_value_dict)
                 self.logger.info(f"{bookname} by {authorname} added to the books database, {bookstatus}/{audiostatus}")
                 serieslist = []
                 if series:

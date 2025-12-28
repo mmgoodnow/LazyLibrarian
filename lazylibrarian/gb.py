@@ -804,17 +804,19 @@ class GoogleBooks:
                 "BookAdded": today(),
                 "gb_id": bookid
             }
+            db.upsert("books", new_value_dict, control_value_dict)
 
             if 'nocover' in book['img'] or 'nophoto' in book['img']:
                 # try to get a cover from another source
                 link, _ = get_book_cover(bookid, ignore='googleapis')
                 if link:
-                    new_value_dict["BookImg"] = link
+                    new_value_dict = {"BookImg": link}
+                    db.upsert("books", new_value_dict, control_value_dict)
                 elif book['img'] and book['img'].startswith('http'):
                     link = cache_bookimg(book['img'], bookid, 'gb')
-                    new_value_dict["BookImg"] = link
+                    new_value_dict = {"BookImg": link}
+                    db.upsert("books", new_value_dict, control_value_dict)
 
-            db.upsert("books", new_value_dict, control_value_dict)
             self.logger.info(f"{bookname} by {authorname} added to the books database, {bookstatus}/{audiostatus}")
             serieslist = []
             if book['series']:

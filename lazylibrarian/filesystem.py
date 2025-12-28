@@ -162,6 +162,13 @@ def path_islink(name: str) -> bool:
     return os.path.islink(syspath(name))
 
 
+def splitext(name: str) -> tuple[str, str]:
+    base, extn = os.path.splitext(name)
+    if extn.startswith('. '):
+        return name, ''
+    return base, extn
+
+
 WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
 
 

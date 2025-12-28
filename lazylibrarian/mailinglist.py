@@ -17,7 +17,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.common import run_script
-from lazylibrarian.filesystem import path_exists, syspath
+from lazylibrarian.filesystem import path_exists, syspath, splitext
 from lazylibrarian.formatter import plural, get_list, check_int
 from lazylibrarian.notifiers import email_notifier
 
@@ -153,7 +153,7 @@ def mailing_list(book_type, global_name, book_id):
             if res and res['SendTo']:
                 if booktype == 'ebook':
                     pref = res['BookType']
-                    basename, extn = os.path.splitext(filename)
+                    basename, extn = splitext(filename)
                     prefname = f"{basename}.{pref}"
                     if path_exists(prefname):
                         filename = prefname

@@ -31,7 +31,7 @@ from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir, splitext
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 
@@ -675,7 +675,7 @@ class OrphanCleaner(FileCleaner):
             return name.split('.')[0]
         else:
             # Magazines use a different encoding scheme in the file name.
-            fname, extn = os.path.splitext(name)
+            fname, extn = splitext(name)
             return fname.split('_')[0] + extn
 
     def clean_file(self, filename):

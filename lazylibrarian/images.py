@@ -26,7 +26,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes, \
     sort_definite, get_list, is_valid_type
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file, safe_move
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file, safe_move, splitext
 from lazylibrarian.cache import cache_img, fetch_url, ImageType
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from urllib.parse import quote_plus
@@ -76,7 +76,7 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
     if not PIL:
         return ''
     logger = logging.getLogger(__name__)
-    fname, extn = os.path.splitext(jpeg)
+    fname, extn = splitext(jpeg)
     outfile = f"{fname}_w{basewidth}{extn}" if basewidth else f"{fname}_thumb{extn}"
 
     if not overwrite and path_isfile(outfile):
@@ -121,7 +121,7 @@ def valid_pdf(sourcefile):
     if PdfWriter is None:
         logger.warning("pypdf is not loaded")
         return False
-    _, extn = os.path.splitext(sourcefile)
+    _, extn = splitext(sourcefile)
     if extn.lower() != '.pdf':
         logger.warning(f"Cannot swap cover on [{sourcefile}]")
         return False
@@ -148,7 +148,7 @@ def coverswap(sourcefile, coverpage=2):
         logger.warning("pypdf is not loaded")
         return False
 
-    _, extn = os.path.splitext(sourcefile)
+    _, extn = splitext(sourcefile)
     if extn.lower() != '.pdf':
         logger.warning(f"Cannot swap cover on [{sourcefile}]")
         return False
@@ -810,7 +810,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
         logger.warning(f'No issuefile {issuefile}')
         return ''
 
-    base, extn = os.path.splitext(issuefile)
+    base, extn = splitext(issuefile)
     if not extn:
         logger.warning(f'Unable to create cover for {issuefile}, no extension?')
         return ''
@@ -852,7 +852,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                     for member in data.infoiter():
                         fname = member.filename.lower()
                         if item in fname:
-                            _, fextn = os.path.splitext(fname)
+                            _, fextn = splitext(fname)
                             if fextn in ['.jpg', '.jpeg', '.png', '.webp']:
                                 r = data.read_files(member.filename)
                                 img = r[0][1]
@@ -861,7 +861,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                     for member in data.namelist():
                         fname = member.lower()
                         if item in fname:
-                            _, fextn = os.path.splitext(fname)
+                            _, fextn = splitext(fname)
                             if fextn in ['.jpg', '.jpeg', '.png', '.webp']:
                                 img = data.read(member)
                                 break

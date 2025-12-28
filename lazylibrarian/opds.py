@@ -29,7 +29,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.common import mime_type, zip_audio, get_readinglist
-from lazylibrarian.filesystem import path_isfile, listdir, any_file
+from lazylibrarian.filesystem import path_isfile, listdir, any_file, splitext
 from lazylibrarian.formatter import make_unicode, check_int, plural, get_list
 from urllib.parse import quote_plus
 
@@ -141,7 +141,7 @@ class OPDS(object):
     def multi_link(self, bookfile, bookid):
         types = []
         multi = ''
-        basename, _ = os.path.splitext(bookfile)
+        basename, _ = splitext(bookfile)
         if not isinstance(basename, str):
             basename = basename.decode('utf-8')
         for item in get_list(CONFIG['EBOOK_TYPE']):
@@ -984,7 +984,7 @@ class OPDS(object):
                      'rel': 'file',
                      'type': mime_type(issue['IssueFile'])}
             if CONFIG.get_bool('OPDS_METAINFO'):
-                fname = os.path.splitext(issue['IssueFile'])[0]
+                fname = splitext(issue['IssueFile'])[0]
                 res = cache_img(ImageType.COMIC, issueid, fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
                 entry['thumbnail'] = entry['image']
@@ -1057,7 +1057,7 @@ class OPDS(object):
                      'rel': 'file',
                      'type': mime_type(issue['IssueFile'])}
             if CONFIG.get_bool('OPDS_METAINFO'):
-                fname = os.path.splitext(issue['IssueFile'])[0]
+                fname = splitext(issue['IssueFile'])[0]
                 res = cache_img(ImageType.MAG, issue['IssueID'], fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
                 entry['thumbnail'] = entry['image']
@@ -1488,7 +1488,7 @@ class OPDS(object):
                      'author': escape(title),
                      'type': mime_type(mag['IssueFile'])}
             if CONFIG.get_bool('OPDS_METAINFO'):
-                fname = os.path.splitext(mag['IssueFile'])[0]
+                fname = splitext(mag['IssueFile'])[0]
                 res = cache_img(ImageType.COMIC, issueid, fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
                 entry['thumbnail'] = entry['image']
@@ -1750,7 +1750,7 @@ class OPDS(object):
                 db.close()
             bookfile = res['BookFile']
             if fmt:
-                bookfile = os.path.splitext(bookfile)[0] + '.' + fmt
+                bookfile = splitext(bookfile)[0] + '.' + fmt
             self.filepath = bookfile
             self.filename = os.path.split(bookfile)[1]
             return
@@ -1806,7 +1806,7 @@ class OPDS(object):
                             if CONFIG.is_valid_booktype(fname, booktype='audio'):
                                 cnt += 1
                                 target = fname
-                                bname, extn = os.path.splitext(fname)
+                                bname, extn = splitext(fname)
                                 if bname == singlefile:
                                     # found name matching the AudioSingleFile
                                     cnt = 1

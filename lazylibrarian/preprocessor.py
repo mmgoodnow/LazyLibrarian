@@ -21,7 +21,7 @@ from lazylibrarian import database
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import calibre_prg, zip_audio
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
+from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy, splitext
 from lazylibrarian.formatter import (get_list, make_unicode, check_int, human_size, now, check_float, plural)
 from lazylibrarian.images import shrink_mag, coverswap, valid_pdf, write_pdf_tags
 
@@ -38,13 +38,13 @@ def preprocess_ebook(bookfolder):
     sourcefile = None
     created = ''
     for fname in listdir(bookfolder):
-        _, extn = os.path.splitext(fname)
+        _, extn = splitext(fname)
         if extn.lower() == '.epub':
             sourcefile = fname
             break
     if not sourcefile:
         for fname in listdir(bookfolder):
-            filename, extn = os.path.splitext(fname)
+            filename, extn = splitext(fname)
             if extn.lower() in ['.mobi', '.azw3']:
                 sourcefile = fname
                 break
@@ -53,7 +53,7 @@ def preprocess_ebook(bookfolder):
         logger.error(f"No suitable sourcefile found in {bookfolder}")
         return False
 
-    basename, source_extn = os.path.splitext(sourcefile)
+    basename, source_extn = splitext(sourcefile)
     logger.debug(f"Wanted formats: {CONFIG['EBOOK_WANTED_FORMATS']}")
     wanted_formats = get_list(CONFIG['EBOOK_WANTED_FORMATS'])
     for ftype in wanted_formats:
@@ -87,7 +87,7 @@ def preprocess_ebook(bookfolder):
         if CONFIG.get_bool('KEEP_JPG'):
             wanted_formats.append('jpg')
         for fname in listdir(bookfolder):
-            filename, extn = os.path.splitext(fname)
+            filename, extn = splitext(fname)
             if not extn or extn.lstrip('.').lower() not in wanted_formats:
                 logger.debug(f"Deleting {fname}")
                 remove_file(os.path.join(bookfolder, fname))
@@ -301,7 +301,7 @@ def write_audio_tags(bookfolder, filename, track, metatags):
     postprocesslogger = logging.getLogger('special.postprocess')
     ffmpeg = CONFIG['FFMPEG']
     try:
-        extn = os.path.splitext(filename)[1]
+        extn = splitext(filename)[1]
         # ffmpeg will detect cover art in m4a as a video
         # and try to convert to mjpeg to h264 and will fail when codec is not installed.
         # This copies image as is
@@ -399,7 +399,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             if token in unquoted_type:
                 logger.warning(f'Cannot set output type, contains "{token}"')
     if not out_type:
-        out_type = os.path.splitext(parts[0][3])[1]
+        out_type = splitext(parts[0][3])[1]
 
     if '-f ' in CONFIG['AUDIO_OPTIONS']:
         force_type = '.' + CONFIG['AUDIO_OPTIONS'].split('-f ', 1)[1].split(',')[0].split(' ')[0].strip()
@@ -411,7 +411,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         force_mp4 = True
     # else:  # should we force mp4 if input is mp4 but output is mp3?
     #     for part in parts:
-    #         if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
+    #         if splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
     #             force_mp4 = True
     #            break
 
@@ -440,12 +440,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     outfile = bookfile + out_type
 
     if len(parts) == 1:
-        if out_type == os.path.splitext(parts[0][3])[1]:
+        if out_type == splitext(parts[0][3])[1]:
             logger.info("Only one audio file found, nothing to merge")
             merge = False
         else:
             logger.info(f"Only one audio file found, changing format from "
-                        f"{os.path.splitext(parts[0][3])[1]} to {out_type}")
+                        f"{splitext(parts[0][3])[1]} to {out_type}")
             merge = True
 
     ff_ver = lazylibrarian.FFMPEGVER
@@ -539,7 +539,7 @@ def preprocess_magazine(bookfolder, cover=0, tag=False, title='', issue='', genr
     try:
         sourcefile = None
         for fname in listdir(bookfolder):
-            _, extn = os.path.splitext(fname)
+            _, extn = splitext(fname)
             if extn.lower() == '.pdf':
                 sourcefile = fname
                 break

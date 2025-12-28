@@ -6,12 +6,12 @@
 import logging
 import os
 import sys
+import lazylibrarian
 from collections import Counter, OrderedDict
 from configparser import ConfigParser
 from re import match, compile, IGNORECASE
 from typing import Dict, List, Callable
 from typing import Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
-
 from lazylibrarian.configenums import Access, TimeUnit, OnChangeReason
 
 # Type aliases to distinguish types of string
@@ -908,7 +908,7 @@ class ConfigDict:
             booktype_list = self.get_list('COMIC_TYPE')
         else:
             booktype_list = self.get_list('EBOOK_TYPE')
-        extn = os.path.splitext(filename)[1].lstrip('.')
+        extn = lazylibrarian.filesystem.splitext(filename)[1].lstrip('.')
         return extn and booktype_list and extn.lower() in booktype_list
 
 

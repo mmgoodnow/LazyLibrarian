@@ -29,7 +29,7 @@ from lazylibrarian.multiauth import get_authors_from_book_files
 from lazylibrarian.common import path_exists
 from lazylibrarian.common import pwd_generator
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, syspath, setperm
+from lazylibrarian.filesystem import DIRS, syspath, setperm, splitext
 from lazylibrarian.formatter import plural, md5_utf8, get_list, check_int
 from lazylibrarian.importer import update_totals
 from lazylibrarian.scheduling import restart_jobs, SchedulerCommand
@@ -1048,7 +1048,7 @@ def db_v56(db, upgradelog):
             cnt += 1
             lazylibrarian.UPDATE_MSG = (f"Updating issue cover for {issue['IssueFile']}: "
                                         f"{calc_eta(start_time, tot, cnt)}")
-            coverfile = f"{os.path.splitext(issue['IssueFile'])[0]}.jpg"
+            coverfile = f"{splitext(issue['IssueFile'])[0]}.jpg"
             if not path_exists(coverfile):
                 coverfile = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex
@@ -1071,7 +1071,7 @@ def db_v56(db, upgradelog):
             cnt += 1
             lazylibrarian.UPDATE_MSG = (f"Updating comicissue cover for {issue['IssueFile']}: "
                                         f"{calc_eta(start_time, tot, cnt)}")
-            coverfile = f"{os.path.splitext(issue['IssueFile'])[0]}.jpg"
+            coverfile = f"{splitext(issue['IssueFile'])[0]}.jpg"
             if not path_exists(coverfile):
                 coverfile = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex

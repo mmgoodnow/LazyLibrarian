@@ -23,7 +23,7 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory, splitext
 from lazylibrarian.formatter import plural, check_int, now, get_list, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
@@ -253,7 +253,7 @@ def comic_scan(comicid=None):
                             db.upsert("comicissues", new_value_dict, control_value_dict)
                             if not iss_entry:
                                 dest_path, global_name = os.path.split(issuefile)
-                                global_name = os.path.splitext(global_name)[0]
+                                global_name = splitext(global_name)[0]
                                 data = control_value_dict
                                 data.update(new_value_dict)
                                 data['Title'] = title

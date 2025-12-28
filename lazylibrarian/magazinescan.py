@@ -25,7 +25,7 @@ from lazylibrarian import database
 from lazylibrarian.bookrename import stripspaces
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
-    safe_move, get_directory, remove_dir, book_file
+    safe_move, get_directory, remove_dir, book_file, splitext
 from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
     replacevars, month2num, two_months, check_int
 from lazylibrarian.images import create_mag_cover, write_pdf_tags, read_pdf_tags
@@ -154,7 +154,7 @@ def magazine_scan(title=None):
                                 logger.debug(f"Using {title}:{issuedate} from database issuefile")
 
                             if not match:  # try for data in an opf file (faster than reading pdf tags)
-                                opf_file = f"{os.path.splitext(issuefile)[0]}.opf"
+                                opf_file = f"{splitext(issuefile)[0]}.opf"
                                 if path_isfile(opf_file):
                                     res = get_book_info(opf_file)
                                     if res['Authors'] and res['Authors'][0] != "magazines":
@@ -869,7 +869,7 @@ def rename_issue(issueid, tags=None):
 
     parts = get_dateparts(match['IssueDate'])
     new_name = format_issue_filename(CONFIG['MAG_DEST_FILE'], match['Title'], parts)
-    old_name, extn = os.path.splitext(os.path.basename(match['IssueFile']))
+    old_name, extn = splitext(os.path.basename(match['IssueFile']))
     old_folder = os.path.dirname(match['IssueFile'])
     new_folder = format_issue_filename(CONFIG['MAG_DEST_FOLDER'], match['Title'], parts)
     if CONFIG.get_bool('MAG_RELATIVE'):

@@ -30,7 +30,7 @@ from lazylibrarian.bookrename import book_rename, audio_rename, id3read, delete_
 from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file,
-                                      opf_file, get_directory, book_file)
+                                      opf_file, get_directory, book_file, splitext)
 from lazylibrarian.formatter import (plural, is_valid_isbn, get_list, unaccented, replace_all, strip_quotes,
                                      split_title, now, make_unicode, split_author_names)
 from lazylibrarian.images import img_id
@@ -99,7 +99,7 @@ def get_book_info(fname):
     logger = logging.getLogger(__name__)
     fname = make_unicode(fname)
     res = {}
-    extn = os.path.splitext(fname)[1]
+    extn = splitext(fname)[1]
     if not extn:
         return res
 
@@ -791,7 +791,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         author = ""
                         publisher = ""
                         narrator = ""
-                        extn = os.path.splitext(files)[1]
+                        extn = splitext(files)[1]
                         bookid = None
                         forced_bookid = ''
 
@@ -1191,7 +1191,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             book_filename = os.path.join(rootdir, files)
                                             _ = lazylibrarian.postprocess.create_opf(os.path.dirname(book_filename),
                                                                                      check_status,
-                                                                                     os.path.splitext(os.path.basename(
+                                                                                     splitext(os.path.basename(
                                                                                          book_filename))[0],
                                                                                      overwrite=False)
                                             if CONFIG.get_bool('IMP_RENAME'):
@@ -1203,7 +1203,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                             # check preferred type and store book location
                                             # so we can check if it gets (re)moved
-                                            book_basename = os.path.splitext(book_filename)[0]
+                                            book_basename = splitext(book_filename)[0]
                                             booktype_list = get_list(CONFIG['EBOOK_TYPE'])
                                             for book_type in booktype_list:
                                                 preferred_type = f"{book_basename}.{book_type}"
@@ -1319,7 +1319,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         if startdir == destdir:
             if len(remiss):
                 lazylibrarian.libraryscan_data = (f'<div class="alert alert-danger">'
-                                                  f'Failed to match {len(remiss)}<br></div>')
+                                                  f'{len(remiss)} unmatched items<br>'
+                                                  'See debug log for details<br></div>')
             # On full library scans, check for books with unknown language
             nolang = db.match(
                 "select count(*) as counter from Books where status='Open' and BookLang='Unknown'")
