@@ -324,7 +324,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigScheduler('SearchScan', 'SEARCH_MAGINTERVAL', 'search_magazines', 360, TimeUnit.MIN,
                     'SEARCHALLMAG', 'lazylibrarian.searchmag.cron_search_magazines', 'Magazines search', True),
     ConfigScheduler('SearchScan', 'SCAN_INTERVAL', 'PostProcessor', 10, TimeUnit.MIN,
-                    'POSTPROCESSOR', 'lazylibrarian.postprocess_refactor.PostProcessor', 'PostProcessor', False),
+                    'POSTPROCESSOR', 'lazylibrarian.postprocess.PostProcessor', 'PostProcessor', False),
     ConfigScheduler('SearchScan', 'SEARCHRSS_INTERVAL', 'search_rss_book', 20, TimeUnit.MIN,
                     'SEARCHALLRSS', 'lazylibrarian.searchrss.cron_search_rss_book', 'RSS book search', False),
     ConfigScheduler('SearchScan', 'WISHLIST_INTERVAL', 'search_wishlist', 2, TimeUnit.HOUR,

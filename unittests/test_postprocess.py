@@ -1,7 +1,7 @@
 #  This file is part of Lazylibrarian.
 #
 # Purpose:
-#   Test functions in postprocess_refactor.py
+#   Test functions in postprocess.py
 
 import datetime
 import logging
@@ -22,7 +22,7 @@ from lazylibrarian.postprocess_metadata import (
     prepare_comic_metadata,
     prepare_magazine_metadata,
 )
-from lazylibrarian.postprocess_refactor import (
+from lazylibrarian.postprocess import (
     BookState,
     _calculate_download_age,
     _calculate_fuzzy_match,
@@ -276,7 +276,7 @@ class BookStateTest(LLTestCaseWithStartup):
 
             # Mock get_download_folder where it's used (not where it's defined)
             with mock.patch(
-                "lazylibrarian.postprocess_refactor.get_download_folder"
+                "lazylibrarian.postprocess.get_download_folder"
             ) as mock_get_folder:
                 mock_get_folder.return_value = "/downloads/test_folder"
 
@@ -313,7 +313,7 @@ class BookStateTest(LLTestCaseWithStartup):
 
             # Mock get_download_folder returning None (mock where it's used)
             with mock.patch(
-                "lazylibrarian.postprocess_refactor.get_download_folder"
+                "lazylibrarian.postprocess.get_download_folder"
             ) as mock_get_folder:
                 mock_get_folder.return_value = None
 
@@ -562,7 +562,7 @@ class PostprocessFileOperationsTest(LLTestCaseWithStartup):
             result = _find_valid_file_in_directory(tmpdir, book_type="ebook")
             self.assertEqual(result, "")
 
-    @mock.patch("lazylibrarian.postprocess_refactor.CONFIG")
+    @mock.patch("lazylibrarian.postprocess.CONFIG")
     def test_is_valid_media_file(self, mock_config):
         """Test media file validation"""
         mock_config.get_all_types_list.return_value = ["epub", "mobi", "pdf"]
@@ -710,10 +710,10 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         # Should skip to next item
         self.assertTrue(result)
 
-    @mock.patch("lazylibrarian.postprocess_refactor.get_download_folder")
-    @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
-    @mock.patch("lazylibrarian.postprocess_refactor.get_list")
-    @mock.patch("lazylibrarian.postprocess_refactor.now")
+    @mock.patch("lazylibrarian.postprocess.get_download_folder")
+    @mock.patch("lazylibrarian.postprocess.CONFIG.get_bool")
+    @mock.patch("lazylibrarian.postprocess.get_list")
+    @mock.patch("lazylibrarian.postprocess.now")
     def test_handle_seeding_status_completed(
         self, mock_now, mock_get_list, mock_get_bool, mock_get_download_folder
     ):
@@ -858,9 +858,9 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         )
         self.assertTrue(should_abort)  # Now abort
 
-    @mock.patch("lazylibrarian.postprocess_refactor.custom_notify_snatch")
-    @mock.patch("lazylibrarian.postprocess_refactor.notify_snatch")
-    @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
+    @mock.patch("lazylibrarian.postprocess.custom_notify_snatch")
+    @mock.patch("lazylibrarian.postprocess.notify_snatch")
+    @mock.patch("lazylibrarian.postprocess.CONFIG.get_bool")
     def test_handle_aborted_download_sends_notifications(
         self, mock_get_bool, mock_notify, mock_custom
     ):
@@ -887,7 +887,7 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         mock_custom.assert_called_once_with("book123 TRANSMISSION", fail=True)
         self.assertTrue(mock_notify.called)
 
-    @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
+    @mock.patch("lazylibrarian.postprocess.CONFIG.get_bool")
     def test_handle_aborted_download_updates_status(
         self, mock_get_bool
     ):
@@ -916,8 +916,8 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         calls = [str(call) for call in mock_db.action.call_args_list]
         self.assertTrue(any("Failed" in call for call in calls))
 
-    @mock.patch("lazylibrarian.postprocess_refactor.delete_task")
-    @mock.patch("lazylibrarian.postprocess_refactor.CONFIG.get_bool")
+    @mock.patch("lazylibrarian.postprocess.delete_task")
+    @mock.patch("lazylibrarian.postprocess.CONFIG.get_bool")
     def test_handle_aborted_download_deletes_if_configured(
         self, mock_get_bool, mock_delete_task
     ):
@@ -944,7 +944,7 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         # Should delete from client
         mock_delete_task.assert_called_once_with("QBITTORRENT", "dl123", True)
 
-    @mock.patch("lazylibrarian.postprocess_refactor.schedule_job")
+    @mock.patch("lazylibrarian.postprocess.schedule_job")
     def test_check_and_schedule_next_run_stop_when_empty(self, mock_schedule):
         """Test that postprocessor stops when no items remain"""
         mock_db = mock.Mock()
@@ -958,7 +958,7 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         call_args = mock_schedule.call_args
         self.assertEqual(call_args[0][0], SchedulerCommand.STOP)
 
-    @mock.patch("lazylibrarian.postprocess_refactor.schedule_job")
+    @mock.patch("lazylibrarian.postprocess.schedule_job")
     def test_check_and_schedule_next_run_restart_when_seeding(self, mock_schedule):
         """Test that postprocessor restarts when items are seeding"""
         mock_db = mock.Mock()
@@ -1113,9 +1113,9 @@ class ProcessDirEndToEndTest(LLTestCaseWithStartup):
         self.assertEqual(result['Status'], expected_status,
                         f"Expected status {expected_status}, got {result['Status']}")
 
-    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    @mock.patch('lazylibrarian.postprocess.check_contents')
+    @mock.patch('lazylibrarian.postprocess.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess.get_download_name')
     def test_process_single_epub_flat_structure(self, mock_get_name, mock_get_progress, mock_check_contents):
         """Test processing a single EPUB in flat download structure"""
         # Mock download client functions
@@ -1165,11 +1165,11 @@ class ProcessDirEndToEndTest(LLTestCaseWithStartup):
         # 3. Database updated
         self.assert_status_updated(book_id, 'Processed')
 
-    @mock.patch('lazylibrarian.postprocess_refactor._is_valid_media_file')
-    @mock.patch('lazylibrarian.postprocess_refactor.CONFIG.get_bool')
-    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    @mock.patch('lazylibrarian.postprocess._is_valid_media_file')
+    @mock.patch('lazylibrarian.postprocess.CONFIG.get_bool')
+    @mock.patch('lazylibrarian.postprocess.check_contents')
+    @mock.patch('lazylibrarian.postprocess.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess.get_download_name')
     def test_process_audiobook_collection_with_subdirs(self, mock_get_name, mock_get_progress, mock_check_contents, mock_get_bool, mock_is_valid_media):
         """Test processing audiobook from collection with subdirectories
 
@@ -1243,9 +1243,9 @@ class ProcessDirEndToEndTest(LLTestCaseWithStartup):
         # 4. Database updated
         self.assert_status_updated(book_id, 'Processed')
 
-    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    @mock.patch('lazylibrarian.postprocess.check_contents')
+    @mock.patch('lazylibrarian.postprocess.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess.get_download_name')
     def test_process_epub_in_zip(self, mock_get_name, mock_get_progress, mock_check_contents):
         """Test extracting and processing EPUB from ZIP archive"""
         # Mock download client functions
@@ -1291,10 +1291,10 @@ class ProcessDirEndToEndTest(LLTestCaseWithStartup):
         # Database should be updated
         self.assert_status_updated(book_id, 'Processed')
 
-    @mock.patch('lazylibrarian.postprocess_refactor.CONFIG.get_bool')
-    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    @mock.patch('lazylibrarian.postprocess.CONFIG.get_bool')
+    @mock.patch('lazylibrarian.postprocess.check_contents')
+    @mock.patch('lazylibrarian.postprocess.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess.get_download_name')
     def test_process_with_destination_copy_enabled(self, mock_get_name, mock_get_progress, mock_check_contents, mock_get_bool):
         """Test that DESTINATION_COPY copies instead of moving files"""
         # Mock download client functions
@@ -1341,9 +1341,9 @@ class ProcessDirEndToEndTest(LLTestCaseWithStartup):
         self.assertTrue(os.path.exists(download_file),
                        "Original file should remain when DESTINATION_COPY is True")
 
-    @mock.patch('lazylibrarian.postprocess_refactor.check_contents')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_progress')
-    @mock.patch('lazylibrarian.postprocess_refactor.get_download_name')
+    @mock.patch('lazylibrarian.postprocess.check_contents')
+    @mock.patch('lazylibrarian.postprocess.get_download_progress')
+    @mock.patch('lazylibrarian.postprocess.get_download_name')
     def test_process_file_in_download_root_with_unpack_isolation(self, mock_get_name, mock_get_progress, mock_check_contents):
         """Test that files in download root are isolated to .unpack directory to protect other files
 

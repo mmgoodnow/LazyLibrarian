@@ -65,7 +65,7 @@ from lazylibrarian.manual_import import (
     process_book_from_dir,
     process_mag_from_file,
 )
-from lazylibrarian.postprocess_refactor import (
+from lazylibrarian.postprocess import (
     process_dir,
     process_img,
 )

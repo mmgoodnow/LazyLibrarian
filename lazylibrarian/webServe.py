@@ -78,7 +78,7 @@ from lazylibrarian.manual_import import (
     process_book_from_dir,
     process_issues,
 )
-from lazylibrarian.postprocess_refactor import process_dir
+from lazylibrarian.postprocess import process_dir
 from lazylibrarian.processcontrol import get_info_on_caller
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed

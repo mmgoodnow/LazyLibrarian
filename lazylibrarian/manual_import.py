@@ -72,8 +72,8 @@ from lazylibrarian.metadata_opf import create_mag_opf
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.bookrename import id3read
 
-# Import from postprocess_refactor for core processing function
-from lazylibrarian.postprocess_refactor import process_book
+# Import from postprocess for core processing function
+from lazylibrarian.postprocess import process_book
 
 
 def process_mag_from_file(source_file, title, issuenum):
