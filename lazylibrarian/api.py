@@ -162,7 +162,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
-            'getBookFileDirect': (1, '&id= [&booktype=] download book file directly'),
+            'getBookFileDirect': (0, '&id= [&booktype=] download book file directly'),
             'getAllBooks': (0, '[&sort=] [&limit=] [&status=] [&audiostatus=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
