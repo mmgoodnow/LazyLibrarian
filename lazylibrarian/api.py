@@ -162,7 +162,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
-            'getBookFileDirect': (0, '&id= [&booktype=] [&type=eBook/AudioBook/Comic/Issue] download file directly'),
+            'getFileDirect': (0, '&id= [&booktype=] [&type=eBook/AudioBook/Comic/Issue] download file directly'),
             'getAllBooks': (0, '[&sort=] [&limit=] [&status=] [&audiostatus=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
@@ -1170,7 +1170,7 @@ class Api(object):
         else:
             self.data = get_book_pubdate(kwargs['id'])
 
-    def _getbookfiledirect(self, **kwargs):
+    def _getfiledirect(self, **kwargs):
         TELEMETRY.record_usage_data()
         bookid = kwargs.get('id') or kwargs.get('bookid')
         booktype = kwargs.get('booktype')
