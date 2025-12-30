@@ -162,7 +162,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
-            'getBookFileDirect': (0, '&id= [&booktype=] [&library=eBook/AudioBook] download book file directly'),
+            'getBookFileDirect': (0, '&id= [&booktype=] [&type=eBook/AudioBook/Comic/Issue] '
+                                     '[&library=eBook/AudioBook] download file directly'),
             'getAllBooks': (0, '[&sort=] [&limit=] [&status=] [&audiostatus=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
@@ -1174,7 +1175,12 @@ class Api(object):
         TELEMETRY.record_usage_data()
         bookid = kwargs.get('id') or kwargs.get('bookid')
         booktype = kwargs.get('booktype')
+        file_type = (kwargs.get('type') or '').strip().lower()
         library = (kwargs.get('library') or '').strip().lower()
+        if file_type and file_type not in ['ebook', 'book', 'audiobook', 'audio', 'comic', 'issue', 'magazine']:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Invalid parameter: type'}}
+            return
         if library and library not in ['ebook', 'audiobook', 'audio']:
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
                                                                  'Message': 'Invalid parameter: library'}}
@@ -1182,6 +1188,49 @@ class Api(object):
         if not bookid:
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
                                                                  'Message': 'Missing parameter: id'}}
+            return
+
+        if not file_type and library:
+            file_type = library
+        if not file_type:
+            file_type = 'ebook'
+
+        if file_type in ['comic']:
+            try:
+                comicid, issueid = str(bookid).split('_')
+            except ValueError:
+                raise cherrypy.HTTPError(400, 'Invalid parameter: id')
+            db = database.DBConnection()
+            try:
+                cmd = ("SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID "
+                       "and comics.ComicID=? and IssueID=?")
+                res = db.match(cmd, (comicid, issueid))
+            finally:
+                db.close()
+            if not res or not res['IssueFile']:
+                raise cherrypy.HTTPError(404, f"No file found for comic {bookid}")
+            myfile = res['IssueFile']
+            if not path_isfile(myfile):
+                raise cherrypy.HTTPError(404, f"No file found for comic {bookid}")
+            name = f"{res['Title']} {issueid}{splitext(myfile)[1]}"
+            self.logger.debug(f'API comic download {myfile}')
+            self.file_response = (myfile, name)
+            return
+
+        if file_type in ['issue', 'magazine']:
+            db = database.DBConnection()
+            try:
+                res = db.match('SELECT Title,IssueFile from issues WHERE IssueID=?', (bookid,))
+            finally:
+                db.close()
+            if not res or not res['IssueFile']:
+                raise cherrypy.HTTPError(404, f"No file found for issue {bookid}")
+            myfile = res['IssueFile']
+            if not path_isfile(myfile):
+                raise cherrypy.HTTPError(404, f"No file found for issue {bookid}")
+            name = f"{res['Title']} {bookid}{splitext(myfile)[1]}"
+            self.logger.debug(f'API issue download {myfile}')
+            self.file_response = (myfile, name)
             return
 
         bookid_key = 'BookID'
@@ -1200,7 +1249,7 @@ class Api(object):
         if not res:
             raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
 
-        if library in ['audio', 'audiobook']:
+        if file_type in ['audio', 'audiobook']:
             myfile = res['AudioFile']
             if not myfile:
                 raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
