@@ -54,9 +54,21 @@ from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.magazinescan import magazine_scan, format_issue_filename, get_dateparts, rename_issue
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.multiauth import get_authors_from_hc, get_authors_from_ol, get_authors_from_book_files
-from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
-    process_book_from_dir, process_mag_from_file, send_ebook_to_calibre, send_mag_issue_to_calibre, \
-    send_comic_issue_to_calibre, get_download_progress
+from lazylibrarian.calibre_integration import (
+    send_ebook_to_calibre,
+    send_mag_issue_to_calibre,
+    send_comic_issue_to_calibre,
+)
+from lazylibrarian.metadata_opf import create_opf
+from lazylibrarian.manual_import import (
+    process_alternate,
+    process_book_from_dir,
+    process_mag_from_file,
+)
+from lazylibrarian.postprocess_refactor import (
+    process_dir,
+    process_img,
+)
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.processcontrol import get_cpu_use, get_process_memory, get_threads
 from lazylibrarian.providers import get_capabilities
@@ -1078,14 +1090,13 @@ class Api(object):
         TELEMETRY.record_usage_data()
         res = '<html>' \
               '<p>Sample use: http://localhost:5299/api?apikey=VALIDKEYHERE?cmd=COMMAND</p>' \
-              '<p>Valid commands:</p>' \
-              '<p/>\n\n' \
-              '<ul>\n'
+              '<p>Valid commands:</p><table><tr><th style="text-align: left;">Command</th>' \
+              '<th style="text-align: left;">Parameters</th></tr>'
         for key in sorted(cmd_dict):
             # list all commands if full access api_key, or only the read-only commands
             if self.apikey == CONFIG.get_str('API_KEY') or cmd_dict[key][0] == 0:
-                res += f"<li>{key}: {cmd_dict[key][1]}</li>\n"
-            res += '</ul></html>'
+                res += f"<tr><td>{key}</td><td>{cmd_dict[key][1]}</td></tr>"
+        res += '</table></html>'
         self.data = res
 
     def _ignoredstats(self):
