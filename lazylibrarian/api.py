@@ -1231,7 +1231,7 @@ class Api(object):
             raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
 
         myfile = res['BookFile']
-        fname, extn = os.path.splitext(myfile)
+        fname, extn = splitext(myfile)
         types = []
         for item in get_list(CONFIG['EBOOK_TYPE']):
             target = fname + '.' + item
