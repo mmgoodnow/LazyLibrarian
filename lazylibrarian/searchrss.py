@@ -21,7 +21,8 @@ from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.downloadmethods import tor_dl_method
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name, get_list, now
+from lazylibrarian.formatter import (plural, unaccented, format_author_name, split_title, thread_name,
+                                     get_list, now, split_author_names)
 from lazylibrarian.images import get_book_cover
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
 from lazylibrarian.librarysync import find_book_in_db
@@ -191,9 +192,12 @@ def search_wishlist():
                         snatched = db.match(cmd, (bookmatch["BookID"],))
                         if not snatched:
                             new_audio.append(item)
-                else:  # not in database yet
+                else:  # bookid not in database yet
                     results = []
                     authorid = None
+                    authorlist = split_author_names(book['rss_author'], get_list(CONFIG['MULTI_AUTHOR_SPLIT']))
+                    if len(authorlist) > 1:  # use first author if multiples
+                        book['rss_author'] = authorlist[0]
                     authorname = format_author_name(book['rss_author'],
                                                     postfix=get_list(CONFIG.get_csv('NAME_POSTFIX')))
                     authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
