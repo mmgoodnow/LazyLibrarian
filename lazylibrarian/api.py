@@ -162,7 +162,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
-            'getFileDirect': (0, '&id= [&booktype=] [&type=eBook/AudioBook/Comic/Issue] download file directly'),
+            'getFileDirect': (0, '&id= [&type=eBook/AudioBook/Comic/Issue] download file directly'),
             'getAllBooks': (0, '[&sort=] [&limit=] [&status=] [&audiostatus=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
@@ -1173,7 +1173,6 @@ class Api(object):
     def _getfiledirect(self, **kwargs):
         TELEMETRY.record_usage_data()
         bookid = kwargs.get('id') or kwargs.get('bookid')
-        booktype = kwargs.get('booktype')
         file_type = (kwargs.get('type') or '').strip().lower()
         if file_type and file_type not in ['ebook', 'book', 'audiobook', 'audio', 'comic', 'issue', 'magazine']:
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
@@ -1284,14 +1283,9 @@ class Api(object):
             if extn:
                 types = [extn]
 
-        if booktype:
-            if booktype not in types:
-                raise cherrypy.HTTPError(404, f"Requested type {booktype} not found for book {bookid}")
-            extn = booktype
-        else:
-            if not types:
-                raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
-            extn = types[0]
+        if not types:
+            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
+        extn = types[0]
 
         if types:
             myfile = fname + '.' + extn
