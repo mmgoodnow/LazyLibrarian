@@ -37,7 +37,7 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list, delete_from_c
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import log_header, create_support_zip, get_readinglist, dbbackup, mime_type
+from lazylibrarian.common import log_header, create_support_zip, get_readinglist, dbbackup, mime_type, zip_audio
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
@@ -162,7 +162,7 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'loadCFG': (1, 'reload config from file'),
             'getBookCover': (0, '&id= [&src=] fetch cover link from cache/cover/librarything/goodreads/google '
                                 'for BookID'),
-            'getBookFileDirect': (0, '&id= [&booktype=] download book file directly'),
+            'getBookFileDirect': (0, '&id= [&booktype=] [&library=eBook/AudioBook] download book file directly'),
             'getAllBooks': (0, '[&sort=] [&limit=] [&status=] [&audiostatus=] list all books in the database'),
             'listNoLang': (0, 'list all books in the database with unknown language'),
             'listNoDesc': (0, 'list all books in the database with no description'),
@@ -1174,6 +1174,11 @@ class Api(object):
         TELEMETRY.record_usage_data()
         bookid = kwargs.get('id') or kwargs.get('bookid')
         booktype = kwargs.get('booktype')
+        library = (kwargs.get('library') or '').strip().lower()
+        if library and library not in ['ebook', 'audiobook', 'audio']:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
+                                                                 'Message': 'Invalid parameter: library'}}
+            return
         if not bookid:
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 400,
                                                                  'Message': 'Missing parameter: id'}}
@@ -1187,12 +1192,42 @@ class Api(object):
 
         db = database.DBConnection()
         try:
-            cmd = f"SELECT BookFile,BookName from books WHERE {bookid_key}=? or BookID=?"
+            cmd = f"SELECT BookFile,AudioFile,BookName from books WHERE {bookid_key}=? or BookID=?"
             res = db.match(cmd, (bookid, bookid))
         finally:
             db.close()
 
-        if not res or not res['BookFile']:
+        if not res:
+            raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
+
+        if library in ['audio', 'audiobook']:
+            myfile = res['AudioFile']
+            if not myfile:
+                raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
+
+            cnt = 0
+            if path_isfile(myfile):
+                parentdir = os.path.dirname(myfile)
+                for _, _, filenames in walk(parentdir):
+                    for filename in filenames:
+                        if CONFIG.is_valid_booktype(filename, 'audiobook'):
+                            cnt += 1
+
+            if cnt > 1 and not CONFIG.get_bool('RSS_PODCAST'):
+                target = zip_audio(os.path.dirname(myfile), res['BookName'], bookid)
+                if target and path_isfile(target):
+                    self.logger.debug(f'API audio download {target}')
+                    self.file_response = (target, res['BookName'] + '.zip')
+                    return
+
+            if not path_isfile(myfile):
+                raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
+
+            self.logger.debug(f'API audio download {myfile}')
+            self.file_response = (myfile, os.path.basename(myfile))
+            return
+
+        if not res['BookFile']:
             raise cherrypy.HTTPError(404, f"No file found for book {bookid}")
 
         myfile = res['BookFile']
