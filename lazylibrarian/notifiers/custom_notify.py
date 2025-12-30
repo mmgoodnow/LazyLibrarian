@@ -47,6 +47,10 @@ class CustomNotifier:
                 # or a magazine title followed by it's NZBUrl
                 words = message.split()
                 ident = words[-1]
+                if ident == 'ebook':
+                    ident = 'eBook'
+                if ident == 'audiobook':
+                    ident = 'AudioBook'
                 bookid = " ".join(words[:-1])
                 book = db.match('SELECT * from books where BookID=?', (bookid,))
                 if not book:
@@ -67,8 +71,7 @@ class CustomNotifier:
             db.close()
 
         if book:
-            # noinspection PyTypeChecker
-            dictionary = dict(list(zip(list(book.keys()), book)))
+            dictionary = dict(book)
         else:
             dictionary = {}
 
@@ -76,7 +79,7 @@ class CustomNotifier:
 
         if wanted:
             # noinspection PyTypeChecker
-            wanted_dictionary = dict(list(zip(list(wanted.keys()), wanted)))
+            wanted_dictionary = dict(wanted)
             for item in wanted_dictionary:
                 if item in ['Status', 'BookID']:  # rename to avoid clash
                     dictionary[f"Wanted_{item}"] = wanted_dictionary[item]
@@ -95,10 +98,10 @@ class CustomNotifier:
                 params = [CONFIG['CUSTOM_SCRIPT']]
                 for item in dictionary:
                     params.append(item)
-                    if hasattr(dictionary[item], 'encode'):
-                        params.append(dictionary[item].encode('utf-8'))
+                    if isinstance(dictionary[item], bytes):
+                        params.append(dictionary[item].decode('utf-8'))
                     else:
-                        params.append(str(dictionary[item]))
+                        params.append(dictionary[item])
 
                 rc, res, err = run_script(params)
                 if rc:
