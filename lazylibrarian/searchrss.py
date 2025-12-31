@@ -166,7 +166,7 @@ def search_wishlist():
                     item['link'] = book['rss_link']
                 if book.get('rss_category'):
                     item['category'] = book['rss_category']
-                bookmatch = None
+                bookmatch = {}
                 bookid, _ = find_book_in_db(book['rss_author'], book['rss_title'], ignored=None, library='eBook',
                                             reason=f"wishlist: {book['dispname']}", source='')
                 wishlist = book.get('dispname', '')
@@ -296,7 +296,6 @@ def search_wishlist():
                         bookmatch['AuthorID'] = authorid
                         item['BookID'] = bookmatch['BookID']
                         want_book, want_audio = calc_status(bookmatch, search_start, ebook_status, audio_status)
-                        new_value_dict = {}
                         if want_book:
                             ebook_status = "Wanted"
                             new_books.append(item)
@@ -308,9 +307,12 @@ def search_wishlist():
                         if not book_res:
                             import_book(bookmatch['BookID'], ebook_status, audio_status,
                                         reason=f"Added from wishlist {wishlist}")
-                        if new_value_dict:
-                            control_value_dict = {"BookID": bookmatch['BookID']}
-                            db.upsert("books", new_value_dict, control_value_dict)
+                            # see if it's there now
+                            book_res = db.match("SELECT * from books WHERE bookid=?", (bookmatch['BookID'],))
+                            if book_res:
+                                bookmatch = dict(book_res)
+                                bookmatch['AuthorName'] = authorname
+                                bookmatch['AuthorID'] = authorid
 
                     if not bookmatch:
                         msg = f"Skipping book {book['rss_title']} by {book['rss_author']}"
@@ -326,14 +328,19 @@ def search_wishlist():
                                 f"{results[0]['authorname']}: {results[0]['bookname']}")
                 if bookmatch:
                     new_value_dict = {}
-                    if want_book:
-                        if wishlist and wishlist not in bookmatch.get('Requester', ''):
-                            new_value_dict["Requester"] = f"{' '.join([bookmatch.get('Requester', ''), wishlist]).strip()}"
-                        new_value_dict['Status'] = "Wanted"
-                    if want_audio:
-                        if wishlist and wishlist not in bookmatch.get('AudioRequester', ''):
-                            new_value_dict["AudioRequester"] = f"{' '.join([bookmatch.get('AudioRequester', ''), wishlist]).strip()}"
-                        new_value_dict['AudioStatus'] = "Wanted"
+                    try:
+                        if want_book:
+                            requester = bookmatch.get('Requester', '')
+                            if wishlist and wishlist not in requester:
+                                new_value_dict["Requester"] = f"{' '.join([requester, wishlist]).strip()}"
+                            new_value_dict['Status'] = "Wanted"
+                        if want_audio:
+                            audiorequester = bookmatch.get('AudioRequester', '')
+                            if wishlist and wishlist not in audiorequester:
+                                new_value_dict["AudioRequester"] = f"{' '.join([audiorequester, wishlist]).strip()}"
+                            new_value_dict['AudioStatus'] = "Wanted"
+                    except Exception as e:
+                        logger.debug(f"{type(bookmatch)}{bookmatch}, {new_value_dict}, {e}")
 
                     if new_value_dict:
                         control_value_dict = {"BookID": bookmatch['BookID']}
