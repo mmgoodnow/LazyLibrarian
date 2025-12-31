@@ -278,9 +278,14 @@ def add_file(data, hashid, title, provider_options):
         try:
             torrent = qbclient.get_torrent(hashid)
         except Exception as e:
-            dlcommslogger.error(f"Failed to get_torrent: {e}")
+            dlcommslogger.error(f"Failed to add torrent file: {e}")
             return False, str(e)
         if torrent:
+            # Add explicit pause as qbittorrent v5 seems to ignore start paused arg
+            if CONFIG.get_bool('TORRENT_PAUSED'):
+                paused = False if qbclient.qbittorrent_version.startswith('v5') else True
+                dlcommslogger.debug(f"Pausing torrent {hashid}")
+                qbclient.pause(hashid, paused)
             if count > 1:
                 dlcommslogger.debug(f"hashid found in torrent list after {count} seconds")
             return True, ''
@@ -315,9 +320,14 @@ def add_torrent(link, hashid, provider_options):
         try:
             torrent = qbclient.get_torrent(hashid)
         except Exception as e:
-            dlcommslogger.error(f" Failed to delete_permanently: {e}")
+            dlcommslogger.error(f" Failed to add torrent: {e}")
             return False, str(e)
         if torrent:
+            # Add explicit pause as qbittorrent v5 seems to ignore start paused arg
+            if CONFIG.get_bool('TORRENT_PAUSED'):
+                paused = False if qbclient.qbittorrent_version.startswith('v5') else True
+                dlcommslogger.debug(f"Pausing torrent {hashid}")
+                qbclient.pause(hashid, paused)
             if count > 1:
                 dlcommslogger.debug(f"hashid found in torrent list after {count} seconds")
             return True, ''

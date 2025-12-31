@@ -3,7 +3,6 @@
 import json
 from typing import Optional
 import requests
-import urllib3
 from lazylibrarian.common import proxy_list
 
 
@@ -502,28 +501,34 @@ class Client:
             data = {"hashes": infohash_list.lower()}
         return data
 
-    def pause(self, infohash):
+    def pause(self, infohash, pause=True):
         """
         Pause a torrent.
 
         :param infohash: INFO HASH of torrent.
         """
-        return self._post("torrents/pause", data={"hashes": infohash.lower()})
+        if pause:
+            return self._post("torrents/pause", data={"hashes": infohash.lower()})
+        return self._post("torrents/stop", data={"hashes": infohash.lower()})
 
-    def pause_all(self):
+    def pause_all(self, pause=True):
         """
         Pause all torrents.
         """
-        return self._post("torrents/pause", data={"hashes": "all"})
+        if pause:
+            return self._post("torrents/pause", data={"hashes": "all"})
+        return self._post("torrents/stop", data={"hashes": "all"})
 
-    def pause_multiple(self, infohash_list):
+    def pause_multiple(self, infohash_list, pause=True):
         """
         Pause multiple torrents.
 
         :param infohash_list: Single or list() of infohashes.
         """
         data = self._process_infohash_list(infohash_list)
-        return self._post("torrents/pause", data=data)
+        if pause:
+            return self._post("torrents/pause", data=data)
+        return self._post("torrents/stop", data=data)
 
     def set_category(self, infohash_list, category):
         """
