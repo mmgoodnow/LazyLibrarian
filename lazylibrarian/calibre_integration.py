@@ -29,6 +29,7 @@ Key Functions:
 import logging
 import os
 import shutil
+import traceback
 
 from lazylibrarian import database
 from lazylibrarian.calibre import calibredb, get_calibre_id

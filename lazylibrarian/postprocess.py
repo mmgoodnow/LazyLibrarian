@@ -3789,7 +3789,7 @@ def _process_destination(
         data["bestformat"] = best_format
         data["cover"] = cover
         data["mag_genres"] = mag_genres
-        return send_to_calibre(book_type, global_name, book_path, data)
+        return send_to_calibre(book_type, uglobal_name, book_path, data)
 
     # we are copying the files ourselves
     success, error_msg, dest_path = _prepare_destination_directory(dest_path, logger)
