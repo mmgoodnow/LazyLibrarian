@@ -61,6 +61,7 @@ from lazylibrarian import (
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import unaccented, get_list, check_int
 from lazylibrarian.telemetry import TELEMETRY
+from lazylibrarian.filesystem import path_isfile
 
 
 def check_contents(source, downloadid, booktype, title):
@@ -391,6 +392,10 @@ def get_download_folder(source, downloadid):
                     for item in res["history"]["slots"]:
                         if item["nzo_id"] == downloadid:
                             dlfolder = item.get("storage")
+                            # SABnzbd's storage field can be either a directory or a file path
+                            # If it's a file, we need the parent directory
+                            if dlfolder and path_isfile(dlfolder):
+                                dlfolder = os.path.dirname(dlfolder)
                             break
 
         elif source == "NZBGET":
