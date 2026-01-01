@@ -562,28 +562,34 @@ class Client:
 
         return self._post("torrents/removeCategories", data={"categories": categories})
 
-    def resume(self, infohash):
+    def resume(self, infohash, resume=True):
         """
         Resume a paused torrent.
 
         :param infohash: INFO HASH of torrent.
         """
-        return self._post("torrents/resume", data={"hashes": infohash.lower()})
+        if resume:
+            return self._post("torrents/resume", data={"hashes": infohash.lower()})
+        return self._post("torrents/start", data={"hashes": infohash.lower()})
 
-    def resume_all(self):
+    def resume_all(self, resume=True):
         """
         Resume all torrents.
         """
-        return self._post("torrents/resume", data={"hashes": "all"})
+        if resume:
+            return self._post("torrents/resume", data={"hashes": "all"})
+        return self._post("torrents/start", data={"hashes": "all"})
 
-    def resume_multiple(self, infohash_list):
+    def resume_multiple(self, infohash_list, resume=True):
         """
         Resume multiple paused torrents.
 
         :param infohash_list: Single or list() of infohashes.
         """
         data = self._process_infohash_list(infohash_list)
-        return self._post("torrents/resume", data=data)
+        if resume:
+            return self._post("torrents/resume", data=data)
+        return self._post("torrents/start", data=data)
 
     def delete(self, infohash_list):
         """
