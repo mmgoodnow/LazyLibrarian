@@ -36,7 +36,7 @@ from lazylibrarian.formatter import (
     unaccented,
     sanitize,
 )
-from lazylibrarian.magazinescan import format_issue_filename, get_dateparts
+from lazylibrarian.magazinescan import format_issue_filename, get_dateparts, create_id
 from lazylibrarian.postprocess_utils import enforce_str, enforce_bytes
 
 
@@ -361,25 +361,19 @@ def prepare_book_metadata(book_id: str, book_type: str, db) -> Optional[EbookMet
     )
 
 
-def prepare_magazine_metadata(book_id, aux_info, db) -> Optional[MagazineMetadata]:
+def prepare_magazine_metadata(title, aux_info, db) -> Optional[MagazineMetadata]:
     """
     Retrieve magazine metadata and prepare destination paths.
 
     Args:
-        book_id: Magazine/Issue ID to look up
+        title: Magazine title to look up
         aux_info: Auxiliary information (issue date)
         db: Database connection
 
     Returns:
         MagazineMetadata object with all magazine data and destination paths, or None if not found
     """
-    mag_row = db.match("SELECT IssueDate,Title from issues WHERE IssueID=?", (book_id,))
-
-    if not mag_row:
-        return None
-
-    issue_data = dict(mag_row)
-    title = issue_data["Title"]
+    issue_id = create_id(f"{title} {aux_info}")
 
     # Get additional metadata from magazines table
     result = db.match(
@@ -387,6 +381,9 @@ def prepare_magazine_metadata(book_id, aux_info, db) -> Optional[MagazineMetadat
         (title,),
     )
     mag_data = dict(result) if result else {}
+
+    if not mag_data:
+        return None
 
     mostrecentissue = mag_data.get("IssueDate", "")
     language = mag_data.get("Language", "")
@@ -405,12 +402,12 @@ def prepare_magazine_metadata(book_id, aux_info, db) -> Optional[MagazineMetadat
     global_name = format_issue_filename(CONFIG["MAG_DEST_FILE"], title, dateparts)
 
     return MagazineMetadata(
-        book_id=book_id,
+        book_id=title,
         dest_path=dest_path,
         global_name=global_name,
         title=title,
         issue_date=aux_info,
-        issue_id=book_id,
+        issue_id=issue_id,
         language=language,
         genres=genres,
         cover_page=cover_page,
