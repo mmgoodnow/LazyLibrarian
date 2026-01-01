@@ -391,6 +391,8 @@ def get_download_folder(source, downloadid):
                     for item in res["history"]["slots"]:
                         if item["nzo_id"] == downloadid:
                             dlfolder = item.get("storage")
+                            if os.path.isfile(dlfolder):
+                                dlfolder = os.path.dirname(dlfolder)
                             break
 
         elif source == "NZBGET":
