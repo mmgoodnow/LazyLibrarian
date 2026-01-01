@@ -837,13 +837,14 @@ def check_db(upgradelog=None):
             if len(no_bookid):
                 logger.warning(f"Found {len(no_bookid)} unknown bookids in reading lists")
             for item in no_bookid:
-                cmd = 'SELECT BookID from books WHERE ol_id=? OR gr_id=? OR lt_workid=? OR gb_id=?'
-                res = db.match(cmd, (item, item, item, item))
+                cmd = ('SELECT BookID from books WHERE ol_id=? OR gr_id=? OR lt_workid=? OR gb_id=?'
+                       ' or hc_id=? or dnb_id=?')
+                res = db.match(cmd, (item, item, item, item, item, item))
                 if res:
                     logger.debug(f"Bookid {item} is now {res[0]}")
                     for table in reading_lists:
-                        cmd = f'UPDATE {table} SET BookID=? WHERE BookID=?'
-                        db.action(cmd, (res[0], item))
+                        cmd = f"UPDATE {table} SET BookID=? WHERE BookID=?"
+                        db.action(cmd, (res[0], item), suppress='UNIQUE')
                 else:
                     logger.debug(f"Bookid {item} is unknown, deleting it")
                     for table in reading_lists:
