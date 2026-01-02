@@ -391,6 +391,8 @@ class BookState:
             db: Database connection for querying book title
         """
         # Get specific download folder by combining general folder + download name
+        logger = logging.getLogger(__name__)
+
         if self.source and self.download_id:
             general_folder = get_download_folder(self.source, self.download_id)
             download_name = get_download_name(
@@ -408,6 +410,7 @@ class BookState:
                 # Fallback: use general folder as-is
                 self.download_folder = general_folder
 
+        logger.debug(f"General:{general_folder} DownloadName:{download_name} DownloadFolder:{self.download_folder}")
         # Get actual book title for drill-down matching
         if self.book_id and self.is_book():
             result = db.match(
@@ -428,6 +431,7 @@ class BookState:
             if result:
                 data = dict(result)
                 self.book_title = _normalize_title(data.get("Title", ""))
+        logger.debug(f"IsBook:{self.is_book} IsMag:{self.is_magazine} Title:{self.book_title}")
 
     def __repr__(self) -> str:
         """String representation for debugging."""

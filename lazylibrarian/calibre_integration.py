@@ -35,7 +35,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.cache import cache_img, ImageType
+from lazylibrarian.cache import ImageType
 from lazylibrarian.calibre import calibredb, get_calibre_id
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.magazinescan import format_issue_filename, get_dateparts, create_id
