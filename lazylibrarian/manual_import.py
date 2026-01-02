@@ -75,6 +75,7 @@ from lazylibrarian.bookrename import id3read
 # Import from postprocess for core processing function
 from lazylibrarian.postprocess import process_book
 
+from lazylibrarian.telemetry import TELEMETRY
 
 def process_mag_from_file(source_file, title, issuenum):
     # import a magazine issue by title/num
