@@ -1348,7 +1348,7 @@ class OpenLibrary:
                 res = None
                 self.logger.warning(f"Error from isbn: {e}")
             if res:
-                self.logger.debug(f"isbn found {res} for {title}")
+                self.logger.debug(f"isbn found {res} for {bookdict['bookname']}")
                 bookdict['bookisbn'] = res
         bookdict['bookpub'] = workinfo.get('publishers', '')
         if isinstance(bookdict['bookpub'], list):
@@ -1395,7 +1395,7 @@ class OpenLibrary:
             bookdict['authorname'] = match['AuthorName']
             bookdict['authorid'] = match['AuthorID']
         else:
-            auth_id = lazylibrarian.importer.add_author_name_to_db(authorname=authorname,
+            auth_id = lazylibrarian.importer.add_author_name_to_db(author=authorname,
                                                                    refresh=False,
                                                                    addbooks=False,
                                                                    reason=f"ol.add_bookid {bookid}")

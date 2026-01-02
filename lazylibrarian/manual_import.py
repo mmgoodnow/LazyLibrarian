@@ -35,12 +35,16 @@ Used by:
 
 import logging
 import os
+import shutil
+import tempfile
 import traceback
+import uuid
 
 import lazylibrarian
-from lazylibrarian import database
+from lazylibrarian import database, searchmag
+from lazylibrarian.bookrename import id3read, stripspaces
 from lazylibrarian.common import multibook
-from lazylibrarian.config2 import CONFIG
+from lazylibrarian.config2 import CONFIG, DIRS
 from lazylibrarian.filesystem import (
     book_file,
     get_directory,
@@ -55,10 +59,15 @@ from lazylibrarian.formatter import (
     restore_thread_name,
     sanitize,
     unaccented,
+    today,
+    check_int,
+    split_title,
+    make_utf8bytes
 )
+from lazylibrarian.magazinescan import format_issue_filename
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
-from lazylibrarian.images import create_mag_cover
+from lazylibrarian.images import create_mag_cover, createthumbs
 from lazylibrarian.importer import (
     add_author_name_to_db,
     add_author_to_db,
@@ -66,14 +75,28 @@ from lazylibrarian.importer import (
     search_for,
     update_totals,
 )
-from lazylibrarian.librarysync import find_book_in_db
-from lazylibrarian.magazinescan import get_dateparts
+from lazylibrarian.postprocess_metadata import BookType
+from lazylibrarian.librarysync import find_book_in_db, get_book_info
+from lazylibrarian.magazinescan import get_dateparts, create_id
 from lazylibrarian.metadata_opf import create_mag_opf
 from lazylibrarian.ol import OpenLibrary
-from lazylibrarian.bookrename import id3read
+from lazylibrarian.archive_utils import unpack_archive as _unpack_archive
 
 # Import from postprocess for core processing function
-from lazylibrarian.postprocess import process_book
+from lazylibrarian.postprocess import (
+    process_book,
+    _process_destination as process_destination,
+    is_valid_type,
+    _process_ll_bookid_folders_from_list,
+    _process_auto_add as process_auto_add,
+)
+
+from lazylibrarian.common import (
+    setperm,
+    remove_file
+)
+from lazylibrarian.filesystem import safe_copy, remove_dir, make_dirs
+from lazylibrarian.librarysync import get_book_meta
 
 from lazylibrarian.telemetry import TELEMETRY
 
@@ -214,7 +237,7 @@ def process_mag_from_file(source_file, title, issuenum):
             )
         if CONFIG["IMP_AUTOADDMAG"]:
             dest_path = os.path.dirname(dest_file)
-            process_auto_add(dest_path, booktype="mag")
+            process_auto_add(dest_path, BookType.MAGAZINE)
         return True
 
     except Exception:
@@ -350,7 +373,7 @@ def process_issues(source_dir=None, title=""):
                     nouns.extend(get_list(CONFIG["VOLUME_NOUNS"]))
                     nouns.extend(get_list(CONFIG["MAG_NOUNS"]))
                     nouns.extend(get_list(CONFIG["MAG_TYPE"]))
-                    nouns.extend(list(lazylibrarian.SEASONS.keys()))
+                    nouns.extend(lazylibrarian.SEASONS)
                     nouns = set(nouns)
                     valid = True
                     for word in filename_words:
@@ -711,7 +734,7 @@ def process_alternate(source_dir=None, library="eBook"):
 
         else:
             logger.warning(f"{library} {new_book} has no metadata")
-            res = _process_ll_bookid_folders(source_dir)
+            res = _process_ll_bookid_folders_from_list(source_dir, db, logger)
             if not res:
                 logger.warning(f"{source_dir} has no book with LL.number")
                 return False

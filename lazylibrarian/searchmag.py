@@ -600,7 +600,7 @@ def get_default_date(dateparts):
 
     if preformat.count('$M') == 2:
         # change two months to start-end
-        preformat = reformat.replace('$M', '$S', 1)
+        preformat = preformat.replace('$M', '$S', 1)
         preformat = preformat.replace('$M', '$E', 1)
 
     lang = 0
@@ -646,5 +646,3 @@ def get_default_date(dateparts):
         '$s', start_name).replace(
         '$E', str(end_month).zfill(2)).replace(
         '$e', end_name)
-
-

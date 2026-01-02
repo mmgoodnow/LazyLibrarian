@@ -21,7 +21,7 @@ from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import md5_utf8, is_valid_isbn, get_list, format_author_name, \
-    date_format, thread_name, now, plural
+    date_format, thread_name, now, plural, check_int
 
 
 class ReadStatus(enum.Enum):
