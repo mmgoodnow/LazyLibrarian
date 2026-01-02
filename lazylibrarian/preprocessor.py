@@ -432,8 +432,10 @@ def preprocess_audio(bookfolder, bookid='', authorname='', bookname='', merge=No
 
     with open(partslist_file, 'w', encoding="utf-8") as f:
         for part in parts:
+            # FIX: Use single quotes and escape apostrophes for FFmpeg compatibility
             # json.dumps escapes the invalid chars for us, eg apostrophe
-            f.write(f"file {json.dumps(part[3])}\n")
+            escaped_name = part[3].replace("'", "'\\''")
+            f.write(f"file '{escaped_name}'\n")
 
     bookfile = namevars['AudioSingleFile'] if namevars['Author'] else ''
     # might not have any namevars (eg no bookid)
