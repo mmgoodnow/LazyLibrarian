@@ -26,23 +26,34 @@ Key Functions:
 - send_to_calibre: Generic function to send any media type to Calibre
 """
 
+import json
 import logging
 import os
 import shutil
+import tempfile
 import traceback
 
+import lazylibrarian
 from lazylibrarian import database
+from lazylibrarian.cache import cache_img, ImageType
 from lazylibrarian.calibre import calibredb, get_calibre_id
+from lazylibrarian.images import create_mag_cover
+from lazylibrarian.magazinescan import format_issue_filename, get_dateparts, create_id
+from lazylibrarian.metadata_opf import create_opf, create_comic_opf, create_mag_opf
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (
     book_file,
+    get_directory,
     listdir,
     path_isdir,
     path_isfile,
     remove_file,
     safe_move,
+    safe_copy,
+    setperm,
+    syspath,
 )
-from lazylibrarian.formatter import unaccented
+from lazylibrarian.formatter import unaccented, make_unicode
 
 
 def send_to_calibre(booktype, global_name, folder, data):
@@ -249,14 +260,14 @@ def send_to_calibre(booktype, global_name, folder, data):
             else:
                 opfpath = ""
                 if booktype in ["ebook", "audiobook"]:
-                    process_img(
+                    lazylibrarian.postprocess.process_img(
                         folder, bookid, data["BookImg"], global_name, ImageType.BOOK
                     )
                     opfpath, our_opf = create_opf(folder, data, global_name, True)
                     # if we send an opf, does calibre update the book-meta as well?
                 elif booktype == "comic":
                     if data.get("Cover"):
-                        process_img(
+                        lazylibrarian.postprocess.process_img(
                             folder, bookid, data["Cover"], global_name, ImageType.COMIC
                         )
                     if not CONFIG.get_bool("IMP_COMICOPF"):
@@ -450,7 +461,7 @@ def send_to_calibre(booktype, global_name, folder, data):
         if booktype == "ebook":
             remv = CONFIG.get_bool("FULL_SCAN")
             logger.debug(f"Scanning directory [{target_dir}]")
-            _ = library_scan(target_dir, remove=remv)
+            _ = lazylibrarian.librarysync.library_scan(target_dir, remove=remv)
 
         newbookfile = book_file(target_dir, booktype=booktype, config=CONFIG)
         # should we be setting permissions on calibres directories and files?

@@ -133,7 +133,7 @@ class EmailNotifier:
                             if 'title' not in metadata or 'creator' not in metadata:
                                 basename, _ = splitext(f)
                                 if os.path.exists(f"{basename}.opf"):
-                                    lazylibrarian.postprocess.write_meta(os.path.dirname(f), f"{basename}.opf")
+                                    lazylibrarian.metadata_opf.write_meta(os.path.dirname(f), f"{basename}.opf")
                         subtype = mime_type(syspath(f)).split('/')[1]
                         logger.debug(f'Attaching {subtype} {title}')
                         with open(syspath(f), "rb") as fil:
