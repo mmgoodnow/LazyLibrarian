@@ -397,11 +397,15 @@ class BookState:
                 self.download_title, self.source, self.download_id
             )
 
-            # Combine to get specific torrent/download folder
-            if general_folder and download_name:
+            # For usenet clients (SABnzbd, NZBGet), the storage field already contains
+            # the complete download path including the folder name, so we don't join
+            if self.source in ("SABNZBD", "NZBGET") and general_folder:
+                self.download_folder = general_folder
+            # For torrent clients, combine base folder with download name
+            elif general_folder and download_name:
                 self.download_folder = os.path.join(general_folder, download_name)
             elif general_folder:
-                # Client provided folder but no specific name (usenet case)
+                # Fallback: use general folder as-is
                 self.download_folder = general_folder
 
         # Get actual book title for drill-down matching
@@ -547,25 +551,25 @@ def _transfer_matching_files(
         ourfile = str(_ourfile)
         # Only transfer files that start with our book's name and are valid media files
         if ourfile.startswith(fname_prefix) and is_valid_type(ourfile, extensions=valid_extensions):
-                try:
-                    srcfile = os.path.join(sourcedir, ourfile)
-                    dstfile = os.path.join(targetdir, ourfile)
+            try:
+                srcfile = os.path.join(sourcedir, ourfile)
+                dstfile = os.path.join(targetdir, ourfile)
 
-                    if copy:
-                        dstfile = safe_copy(srcfile, dstfile)
-                        setperm(dstfile)
-                        logger.debug(f"Copied {ourfile} to subdirectory")
-                    else:
-                        dstfile = safe_move(srcfile, dstfile)
-                        setperm(dstfile)
-                        logger.debug(f"Moved {ourfile} to subdirectory")
-                    cnt += 1
-                except Exception as why:
-                    logger.warning(
-                        f"Failed to transfer file {ourfile} to [{targetdir}], "
-                        f"{type(why).__name__} {why!s}"
-                    )
-                    continue
+                if copy:
+                    dstfile = safe_copy(srcfile, dstfile)
+                    setperm(dstfile)
+                    logger.debug(f"Copied {ourfile} to subdirectory")
+                else:
+                    dstfile = safe_move(srcfile, dstfile)
+                    setperm(dstfile)
+                    logger.debug(f"Moved {ourfile} to subdirectory")
+                cnt += 1
+            except Exception as why:
+                logger.warning(
+                    f"Failed to transfer file {ourfile} to [{targetdir}], "
+                    f"{type(why).__name__} {why!s}"
+                )
+                continue
     return cnt
 
 
@@ -739,8 +743,8 @@ def _normalize_title(title: str) -> str:
     # but preserves periods in names like "J.R.R. Tolkien" or "Dr. Seuss"
     if '.' in new_title:
         # Get the part after the last period
-        last_dot_index = new_title.rfind('.')
-        suffix = new_title[last_dot_index + 1:].lower()
+        last_dot_index = new_title.rfind(".")
+        suffix = new_title[last_dot_index + 1 :].lower()
 
         # Strip if it matches known patterns:
         # 1. Known file extensions
@@ -1308,7 +1312,7 @@ def _cleanup_successful_download(book_path, download_dir, book_state, logger) ->
                 f"Unable to remove {deletion_path}, {type(why).__name__} {why!s}"
             )
     elif CONFIG.get_bool("DESTINATION_COPY"):
-            logger.debug(f"Not removing {deletion_path} as Keep Files is set")
+        logger.debug(f"Not removing {deletion_path} as Keep Files is set")
     else:
         logger.debug(f"Not removing {deletion_path} as in download root")
 
@@ -1781,7 +1785,7 @@ def _find_best_match_in_downloads(
                 book_state.mark_skipped(skip_reason)
         # Even non-matches get tracked to report closest match
         elif match_percent > 0:
-                matches.append([match_percent, book_state.candidate_ptr])
+            matches.append([match_percent, book_state.candidate_ptr])
 
     # Find the best match
     if not matches:
@@ -3441,7 +3445,7 @@ def _should_copy_file(fname: str, best_format: str, book_type: str) -> bool:
     # If we're filtering for a specific format and this is a valid booktype
     # but not the best format, skip it
     if best_format and CONFIG.is_valid_booktype(fname, booktype=book_type) and not fname.endswith(best_format):
-            return False
+        return False
 
     # Copy valid book files or metadata files
     return CONFIG.is_valid_booktype(fname, booktype=book_type) or _is_metadata_file(
