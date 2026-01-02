@@ -41,6 +41,7 @@ from lazylibrarian.common import log_header, create_support_zip, get_readinglist
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
+from lazylibrarian.download_client import get_download_progress
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, splitext, walk
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, get_list, \
     thread_name, split_author_names, is_valid_isbn

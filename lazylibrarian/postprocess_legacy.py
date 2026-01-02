@@ -766,7 +766,7 @@ def unpack_archive(archivename, download_dir, title='archive', targetdir=''):
                 logger.error(f"Failed to untar {archivename}: {e}")
                 return ''
 
-            if not target_dir:
+            if not targetdir:
                 targetdir = os.path.join(download_dir, f"{title}.unpack")
             if not make_dirs(targetdir, new=True):
                 logger.error(f"Failed to create target dir {targetdir}")
@@ -797,7 +797,7 @@ def unpack_archive(archivename, download_dir, title='archive', targetdir=''):
                 logger.error(f"Failed to unrar {archivename}: {e}")
                 return ''
 
-            if not target_dir:
+            if not targetdir:
                 targetdir = os.path.join(download_dir, f"{title}.unpack")
             if not make_dirs(targetdir, new=True):
                 logger.error(f"Failed to create target dir {targetdir}")
@@ -831,7 +831,7 @@ def unpack_archive(archivename, download_dir, title='archive', targetdir=''):
                 z = None  # not a rar archive
 
             if z:
-                if not target_dir:
+                if not targetdir:
                     targetdir = os.path.join(download_dir, f"{title}.unpack")
                 if not make_dirs(targetdir, new=True):
                     logger.error(f"Failed to create target dir {targetdir}")

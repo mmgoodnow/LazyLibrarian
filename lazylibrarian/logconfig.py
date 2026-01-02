@@ -372,7 +372,11 @@ class LogConfig:
     @staticmethod
     def get_special_logger_list() -> List:
         """ Get the list of special loggers and their current state """
-        loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict if name.startswith('special.')]
+        loggers = [
+            logging.getLogger(name)
+            for name in logging.Logger.manager.loggerDict
+            if name.startswith("special.")
+        ]
         return loggers
 
     @staticmethod
