@@ -450,11 +450,11 @@ def is_overdue(which="author") -> (int, int, str, str, int):
         days
     """
 
-    def get_overdue_from_dbrows():
+    def get_overdue_from_dbrows(results):
         dtnow = time.time()
         found = 0
-        thedays = int((dtnow - res[0]['Updated']) / (24 * 60 * 60))
-        for item in res:
+        thedays = int((dtnow - results[0]['Updated']) / (24 * 60 * 60))
+        for item in results:
             diff = (dtnow - item['Updated']) / (24 * 60 * 60)
             if diff > maxage:
                 found += 1
@@ -477,7 +477,7 @@ def is_overdue(which="author") -> (int, int, str, str, int):
                 if total:
                     name = res[0]['AuthorName']
                     ident = res[0]['AuthorID']
-                    days, overdue = get_overdue_from_dbrows()
+                    days, overdue = get_overdue_from_dbrows(res)
             if which == 'series':
                 cmd = ("SELECT SeriesName,SeriesID,Updated from Series where Status='Active' or Status='Wanted' "
                        "order by Updated ASC")
@@ -486,7 +486,7 @@ def is_overdue(which="author") -> (int, int, str, str, int):
                 if total:
                     name = res[0]['SeriesName']
                     ident = res[0]['SeriesID']
-                    days, overdue = get_overdue_from_dbrows()
+                    days, overdue = get_overdue_from_dbrows(res)
         except Exception as e:
             logger.debug(f"Error: {e}")
 
@@ -626,10 +626,10 @@ def show_stats(json=False):
         series_stats.append(['Monitor', res['counter']])
         overdue = is_overdue('series')[0]
         series_stats.append(['Overdue', overdue])
-        series_stats = {}
+        seriesstats = {}
         for item in series_stats:
-            series_stats[item[0]] = item[1]
-        resultdict['series_stats'] = series_stats
+            seriesstats[item[0]] = item[1]
+        resultdict['series_stats'] = seriesstats
 
         mag_stats = []
         if CONFIG.get_bool('MAG_TAB'):

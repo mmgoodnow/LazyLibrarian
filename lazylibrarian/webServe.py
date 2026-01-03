@@ -6420,10 +6420,10 @@ class WebInterface:
                             if CONFIG.get_bool('IMP_MAGOPF'):
                                 logger.debug(f"Writing opf for {issuefile}")
                                 _, _ = lazylibrarian.metadata_opf.create_mag_opf(issuefile, title,
-                                                                                issue['IssueDate'], itm,
-                                                                                language=entry[0],
-                                                                                genres=genres,
-                                                                                overwrite=True)
+                                                                                 issue['IssueDate'], itm,
+                                                                                 language=entry[0],
+                                                                                 genres=genres,
+                                                                                 overwrite=True)
                     if action == 'coverswap' and issuefile:
                         coverfile = None
                         if CONFIG['MAG_COVERSWAP']:
@@ -6657,11 +6657,11 @@ class WebInterface:
                         if CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug(f"Writing opf for {issue['IssueFile']}")
                             _, _ = lazylibrarian.metadata_opf.create_mag_opf(issue['IssueFile'], title,
-                                                                            issue["IssueDate"],
-                                                                            issue["IssueID"],
-                                                                            language=mag[0],
-                                                                            genres=genres,
-                                                                            overwrite=True)
+                                                                             issue["IssueDate"],
+                                                                             issue["IssueID"],
+                                                                             language=mag[0],
+                                                                             genres=genres,
+                                                                             overwrite=True)
 
             if action == 'Scan':
                 magazine_scan(title)
@@ -7580,7 +7580,8 @@ class WebInterface:
             CONFIG.set_bool('OL_API', True)
         else:
             CONFIG.set_bool('OL_API', False)
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
+        if (not CONFIG.get_bool('HC_API') and not bool(CONFIG.get_str('GR_API'))
+                and not bool(CONFIG.get_str('GB_API')) and not CONFIG.get_bool('DNB_API')):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['status']
@@ -7593,7 +7594,8 @@ class WebInterface:
             CONFIG.set_bool('DNB_API', True)
         else:
             CONFIG.set_bool('DNB_API', False)
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
+        if (not CONFIG.get_bool('HC_API') and not bool(CONFIG.get_str('GR_API'))
+                and not bool(CONFIG.get_str('GB_API')) and not CONFIG.get_bool('DNB_API')):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['status']
@@ -7606,7 +7608,8 @@ class WebInterface:
             CONFIG.set_bool('HC_API', True)
         else:
             CONFIG.set_bool('HC_API', False)
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
+        if (not CONFIG.get_bool('HC_API') and not bool(CONFIG.get_str('GR_API'))
+                and not bool(CONFIG.get_str('GB_API')) and not CONFIG.get_bool('DNB_API')):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['status']
@@ -7616,7 +7619,8 @@ class WebInterface:
     def gr_api_changed(self, **kwargs):
         self.validate_param("goodreads api", kwargs['gr_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GR_API', kwargs['gr_api'])
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
+        if (not CONFIG.get_bool('HC_API') and not bool(CONFIG.get_str('GR_API'))
+                and not bool(CONFIG.get_str('GB_API')) and not CONFIG.get_bool('DNB_API')):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gr_api']
@@ -7626,7 +7630,8 @@ class WebInterface:
     def gb_api_changed(self, **kwargs):
         self.validate_param("googlebooks api", kwargs['gb_api'], ['<', '>', '='], 404)
         CONFIG.set_str('GB_API', kwargs['gb_api'])
-        if not CONFIG('HC_API') and not CONFIG('GR_API') and not CONFIG('GB_API') and not CONFIG('DNB_API'):
+        if (not CONFIG.get_bool('HC_API') and not bool(CONFIG.get_str('GR_API'))
+                and not bool(CONFIG.get_str('GB_API')) and not CONFIG.get_bool('DNB_API')):
             # ensure at least one option is available
             CONFIG.set_bool('OL_API', True)
         return kwargs['gb_api']

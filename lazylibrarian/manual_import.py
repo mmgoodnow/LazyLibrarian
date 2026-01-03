@@ -100,6 +100,7 @@ from lazylibrarian.librarysync import get_book_meta
 
 from lazylibrarian.telemetry import TELEMETRY
 
+
 def process_mag_from_file(source_file, title, issuenum):
     # import a magazine issue by title/num
     # Assumes the source file is the correct file for the issue and renames it to match
@@ -373,7 +374,12 @@ def process_issues(source_dir=None, title=""):
                     nouns.extend(get_list(CONFIG["VOLUME_NOUNS"]))
                     nouns.extend(get_list(CONFIG["MAG_NOUNS"]))
                     nouns.extend(get_list(CONFIG["MAG_TYPE"]))
-                    nouns.extend(lazylibrarian.SEASONS)
+                    # this unusual construct is because if we just extend(lazylibrarian.SEASONS)
+                    # we get reports that docker complains about unhashable type
+                    # but it works fine with python in a terminal.
+                    # Some docker quirk, or the python version in the docker ???
+                    # nouns.extend(lazylibrarian.SEASONS)
+                    nouns.extend(list(lazylibrarian.SEASONS.keys()))
                     nouns = set(nouns)
                     valid = True
                     for word in filename_words:
@@ -734,11 +740,12 @@ def process_alternate(source_dir=None, library="eBook"):
 
         else:
             logger.warning(f"{library} {new_book} has no metadata")
+            db = database.DBConnection()
             res = _process_ll_bookid_folders_from_list(source_dir, db, logger)
+            db.close()
             if not res:
                 logger.warning(f"{source_dir} has no book with LL.number")
                 return False
-
     except Exception:
         logger.error(
             f"Unhandled exception in process_alternate: {traceback.format_exc()}"

@@ -31,12 +31,10 @@ from lazylibrarian.logconfig import LOGCONFIG
 from lazylibrarian.webServe import WebInterface
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 
-cp_ver = getattr(cherrypy, '__version__', None)
-if cp_ver and int(cp_ver.split('.')[0]) >= 10:
-    try:
-        import portend
-    except ImportError:
-        portend = None
+try:
+    import portend
+except ImportError:
+    portend = None
 
 
 def initialize(options=None):
@@ -185,6 +183,7 @@ def initialize(options=None):
                 # using the @require_auth() decorator on the methods in webserve.py
             })
         elif options['authentication'] == 'BASIC':
+            # noinspection PyUnresolvedReferences
             conf['/'].update({
                 'tools.auth_basic.on': True,
                 'tools.auth_basic.realm': 'LazyLibrarian',
@@ -241,14 +240,8 @@ def initialize(options=None):
     cherrypy.engine.autoreload.subscribe()
 
     try:
-        if cp_ver and int(cp_ver.split('.')[0]) >= 10:
-            # noinspection PyUnresolvedReferences
+        if portend:
             portend.Checker().assert_free(str(options['http_host']), options['http_port'])
-        else:
-            cherrypy.process.servers.check_port(str(options['http_host']), options['http_port'])
-        # Prevent time-outs removed in cp v12
-        if cp_ver and int(cp_ver.split('.')[0]) < 12:
-            cherrypy.engine.timeout_monitor.unsubscribe()
         cherrypy.server.start()
         copyfile(os.path.join(DIRS.PROG_DIR, 'data', 'images', 'lazylibrarian.png'),
                  os.path.join(DIRS.CACHEDIR, 'alive.png'))

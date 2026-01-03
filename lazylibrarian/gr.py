@@ -244,10 +244,10 @@ class GoodReads:
 
             except Exception as err:
                 # noinspection PyUnresolvedReferences
-                if hasattr(err, 'code') and err.code == 404:
+                if hasattr(err, 'code') and err.code == 404:  # pylint: disable=no-member
                     self.logger.error('Received a 404 error when searching for author')
                 # noinspection PyUnresolvedReferences
-                elif hasattr(err, 'code') and err.code == 403:
+                elif hasattr(err, 'code') and err.code == 403:  # pylint: disable=no-member
                     self.logger.warning('Access to api is denied 403: usage exceeded')
                 else:
                     self.logger.error(f'An unexpected error has occurred when searching for an author: {str(err)}')
@@ -884,7 +884,7 @@ class GoodReads:
                                     for keyword in ["ublication ", "ublished "]:
                                         if keyword in pubdate:
                                             pubdate = pubdate.split(keyword)[1]
-                                            bookdate = date_format(pubdate.decode('utf-8'))
+                                            bookdate = date_format(make_unicode(pubdate))
                                             break
 
                             # Leave alone if locked

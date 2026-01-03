@@ -61,7 +61,8 @@ def check_auth(*args, **kwargs):
     conditions = cherrypy.request.config.get('auth.require', None)
     get_params = quote(cherrypy.request.request_line.split()[1])
     if conditions is not None:
-        username = cherrypy.session.get(SESSION_KEY)
+        # noinspection PyUnresolvedReferences
+        username = cherrypy.session.get(SESSION_KEY)  # pylint: disable=no-member
         if username:
             cherrypy.request.login = username
             for condition in conditions:
@@ -186,19 +187,10 @@ class AuthController(object):
         if error_msg:
             return self.get_loginform(current_username, error_msg, from_page)
         else:
-            # if all([from_page != "/", from_page != "//"]):
-            #    from_page = from_page
-            # if mylar.OS_DETECT == 'Windows':
-            #    if mylar.CONFIG.HTTP_ROOT != "//":
-            #        from_page = re.sub(mylar.CONFIG.HTTP_ROOT, '', from_page,1).strip()
-            # else:
-            #    #if mylar.CONFIG.HTTP_ROOT != "/":
-            #    from_page = re.sub(mylar.CONFIG.HTTP_ROOT, '', from_page,1).strip()
-            cherrypy.session.regenerate()
-            cherrypy.session[SESSION_KEY] = cherrypy.request.login = current_username
-            # expiry = datetime.now() + (timedelta(days=30) if remember_me == '1' else timedelta(minutes=60))
-            # cherrypy.session[SESSION_KEY] = {'user':    cherrypy.request.login,
-            #                                 'expiry':  expiry}
+            # noinspection PyUnresolvedReferences
+            cherrypy.session.regenerate()  # pylint: disable=no-member
+            # noinspection PyUnresolvedReferences
+            cherrypy.session[SESSION_KEY] = cherrypy.request.login = current_username  # pylint: disable=no-member
             self.on_login(current_username, current_password)
             if CONFIG['HTTP_ROOT']:
                 from_page = f"{CONFIG['HTTP_ROOT'].rstrip('/')}/{from_page}"
@@ -206,7 +198,8 @@ class AuthController(object):
 
     @cherrypy.expose
     def logout(self, from_page="/"):
-        sess = cherrypy.session
+        # noinspection PyUnresolvedReferences
+        sess = cherrypy.session  # pylint: disable=no-member
         username = sess.get(SESSION_KEY, None)
         sess[SESSION_KEY] = None
         if username:

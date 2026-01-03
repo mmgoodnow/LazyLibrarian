@@ -24,7 +24,7 @@ import tempfile
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes, \
+from lazylibrarian.formatter import plural, make_unicode, safe_unicode, check_int, make_utf8bytes, \
     sort_definite, get_list, is_valid_type
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file, safe_move, splitext
 from lazylibrarian.cache import cache_img, fetch_url, ImageType
@@ -46,6 +46,7 @@ else:
     BingImageCrawler = None
     BaiduImageCrawler = None
     FlickrImageCrawler = None
+    PILImage = None
 
 # noinspection PyProtectedMember
 from pypdf import PdfWriter, PdfReader
@@ -73,7 +74,7 @@ def createthumbs(jpeg):
 
 
 def createthumb(jpeg, basewidth=None, overwrite=True):
-    if not PIL:
+    if not PILImage:
         return ''
     logger = logging.getLogger(__name__)
     fname, extn = splitext(jpeg)
@@ -103,7 +104,7 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
     hsize = int((float(img.size[1]) * float(wpercent)))
     try:
         # noinspection PyUnresolvedReferences
-        img = img.resize((bwidth, hsize), PIL.Image.LANCZOS)
+        img = img.resize((bwidth, hsize), PIL.Image.Resampling.LANCZOS)
         img.save(outfile)
     except OSError:
         try:
@@ -937,30 +938,13 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 interface = "wand"
             except ImportError:
                 wand_image = None
-                try:
-                    # No PythonMagick in python3
-                    # noinspection PyUnresolvedReferences,PyPep8Naming
-                    from PythonMagick import Image as pythonmagick_image
-                    interface = "pythonmagick"
-                except ImportError:
-                    interface = ""
+                interface = ""
             try:
                 if interface == 'wand' and wand_image:
                     generator = "wand interface"
+                    # noinspection PyCallingNonCallable
                     with wand_image(filename=f"{issuefile}[{str(check_int(pagenum, 1) - 1)}]") as img:
                         img.save(filename=coverfile)
-
-                elif interface == 'pythonmagick':
-                    generator = "pythonmagick interface"
-                    img = pythonmagick_image()
-                    # PythonMagick requires filenames to be bytestr, not unicode
-                    if type(issuefile) is str:
-                        issuefile = make_bytestr(issuefile)
-                    if type(coverfile) is str:
-                        coverfile = make_bytestr(coverfile)
-                    img.read(f"{issuefile}[{str(check_int(pagenum, 1) - 1)}]")
-                    img.write(coverfile)
-
                 else:
                     if not GS:
                         GS, GS_VER, generator = find_gs()

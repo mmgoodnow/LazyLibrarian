@@ -67,6 +67,7 @@ class UtorrentClient(object):
     def _make_opener(realm, base_url, username, password):
         """uTorrent API need HTTP Basic Auth and cookie support for token verify."""
         auth = HTTPBasicAuthHandler()
+        # noinspection PyArgumentList
         auth.add_password(realm=realm, uri=base_url, user=username, passwd=password)
         opener = build_opener(auth)
         install_opener(opener)
@@ -194,7 +195,8 @@ class UtorrentClient(object):
         request.add_header('User-Agent', get_user_agent())
 
         if body:
-            request.data(body)
+            # noinspection PyCallingNonCallable
+            request.data(body)  # pylint: disable=not-callable
             request.add_header('Content-length', str(len(body)))
         if content_type:
             request.add_header('Content-type', content_type)

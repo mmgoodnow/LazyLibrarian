@@ -351,7 +351,9 @@ class StartupLazyLibrarian:
         # noinspection PyBroadException
         try:
             # noinspection PyUnresolvedReferences
+            # pylint: disable=import-error
             from unrar import rarfile
+            # pylint: enable=import-error
             if config.get_int('PREF_UNRARLIB') == 1:
                 adminlogger.debug("Using unrar")
                 return 1, rarfile

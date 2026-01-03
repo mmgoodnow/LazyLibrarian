@@ -41,7 +41,7 @@ class SearchResult:
             return "Invalid provider, unable to print self"
 
         # noinspection PyUnresolvedReferences
-        my_string = f"{self.provider.name} @ {self.url}\n"
+        my_string = f"{self.provider.name} @ {self.url}\n"  # pylint: disable=no-member
         my_string += "Extra Info:\n"
         for extra in self.extraInfo:
             my_string += f"  {extra}\n"

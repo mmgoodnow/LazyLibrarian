@@ -1297,6 +1297,7 @@ class Api(object):
         name = f"{res['BookName']}.{extn}" if extn else res['BookName']
         self.logger.debug(f'API book download {myfile}')
         self.file_response = (myfile, name)
+
     def _createplaylist(self, **kwargs):
         TELEMETRY.record_usage_data()
         if 'id' not in kwargs:
@@ -2749,7 +2750,8 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         if 'wait' in kwargs:
-            self.data = de_duplicate(kwargs['id'])
+            de_duplicate(kwargs['id'])
+            self.data = 'Completed. See log for details'
         else:
             threading.Thread(target=de_duplicate, name=f"API-DEDUPLICATE_{kwargs['id']}",
                              args=[kwargs['id']]).start()

@@ -28,7 +28,7 @@ def get_server():
     host = CONFIG['RTORRENT_HOST']
     if not host:
         logger.error("rtorrent error: No host found, check your config")
-        return False, ''
+        return None, ''
 
     host = host.rstrip('/')
     if not host.startswith("http://") and not host.startswith("https://"):
@@ -56,21 +56,21 @@ def get_server():
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed
         logger.error(f"xmlrpc_client error: {repr(e)}")
-        return False, ''
+        return None, ''
     if version and versiontuple(version) >= versiontuple('0.9.8'):
         return server, version
     if version:
         logger.error(f"rTorrent {version} is not supported, require >= 0.9.8")
-        return False, version
+        return None, version
     else:
         logger.warning('No response from rTorrent server')
-        return False, ''
+        return None, ''
 
 
 def add_torrent(tor_url, hash_id, data=None):
     logger = logging.getLogger(__name__)
     server, version = get_server()
-    if server is False:
+    if not server:
         if version:
             return False, f'rTorrent {version} is not supported (require >= 0.9.8)'
         return False, 'rTorrent unable to connect to server'
@@ -127,7 +127,7 @@ def add_torrent(tor_url, hash_id, data=None):
 
 def get_progress(hash_id):
     server, _ = get_server()
-    if server is False:
+    if not server:
         return 0, 'error'
     mainview = server.download_list("", "main")
     for tor in mainview:
@@ -140,7 +140,7 @@ def get_progress(hash_id):
 
 def get_files(hash_id):
     server, _ = get_server()
-    if server is False:
+    if not server:
         return []
 
     mainview = server.download_list("", "main")
@@ -161,7 +161,7 @@ def get_files(hash_id):
 
 def get_name(hash_id):
     server, version = get_server()
-    if server is False:
+    if not server:
         return False
 
     mainview = server.download_list("", "main")
@@ -181,7 +181,7 @@ def get_name(hash_id):
 
 def get_folder(hash_id):
     server, version = get_server()
-    if server is False:
+    if not server:
         return False
 
     mainview = server.download_list("", "main")
@@ -202,7 +202,7 @@ def get_folder(hash_id):
 # noinspection PyUnusedLocal
 def remove_torrent(hash_id, remove_data=False):
     server, _ = get_server()
-    if server is False:
+    if not server:
         return False
 
     mainview = server.download_list("", "main")
@@ -214,6 +214,6 @@ def remove_torrent(hash_id, remove_data=False):
 
 def check_link():
     server, version = get_server()
-    if server is False:
+    if not server:
         return "rTorrent login FAILED\nCheck debug log"
     return f"rTorrent login successful: rTorrent {version}"

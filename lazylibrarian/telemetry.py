@@ -259,7 +259,7 @@ class LazyTelemetry(object):
                 return f"Server ID: {id1}\n\nStatus:\n{status1}"
             else:
                 return f"Error connecting to server: {serverid}"
-        except requests.exceptions:
+        except requests.exceptions.RequestException:
             return "Error connecting to server"
 
 

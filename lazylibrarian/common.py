@@ -208,6 +208,7 @@ def mime_type(filename):
 
 
 def module_available(module_name):
+    # noinspection PyUnresolvedReferences
     loader = importlib.util.find_spec(module_name)
     return loader is not None
 
@@ -327,7 +328,9 @@ def log_header(online=True) -> str:
                                            if CONFIG['SSL_CERTS'] else True).json()['tls_version']
             else:
                 logger.info('Checking TLS version')
+                # pylint: disable=no-member
                 requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                # pylint: enable=no-member
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
                                            verify=False).json()['tls_version']
             if '1.2' not in tls_version and '1.3' not in tls_version:
