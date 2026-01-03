@@ -480,7 +480,8 @@ def anna_search(book=None, test=False):
         logger.debug(f"Test found {len(results)} {plural(len(results), 'result')} ({removed} removed)")
         return len(results)
 
-    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} for {book['searchterm']}")
+    logger.debug(f"Found {len(results)} {plural(len(results), 'result')} from {provider} "
+                 f"for {book['searchterm']} ({removed} removed)")
     return results, ''
 
 
