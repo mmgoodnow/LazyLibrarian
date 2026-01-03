@@ -325,7 +325,7 @@ class BookState:
             return False
         if not self.download_id or self.download_id == "unknown":
             return False
-        return (self.source != "DIRECT")
+        return self.source != "DIRECT"
 
     def get_display_name(self, config) -> str:
         """
@@ -410,7 +410,8 @@ class BookState:
                 # Fallback: use general folder as-is
                 self.download_folder = general_folder
 
-        logger.debug(f"General:{general_folder} DownloadName:{download_name} DownloadFolder:{self.download_folder}")
+            logger.debug(f"General:{general_folder} DownloadName:{download_name} "
+                         f"DownloadFolder:{self.download_folder}")
         # Get actual book title for drill-down matching
         if self.book_id and self.is_book():
             result = db.match(
@@ -748,7 +749,7 @@ def _normalize_title(title: str) -> str:
     if '.' in new_title:
         # Get the part after the last period
         last_dot_index = new_title.rfind(".")
-        suffix = new_title[last_dot_index + 1 :].lower()
+        suffix = new_title[last_dot_index + 1:].lower()
 
         # Strip if it matches known patterns:
         # 1. Known file extensions
@@ -1164,13 +1165,15 @@ def _create_and_cache_cover(
     if not coverfile:
         return None
 
+    # need cache folder as "magazine" not "BookType.MAGAZINE"
+    sub_cache = media_type._value_
     myhash = uuid.uuid4().hex
-    hashname = os.path.join(DIRS.CACHEDIR, media_type, f"{myhash}.jpg")
+    hashname = os.path.join(DIRS.CACHEDIR, sub_cache, f"{myhash}.jpg")
     shutil.copyfile(coverfile, hashname)
     setperm(hashname)
     createthumbs(hashname)
 
-    return f"cache/{media_type}/{myhash}.jpg"
+    return f"cache/{sub_cache}/{myhash}.jpg"
 
 
 def _update_issue_database(
@@ -3181,7 +3184,7 @@ def process_book(book_path: str, book_id: str, logger=None, library=""):
                 if (
                     ".unpack" in book_path
                     or (not CONFIG.get_bool("DESTINATION_COPY")
-                    and book_path != dest_dir)
+                        and book_path != dest_dir)
                 ):
                     if path_isdir(book_path):
                         # calibre might have already deleted it?
