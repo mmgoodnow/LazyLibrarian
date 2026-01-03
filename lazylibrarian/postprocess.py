@@ -1166,7 +1166,7 @@ def _create_and_cache_cover(
         return None
 
     # need cache folder as "magazine" not "BookType.MAGAZINE"
-    sub_cache = media_type._value_
+    sub_cache = media_type.value
     myhash = uuid.uuid4().hex
     hashname = os.path.join(DIRS.CACHEDIR, sub_cache, f"{myhash}.jpg")
     shutil.copyfile(coverfile, hashname)
