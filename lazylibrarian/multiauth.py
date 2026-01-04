@@ -1,10 +1,10 @@
 import logging
 
 import lazylibrarian
-from lazylibrarian import database, ROLE
+from lazylibrarian import ROLE, database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import path_isfile, splitext
-from lazylibrarian.formatter import split_author_names, get_list
+from lazylibrarian.formatter import get_list, split_author_names
 from lazylibrarian.hc import HardCover
 from lazylibrarian.importer import add_author_name_to_db, add_author_to_db, update_totals
 from lazylibrarian.librarysync import get_book_info
@@ -15,7 +15,7 @@ def get_authors_from_hc():
     searchinglogger = logging.getLogger('special.searching')
     newauthors = 0
     if not CONFIG['HC_API']:
-        logger.debug(f"Not processing, HardCover API is disabled")
+        logger.debug("Not processing, HardCover API is disabled")
         return newauthors
     db = database.DBConnection()
     books = db.select("SELECT hc_id,bookid from books WHERE hc_id is not null")
@@ -139,16 +139,16 @@ def rebuild_booktable():
     db.action('PRAGMA foreign_keys = OFF')
     db.action('DROP TABLE IF EXISTS temp')
     db.action('ALTER TABLE books RENAME to temp')
-    db.action(f"CREATE TABLE books (BookName TEXT, BookSub TEXT, BookDesc TEXT, BookGenre TEXT, BookIsbn TEXT,"
-              f" BookPub TEXT, BookRate INTEGER, BookImg TEXT, BookPages INTEGER, BookLink TEXT, BookID TEXT UNIQUE, "
-              f"BookFile TEXT, BookDate TEXT, BookLang TEXT, BookAdded TEXT, Status TEXT, WorkPage TEXT, Manual TEXT, "
-              f"SeriesDisplay TEXT, BookLibrary TEXT, AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, "
-              f"WorkID TEXT, ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT, "
-              f"LT_WorkID TEXT, gr_id TEXT, Narrator TEXT, ol_id TEXT, gb_id TEXT, hc_id TEXT)")
-    db.action(f"INSERT INTO books SELECT BookName,BookSub,BookDesc,BookGenre,BookIsbn,BookPub,BookRate,BookImg,"
-              f"BookPages,BookLink,BookID,BookFile,BookDate,BookLang,BookAdded,Status,WorkPage,Manual,SeriesDisplay,"
-              f"BookLibrary,AudioFile,AudioLibrary,AudioStatus,WorkID,ScanResult,OriginalPubDate,Requester,"
-              f"AudioRequester,LT_WorkID,gr_id,Narrator,ol_id,gb_id,hc_id FROM temp")
+    db.action("CREATE TABLE books (BookName TEXT, BookSub TEXT, BookDesc TEXT, BookGenre TEXT, BookIsbn TEXT,"
+              " BookPub TEXT, BookRate INTEGER, BookImg TEXT, BookPages INTEGER, BookLink TEXT, BookID TEXT UNIQUE, "
+              "BookFile TEXT, BookDate TEXT, BookLang TEXT, BookAdded TEXT, Status TEXT, WorkPage TEXT, Manual TEXT, "
+              "SeriesDisplay TEXT, BookLibrary TEXT, AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, "
+              "WorkID TEXT, ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT, "
+              "LT_WorkID TEXT, gr_id TEXT, Narrator TEXT, ol_id TEXT, gb_id TEXT, hc_id TEXT)")
+    db.action("INSERT INTO books SELECT BookName,BookSub,BookDesc,BookGenre,BookIsbn,BookPub,BookRate,BookImg,"
+              "BookPages,BookLink,BookID,BookFile,BookDate,BookLang,BookAdded,Status,WorkPage,Manual,SeriesDisplay,"
+              "BookLibrary,AudioFile,AudioLibrary,AudioStatus,WorkID,ScanResult,OriginalPubDate,Requester,"
+              "AudioRequester,LT_WorkID,gr_id,Narrator,ol_id,gb_id,hc_id FROM temp")
     db.action('DROP TABLE temp')
     db.action('PRAGMA foreign_keys = ON')
     db.action('vacuum')

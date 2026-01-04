@@ -13,17 +13,24 @@ import shutil
 from collections import Counter
 from configparser import ConfigParser
 from os import sep
-from typing import Dict, List, Optional, Generator, Tuple
+from typing import Dict, Generator, List, Optional, Tuple
 from urllib.parse import unquote_plus
 
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configarray import ArrayConfig
-from lazylibrarian.configdefs import BASE_DEFAULTS, ARRAY_DEFS, configitem_from_default
+from lazylibrarian.configdefs import ARRAY_DEFS, BASE_DEFAULTS, configitem_from_default
 from lazylibrarian.configenums import Access, OnChangeReason
-from lazylibrarian.configtypes import ConfigItem, ConfigBool, CaseInsensitiveDict, ConfigDict, \
-    ConfigScheduler, ConfigDictListIterator, ErrorListIterator
-from lazylibrarian.filesystem import DIRS, syspath, path_exists
-from lazylibrarian.formatter import thread_name, plural
+from lazylibrarian.configtypes import (
+    CaseInsensitiveDict,
+    ConfigBool,
+    ConfigDict,
+    ConfigDictListIterator,
+    ConfigItem,
+    ConfigScheduler,
+    ErrorListIterator,
+)
+from lazylibrarian.filesystem import DIRS, path_exists, syspath
+from lazylibrarian.formatter import plural, thread_name
 from lazylibrarian.logconfig import LOGCONFIG
 
 
@@ -289,7 +296,7 @@ class LLConfigHandler(ConfigDict):
 
         for name, array in self.arrays.items():
             array.cleanup_for_save()
-            for inx in range(0, len(array)):
+            for inx in range(len(array)):
                 try:
                     config = array[inx]
                     sectionname = array.get_section_str(inx)
@@ -394,7 +401,7 @@ class LLConfigHandler(ConfigDict):
             self.logger.warning("No configfile")
             return 1
         try:
-            with open(configfile, 'r') as i:
+            with open(configfile) as i:
                 with open(f"{configfile}.new", 'w') as o:
                     for lyne in i.readlines():
                         if lyne.startswith('hc_api') and 'Bearer' in lyne:
@@ -472,7 +479,7 @@ class LLConfigHandler(ConfigDict):
 
         # Restart all scheduled jobs since the schedules may have changed
         if restart_jobs:
-            from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+            from lazylibrarian.scheduling import SchedulerCommand, schedule_job
             for _, item in self.config.items():
                 schedule = item.get_schedule_name()
                 if schedule and isinstance(item, ConfigScheduler):
@@ -537,7 +544,7 @@ class LLConfigHandler(ConfigDict):
 
         file = open(saveto, "w")
         try:
-            file.write(f'*** Config Item Access Summary ***\n')
+            file.write('*** Config Item Access Summary ***\n')
             for sumtype, summary in access_summary.items():
                 if len(summary) > 0:
                     file.writelines(f'Access type: {sumtype}\n')
@@ -599,7 +606,7 @@ class LLConfigHandler(ConfigDict):
         if provider in self.arrays:
             array = self.get_array(provider)
             if array:
-                for inx in range(0, len(array)):
+                for inx in range(len(array)):
                     try:
                         host = array.primary_host(inx)
                         ok = array.is_in_use(inx) and not BLOCKHANDLER.is_blocked(host)
@@ -706,16 +713,16 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     logger = logging.getLogger(__name__)
     # Compare base configs
     if not are_configdicts_equivalent(cfg1, cfg2):
-        logger.warning(f"Base configs differ")
+        logger.warning("Base configs differ")
         return False
 
     # Compare array configs
     if len(cfg1.arrays) != len(cfg2.arrays):
-        logger.warning(f"Number of array configs differ")
+        logger.warning("Number of array configs differ")
         return False
 
     for name, array in cfg1.arrays.items():
-        for inx in range(0, len(array)):
+        for inx in range(len(array)):
             cd1 = array[inx]
             try:
                 cd2 = cfg2.arrays[name][inx]
@@ -762,7 +769,7 @@ def wishlist_type(host: str) -> str:
 
     array = CONFIG.get_array('RSS')
     if array:
-        for inx in range(0, len(array)):
+        for inx in range(len(array)):
             try:
                 config = dict(array.configs[inx])
                 if config['HOST'] == host and 'mam' in config['LABEL'].lower() and 'wish' in config['LABEL'].lower():

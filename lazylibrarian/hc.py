@@ -16,12 +16,26 @@ from rapidfuzz import fuzz
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian.bookdict import validate_bookdict, warn_about_bookdict, add_bookdict_to_db, add_author_books_to_db
+from lazylibrarian.bookdict import (
+    add_author_books_to_db,
+    add_bookdict_to_db,
+    validate_bookdict,
+    warn_about_bookdict,
+)
 from lazylibrarian.common import get_readinglist, set_readinglist
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
-from lazylibrarian.formatter import md5_utf8, is_valid_isbn, get_list, format_author_name, \
-    date_format, thread_name, now, plural, check_int
+from lazylibrarian.formatter import (
+    check_int,
+    date_format,
+    format_author_name,
+    get_list,
+    is_valid_isbn,
+    md5_utf8,
+    now,
+    plural,
+    thread_name,
+)
 
 
 class ReadStatus(enum.Enum):
@@ -278,7 +292,7 @@ class HardCover:
                     res = db.match("select hc_token from users where perms=65535 and hc_token is not null")
                     if res and res['hc_token']:
                         self.apikey = res['hc_token']
-                        self.searchinglogger.debug(f"Using database token for admin")
+                        self.searchinglogger.debug("Using database token for admin")
             finally:
                 db.close()
         else:
@@ -287,7 +301,7 @@ class HardCover:
             res = db.match("select hc_token from users where perms=65535 and hc_token is not null")
             if res and res['hc_token']:
                 self.apikey = res['hc_token']
-                self.searchinglogger.debug(f"Using database token for admin")
+                self.searchinglogger.debug("Using database token for admin")
             db.close()
 
         #       user_id = result of whoami/userid
@@ -1705,7 +1719,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
         # Add warnings if any
         if miss:
-            msg += f"\n--- Sync Warnings ---\n"
+            msg += "\n--- Sync Warnings ---\n"
             msg += f"• Unable to update {len(miss)} {plural(len(miss), 'item')} at HardCover (no hc_id found)\n"
 
         # Add final reading list status
@@ -1928,7 +1942,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
             # Prepare updates to send to HardCover
             new_set = set()
-            cmd = f"SELECT books.bookid from readinglists,books WHERE books.bookid=readinglists.bookid and userid=?"
+            cmd = "SELECT books.bookid from readinglists,books WHERE books.bookid=readinglists.bookid and userid=?"
             res = db.select(cmd, (ll_userid_context,))
             for item in res:
                 new_set.add(item[0])
@@ -1938,8 +1952,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
             # Build update list
             updates = []
-            cmd = (f"SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
-                   f"books.bookid=readinglists.bookid and userid=? and books.bookid=?")
+            cmd = ("SELECT hc_id,readinglists.status,bookname from readinglists,books WHERE "
+                   "books.bookid=readinglists.bookid and userid=? and books.bookid=?")
 
             for item in new_set:
                 res = db.match(cmd, (ll_userid_context, item))
@@ -2054,7 +2068,7 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     msg += (f"• Auto sync blocked: {len(updates)} {plural(len(updates), 'update')} "
                             f"and {len(deleted_items)} {plural(len(deleted_items), 'deletion')} "
                             f"exceed safety limit of {sync_limit}\n")
-                    msg += f"• Please perform manual sync from LazyLibrarian manage page to proceed\n"
+                    msg += "• Please perform manual sync from LazyLibrarian manage page to proceed\n"
                     self.logger.warning(f"Auto sync blocked due to safety limits: {len(updates)} updates, "
                                         f"{len(deleted_items)} deletions")
                 elif safety_check == 'confirm':
@@ -2065,8 +2079,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                     msg += (f"• This sync would make {len(updates)} {plural(len(updates), 'update')} "
                             f"and {len(deleted_items)} {plural(len(deleted_items), 'deletion')} to HardCover\n")
                     msg += f"• This exceeds the safety limit of {sync_limit} items\n"
-                    msg += f"• Please confirm you want to proceed with these changes\n"
-                    msg += f"• Or choose 'Ignore Updates' to treat this as a one-way sync\n"
+                    msg += "• Please confirm you want to proceed with these changes\n"
+                    msg += "• Or choose 'Ignore Updates' to treat this as a one-way sync\n"
                     return msg
                 else:
                     # safety_check == 'proceed' - Send updates to HardCover

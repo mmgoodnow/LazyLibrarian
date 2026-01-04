@@ -30,14 +30,13 @@ from lazylibrarian.bookrename import name_vars, stripspaces
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import get_directory
 from lazylibrarian.formatter import (
-    make_unicode,
-    make_utf8bytes,
     check_int,
-    unaccented,
+    make_unicode,
     sanitize,
+    unaccented,
 )
-from lazylibrarian.magazinescan import format_issue_filename, get_dateparts, create_id
-from lazylibrarian.postprocess_utils import enforce_str, enforce_bytes
+from lazylibrarian.magazinescan import create_id, format_issue_filename, get_dateparts
+from lazylibrarian.postprocess_utils import enforce_bytes, enforce_str
 
 
 class BookType(str, Enum):
@@ -94,12 +93,10 @@ class BookMetadata(ABC):
     @abstractmethod
     def get_display_name(self) -> str:
         """Get display name for logging/notifications"""
-        pass
 
     @abstractmethod
     def get_opf_data(self) -> dict:
         """Get data formatted for OPF/metadata file creation"""
-        pass
 
     @abstractmethod
     def get_processing_fields(self) -> dict:
@@ -109,7 +106,6 @@ class BookMetadata(ABC):
         Returns dict with standardized keys:
             - authorname, bookname, issueid, title, issuedate, mag_genres, cover
         """
-        pass
 
 
 @dataclass

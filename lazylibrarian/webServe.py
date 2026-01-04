@@ -25,7 +25,7 @@ import time
 import traceback
 import uuid
 from shutil import copyfile, rmtree
-from urllib.parse import unquote_plus, urlsplit, urlunsplit, quote, unquote
+from urllib.parse import quote, unquote, unquote_plus, urlsplit, urlunsplit
 
 import cherrypy
 from cherrypy.lib.static import serve_file
@@ -35,57 +35,141 @@ from mako.lookup import TemplateLookup
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database, notifiers, versioncheck, magazinescan, comicscan, \
-    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, \
-    grsync, hc, ROLE
+from lazylibrarian import (
+    ROLE,
+    comicscan,
+    database,
+    deluge,
+    grsync,
+    hc,
+    magazinescan,
+    notifiers,
+    nzbget,
+    qbittorrent,
+    rtorrent,
+    sabnzbd,
+    synology,
+    transmission,
+    utorrent,
+    versioncheck,
+)
 from lazylibrarian.auth import AuthController, require_auth
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.bookrename import name_vars
-from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members
-from lazylibrarian.cache import cache_img, ImageType
-from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb, get_calibre_id
+from lazylibrarian.bookwork import add_series_members, delete_empty_series, set_series
+from lazylibrarian.cache import ImageType, cache_img
+from lazylibrarian.calibre import calibre_test, calibredb, get_calibre_id, sync_calibre_list
+from lazylibrarian.calibre_integration import send_mag_issue_to_calibre
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import create_support_zip, log_header, pwd_generator, pwd_check, \
-    is_valid_email, mime_type, zip_audio, run_script, get_readinglist, set_readinglist
+from lazylibrarian.common import (
+    create_support_zip,
+    get_readinglist,
+    is_valid_email,
+    log_header,
+    mime_type,
+    pwd_check,
+    pwd_generator,
+    run_script,
+    set_readinglist,
+    zip_audio,
+)
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool
-from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
+from lazylibrarian.csvfile import dump_table, export_csv, import_csv, restore_table
 from lazylibrarian.dbupgrade import check_db
-from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
-    irc_dl_method
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
-    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory, splitext
-from lazylibrarian.formatter import unaccented, plural, now, today, check_int, replace_all, \
-    safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, md5_utf8, date_format, check_year, \
-    strip_quotes, format_author_name, check_float, thread_name
-from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb, \
-    img_id, write_pdf_tags, read_pdf_tags
-from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
-    get_preferred_author
+from lazylibrarian.download_client import delete_task, get_download_progress
+from lazylibrarian.downloadmethods import (
+    direct_dl_method,
+    irc_dl_method,
+    nzb_dl_method,
+    tor_dl_method,
+)
+from lazylibrarian.filesystem import (
+    DIRS,
+    book_file,
+    csv_file,
+    get_directory,
+    listdir,
+    opf_file,
+    path_exists,
+    path_isdir,
+    path_isfile,
+    remove_file,
+    safe_copy,
+    safe_move,
+    setperm,
+    splitext,
+    syspath,
+    walk,
+)
+from lazylibrarian.formatter import (
+    check_float,
+    check_int,
+    check_year,
+    clean_name,
+    date_format,
+    format_author_name,
+    get_list,
+    make_unicode,
+    md5_utf8,
+    now,
+    plural,
+    replace_all,
+    safe_unicode,
+    sort_definite,
+    strip_quotes,
+    surname_first,
+    thread_name,
+    today,
+    unaccented,
+)
+from lazylibrarian.images import (
+    coverswap,
+    create_mag_cover,
+    createthumb,
+    get_author_image,
+    get_book_cover,
+    img_id,
+    read_pdf_tags,
+    write_pdf_tags,
+)
+from lazylibrarian.importer import (
+    add_author_name_to_db,
+    add_author_to_db,
+    get_preferred_author,
+    search_for,
+    update_totals,
+)
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.logconfig import LOGCONFIG
-from lazylibrarian.magazinescan import get_dateparts, rename_issue, remove_if_empty, magazine_scan
-from lazylibrarian.manualbook import search_item
-from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.opds import OPDS
-from lazylibrarian.opfedit import opf_read, opf_write
-from lazylibrarian.calibre_integration import send_mag_issue_to_calibre
-from lazylibrarian.download_client import delete_task, get_download_progress
-from lazylibrarian.metadata_opf import create_opf
+from lazylibrarian.magazinescan import get_dateparts, magazine_scan, remove_if_empty, rename_issue
 from lazylibrarian.manual_import import (
     process_alternate,
     process_book_from_dir,
     process_issues,
 )
+from lazylibrarian.manualbook import search_item
+from lazylibrarian.metadata_opf import create_opf
+from lazylibrarian.notifiers import custom_notify_snatch, notify_snatch
+from lazylibrarian.opds import OPDS
+from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_dir
 from lazylibrarian.processcontrol import get_info_on_caller
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
-from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
-    ensure_running, all_author_update, show_stats, SchedulerCommand
+from lazylibrarian.scheduling import (
+    SchedulerCommand,
+    all_author_update,
+    check_running_jobs,
+    ensure_running,
+    restart_jobs,
+    schedule_job,
+    show_jobs,
+    show_stats,
+)
 from lazylibrarian.searchbook import search_book
-from lazylibrarian.searchmag import search_magazines, download_maglist
+from lazylibrarian.searchmag import download_maglist, search_magazines
 from lazylibrarian.searchrss import search_wishlist
 from lazylibrarian.telemetry import TELEMETRY
 
@@ -648,14 +732,14 @@ class WebInterface:
                     if percent > 100:
                         percent = 100
 
-                    if percent <= 25:
-                        css = 'danger'
-                    elif percent <= 50:
-                        css = 'warning'
-                    elif percent <= 75:
-                        css = 'info'
-                    else:
-                        css = 'success'
+                    # if percent <= 25:
+                    #     css = 'danger'
+                    # elif percent <= 50:
+                    #     css = 'warning'
+                    # elif percent <= 75:
+                    #     css = 'info'
+                    # else:
+                    #     css = 'success'
 
                     arow[12] = strip_quotes(reasonstring)
                     nrow.append(percent)
@@ -909,7 +993,7 @@ class WebInterface:
                 cherrypy.response.cookie['ll_uid']['Max-Age'] = '86400'
 
             # successfully logged in, clear any failed attempts
-            lazylibrarian.USER_BLOCKLIST[:] = [x for x in lazylibrarian.USER_BLOCKLIST if not x[0] == username]
+            lazylibrarian.USER_BLOCKLIST[:] = [x for x in lazylibrarian.USER_BLOCKLIST if x[0] != username]
             logger.debug(f"User {username} logged in")
             db = database.DBConnection()
             try:
@@ -1612,7 +1696,7 @@ class WebInterface:
             if not authorid:
                 authorid = itm['AuthorID']
             else:
-                if not authorid == itm['AuthorID']:
+                if authorid != itm['AuthorID']:
                     multi = "True"
                     break
 
@@ -2147,22 +2231,22 @@ class WebInterface:
 
                 new_value_dict = {}
                 new_reject = kwargs.get(f'reject_list[{title}]', None)
-                if not new_reject == reject:
+                if new_reject != reject:
                     new_value_dict['Reject'] = new_reject
                 new_regex = kwargs.get(f'regex[{title}]', None)
-                if not new_regex == regex:
+                if new_regex != regex:
                     new_value_dict['Regex'] = new_regex
                 new_genres = kwargs.get(f'genre_list[{title}]', None)
-                if not new_genres == genres:
+                if new_genres != genres:
                     new_value_dict['Genre'] = new_genres
                 new_datetype = kwargs.get(f'datetype[{title}]', None)
-                if not new_datetype == datetype:
+                if new_datetype != datetype:
                     new_value_dict['DateType'] = new_datetype
                 new_coverpage = check_int(kwargs.get(f"coverpage[{title}]", None), 1)
-                if not new_coverpage == coverpage:
+                if new_coverpage != coverpage:
                     new_value_dict['CoverPage'] = new_coverpage
                 new_language = kwargs.get(f'language[{title}]', None)
-                if not new_language == language:
+                if new_language != language:
                     new_value_dict['Language'] = new_language
                 if new_value_dict:
                     count += 1
@@ -3886,7 +3970,7 @@ class WebInterface:
 
             if authdata["About"] != editordata:
                 edited += "Description "
-            if not (bool(check_int(authdata["Manual"], 0)) == manual):
+            if bool(check_int(authdata['Manual'], 0)) != manual:
                 edited += "Manual "
 
             if authdata["AuthorName"] != authorname:
@@ -4091,7 +4175,7 @@ class WebInterface:
                         bookgenre = ''
                     manual = bool(check_int(manual, 0))
 
-                    if newid and not (bookid == newid):
+                    if newid and bookid != newid:
                         cmd = ("SELECT BookName,Authorname from books,authors WHERE "
                                "books.AuthorID = authors.AuthorID and BookID=?")
                         match = db.match(cmd, (newid,))
@@ -4101,23 +4185,23 @@ class WebInterface:
                         else:
                             logger.warning("Updating bookid is not supported yet")
                             # edited += "BookID "
-                    if scanresult and not (bookdata["ScanResult"] == scanresult):
+                    if scanresult and bookdata['ScanResult'] != scanresult:
                         edited += "ScanResult "
-                    if not (bookdata["BookName"] == bookname):
+                    if bookdata['BookName'] != bookname:
                         edited += "Title "
-                    if not (bookdata["BookSub"] == booksub):
+                    if bookdata['BookSub'] != booksub:
                         edited += "Subtitle "
-                    if not (bookdata["BookDesc"] == editordata):
+                    if bookdata['BookDesc'] != editordata:
                         edited += "Description "
-                    if not (bookdata["BookGenre"] == bookgenre):
+                    if bookdata['BookGenre'] != bookgenre:
                         edited += "Genre "
-                    if not (bookdata["BookLang"] == booklang):
+                    if bookdata['BookLang'] != booklang:
                         edited += "Language "
-                    if not (bookdata["BookIsbn"] == bookisbn):
+                    if bookdata['BookIsbn'] != bookisbn:
                         edited += "ISBN "
-                    if not (bookdata["WorkID"] == workid):
+                    if bookdata['WorkID'] != workid:
                         edited += "WorkID "
-                    if not (bookdata["BookDate"] == bookdate):
+                    if bookdata['BookDate'] != bookdate:
                         if bookdate == '0000':
                             edited += "Date "
                         else:
@@ -4142,9 +4226,9 @@ class WebInterface:
                                 edited += "Date "
                             else:
                                 bookdate = bookdata["BookDate"]
-                    if not (bool(check_int(bookdata["Manual"], 0)) == manual):
+                    if bool(check_int(bookdata['Manual'], 0)) != manual:
                         edited += "Manual "
-                    if not (bookdata["AuthorName"] == authorname):
+                    if bookdata['AuthorName'] != authorname:
                         moved = True
 
                     covertype = ''
@@ -4544,9 +4628,9 @@ class WebInterface:
         elif redirect == "members":
             redirect = f"series_members?seriesid={seriesid}&ignored=False"
         elif 'Audio' in library:
-            redirect = f"manage?library=AudioBook"
+            redirect = "manage?library=AudioBook"
         else:
-            redirect = f"manage?library=eBook"
+            redirect = "manage?library=eBook"
         if book_filter:
             redirect = f"{redirect}&book_filter={book_filter}"
         # Return JSON response instead of redirect
@@ -5514,7 +5598,6 @@ class WebInterface:
                 cmd = ("select magazines.*,(select count(*) as counter from issues where "
                        "magazines.title = issues.title) as Iss_Cnt from magazines")
 
-                mymags = []
                 if userid and userprefs & lazylibrarian.pref_mymags:
                     res = db.select("SELECT WantID from subscribers WHERE Type='magazine' and UserID=?", (userid,))
                     serversidelogger.debug(f"User subscribes to {len(res)} magazines")
@@ -5950,8 +6033,8 @@ class WebInterface:
             if issue["Title"] != magtitle:
                 if not magazine:
                     if not magtitle:
-                        logger.warning(f"Missing magazine title")
-                        raise cherrypy.HTTPError(404, f"Magazine title missing")
+                        logger.warning("Missing magazine title")
+                        raise cherrypy.HTTPError(404, "Magazine title missing")
 
                     self.validate_param("magazine title", magtitle, ['<', '>', '='], 404)
                     logger.debug(f"Magazine title [{magtitle}] not found, adding it")
@@ -8776,7 +8859,7 @@ class WebInterface:
             if self.validate_param("calibredb", kwargs['prg'], ['<', '>', '='], None):
                 CONFIG.set_str('IMP_CALIBREDB', kwargs['prg'])
             else:
-                return f'calibredb failed, bad parameter: program'
+                return 'calibredb failed, bad parameter: program'
         return calibre_test()
 
     @cherrypy.expose
@@ -8788,7 +8871,7 @@ class WebInterface:
             if self.validate_param("preprocessor", kwargs['prg'], ['<', '>', '='], None):
                 CONFIG.set_str('EXT_PREPROCESS', kwargs['prg'])
             else:
-                return f'preprocessor failed, bad parameter: program'
+                return 'preprocessor failed, bad parameter: program'
         if len(CONFIG['EXT_PREPROCESS']):
             params = [CONFIG['EXT_PREPROCESS'], 'test', '']
             rc, res, err = run_script(params)

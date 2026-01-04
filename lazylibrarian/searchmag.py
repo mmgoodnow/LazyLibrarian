@@ -20,14 +20,29 @@ import traceback
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
-from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
-    nzbdate2format, get_list, datecompare, check_int, age, thread_name
+from lazylibrarian.downloadmethods import direct_dl_method, nzb_dl_method, tor_dl_method
+from lazylibrarian.formatter import (
+    age,
+    check_int,
+    datecompare,
+    get_list,
+    now,
+    nzbdate2format,
+    plural,
+    replace_all,
+    thread_name,
+    unaccented,
+)
 from lazylibrarian.magazinescan import get_dateparts
-from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.providers import iterate_over_znab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
-    iterate_over_direct_sites, iterate_over_irc_sites
-from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+from lazylibrarian.notifiers import custom_notify_snatch, notify_snatch
+from lazylibrarian.providers import (
+    iterate_over_direct_sites,
+    iterate_over_irc_sites,
+    iterate_over_rss_sites,
+    iterate_over_torrent_sites,
+    iterate_over_znab_sites,
+)
+from lazylibrarian.scheduling import SchedulerCommand, schedule_job
 from lazylibrarian.telemetry import TELEMETRY
 
 
@@ -439,7 +454,7 @@ def search_magazines(mags=None, reset=False, backissues=False):
                                 searchinglogger.debug(f'This issue of {nzbtitle_formatted} is old; skipping.')
                                 old_date += 1
 
-                            mag_entry = db.match(f'SELECT * from issues WHERE title=? and issuedate=?',
+                            mag_entry = db.match('SELECT * from issues WHERE title=? and issuedate=?',
                                                  (bookid, issuedate))
                             if mag_entry:
                                 logger.info(f'This issue of {nzbtitle_formatted} is already downloaded; skipping')

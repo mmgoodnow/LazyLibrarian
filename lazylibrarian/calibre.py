@@ -21,14 +21,12 @@ import cherrypy
 from rapidfuzz import fuzz
 
 from lazylibrarian import database
-from lazylibrarian.common import get_readinglist, set_readinglist
-from lazylibrarian.common import run_script
+from lazylibrarian.common import get_readinglist, run_script, set_readinglist
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import get_directory, DIRS
-from lazylibrarian.formatter import unaccented, get_list
-from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
+from lazylibrarian.filesystem import get_directory
+from lazylibrarian.formatter import get_list, unaccented
+from lazylibrarian.importer import add_author_name_to_db, import_book, search_for
 from lazylibrarian.librarysync import find_book_in_db
-
 
 # calibredb custom_columns
 # calibredb add_custom_column label name bool

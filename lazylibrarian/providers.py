@@ -16,29 +16,46 @@ import os
 import re
 import threading
 import time
+from copy import deepcopy
 from typing import Dict
 from urllib.parse import urlencode, urlparse
 from xml.etree import ElementTree
-from copy import deepcopy
 
 from bs4 import BeautifulSoup
 
 import lazylibrarian
 import lib.feedparser as feedparser
 from lazylibrarian import database
-from lazylibrarian.annas import block_annas
+from lazylibrarian.annas import anna_search, block_annas
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.directparser import direct_gen, direct_bok, bok_grabs
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
-from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
-    make_unicode, seconds_to_midnight, make_utf8bytes, month2num, md5_utf8
+from lazylibrarian.directparser import bok_grabs, direct_bok, direct_gen
+from lazylibrarian.filesystem import DIRS, path_isfile, remove_file, syspath
+from lazylibrarian.formatter import (
+    age,
+    check_int,
+    clean_name,
+    get_list,
+    make_unicode,
+    make_utf8bytes,
+    md5_utf8,
+    month2num,
+    plural,
+    seconds_to_midnight,
+    today,
+    unaccented,
+)
 from lazylibrarian.ircbot import irc_query, irc_results
 from lazylibrarian.soulseek import slsk_search
-from lazylibrarian.annas import anna_search
-from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_tdl, torrent_lime, torrent_abb
+from lazylibrarian.torrentparser import (
+    torrent_abb,
+    torrent_kat,
+    torrent_lime,
+    torrent_tdl,
+    torrent_tpb,
+)
 
 
 def test_provider(name: str, host=None, api=None):
@@ -375,7 +392,7 @@ def get_capabilities(provider: ConfigDict, force=False):
         logger.debug(f"Using stored capabilities for {provider['HOST']}")
     else:
         host = provider['HOST']
-        if not str(host[:4]) == "http":
+        if str(host[:4]) != "http":
             host = f"http://{host}"
         if host[-1:] == '/':
             host = host[:-1]
@@ -611,7 +628,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
                         logger.debug(f'Querying provider {dispname}')
                         resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
     except RuntimeError:
-        logger.debug(f"Error iterating newznab")
+        logger.debug("Error iterating newznab")
 
     for item in last_used:
         logger.debug(f"Updating LASTUSED for {item[0]['NAME']}")
@@ -672,7 +689,7 @@ def iterate_over_znab_sites(book=None, search_type=None):
                         logger.debug(f'Querying provider {dispname}')
                         resultslist += newznab_plus(book, provider, search_type, "torznab")[1]
     except RuntimeError:
-        logger.debug(f"Error iterating torznab")
+        logger.debug("Error iterating torznab")
 
     for item in last_used:
         logger.debug(f"Updating LASTUSED for {item[0]['NAME']}")
@@ -786,7 +803,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
                         resultslist += results
                         providers += 1
     except RuntimeError:
-        logger.debug(f"Error iterating gen")
+        logger.debug("Error iterating gen")
 
     prov = 'BOK'
     if CONFIG[prov]:
@@ -1105,7 +1122,7 @@ def ny_times(host=None, feednr=None, priority=0, dispname=None, types='E', test=
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     url = host
@@ -1162,7 +1179,7 @@ def amazon(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     if '/charts/' in host:
@@ -1223,7 +1240,7 @@ def publishersweekly(host=None, feednr=None, priority=0, dispname=None, types='E
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     url = host
@@ -1281,7 +1298,7 @@ def appsnprorg(host=None, feednr=None, priority=0, dispname=None, types='E', tes
     basehost = host
     booknames = []
     authnames = []
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     url = host
@@ -1348,7 +1365,7 @@ def penguinrandomhouse(host=None, feednr=None, priority=0, dispname=None, types=
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     if '/books/' in host:
@@ -1426,7 +1443,7 @@ def barnesandnoble(host=None, feednr=None, priority=0, dispname=None, types='E',
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
     provider = "barnesandnoble"
 
@@ -1486,7 +1503,7 @@ def bookdepository(host=None, feednr=None, priority=0, dispname=None, types='E',
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
     provider = "bookdepository"
     page = 1
@@ -1564,7 +1581,7 @@ def indigo(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
     provider = "indigo"
     # The first page is 0
@@ -1652,7 +1669,7 @@ def listopia(host=None, feednr=None, priority=0, dispname=None, types='E', test=
     results = []
     maxpage = priority
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     page = 1
@@ -1728,7 +1745,7 @@ def mam(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     url = host
@@ -1819,7 +1836,7 @@ def goodreads(host=None, feednr=None, priority=0, dispname=None, types='E', test
     logger = logging.getLogger(__name__)
     results = []
     basehost = host
-    if not str(host)[:4] == "http":
+    if str(host)[:4] != "http":
         host = f"http://{host}"
 
     url = host
@@ -1902,7 +1919,7 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     result = ''
 
     url = str(host)
-    if not str(url)[:4] == "http" and not str(url)[:4] == "file":
+    if str(url)[:4] != "http" and str(url)[:4] != "file":
         url = f"http://{url}"
 
     if str(url)[:4] == "http":
@@ -1912,7 +1929,7 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
         file_path = urlparse(url).path
         # noinspection PyBroadException
         try:
-            with open(syspath(file_path), "r") as rss_provider:
+            with open(syspath(file_path)) as rss_provider:
                 success = True
                 result = rss_provider.read()
         except Exception:
@@ -2078,7 +2095,7 @@ def newznab_plus(book: Dict, provider: ConfigDict, search_type: str, search_mode
     if not params:
         return False, []
     else:
-        if not str(host[:4]) == "http":
+        if str(host[:4]) != "http":
             host = f"http://{host}"
         if host[-1:] == '/':
             host = host[:-1]

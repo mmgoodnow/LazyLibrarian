@@ -46,7 +46,16 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configdefs import CONFIG_GIT
-from lazylibrarian.filesystem import DIRS, path_exists, listdir, walk, setperm, remove_file, path_isfile, splitext
+from lazylibrarian.filesystem import (
+    DIRS,
+    listdir,
+    path_exists,
+    path_isfile,
+    remove_file,
+    setperm,
+    splitext,
+    walk,
+)
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.logconfig import LOGCONFIG
 
@@ -74,7 +83,7 @@ def get_readinglist(table, user):
         status = 5
     else:
         status = 4
-    cmd = f"SELECT bookid from readinglists WHERE userid=? and status=?"
+    cmd = "SELECT bookid from readinglists WHERE userid=? and status=?"
     res = db.select(cmd, (user, status))
     if res:
         for item in res:
@@ -234,7 +243,7 @@ def create_support_zip() -> (str, str):
             count, configstr = CONFIG.save_config_to_string(save_all=False, redact=True)
             myzip.writestr('config-redacted.ini', configstr)
             msg += f'  Included systeminfo.txt and {count} items of redacted config.ini.'
-        except IOError as e:
+        except OSError as e:
             msg = f'Error creating support.zip file: {type(e).__name__}, {str(e)}'
         finally:
             myzip.close()
@@ -253,7 +262,7 @@ def docker():
     # this is from jaraco.docker library
     mountinfo = Path("/proc/self/mountinfo")
     if mountinfo.is_file():
-        with open(mountinfo, 'r') as f:
+        with open(mountinfo) as f:
             first_mount = f.readlines()[0]
         if 'docker' in first_mount or 'overlay' in first_mount:
             return True

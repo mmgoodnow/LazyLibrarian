@@ -19,10 +19,10 @@
 
 import datetime
 import json
+import logging
 import os
 import sys
 import time
-import logging
 from collections import defaultdict
 from http.client import responses
 from typing import Optional
@@ -31,13 +31,12 @@ import requests
 
 from lazylibrarian import database
 from lazylibrarian.common import proxy_list
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.config2 import LLConfigHandler
+from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.formatter import thread_name
 from lazylibrarian.processcontrol import get_info_on_caller
 
 
-class LazyTelemetry(object):
+class LazyTelemetry:
     """Handles basic telemetry gathering for LazyLibrarian, helping
     developers prioritise future development"""
 
@@ -141,13 +140,13 @@ class LazyTelemetry(object):
 
         # Record the actual config of these features
         if _config['BOOK_API'] == 'GoodReads':
-            cfg_telemetry["params"] += f"PRIMARY_GR "
+            cfg_telemetry["params"] += "PRIMARY_GR "
         elif _config['BOOK_API'] == 'GoogleBooks':
-            cfg_telemetry["params"] += f"PRIMARY_GB "
+            cfg_telemetry["params"] += "PRIMARY_GB "
         elif _config['BOOK_API'] == 'HardCover':
-            cfg_telemetry["params"] += f"PRIMARY_HC "
+            cfg_telemetry["params"] += "PRIMARY_HC "
         elif _config['BOOK_API'] == 'OpenLibrary':
-            cfg_telemetry["params"] += f"PRIMARY_OL "
+            cfg_telemetry["params"] += "PRIMARY_OL "
 
         # Record whether these are configured differently from the default
         for key in ['GR_API', 'GB_API', 'OL_API', 'DNB_API', 'HC_API', 'GR_SYNC', 'HC_SYNC', 'LT_DEVKEY',

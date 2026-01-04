@@ -19,14 +19,35 @@ from bs4 import BeautifulSoup
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database, ROLE
-from lazylibrarian.bookdict import warn_about_bookdict, add_bookdict_to_db, validate_bookdict
-from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
-    isbnlang, is_set_or_part, delete_empty_series
-from lazylibrarian.cache import json_request, html_request
+from lazylibrarian import ROLE, database
+from lazylibrarian.bookdict import add_bookdict_to_db, validate_bookdict, warn_about_bookdict
+from lazylibrarian.bookwork import (
+    delete_empty_series,
+    genre_filter,
+    get_gb_info,
+    get_status,
+    is_set_or_part,
+    isbn_from_words,
+    isbnlang,
+    librarything_wait,
+)
+from lazylibrarian.cache import html_request, json_request
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, format_author_name, \
-    get_list, make_utf8bytes, plural, unaccented, replace_all, today, date_format, thread_name
+from lazylibrarian.formatter import (
+    check_float,
+    check_int,
+    date_format,
+    format_author_name,
+    get_list,
+    is_valid_isbn,
+    make_utf8bytes,
+    now,
+    plural,
+    replace_all,
+    thread_name,
+    today,
+    unaccented,
+)
 from lazylibrarian.images import cache_bookimg, get_book_cover
 
 
@@ -453,7 +474,6 @@ class OpenLibrary:
                             genrelist.append([name, count])
                     except (IndexError, ValueError):
                         self.logger.error(f"Split genre error [{lyne}]")
-                        pass
             if genrelist:
                 genrelist.sort(key=lambda x: x[1], reverse=True)
                 limit = lazylibrarian.GRGENRES.get('genreLimit', 0)
@@ -974,8 +994,8 @@ class OpenLibrary:
                                                             db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
                                                                       (', '.join(akas), auth_key))
                                                     match = db.match(
-                                                        f"SELECT * from seriesauthors WHERE SeriesID=? "
-                                                        f"and AuthorID=?",
+                                                        "SELECT * from seriesauthors WHERE SeriesID=? "
+                                                        "and AuthorID=?",
                                                         (seriesid, auth_key))
                                                     if not match:
                                                         self.logger.debug(
@@ -991,18 +1011,18 @@ class OpenLibrary:
                                                               (member[4],))
                                             if exists:
                                                 match = db.match(
-                                                    f"SELECT * from member WHERE SeriesID=? AND BookID=?",
+                                                    "SELECT * from member WHERE SeriesID=? AND BookID=?",
                                                     (seriesid, exists['BookID']))
                                                 if not match:
                                                     self.logger.debug(
                                                         f"Inserting new member [{member[0]}] for {series[0]}")
                                                     db.action(
-                                                        f"INSERT INTO member (SeriesID, BookID, WorkID, "
-                                                        f"SeriesNum) VALUES (?,?,?,?)",
+                                                        "INSERT INTO member (SeriesID, BookID, WorkID, "
+                                                        "SeriesNum) VALUES (?,?,?,?)",
                                                         (seriesid, exists['BookID'], member[4], member[0]),
                                                         suppress='UNIQUE')
                                                 ser = db.match(
-                                                    f"select count(*) as counter from member where seriesid=?",
+                                                    "select count(*) as counter from member where seriesid=?",
                                                     (seriesid,))
                                                 if ser:
                                                     counter = check_int(ser['counter'], 0)
@@ -1062,8 +1082,8 @@ class OpenLibrary:
                                                             genres = ', '.join(genrenames)
                                                             lang = ''
                                                             match = db.match(
-                                                                f"SELECT * from authors WHERE AuthorName=? "
-                                                                f"COLLATE NOCASE",
+                                                                "SELECT * from authors WHERE AuthorName=? "
+                                                                "COLLATE NOCASE",
                                                                 (auth_name,))
                                                             if match:
                                                                 bauth_key = match['AuthorID']
@@ -1073,8 +1093,8 @@ class OpenLibrary:
                                                                     author=auth_name, refresh=False,
                                                                     addbooks=False, reason=reason)
                                                                 match = db.match(
-                                                                    f"SELECT * from authors WHERE "
-                                                                    f"AuthorName=? COLLATE NOCASE",
+                                                                    "SELECT * from authors WHERE "
+                                                                    "AuthorName=? COLLATE NOCASE",
                                                                     (auth_name,))
                                                                 if match:
                                                                     bauth_key = match['AuthorID']
@@ -1084,7 +1104,7 @@ class OpenLibrary:
                                                                     self.logger.debug(msg)
                                                                     continue
 
-                                                            match = db.match(f"SELECT * from books WHERE BookID=?",
+                                                            match = db.match("SELECT * from books WHERE BookID=?",
                                                                              (workid,))
                                                             rejected = False
                                                             if not match:
@@ -1136,37 +1156,37 @@ class OpenLibrary:
                                                                                reason, publish_date, workid))
                                                             if not rejected:
                                                                 match = db.match(
-                                                                    f"SELECT * from seriesauthors WHERE "
-                                                                    f"SeriesID=? AND AuthorID=?",
+                                                                    "SELECT * from seriesauthors WHERE "
+                                                                    "SeriesID=? AND AuthorID=?",
                                                                     (seriesid, bauth_key))
                                                                 if not match:
                                                                     self.logger.debug(
                                                                         f'Add {auth_name} as series author for '
                                                                         f'{series[0]}')
                                                                     db.action(
-                                                                        f"INSERT INTO seriesauthors ('SeriesID', "
-                                                                        f"\"AuthorID\") VALUES (?, ?)",
+                                                                        "INSERT INTO seriesauthors ('SeriesID', "
+                                                                        "\"AuthorID\") VALUES (?, ?)",
                                                                         (seriesid, bauth_key), suppress='UNIQUE')
 
                                                                 match = db.match(
-                                                                    f"SELECT * from member WHERE SeriesID=? "
-                                                                    f"AND BookID=?",
+                                                                    "SELECT * from member WHERE SeriesID=? "
+                                                                    "AND BookID=?",
                                                                     (seriesid, workid))
                                                                 if not match:
                                                                     db.action(
-                                                                        f"INSERT INTO member (SeriesID, BookID, "
-                                                                        f"WorkID, SeriesNum) VALUES (?,?,?,?)",
+                                                                        "INSERT INTO member (SeriesID, BookID, "
+                                                                        "WorkID, SeriesNum) VALUES (?,?,?,?)",
                                                                         (seriesid, workid, member[4],
                                                                          member[0]), suppress='UNIQUE')
                                                                     ser = db.match(
-                                                                        f"select count(*) as counter from member "
-                                                                        f"where seriesid=?",
+                                                                        "select count(*) as counter from member "
+                                                                        "where seriesid=?",
                                                                         (seriesid,))
                                                                     if ser:
                                                                         counter = check_int(ser['counter'], 0)
                                                                         db.action(
-                                                                            f"UPDATE series SET Total=? WHERE "
-                                                                            f"SeriesID=?", (counter, seriesid))
+                                                                            "UPDATE series SET Total=? WHERE "
+                                                                            "SeriesID=?", (counter, seriesid))
                     if rating == 0:
                         self.logger.debug("No additional librarything info")
                     exists = db.match("SELECT * from books WHERE BookID=?", (key,))
@@ -1202,9 +1222,9 @@ class OpenLibrary:
                                 cover = 'images/nocover.png'
 
                             db.action(
-                                f"INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, "
-                                f"BookDate, BookLang, BookAdded, Status, WorkPage, AudioStatus, ScanResult, "
-                                f"OriginalPubDate, ol_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                "INSERT INTO books (AuthorID, BookName, BookImg, BookLink, BookID, "
+                                "BookDate, BookLang, BookAdded, Status, WorkPage, AudioStatus, ScanResult, "
+                                "OriginalPubDate, ol_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                 (authorid, title, cover, link, key, publish_date, lang, now(),
                                  book_status, '', audio_status, reason, first_publish_year, key))
 

@@ -15,12 +15,12 @@
 #   Hold a few basic routines used widely, until they can be moved out
 
 
+import logging
 import os
 import sys
 import threading
-import logging
 
-from lazylibrarian import config2
+# from lazylibrarian import config2
 from lazylibrarian.filesystem import syspath
 
 # Transient globals NOT stored in config
@@ -201,10 +201,10 @@ def daemonize():
     except OSError as e:
         raise RuntimeError(f"2nd fork failed: {e.strerror} [{e.errno}]")
 
-    dev_null = open('/dev/null', 'r')
+    dev_null = open('/dev/null')
     os.dup2(dev_null.fileno(), sys.stdin.fileno())
 
-    si = open('/dev/null', "r")
+    si = open('/dev/null')
     so = open('/dev/null', "a+")
     se = open('/dev/null', "a+")
 
@@ -219,4 +219,3 @@ def daemonize():
         logger.debug(f"Writing PID {pid} to {PIDFILE}")
         with open(syspath(PIDFILE), 'w') as pidfile:
             pidfile.write(f"{pid}\n")
-

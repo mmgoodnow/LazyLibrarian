@@ -24,7 +24,7 @@ import sys
 import tarfile
 import time
 import traceback
-from shutil import rmtree, move
+from shutil import move, rmtree
 from typing import Any
 
 import cherrypy
@@ -32,20 +32,26 @@ import requests
 import urllib3
 
 import lazylibrarian
-from lazylibrarian import database, versioncheck, gb, gr, ol, hc, dnb
+from lazylibrarian import database, dnb, gb, gr, hc, ol, versioncheck
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian.cache import init_hex_caches, fetch_url
+from lazylibrarian.cache import fetch_url, init_hex_caches
 from lazylibrarian.cleanup import UNBUNDLER
-from lazylibrarian.common import log_header, docker
+from lazylibrarian.common import docker, log_header
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file
-from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
+from lazylibrarian.dbupgrade import check_db, db_current_version, db_upgrade, upgrade_needed
+from lazylibrarian.filesystem import DIRS, path_isdir, path_isfile, remove_file, syspath
+from lazylibrarian.formatter import check_int, get_list, make_unicode, unaccented
 from lazylibrarian.logconfig import LOGCONFIG
-from lazylibrarian.providers import get_capabilities
 from lazylibrarian.notifiers import APPRISE_VER
-from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler, SchedulerCommand
+from lazylibrarian.providers import get_capabilities
+from lazylibrarian.scheduling import (
+    SchedulerCommand,
+    initscheduler,
+    restart_jobs,
+    shutdownscheduler,
+    startscheduler,
+)
 
 
 class StartupLazyLibrarian:
@@ -65,7 +71,7 @@ class StartupLazyLibrarian:
         try:
             locale.setlocale(locale.LC_ALL, "")
             lazylibrarian.SYS_ENCODING = locale.getpreferredencoding()
-        except (locale.Error, IOError):
+        except (OSError, locale.Error):
             pass
 
         # for OSes that are poorly configured I'll just force UTF-8
@@ -130,7 +136,7 @@ class StartupLazyLibrarian:
 
         elif options.debug:
             LOGCONFIG.change_root_loglevel('DEBUG')
-            self.logger.info(f'Enabled option DEBUG level logging.')
+            self.logger.info('Enabled option DEBUG level logging.')
 
         else:
             loglevel = CONFIG['LOGLEVEL']
@@ -409,7 +415,7 @@ class StartupLazyLibrarian:
         if path_isfile(msg_file):
             try:
                 # noinspection PyArgumentList
-                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                with open(syspath(msg_file), encoding='utf-8') as msg_data:
                     res = msg_data.read()
                 for item in ["{username}", "{password}", "{permission}"]:
                     if item not in res:
@@ -427,7 +433,7 @@ class StartupLazyLibrarian:
         msg_file = os.path.join(DIRS.DATADIR, 'filetemplate.text')
         if path_isfile(msg_file):
             try:
-                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                with open(syspath(msg_file), encoding='utf-8') as msg_data:
                     res = msg_data.read()
                 for item in ["{name}", "{method}", "{link}"]:
                     if item not in res:
@@ -445,7 +451,7 @@ class StartupLazyLibrarian:
                           os.path.join(DIRS.PROG_DIR, 'example.genres.json')]:
             if path_isfile(json_file):
                 try:
-                    with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
+                    with open(syspath(json_file), encoding='utf-8') as json_data:
                         res = json.load(json_data)
                     self.logger.info(f"Loaded genres from {json_file}")
                     return res
@@ -461,43 +467,43 @@ class StartupLazyLibrarian:
         # https://hexdocs.pm/ex_unicode/Unicode.Category.QuoteMarks.html
 
         quotes = {
-            u'\u0022': "'",  # quotation mark (")
-            u'\u0027': "'",  # apostrophe (')
-            u'\u0060': "'",  # grave-accent
-            u'\u00a8': '"',  # DIAERESIS
-            u'\u00ab': '"',  # left-pointing double-angle quotation mark
-            u'\u00b4': "'",  # acute accent
-            u'\u00bb': '"',  # right-pointing double-angle quotation mark
-            u'\u2018': "'",  # left single quotation mark
-            u'\u2019': "'",  # right single quotation mark
-            u'\u201a': "'",  # single low-9 quotation mark
-            u'\u201b': "'",  # single high-reversed-9 quotation mark
-            u'\u201c': '"',  # left double quotation mark
-            u'\u201d': '"',  # right double quotation mark
-            u'\u201e': '"',  # double low-9 quotation mark
-            u'\u201f': '"',  # double high-reversed-9 quotation mark
-            u'\u2039': "'",  # single left-pointing angle quotation mark
-            u'\u203a': "'",  # single right-pointing angle quotation mark
-            u'\u300c': "'",  # left corner bracket
-            u'\u300d': "'",  # right corner bracket
-            u'\u300e': "'",  # left white corner bracket
-            u'\u300f': "'",  # right white corner bracket
-            u'\u301d': '"',  # reversed double prime quotation mark
-            u'\u301e': '"',  # double prime quotation mark
-            u'\u301f': '"',  # low double prime quotation mark
-            u'\ufe41': "'",  # presentation form for vertical left corner bracket
-            u'\ufe42': "'",  # presentation form for vertical right corner bracket
-            u'\ufe43': "'",  # presentation form for vertical left corner white bracket
-            u'\ufe44': "'",  # presentation form for vertical right corner white bracket
-            u'\uff02': "'",  # fullwidth quotation mark
-            u'\uff07': "'",  # fullwidth apostrophe
-            u'\uff62': "'",  # halfwidth left corner bracket
-            u'\uff63': "'",  # halfwidth right corner bracket
+            '\u0022': "'",  # quotation mark (")
+            '\u0027': "'",  # apostrophe (')
+            '\u0060': "'",  # grave-accent
+            '\u00a8': '"',  # DIAERESIS
+            '\u00ab': '"',  # left-pointing double-angle quotation mark
+            '\u00b4': "'",  # acute accent
+            '\u00bb': '"',  # right-pointing double-angle quotation mark
+            '\u2018': "'",  # left single quotation mark
+            '\u2019': "'",  # right single quotation mark
+            '\u201a': "'",  # single low-9 quotation mark
+            '\u201b': "'",  # single high-reversed-9 quotation mark
+            '\u201c': '"',  # left double quotation mark
+            '\u201d': '"',  # right double quotation mark
+            '\u201e': '"',  # double low-9 quotation mark
+            '\u201f': '"',  # double high-reversed-9 quotation mark
+            '\u2039': "'",  # single left-pointing angle quotation mark
+            '\u203a': "'",  # single right-pointing angle quotation mark
+            '\u300c': "'",  # left corner bracket
+            '\u300d': "'",  # right corner bracket
+            '\u300e': "'",  # left white corner bracket
+            '\u300f': "'",  # right white corner bracket
+            '\u301d': '"',  # reversed double prime quotation mark
+            '\u301e': '"',  # double prime quotation mark
+            '\u301f': '"',  # low double prime quotation mark
+            '\ufe41': "'",  # presentation form for vertical left corner bracket
+            '\ufe42': "'",  # presentation form for vertical right corner bracket
+            '\ufe43': "'",  # presentation form for vertical left corner white bracket
+            '\ufe44': "'",  # presentation form for vertical right corner white bracket
+            '\uff02': "'",  # fullwidth quotation mark
+            '\uff07': "'",  # fullwidth apostrophe
+            '\uff62': "'",  # halfwidth left corner bracket
+            '\uff63': "'",  # halfwidth right corner bracket
         }
         for json_file in [os.path.join(DIRS.DATADIR, 'dicts.json')]:
             if path_isfile(json_file):
                 try:
-                    with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
+                    with open(syspath(json_file), encoding='utf-8') as json_data:
                         res = json.load(json_data)
                     self.logger.info(f"Loaded dicts from {json_file}")
                     return res
@@ -661,7 +667,7 @@ class StartupLazyLibrarian:
         if path_isfile(old_file):
             if not path_isfile(version_file):
                 try:
-                    with open(syspath(old_file), 'r') as s:
+                    with open(syspath(old_file)) as s:
                         with open(syspath(version_file), 'w') as d:
                             d.write(s.read())
                 except OSError:
@@ -926,7 +932,7 @@ class StartupLazyLibrarian:
                                 version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
                                 old_location = os.path.join(DIRS.PROG_DIR, 'version.txt')
                                 if os.path.isfile(old_location):
-                                    with open(old_location, 'r') as fp:
+                                    with open(old_location) as fp:
                                         current_version = fp.read().strip(' \n\r')
                                     self.logger.debug(f'Moving {old_location} to {version_file}')
                                     move(old_location, version_file)

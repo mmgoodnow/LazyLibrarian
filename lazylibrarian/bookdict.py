@@ -86,13 +86,29 @@ import logging
 import time
 import traceback
 
-import lazylibrarian
-from lazylibrarian import database, ROLE
-from lazylibrarian.bookwork import isbnlang, isbn_from_words, is_set_or_part, get_status, delete_empty_series
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import replace_all, get_list, today, unaccented, check_int, thread_name, now, plural
-from lazylibrarian.images import cache_bookimg, get_book_cover
 from rapidfuzz import fuzz
+
+import lazylibrarian
+from lazylibrarian import ROLE, database
+from lazylibrarian.bookwork import (
+    delete_empty_series,
+    get_status,
+    is_set_or_part,
+    isbn_from_words,
+    isbnlang,
+)
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.formatter import (
+    check_int,
+    get_list,
+    now,
+    plural,
+    replace_all,
+    thread_name,
+    today,
+    unaccented,
+)
+from lazylibrarian.images import cache_bookimg, get_book_cover
 
 id_key = {'DNB': 'dnb_id', 'HardCover': 'hc_id', 'GoodReads': 'gr_id',
           'GoogleBooks': 'gb_id', 'OpenLibrary': 'ol_id'}
@@ -373,25 +389,25 @@ def add_bookdict_to_db(book, reason, source):
                 db.commit()
 
             # Add author to series
-            authmatch = db.match(f"SELECT * from seriesauthors WHERE "
-                                 f"SeriesID=? and AuthorID=?", (ser_id, book['authorid']))
+            authmatch = db.match("SELECT * from seriesauthors WHERE "
+                                 "SeriesID=? and AuthorID=?", (ser_id, book['authorid']))
             if not authmatch:
                 logger.debug(f"Adding {author['authorname']} as series author for {ser_name}")
                 db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
                           (ser_id, book['authorid']), suppress='UNIQUE')
 
             # Add book to series
-            match = db.match(f"SELECT * from member WHERE SeriesID=? AND BookID=?",
+            match = db.match("SELECT * from member WHERE SeriesID=? AND BookID=?",
                              (ser_id, book['bookid']))
             if not match:
                 logger.debug(f"Inserting new member [{item[2]}] for {ser_id}")
                 db.action(
-                    f"INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
+                    "INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
                     (ser_id, book['bookid'], '', item[2]), suppress='UNIQUE')
 
             # Update series total
             ser = db.match(
-                f"select count(*) as counter from member where seriesid=?",
+                "select count(*) as counter from member where seriesid=?",
                 (ser_id,))
             if ser:
                 counter = check_int(ser['counter'], 0)
@@ -756,22 +772,22 @@ def add_series_entries(bookdict, get_series_members, get_bookdict_for_bookid):
         else:
             auth_id = bookdict['authorid']
 
-        authmatch = db.match(f"SELECT * from seriesauthors WHERE "
-                             f"SeriesID=? and AuthorID=?", (ser_id, auth_id))
+        authmatch = db.match("SELECT * from seriesauthors WHERE "
+                             "SeriesID=? and AuthorID=?", (ser_id, auth_id))
         if not authmatch:
             logger.debug(f"Adding {bookdict['authorname']} as series author for {ser_name}")
             db.action('INSERT INTO seriesauthors (SeriesID, AuthorID) VALUES (?, ?)',
                       (ser_id, auth_id), suppress='UNIQUE')
 
-        match = db.match(f"SELECT * from member WHERE SeriesID=? AND BookID=?",
+        match = db.match("SELECT * from member WHERE SeriesID=? AND BookID=?",
                          (ser_id, bookdict['bookid']))
         if item[2] and not match:
             logger.debug(f"Inserting new member [{item[2]}] for {ser_id}")
             db.action(
-                f"INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
+                "INSERT INTO member (SeriesID, BookID, WorkID, SeriesNum) VALUES (?,?,?,?)",
                 (ser_id, bookdict['bookid'], '', item[2]), suppress='UNIQUE')
         ser = db.match(
-            f"select count(*) as counter from member where seriesid=?",
+            "select count(*) as counter from member where seriesid=?",
             (ser_id,))
         if ser:
             counter = check_int(ser['counter'], 0)
@@ -831,7 +847,7 @@ def add_series_entries(bookdict, get_series_members, get_bookdict_for_bookid):
                             db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
                                       (', '.join(akas), auth_id))
                     match = db.match(
-                        f"SELECT * from seriesauthors WHERE SeriesID=? and AuthorID=?",
+                        "SELECT * from seriesauthors WHERE SeriesID=? and AuthorID=?",
                         (ser_id, auth_id))
                     if not match:
                         logger.debug(f"Adding {auth_name} as series author for {ser_name}")
@@ -889,7 +905,7 @@ def add_series_entries(bookdict, get_series_members, get_bookdict_for_bookid):
                 db.action('INSERT INTO member (SeriesID, BookID, SeriesNum) VALUES (?,?,?)',
                           (ser_id, member[4], member[0]), suppress="UNIQUE")
 
-                ser = db.match(f"select count(*) as counter from member where seriesid=?",
+                ser = db.match("select count(*) as counter from member where seriesid=?",
                                (ser_id,))
                 if ser:
                     counter = check_int(ser['counter'], 0)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Calibre-Web Automated – fork of Calibre-Web
 # Copyright (C) 2018-2025 Calibre-Web contributors
 # Copyright (C) 2024-2025 Calibre-Web Automated contributors
@@ -16,7 +15,6 @@ from typing import List, Optional
 from urllib.parse import quote
 
 import requests
-import unicodedata
 
 try:
     import iso639
@@ -32,12 +30,25 @@ from rapidfuzz import fuzz
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from lazylibrarian.bookdict import add_author_books_to_db, validate_bookdict, warn_about_bookdict, add_bookdict_to_db
+from lazylibrarian.bookdict import (
+    add_author_books_to_db,
+    add_bookdict_to_db,
+    validate_bookdict,
+    warn_about_bookdict,
+)
 from lazylibrarian.common import get_user_agent
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import (replace_all, get_list, is_valid_isbn, thread_name,
-                                     strip_quotes, plural, unaccented, md5_utf8)
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
+from lazylibrarian.formatter import (
+    get_list,
+    is_valid_isbn,
+    md5_utf8,
+    plural,
+    replace_all,
+    strip_quotes,
+    thread_name,
+    unaccented,
+)
 
 
 class DNB:
@@ -173,7 +184,7 @@ class DNB:
     def _execute_query(self, query, timeout=30, start=0, limit=10):
         """Query DNB SRU API"""
         if not etree:
-            self.logger.error(f'DNB query unavailable: lxml module missing')
+            self.logger.error('DNB query unavailable: lxml module missing')
             return [], False
         headers = {
             'User-Agent': get_user_agent(),
@@ -367,10 +378,10 @@ class DNB:
 
                 # Build series name
                 series_parts = [code_a[0]]
-                for i in range(0, min(len(code_p), len(code_n)) - 1):
+                for i in range(min(len(code_p), len(code_n)) - 1):
                     series_parts.append(code_p[i])
 
-                for i in range(0, min(len(series_parts), len(code_n) - 1)):
+                for i in range(min(len(series_parts), len(code_n) - 1)):
                     series_parts[i] += ' ' + code_n[i]
 
                 book['series'] = ' - '.join(series_parts)
