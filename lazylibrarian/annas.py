@@ -458,7 +458,7 @@ def anna_search(book=None, test=False):
 
         if not author or not title or not size or not dl:
             removed += 1
-            logger.debug("Rejecting Author:{author}, Title:{title}, Size:{size}, DL:{dl}")
+            logger.debug(f"Rejecting Author:{author}, Title:{title}, Size:{size}, DL:{dl}")
         else:
             if author and author not in title:
                 title = f"{author.strip()} {title.strip()}"
