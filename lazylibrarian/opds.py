@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 #  This file is part of LazyLibrarian.
 #
@@ -18,21 +17,21 @@
 #  Adapted for LazyLibrarian from Mylar
 
 import datetime
-import os
-import cherrypy
 import logging
-import lazylibrarian
-
-from cherrypy.lib.static import serve_file
-from lazylibrarian import database
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.bookrename import name_vars
-from lazylibrarian.cache import cache_img, ImageType
-from lazylibrarian.common import mime_type, zip_audio, get_readinglist
-from lazylibrarian.filesystem import path_isfile, listdir, any_file, splitext
-from lazylibrarian.formatter import make_unicode, check_int, plural, get_list
+import os
 from urllib.parse import quote_plus
 
+import cherrypy
+from cherrypy.lib.static import serve_file
+
+import lazylibrarian
+from lazylibrarian import database
+from lazylibrarian.bookrename import name_vars
+from lazylibrarian.cache import ImageType, cache_img
+from lazylibrarian.common import get_readinglist, mime_type, zip_audio
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import any_file, listdir, path_isfile, splitext
+from lazylibrarian.formatter import check_int, get_list, make_unicode, plural
 
 searchable = ['EAuthors', 'AAuthors', 'Magazines', 'Series', 'EAuthor', 'AAuthor', 'RecentBooks',
               'RecentAudio', 'RecentMags', 'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks',
@@ -41,7 +40,7 @@ searchable = ['EAuthors', 'AAuthors', 'Magazines', 'Series', 'EAuthor', 'AAuthor
 cmd_list = searchable + ['root', 'Serve', 'search', 'Members', 'Magazine']
 
 
-class OPDS(object):
+class OPDS:
 
     def __init__(self):
         self.cmd = None
@@ -84,8 +83,7 @@ class OPDS(object):
             if kwargs['cmd'] not in cmd_list:
                 self.data = self._error_with_message(f"Unknown command: {kwargs['cmd']}")
                 return
-            else:
-                self.cmd = kwargs.pop('cmd')
+            self.cmd = kwargs.pop('cmd')
 
         self.kwargs = kwargs
         self.data = 'OK'
@@ -1738,10 +1736,7 @@ class OPDS(object):
 
     def _serve(self, **kwargs):
         if 'bookid' in kwargs:
-            if 'fmt' in kwargs:
-                fmt = kwargs['fmt']
-            else:
-                fmt = ''
+            fmt = kwargs.get('fmt', '')
             myid = kwargs['bookid']
             db = database.DBConnection()
             try:
@@ -1754,7 +1749,7 @@ class OPDS(object):
             self.filepath = bookfile
             self.filename = os.path.split(bookfile)[1]
             return
-        elif 'issueid' in kwargs:
+        if 'issueid' in kwargs:
             myid = kwargs['issueid']
             db = database.DBConnection()
             try:
@@ -1764,7 +1759,7 @@ class OPDS(object):
             self.filepath = res['IssueFile']
             self.filename = os.path.split(res['IssueFile'])[1]
             return
-        elif 'comicissueid' in kwargs:
+        if 'comicissueid' in kwargs:
             myid = kwargs['comicissueid']
             try:
                 comicid, issueid = myid.split('_')
@@ -1779,7 +1774,7 @@ class OPDS(object):
             self.filepath = res['IssueFile']
             self.filename = os.path.split(res['IssueFile'])[1]
             return
-        elif 'audioid' in kwargs:
+        if 'audioid' in kwargs:
             myid = kwargs['audioid']
             db = database.DBConnection()
             try:
@@ -1857,6 +1852,6 @@ def opdstime(datestr):
         return now()
     if len(datestr) == 10:
         return f"{datestr}{'T00:00:00Z'}"
-    elif len(datestr) == 19:
+    if len(datestr) == 19:
         return f"{datestr[:10]}T{datestr[11:]}Z"
     return now()

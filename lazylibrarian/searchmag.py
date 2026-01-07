@@ -47,7 +47,7 @@ from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_magazines():
-    if 'SEARCHALLMAG' not in [n.name for n in [t for t in threading.enumerate()]]:
+    if 'SEARCHALLMAG' not in [n.name for n in list(threading.enumerate())]:
         search_magazines()
 
 
@@ -277,15 +277,11 @@ def search_magazines(mags=None, reset=False, backissues=False):
                                 rejected = False
                                 wlist = []
                                 for word in nzbtitle_exploded:
-                                    if word == '&':
-                                        word = 'and'
-                                    elif word == '+':
+                                    if word == '&' or word == '+':
                                         word = 'and'
                                     wlist.append(word.lower())
                                 for word in bookid_exploded:
-                                    if word == '&':
-                                        word = 'and'
-                                    elif word == '+':
+                                    if word == '&' or word == '+':
                                         word = 'and'
                                     if word.lower() not in wlist:
                                         logger.debug(f"Rejecting {nzbtitle}, missing [{word}]")
@@ -415,7 +411,7 @@ def search_magazines(mags=None, reset=False, backissues=False):
                                                 issuedate = int(issuedate[:4])
                                             issuenum = check_int(issuedate, 0)
                                             if year and 1 <= issuenum <= 12:
-                                                issuedate = "%04d-%02d-01" % (year, issuenum)
+                                                issuedate = f"{year:04d}-{issuenum:02d}-01"
                                                 comp_date = datecompare(issuedate, control_date)
                                         if not comp_date:
                                             logger.debug(f'Magazine {nzbtitle_formatted} failed: Expecting a date')
@@ -604,10 +600,9 @@ def get_default_date(dateparts):
     if dateparts['style'] in [10, 11, 13] and not dateparts["issue"]:
         # we guessed issue, could be volume
         dateparts['issue'] = dateparts['volume']
-    if dateparts['style'] in [12] and not dateparts["month"]:
+    if dateparts['style'] in [12] and not dateparts["month"] and dateparts['issue'] < 13:
         # we guessed issue, could be month
-        if dateparts['issue'] < 13:
-            dateparts['month'] = dateparts['issue']
+        dateparts['month'] = dateparts['issue']
 
     if preformat.count('$m') == 2:
         # change string to start-end

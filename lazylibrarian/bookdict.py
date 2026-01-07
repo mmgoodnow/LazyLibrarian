@@ -213,7 +213,7 @@ def validate_bookdict(bookdict, current_db=None):
                 cmd = f"SELECT BookID,{id_key[source]} FROM books WHERE BookID=?"
                 exists = db.match(cmd, (in_db[0],))
 
-        if exists:
+        if exists and bookdict['bookid'] != exists['BookID']:
             # existing bookid might not still be listed at this source so won't refresh.
             # should we keep new bookid or existing one?
             # existing one might have been user edited, might be locked,
@@ -221,11 +221,10 @@ def validate_bookdict(bookdict, current_db=None):
             # Should probably use the one with the "best" info but since we don't know
             # which that is, keep the old one which is already linked to other db tables
             # but allow info (dates etc.) to be updated
-            if bookdict['bookid'] != exists['BookID']:
-                rejected.append(['dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"])
-                if not exists[id_key[source]]:
-                    db.action(f"UPDATE books SET {id_key[source]}=? WHERE BookID=?",
-                              (bookdict['bookid'], exists['BookID']))
+            rejected.append(['dupe', f"Duplicate id ({bookdict['bookid']}/{exists['BookID']})"])
+            if not exists[id_key[source]]:
+                db.action(f"UPDATE books SET {id_key[source]}=? WHERE BookID=?",
+                          (bookdict['bookid'], exists['BookID']))
 
         if not bookdict['bookisbn'] and CONFIG.get_bool('NO_ISBN'):
             rejected.append(['isbn', 'No ISBN'])
@@ -260,9 +259,8 @@ def validate_bookdict(bookdict, current_db=None):
             if publish_date > today()[:len(publish_date)]:
                 rejected.append(['future', f'Future publication date [{publish_date}]'])
 
-            if CONFIG.get_bool('NO_PUBDATE'):
-                if not publish_date or publish_date == '0000':
-                    rejected.append(['date', 'No publication date'])
+            if CONFIG.get_bool('NO_PUBDATE') and (not publish_date or publish_date == '0000'):
+                rejected.append(['date', 'No publication date'])
 
     except Exception:
         logger.error(f'Unhandled exception in validate_bookdict: {traceback.format_exc()}')
@@ -287,16 +285,14 @@ def warn_about_bookdict(bookdict):
             msg = f"Book {bookdict['bookname']} language does not match preference, {bookdict['booklang']}"
             logger.warning(msg)
 
-    if CONFIG.get_bool('NO_PUBDATE'):
-        if not bookdict['bookdate'] or bookdict['bookdate'] == '0000':
-            msg = f"Book {bookdict['bookname']} No Publication date: does not match preference"
-            logger.warning(msg)
+    if CONFIG.get_bool('NO_PUBDATE') and (not bookdict['bookdate'] or bookdict['bookdate'] == '0000'):
+        msg = f"Book {bookdict['bookname']} No Publication date: does not match preference"
+        logger.warning(msg)
 
-    if CONFIG.get_bool('NO_FUTURE'):
-        if bookdict['bookdate'] > today()[:len(bookdict['bookdate'])]:
-            msg = (f"Book {bookdict['bookname']} Future publication date does not match preference, "
-                   f"{bookdict['bookdate']}")
-            logger.warning(msg)
+    if CONFIG.get_bool('NO_FUTURE') and bookdict['bookdate'] > today()[:len(bookdict['bookdate'])]:
+        msg = (f"Book {bookdict['bookname']} Future publication date does not match preference, "
+               f"{bookdict['bookdate']}")
+        logger.warning(msg)
 
     if CONFIG.get_bool('NO_SETS'):
         is_set, set_msg = is_set_or_part(bookdict['bookname'])

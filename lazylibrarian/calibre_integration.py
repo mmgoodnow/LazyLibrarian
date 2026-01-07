@@ -37,9 +37,6 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.cache import ImageType
 from lazylibrarian.calibre import calibredb, get_calibre_id
-from lazylibrarian.images import create_mag_cover
-from lazylibrarian.magazinescan import format_issue_filename, get_dateparts, create_id
-from lazylibrarian.metadata_opf import create_opf, create_comic_opf, create_mag_opf
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import (
     book_file,
@@ -48,12 +45,15 @@ from lazylibrarian.filesystem import (
     path_isdir,
     path_isfile,
     remove_file,
-    safe_move,
     safe_copy,
+    safe_move,
     setperm,
     syspath,
 )
-from lazylibrarian.formatter import unaccented, make_unicode
+from lazylibrarian.formatter import make_unicode, unaccented
+from lazylibrarian.images import create_mag_cover
+from lazylibrarian.magazinescan import create_id, format_issue_filename, get_dateparts
+from lazylibrarian.metadata_opf import create_comic_opf, create_mag_opf, create_opf
 
 
 def send_to_calibre(booktype, global_name, folder, data):
@@ -169,9 +169,8 @@ def send_to_calibre(booktype, global_name, folder, data):
                 )
 
             tags = "Magazine"
-            if CONFIG.get_bool("TEST_TAGS"):
-                if mag_genres:
-                    tags = f"{tags}, {mag_genres}"
+            if CONFIG.get_bool("TEST_TAGS") and mag_genres:
+                tags = f"{tags}, {mag_genres}"
 
             params = [
                 magfile,
@@ -199,7 +198,7 @@ def send_to_calibre(booktype, global_name, folder, data):
 
         if rc:
             return False, f"calibredb rc {rc} from {CONFIG['IMP_CALIBREDB']}", folder
-        elif booktype == "ebook" and (" --duplicates" in res or " --duplicates" in err):
+        if booktype == "ebook" and (" --duplicates" in res or " --duplicates" in err):
             logger.warning(
                 f'Calibre failed to import {authorname} {bookname}, already exists, marking book as "Have"'
             )
@@ -308,9 +307,8 @@ def send_to_calibre(booktype, global_name, folder, data):
                 if CONFIG.get_bool("OPF_TAGS"):
                     if booktype == "magazine":
                         tags = "Magazine"
-                        if CONFIG.get_bool("TEST_TAGS"):
-                            if mag_genres:
-                                tags = f"{tags}, {mag_genres}"
+                        if CONFIG.get_bool("TEST_TAGS") and mag_genres:
+                            tags = f"{tags}, {mag_genres}"
                     if booktype == "ebook":
                         if CONFIG.get_bool("GENRE_TAGS") and data["BookGenre"]:
                             tags = data["BookGenre"]
@@ -472,7 +470,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                     ignorefile = os.path.join(target_dir, ".ll_ignore")
                     with open(syspath(ignorefile), "w", encoding="utf-8") as f:
                         f.write(make_unicode(booktype))
-                except IOError as e:
+                except OSError as e:
                     logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
             for fname in listdir(target_dir):

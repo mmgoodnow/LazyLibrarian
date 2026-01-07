@@ -10,9 +10,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>
 
+import logging
 import os
 import time
-import logging
+
 from lazylibrarian.config2 import CONFIG
 from lib.qbittorrent import Client, WrongCredentials
 
@@ -98,9 +99,8 @@ def get_name(hashid):
             dlcommslogger.error(f" Failed to get_name: {e}")
             return ''
         for torrent in torrents:
-            if torrent.get('hash') == hashid:
-                if torrent.get('name'):
-                    return torrent['name']
+            if torrent.get('hash') == hashid and torrent.get('name'):
+                return torrent['name']
         time.sleep(2)
         retries -= 1
     return ''
@@ -127,10 +127,9 @@ def get_folder(hashid):
             dlcommslogger.error(f"Failed to get_folder: {e}")
             torrents = ''
         for torrent in torrents:
-            if torrent.get('hash') == hashid:
-                if torrent.get('save_path'):
-                    # If there's no folder yet then it's probably a magnet, try until folder is populated
-                    return torrent['save_path']
+            if torrent.get('hash') == hashid and torrent.get('save_path'):
+                # If there's no folder yet then it's probably a magnet, try until folder is populated
+                return torrent['save_path']
         time.sleep(6)
         retries -= 1
     if not save_path:
@@ -155,9 +154,8 @@ def get_progress(hashid):
         preferences = {}
     dlcommslogger.debug(str(preferences))
     max_ratio = 0.0
-    if 'max_ratio_enabled' in preferences and 'max_ratio' in preferences:
-        if preferences['max_ratio_enabled']:
-            max_ratio = float(preferences['max_ratio'])
+    if 'max_ratio_enabled' in preferences and 'max_ratio' in preferences and preferences['max_ratio_enabled']:
+        max_ratio = float(preferences['max_ratio'])
     cat = CONFIG['QBITTORRENT_LABEL']
     if not cat:
         cat = None
@@ -168,10 +166,7 @@ def get_progress(hashid):
         torrents = ''
     for torrent in torrents:
         if torrent.get('hash') == hashid:
-            if 'state' in torrent:
-                state = torrent['state']
-            else:
-                state = ''
+            state = torrent.get('state', '')
             if 'ratio' in torrent:
                 ratio = float(torrent['ratio'])
             else:
@@ -283,7 +278,7 @@ def add_file(data, hashid, title, provider_options):
         if torrent:
             # Add explicit pause as qbittorrent v5 seems to ignore start paused arg
             if CONFIG.get_bool('TORRENT_PAUSED'):
-                paused = False if qbclient.qbittorrent_version.startswith('v5') else True
+                paused = not qbclient.qbittorrent_version.startswith('v5')
                 dlcommslogger.debug(f"Pausing torrent {hashid}")
                 qbclient.pause(hashid, paused)
             if count > 1:
@@ -325,7 +320,7 @@ def add_torrent(link, hashid, provider_options):
         if torrent:
             # Add explicit pause as qbittorrent v5 seems to ignore start paused arg
             if CONFIG.get_bool('TORRENT_PAUSED'):
-                paused = False if qbclient.qbittorrent_version.startswith('v5') else True
+                paused = not qbclient.qbittorrent_version.startswith('v5')
                 dlcommslogger.debug(f"Pausing torrent {hashid}")
                 qbclient.pause(hashid, paused)
             if count > 1:
@@ -338,7 +333,7 @@ def add_torrent(link, hashid, provider_options):
 
 def get_args(provider_options):
     """ Get optional arguments based on configuration"""
-    args = {'paused': True if CONFIG.get_bool('TORRENT_PAUSED') else False}
+    args = {'paused': bool(CONFIG.get_bool('TORRENT_PAUSED'))}
     if CONFIG['QBITTORRENT_DIR']:
         args['savepath'] = CONFIG['QBITTORRENT_DIR']
 

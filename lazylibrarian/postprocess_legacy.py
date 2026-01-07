@@ -32,31 +32,82 @@ from deluge_client import DelugeRPCClient
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database, utorrent, transmission, qbittorrent, \
-    deluge, rtorrent, synology, sabnzbd, nzbget
-from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3read
-from lazylibrarian.cache import cache_img, ImageType
+from lazylibrarian import (
+    database,
+    deluge,
+    nzbget,
+    qbittorrent,
+    rtorrent,
+    sabnzbd,
+    synology,
+    transmission,
+    utorrent,
+)
+from lazylibrarian.bookrename import audio_rename, id3read, name_vars, stripspaces
+from lazylibrarian.cache import ImageType, cache_img
 from lazylibrarian.calibre import calibredb, get_calibre_id
-from lazylibrarian.common import run_script, multibook, calibre_prg
+from lazylibrarian.common import calibre_prg, multibook, run_script
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import (DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file,
-                                      listdir, setperm, make_dirs, safe_move, safe_copy, opf_file, bts_file,
-                                      jpg_file, book_file, get_directory, walk, copy_tree, remove_dir, splitext)
-from lazylibrarian.formatter import unaccented, plural, now, today, \
-    replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
-    make_utf8bytes, sanitize, thread_name
+from lazylibrarian.filesystem import (
+    DIRS,
+    book_file,
+    bts_file,
+    copy_tree,
+    get_directory,
+    jpg_file,
+    listdir,
+    make_dirs,
+    opf_file,
+    path_exists,
+    path_isdir,
+    path_isfile,
+    remove_dir,
+    remove_file,
+    safe_copy,
+    safe_move,
+    setperm,
+    splitext,
+    syspath,
+    walk,
+)
+from lazylibrarian.formatter import (
+    check_int,
+    get_list,
+    is_valid_type,
+    make_unicode,
+    make_utf8bytes,
+    now,
+    plural,
+    replace_all,
+    sanitize,
+    split_title,
+    surname_first,
+    thread_name,
+    today,
+    unaccented,
+)
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
-from lazylibrarian.images import create_mag_cover
-from lazylibrarian.images import createthumbs
-from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
-from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
+from lazylibrarian.images import create_mag_cover, createthumbs
+from lazylibrarian.importer import (
+    add_author_name_to_db,
+    add_author_to_db,
+    import_book,
+    search_for,
+    update_totals,
+)
+from lazylibrarian.librarysync import find_book_in_db, get_book_info, get_book_meta, library_scan
 from lazylibrarian.magazinescan import create_id, format_issue_filename, get_dateparts
 from lazylibrarian.mailinglist import mailing_list
-from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch, custom_notify_snatch
+from lazylibrarian.notifiers import (
+    custom_notify_download,
+    custom_notify_snatch,
+    notify_download,
+    notify_snatch,
+)
 from lazylibrarian.ol import OpenLibrary
-from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
-from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+from lazylibrarian.preprocessor import preprocess_audio, preprocess_ebook, preprocess_magazine
+from lazylibrarian.scheduling import SchedulerCommand, schedule_job
 from lazylibrarian.telemetry import TELEMETRY
 
 
@@ -621,14 +672,13 @@ def process_alternate(source_dir=None, library='eBook'):
             db.close()
             return process_book(source_dir, bookid, library)
 
-        else:
-            logger.warning(f'{library} {new_book} has no metadata')
-            res = check_residual(source_dir)
-            if not res:
-                logger.warning(f'{source_dir} has no book with LL.number')
-                if 'IMPORTALT' in threading.current_thread().name:
-                    threading.current_thread().name = 'WEBSERVER'
-                return False
+        logger.warning(f'{library} {new_book} has no metadata')
+        res = check_residual(source_dir)
+        if not res:
+            logger.warning(f'{source_dir} has no book with LL.number')
+            if 'IMPORTALT' in threading.current_thread().name:
+                threading.current_thread().name = 'WEBSERVER'
+            return False
 
     except Exception:
         logger.error(f'Unhandled exception in process_alternate: {traceback.format_exc()}')
@@ -920,19 +970,18 @@ def update_download_status(book, progress, finished, db, logger, dlresult=None):
         logger.info(f"STATUS: {book['NZBtitle']} [{current_status} -> Seeding] "
                     f"Download complete, continuing to seed")
         return 'Seeding'
-    else:
-        # Mark as Processed - download complete
-        if not dlresult:
-            dlresult = "Download complete"
-        cmd = "UPDATE wanted SET Status='Processed', DLResult=? WHERE NZBurl=? and Status='Snatched'"
-        db.action(cmd, (dlresult, book['NZBurl']))
-        logger.info(f"STATUS: {book['NZBtitle']} [{current_status} -> Processed] {dlresult}")
+    # Mark as Processed - download complete
+    if not dlresult:
+        dlresult = "Download complete"
+    cmd = "UPDATE wanted SET Status='Processed', DLResult=? WHERE NZBurl=? and Status='Snatched'"
+    db.action(cmd, (dlresult, book['NZBurl']))
+    logger.info(f"STATUS: {book['NZBtitle']} [{current_status} -> Processed] {dlresult}")
 
-        # Optionally delete from client if configured
-        if finished and CONFIG.get_bool('DEL_COMPLETED'):
-            logger.debug(f"Deleting {book['NZBtitle']} from {book.get('Source')} (DEL_COMPLETED=True)")
-            delete_task(book.get('Source'), book.get('DownloadID'), False)
-        return 'Processed'
+    # Optionally delete from client if configured
+    if finished and CONFIG.get_bool('DEL_COMPLETED'):
+        logger.debug(f"Deleting {book['NZBtitle']} from {book.get('Source')} (DEL_COMPLETED=True)")
+        delete_task(book.get('Source'), book.get('DownloadID'), False)
+    return 'Processed'
 
 
 def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
@@ -1071,7 +1120,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             f"Ignoring {book['NZBtitle']} as completion was {completion} "
                             f"{plural(completion, 'second')} ago")
                         continue
-                    elif check_int(book['Completed'], 0):
+                    if check_int(book['Completed'], 0):
                         logger.debug(
                             f"{book['NZBtitle']} was completed {completion} {plural(completion, 'second')} ago")
 
@@ -1636,7 +1685,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             parent = os.path.dirname(pp_path)
                             try:
                                 with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
-                                    f.write(u'test')
+                                    f.write('test')
                                 remove_file(os.path.join(parent, 'll_temp'))
                             except Exception as why:
                                 logger.error(f"Parent Directory {parent} is not writeable: {why}")
@@ -1681,7 +1730,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # File matching will process it next cycle
                     continue
                 # Handle normal seeding completion
-                elif finished or not CONFIG.get_bool('SEED_WAIT'):
+                if finished or not CONFIG.get_bool('SEED_WAIT'):
                     if finished:
                         logger.debug(f"{book['NZBtitle']} finished seeding at {book['Source']}")
                     else:
@@ -1774,9 +1823,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     logger.info(f"Successfully processed {book['NZBtitle']} directly")
                                     status['status'] = 'success'
                                     continue  # Skip abort logic, book was processed
-                                else:
-                                    logger.warning(f"Direct processing failed for {book['NZBtitle']}, "
-                                                   f"will retry next cycle")
+                                logger.warning(f"Direct processing failed for {book['NZBtitle']}, "
+                                               f"will retry next cycle")
                             else:
                                 logger.warning(f"Could not get download folder for {book['NZBtitle']} "
                                                f"from {book['Source']}")
@@ -2006,9 +2054,7 @@ def check_residual(download_dir):
                     have_audio = (data and data['AudioFile'] and path_isfile(data['AudioFile']))
                     logger.debug(f"Already have ebook={have_ebook} audio={have_audio}")
 
-                    if have_ebook and have_audio:
-                        exists = True
-                    elif have_ebook and not CONFIG.get_bool('AUDIO_TAB'):
+                    if have_ebook and have_audio or have_ebook and not CONFIG.get_bool('AUDIO_TAB'):
                         exists = True
                     else:
                         exists = False
@@ -2268,16 +2314,7 @@ def get_download_progress(source, downloadid):
                 db.action(cmd, (errorstring, downloadid, source))
                 progress = -1
 
-        elif source == 'DIRECT':
-            cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
-            data = db.match(cmd, (downloadid, source))
-            if data:
-                progress = 100
-                finished = True
-            else:
-                progress = 0
-
-        elif str(source).startswith('IRC'):
+        elif source == 'DIRECT' or str(source).startswith('IRC'):
             cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
             data = db.match(cmd, (downloadid, source))
             if data:
@@ -2670,37 +2707,36 @@ def process_book(pp_path=None, bookid=None, library=None):
                 else:
                     update_downloads("manually added")
                 return True
-            else:
-                logger.error(f'Postprocessing for {repr(global_name)} has failed: {repr(dest_file)}')
-                shutil.rmtree(f"{pp_path}.fail", ignore_errors=True)
+            logger.error(f'Postprocessing for {repr(global_name)} has failed: {repr(dest_file)}')
+            shutil.rmtree(f"{pp_path}.fail", ignore_errors=True)
+            try:
+                _ = safe_move(pp_path, f"{pp_path}.fail")
+                logger.warning(f'Residual files remain in {pp_path}.fail')
+            except Exception as e:
+                logger.error(f"Unable to rename {repr(pp_path)}, {type(e).__name__} {str(e)}")
+                if not os.access(syspath(pp_path), os.R_OK):
+                    logger.error(f"{repr(pp_path)} is not readable")
+                if not os.access(syspath(pp_path), os.W_OK):
+                    logger.error(f"{repr(pp_path)} is not writeable")
+                parent = os.path.dirname(pp_path)
                 try:
-                    _ = safe_move(pp_path, f"{pp_path}.fail")
-                    logger.warning(f'Residual files remain in {pp_path}.fail')
-                except Exception as e:
-                    logger.error(f"Unable to rename {repr(pp_path)}, {type(e).__name__} {str(e)}")
-                    if not os.access(syspath(pp_path), os.R_OK):
-                        logger.error(f"{repr(pp_path)} is not readable")
-                    if not os.access(syspath(pp_path), os.W_OK):
-                        logger.error(f"{repr(pp_path)} is not writeable")
-                    parent = os.path.dirname(pp_path)
-                    try:
-                        with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
-                            f.write(u'test')
-                        remove_file(os.path.join(parent, 'll_temp'))
-                    except Exception as why:
-                        logger.error(f"Directory {parent} is not writeable: {why}")
-                    logger.warning(f'Residual files remain in {pp_path}')
+                    with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
+                        f.write('test')
+                    remove_file(os.path.join(parent, 'll_temp'))
+                except Exception as why:
+                    logger.error(f"Directory {parent} is not writeable: {why}")
+                logger.warning(f'Residual files remain in {pp_path}')
 
-                was_snatched = db.match("SELECT NZBurl FROM wanted WHERE BookID=? and Status='Snatched'", (bookid,))
-                if was_snatched:
-                    control_value_dict = {"NZBurl": was_snatched['NZBurl']}
-                    new_value_dict = {"Status": "Failed", "NZBDate": now(), "DLResult": dest_file}
-                    db.upsert("wanted", new_value_dict, control_value_dict)
-                # reset status so we try for a different version
-                if booktype == 'AudioBook':
-                    db.action("UPDATE books SET audiostatus='Wanted' WHERE BookID=?", (bookid,))
-                else:
-                    db.action("UPDATE books SET status='Wanted' WHERE BookID=?", (bookid,))
+            was_snatched = db.match("SELECT NZBurl FROM wanted WHERE BookID=? and Status='Snatched'", (bookid,))
+            if was_snatched:
+                control_value_dict = {"NZBurl": was_snatched['NZBurl']}
+                new_value_dict = {"Status": "Failed", "NZBDate": now(), "DLResult": dest_file}
+                db.upsert("wanted", new_value_dict, control_value_dict)
+            # reset status so we try for a different version
+            if booktype == 'AudioBook':
+                db.action("UPDATE books SET audiostatus='Wanted' WHERE BookID=?", (bookid,))
+            else:
+                db.action("UPDATE books SET status='Wanted' WHERE BookID=?", (bookid,))
         return False
     except Exception:
         logger.error(f'Unhandled exception in process_book: {traceback.format_exc()}')
@@ -2891,7 +2927,7 @@ def send_to_calibre(booktype, global_name, folder, data):
 
         if rc:
             return False, f"calibredb rc {rc} from {CONFIG['IMP_CALIBREDB']}", folder
-        elif booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
+        if booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
             logger.warning(
                 f'Calibre failed to import {authorname} {bookname}, already exists, marking book as "Have"')
             db = database.DBConnection()
@@ -3103,7 +3139,7 @@ def send_to_calibre(booktype, global_name, folder, data):
                     ignorefile = os.path.join(target_dir, '.ll_ignore')
                     with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
                         f.write(make_unicode(booktype))
-                except IOError as e:
+                except OSError as e:
                     logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
             for fname in listdir(target_dir):
@@ -3289,7 +3325,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     parent = os.path.dirname(destfile)
                     try:
                         with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
-                            f.write(u'test')
+                            f.write('test')
                         remove_file(os.path.join(parent, 'll_temp'))
                     except Exception as w:
                         logger.error(f"Destination Directory [{parent}] is not writeable: {w}")
@@ -3349,7 +3385,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             ignorefile = os.path.join(udest_path, '.ll_ignore')
             with open(syspath(ignorefile), 'w') as f:
                 f.write(make_unicode(booktype))
-        except (IOError, TypeError) as e:
+        except (OSError, TypeError) as e:
             logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
         if booktype == 'comic':
@@ -3644,7 +3680,6 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
                     break
                 except ValueError:
                     seriesnum = ''
-                    pass
 
             if not seriesnum:
                 # couldn't figure out number, keep everything we got, could be something like "Book Two"

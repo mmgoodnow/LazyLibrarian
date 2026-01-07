@@ -10,7 +10,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 import logging
 import os
 import subprocess
@@ -18,12 +17,29 @@ from urllib.parse import unquote_plus
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.bookrename import audio_parts, name_vars, id3read
+from lazylibrarian.bookrename import audio_parts, id3read, name_vars
 from lazylibrarian.common import calibre_prg, zip_audio
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy, splitext
-from lazylibrarian.formatter import (get_list, make_unicode, check_int, human_size, now, check_float, plural)
-from lazylibrarian.images import shrink_mag, coverswap, valid_pdf, write_pdf_tags
+from lazylibrarian.filesystem import (
+    DIRS,
+    listdir,
+    path_exists,
+    remove_file,
+    safe_copy,
+    safe_move,
+    setperm,
+    splitext,
+)
+from lazylibrarian.formatter import (
+    check_float,
+    check_int,
+    get_list,
+    human_size,
+    make_unicode,
+    now,
+    plural,
+)
+from lazylibrarian.images import coverswap, shrink_mag, valid_pdf, write_pdf_tags
 
 
 def preprocess_ebook(bookfolder):
@@ -213,7 +229,6 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
                 except IndexError:
                     logger.debug(f"Error reading duration from {part[3]}, assume 0")
                     part_durations.append([part[0], 0])
-                    pass
             else:
                 logger.debug(f"No duration found in {part[3]}, assume 0")
                 part_durations.append([part[0], 0])
@@ -229,13 +244,13 @@ def read_part_durations(bookfolder, parts, metadata_file, duration_file):
     if part_durations:
         part_durations.sort(key=lambda x: x[0])
         start = 0
-        with open(metadata_file, 'r', encoding="utf-8") as f:
-            with open(os.path.join(bookfolder, duration_file), 'w', encoding="utf-8") as o:
-                for lyne in f.readlines():
-                    if not lyne.startswith('[CHAPTER]') and not lyne.startswith('TIMEBASE='):
-                        if not lyne.startswith('START=') and not lyne.startswith('END='):
-                            if not lyne.startswith('title='):
-                                o.write(lyne)
+        with (open(metadata_file, encoding="utf-8") as f,
+              open(os.path.join(bookfolder, duration_file), 'w', encoding="utf-8") as o):
+            for lyne in f.readlines():
+                if (not lyne.startswith('[CHAPTER]') and not lyne.startswith('TIMEBASE=') and
+                    not lyne.startswith('START=') and not lyne.startswith('END=') and
+                        not lyne.startswith('title=')):
+                    o.write(lyne)
 
         with open(duration_file, 'a', encoding="utf-8") as f:
             for item in part_durations:
@@ -266,28 +281,20 @@ def get_metatags(bookid, bookfile, authorname, bookname, source_file):
         id3r = id3read(source_file)
         if not match['Narrator'] and id3r.get('narrator'):
             db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
-        artist = id3r.get('artist')
-        composer = id3r.get('composer')
-        album_artist = id3r.get('albumartist')
-        album = id3r.get('album')
-        comment = id3r.get('comment')
-        author = authorname
-        media_type = "Audiobook"
-        genre = match['BookGenre']
-        description = match['BookDesc']
-        date = match['BookDate']
-        if date == '0000':
-            date = ''
+        id3dict = {'artist': id3r.get('artist'), 'composer': id3r.get('composer'),
+                   'album_artist': id3r.get('albumartist'), 'album': id3r.get('album'), 'comment': id3r.get('comment'),
+                   'author': authorname, 'media_type': "Audiobook", 'genre': match['BookGenre'],
+                   'description': match['BookDesc'], 'date': match['BookDate']}
+        if match['BookDate'] == '0000':
+            id3dict['date'] = ''
         if match['SeriesDisplay']:
             series = match['SeriesDisplay'].split('<br>')[0].strip()
             if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
                 title = f"{title} ({series})"
         metatags = ['-metadata', f"title={title}"]
-        for item in ['artist', 'album_artist', 'composer', 'album', 'author',
-                     'date', 'comment', 'description', 'genre', 'media_type']:
-            value = eval(item)
-            if value:
-                metatags.extend(['-metadata', f"{item}={value}"])
+        for item in id3dict:
+            if id3dict[item]:
+                metatags.extend(['-metadata', f"{item}={id3dict[item]}"])
     else:
         metatags = ['-metadata', f"album={bookname}",
                     '-metadata', f"artist={authorname}",
@@ -307,9 +314,9 @@ def write_audio_tags(bookfolder, filename, track, metatags):
         # This copies image as is
         params = [ffmpeg, '-i', os.path.join(bookfolder, filename),
                   '-y', '-c:a', 'copy',
-                  '-c:v', 'copy']  # ffmpeg will detect cover art in m4a as a video
-                                   # and try to convert to mjpeg to h264 and will fail
-                                   #when codec is not installed. This copies image as is
+                  '-c:v', 'copy']
+        # ffmpeg will detect cover art in m4a as a video and try to convert to mjpeg to h264
+        # and will fail when codec is not installed. This copies image as is
         params.extend(metatags)
         params.extend(['-metadata', f'track={track}'])
         tempfile = os.path.join(bookfolder, f"tempaudio{extn}")
@@ -432,8 +439,9 @@ def preprocess_audio(bookfolder, bookid='', authorname='', bookname='', merge=No
 
     with open(partslist_file, 'w', encoding="utf-8") as f:
         for part in parts:
-            # json.dumps escapes the invalid chars for us, eg apostrophe
-            f.write(f"file {json.dumps(part[3])}\n")
+            # Use single quotes and escape apostrophes for FFmpeg compatibility
+            escaped_name = part[3].replace("'", "'\\''")
+            f.write(f"file '{escaped_name}'\n")
 
     bookfile = namevars['AudioSingleFile'] if namevars['Author'] else ''
     # might not have any namevars (eg no bookid)

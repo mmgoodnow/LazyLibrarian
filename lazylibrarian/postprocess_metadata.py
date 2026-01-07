@@ -20,11 +20,11 @@ This module provides type-safe metadata classes for books, magazines, and comics
 along with factory functions to retrieve and prepare metadata from the database.
 """
 
+import contextlib
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from lazylibrarian.bookrename import name_vars, stripspaces
 from lazylibrarian.config2 import CONFIG
@@ -61,9 +61,9 @@ class BookType(str, Enum):
 
         try:
             return mapping[normalized]
-        except KeyError:
+        except KeyError as e:
             allowed = ", ".join(t.value for t in cls)
-            raise ValueError(f"Invalid book_type {value!r}. Allowed: {allowed}")
+            raise ValueError(f"Invalid book_type {value!r}. Allowed: {allowed}") from e
 
 
 @dataclass
@@ -283,13 +283,13 @@ class ComicMetadata(BookMetadata):
         }
 
 
-def prepare_book_metadata(book_id: str, book_type: str, db) -> Optional[EbookMetadata]:
+def prepare_book_metadata(book_id: str, book_type: str, db) -> EbookMetadata | None:
     """
     Retrieve book metadata and prepare destination paths.
 
     Args:
         book_id: Book ID to look up
-        aux_type: Type of book in AUX_INFO format (eBook, AudioBook)
+        book_type: Type of book in AUX_INFO format (eBook, AudioBook)
         db: Database connection
 
     Returns:
@@ -314,10 +314,8 @@ def prepare_book_metadata(book_id: str, book_type: str, db) -> Optional[EbookMet
     # this will normalize it into a common format for post processing
     book_type_enum = BookType.EBOOK
 
-    try:
+    with contextlib.suppress(ValueError):
         book_type_enum = BookType.from_string(book_type)
-    except ValueError:
-        pass
 
     if book_type_enum == BookType.AUDIOBOOK and get_directory("Audio"):
         dest_path = str(namevars["AudioFolderName"])
@@ -357,7 +355,7 @@ def prepare_book_metadata(book_id: str, book_type: str, db) -> Optional[EbookMet
     )
 
 
-def prepare_magazine_metadata(title, aux_info, db) -> Optional[MagazineMetadata]:
+def prepare_magazine_metadata(title, aux_info, db) -> MagazineMetadata | None:
     """
     Retrieve magazine metadata and prepare destination paths.
 
@@ -411,7 +409,7 @@ def prepare_magazine_metadata(title, aux_info, db) -> Optional[MagazineMetadata]
     )
 
 
-def prepare_comic_metadata(book_id, db) -> Optional[ComicMetadata]:
+def prepare_comic_metadata(book_id, db) -> ComicMetadata | None:
     """
     Retrieve comic metadata and prepare destination paths.
 

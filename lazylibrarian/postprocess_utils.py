@@ -20,12 +20,12 @@ This module provides type-safe string/bytes conversion utilities used across
 the postprocessing subsystem to handle cross-platform encoding issues.
 """
 
-from typing import Union, Any
+from typing import Any
 
 from lazylibrarian.formatter import make_unicode, make_utf8bytes
 
 
-def enforce_str(text: Union[str, bytes, Any]) -> str:
+def enforce_str(text: str | bytes | Any) -> str:
     """
     Wrap make_unicode() and enforce that result is a string.
 
@@ -64,7 +64,7 @@ def enforce_str(text: Union[str, bytes, Any]) -> str:
     raise TypeError(f"Expected str, got {type(result).__name__}")
 
 
-def enforce_bytes(text: Union[str, bytes, Any]) -> bytes:
+def enforce_bytes(text: str | bytes | Any) -> bytes:
     """
     Wrap make_utf8bytes() and enforce that result is bytes.
 

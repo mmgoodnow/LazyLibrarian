@@ -30,8 +30,8 @@ import zipfile
 import lazylibrarian
 from lazylibrarian import RARFILE
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import (make_dirs, listdir, syspath, path_isfile)
-from lazylibrarian.formatter import make_unicode, is_valid_type
+from lazylibrarian.filesystem import listdir, make_dirs, path_isfile, syspath
+from lazylibrarian.formatter import is_valid_type, make_unicode
 from lazylibrarian.postprocess_utils import enforce_str
 from lazylibrarian.telemetry import TELEMETRY
 

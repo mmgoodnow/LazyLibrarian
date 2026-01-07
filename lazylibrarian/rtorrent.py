@@ -15,11 +15,11 @@ import logging
 import socket
 import ssl
 from time import sleep
-
-from lazylibrarian.filesystem import get_directory
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import versiontuple
 from xmlrpc.client import Binary, ServerProxy
+
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import get_directory
+from lazylibrarian.formatter import versiontuple
 
 
 def get_server():
@@ -62,9 +62,8 @@ def get_server():
     if version:
         logger.error(f"rTorrent {version} is not supported, require >= 0.9.8")
         return None, version
-    else:
-        logger.warning('No response from rTorrent server')
-        return None, ''
+    logger.warning('No response from rTorrent server')
+    return None, ''
 
 
 def add_torrent(tor_url, hash_id, data=None):

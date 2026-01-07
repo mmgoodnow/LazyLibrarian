@@ -193,7 +193,6 @@ def create_opf(dest_path, data_row, global_name=None, overwrite=False):
                     break
                 except ValueError:
                     seriesnum = ""
-                    pass
 
             if not seriesnum:
                 # couldn't figure out number, keep everything we got, could be something like "Book Two"
@@ -210,12 +209,11 @@ def create_opf(dest_path, data_row, global_name=None, overwrite=False):
         db.close()
 
     opfinfo = (
-        '<?xml version="1.0"  encoding="UTF-8"?>\n\
+        f'<?xml version="1.0"  encoding="UTF-8"?>\n\
 <package version="2.0" xmlns="http://www.idpf.org/2007/opf" >\n\
     <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">\n\
-        <dc:title>%s</dc:title>\n\
-        <dc:language>%s</dc:language>\n'
-        % (data_dict.get("BookName", ""), data_dict.get("BookLang", ""))
+        <dc:title>{data_dict.get("BookName", "")}</dc:title>\n\
+        <dc:language>{data_dict.get("BookLang", "")}</dc:language>\n'
     )
 
     opfinfo += (
@@ -254,15 +252,9 @@ def create_opf(dest_path, data_row, global_name=None, overwrite=False):
             f"{data_dict.get('FileAs')}</dc:creator>\n"
         )
     else:
+        aname = surname_first(data_dict.get("AuthorName", ""), postfixes=get_list(CONFIG.get_csv("NAME_POSTFIX")))
         opfinfo += (
-            '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n'
-            % (
-                surname_first(
-                    data_dict.get("AuthorName", ""),
-                    postfixes=get_list(CONFIG.get_csv("NAME_POSTFIX")),
-                ),
-                data_dict.get("AuthorName"),
-            )
+            f'        <dc:creator opf:file-as="{aname}" opf:role="aut">{data_dict.get("AuthorName")}</dc:creator>\n'
         )
     if data_dict.get("BookIsbn", ""):
         opfinfo += f'        <dc:identifier opf:scheme="ISBN">{data_dict.get("BookIsbn")}</dc:identifier>\n'
@@ -308,12 +300,11 @@ def create_opf(dest_path, data_row, global_name=None, overwrite=False):
         coverfile = "cover.jpg"
 
     opfinfo += (
-        '        <guide>\n\
-                <reference href="%s" type="cover" title="Cover"/>\n\
+        f'        <guide>\n\
+                <reference href="{coverfile}" type="cover" title="Cover"/>\n\
             </guide>\n\
         </metadata>\n\
     </package>'
-        % coverfile
     )  # file in current directory, not full path
 
     dic = {"...": "", " & ": " ", " = ": " ", "$": "s", " + ": " ", "*": ""}

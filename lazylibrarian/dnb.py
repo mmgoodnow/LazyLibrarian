@@ -11,19 +11,20 @@ import re
 import time
 import traceback
 from queue import Queue
-from typing import List, Optional
 from urllib.parse import quote
 
 import requests
 
 try:
-    import iso639
+    from iso639 import languages
 except ImportError:
-    iso639 = None
+    languages = None
 try:
     from lxml import etree
 except ImportError:
     etree = None
+
+import contextlib
 
 from rapidfuzz import fuzz
 
@@ -82,7 +83,7 @@ class DNB:
                 '&operation=searchRetrieve&recordSchema=MARC21-xml&query=%s')
     COVERURL = 'https://portal.dnb.de/opac/mvb/cover?isbn=%s'
 
-    def search(self, query: str, generic_cover: str = "", start=0, limit=10) -> Optional[List]:
+    def search(self, query: str, generic_cover: str = "", start=0, limit=10) -> list | None:
         try:
             if not self.active:
                 return None
@@ -255,10 +256,8 @@ class DNB:
                 self.logger.debug(f"Expiring {myhash}")
                 os.remove(syspath(hashfilename))
                 return False
-            else:
-                return True
-        else:
-            return False
+            return True
+        return False
 
     @staticmethod
     def _read_from_cache(hashfilename: str) -> (str, bool):
@@ -315,11 +314,9 @@ class DNB:
             pass
 
         # Extract IDN
-        try:
+        with contextlib.suppress(IndexError, AttributeError):
             book['idn'] = record.xpath("./marc21:datafield[@tag='016']/marc21:subfield[@code='a']",
                                        namespaces=ns)[0].text.strip()
-        except (IndexError, AttributeError):
-            pass
 
         # Extract title from field 245
         self._extract_title_and_series(record, book, ns)
@@ -435,10 +432,8 @@ class DNB:
 
             # Publisher name (subfield b)
             if not book['publisher_name']:
-                try:
+                with contextlib.suppress(IndexError, AttributeError):
                     book['publisher_name'] = field.xpath("./marc21:subfield[@code='b']", namespaces=ns)[0].text.strip()
-                except (IndexError, AttributeError):
-                    pass
 
             # Publication date (subfield c)
             if not book['pubdate']:
@@ -496,12 +491,13 @@ class DNB:
 
             # Convert ISO code to English language name
             # language_name = isoLanguages.get_language_name(get_locale(), lang_code)
-            if not iso639:
+            if not languages:
                 language_name = lang_code
             else:
-                isodata = iso639.find(lang_code)
-                if isodata and isodata.get('name'):
-                    language_name = isodata['name']
+                # noinspection PyUnresolvedReferences
+                isodata = languages.get(alpha2=lang_code[:2])
+                if isodata and isodata.name:
+                    language_name = isodata.name
                 else:
                     language_name = "Unknown"
 
@@ -518,7 +514,7 @@ class DNB:
         """Extract comments from MARC21 field 856"""
         for url_elem in record.xpath("./marc21:datafield[@tag='856']/marc21:subfield[@code='u']", namespaces=ns):
             url = url_elem.text.strip()
-            if url.startswith("http://deposit.dnb.de/") or url.startswith("https://deposit.dnb.de/"):
+            if url.startswith(("http://deposit.dnb.de/", "https://deposit.dnb.de/")):
                 try:
                     response = requests.get(url, timeout=30)
                     response.raise_for_status()
@@ -540,11 +536,9 @@ class DNB:
     @staticmethod
     def _extract_edition(record, book, ns):
         """Extract edition from MARC21 field 250"""
-        try:
+        with contextlib.suppress(IndexError, AttributeError):
             book['edition'] = record.xpath("./marc21:datafield[@tag='250']/marc21:subfield[@code='a']",
                                            namespaces=ns)[0].text.strip()
-        except (IndexError, AttributeError):
-            pass
 
     def _get_cover_url(self, book_data, generic_cover):
         if not book_data.get('isbn'):
@@ -577,13 +571,12 @@ class DNB:
                 if img_src.startswith('/'):
                     from urllib.parse import urljoin
                     return urljoin(original_url, img_src)
-                elif img_src.startswith('http'):
+                if img_src.startswith('http'):
                     return img_src
-                else:
-                    # If it's the same URL, we have a problem
-                    if img_src == original_url:
-                        return None
-                    return img_src
+                # If it's the same URL, we have a problem
+                if img_src == original_url:
+                    return None
+                return img_src
         except Exception as e:
             self.logger.error(f"Failed to extract image URL from HTML: {e}")
         return None
@@ -615,7 +608,7 @@ class DNB:
                 # self.logger.info(cover_url)
                 # self.logger.info(response.headers['content-type'])
                 return cover_url
-            elif 'text/html' in content_type:
+            if 'text/html' in content_type:
                 # Handle HTML wrapper case as before
                 self.logger.debug("main_content_type: text/html")
                 # Verify the response actually contains image data
@@ -698,26 +691,26 @@ class DNB:
         except Exception:
             seriesindex = 0
 
-        return dict(
-            id=book_data.get('idn', ''),
-            title=self._remove_sorting_characters(title),
-            authors=authors,
-            url=f"https://portal.dnb.de/opac.htm?method=simpleSearch&query={book_data.get('idn', '')}",
-            source=dict(
-                id=self.__id__,
-                description=self.__name__,
-                link="https://portal.dnb.de/",
-            ),
-            cover=cover_url,
-            description=book_data.get('comments', ''),
-            series=self._remove_sorting_characters(book_data.get('series', '')) if book_data.get('series') else '',
-            series_index=seriesindex,
-            identifiers=identifiers,
-            publisher=publisher,
-            publishedDate=book_data['pubdate'].strftime('%Y-%m-%d') if book_data.get('pubdate') else '',
-            languages=book_data.get('languages', []),
-            tags=tags,
-        )
+        return {
+            "id": book_data.get('idn', ''),
+            "title": self._remove_sorting_characters(title),
+            "authors": authors,
+            "url": f"https://portal.dnb.de/opac.htm?method=simpleSearch&query={book_data.get('idn', '')}",
+            "source": {
+                "id": self.__id__,
+                "description": self.__name__,
+                "link": "https://portal.dnb.de/",
+            },
+            "cover": cover_url,
+            "description": book_data.get('comments', ''),
+            "series": self._remove_sorting_characters(book_data.get('series', '')) if book_data.get('series') else '',
+            "series_index": seriesindex,
+            "identifiers": identifiers,
+            "publisher": publisher,
+            "publishedDate": book_data['pubdate'].strftime('%Y-%m-%d') if book_data.get('pubdate') else '',
+            "languages": book_data.get('languages', []),
+            "tags": tags,
+        }
 
     # Helper functions adapted from original plugin
     @staticmethod
@@ -819,15 +812,15 @@ class DNB:
         if not CONFIG['DNB_API']:
             self.logger.warning('DNB API not enabled, check config')
             return
-        if not etree or not iso639:
+        if not etree or not languages:
             self.logger.warning('Required modules missing, lxml and/or iso639')
             return
 
         db = database.DBConnection()
+        auth_id = authorid
+        entryreason = reason
+        auth_name = authorname
         try:
-            entryreason = reason
-            auth_id = authorid
-            auth_name = authorname
             if authorid:
                 res = db.match('SELECT AuthorName from authors WHERE Authorid=?', (authorid, ))
                 if res:
@@ -869,7 +862,7 @@ class DNB:
         if not CONFIG['DNB_API']:
             self.logger.warning('DNB API not enabled, check config')
             return
-        if not etree or not iso639:
+        if not etree or not languages:
             self.logger.warning('Required modules missing, lxml and/or iso639')
             return
         if not bookstatus:
@@ -909,7 +902,7 @@ class DNB:
         if not CONFIG['DNB_API']:
             self.logger.warning('DNB API not enabled, check config')
             return False
-        if not etree or not iso639:
+        if not etree or not languages:
             self.logger.warning('Required modules missing, lxml and/or iso639')
             return False
         try:

@@ -404,7 +404,7 @@ def check_db(upgradelog=None):
                         mn = check_int(parts[1], 0)
                         dy = check_int(parts[2], 0)
                         if mn and dy:
-                            bookdate = "%s-%02d-%02d" % (parts[0], mn, dy)
+                            bookdate = f"{parts[0]}-{mn:02d}-{dy:02d}"
                             db.action("UPDATE books SET BookDate=? WHERE BookID=?", (bookdate, item['BookID']))
                         else:
                             logger.warning(f"Invalid Month/Day ({item['BookDate']}) for {item['BookID']}")
@@ -427,7 +427,7 @@ def check_db(upgradelog=None):
                         mn = check_int(parts[1], 0)
                         dy = check_int(parts[2], 0)
                         if mn and dy:
-                            lastdate = "%s-%02d-%02d" % (parts[0], mn, dy)
+                            lastdate = f"{parts[0]}-{mn:02d}-{dy:02d}"
                             db.action("UPDATE authors SET LastDate=? WHERE AuthorID=?", (lastdate, item['AuthorID']))
                         else:
                             logger.warning(f"Invalid Month/Day ({item['LastDate']}) for {item['AuthorID']}")
@@ -877,9 +877,8 @@ def calc_eta(start_time, start_count, done):
         return f"Completed {int(percent_done)}% eta {eta} minute"
     if eta < 120:
         return f"Completed {int(percent_done)}% eta {eta} minutes"
-    else:
-        eta = int(secs_left / 3600) + (secs_left % 3600 > 0)
-        return f"Completed {int(percent_done)}% eta {eta} hours"
+    eta = int(secs_left / 3600) + (secs_left % 3600 > 0)
+    return f"Completed {int(percent_done)}% eta {eta} hours"
 
 
 def db_v46(db, upgradelog):
@@ -901,9 +900,7 @@ def db_v47(db, upgradelog):
     tot = len(res)
     if tot:
         upgradelog.write(f"{time.ctime()} v47: Upgrading {tot} genres\n")
-        cnt = 0
-        for book in res:
-            cnt += 1
+        for cnt, book in enumerate(res, start=1):
             db.action('DELETE from genrebooks WHERE BookID=?', (book['bookid'],))
             lazylibrarian.UPDATE_MSG = f"Updating genres {cnt} of {tot}"
             for item in get_list(book['bookgenre'], ','):
@@ -1042,9 +1039,7 @@ def db_v56(db, upgradelog):
         issues = db.select('SELECT IssueFile from issues')
         tot = len(issues)
         start_time = time.time()
-        cnt = 0
-        for issue in issues:
-            cnt += 1
+        for cnt, issue in enumerate(issues, start=1):
             lazylibrarian.UPDATE_MSG = (f"Updating issue cover for {issue['IssueFile']}: "
                                         f"{calc_eta(start_time, tot, cnt)}")
             coverfile = f"{splitext(issue['IssueFile'])[0]}.jpg"

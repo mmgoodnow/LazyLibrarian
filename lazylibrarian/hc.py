@@ -1,3 +1,4 @@
+import contextlib
 import enum
 import http.client
 import json
@@ -109,7 +110,7 @@ def hc_sync(library='', userid=None, confirmed=False, readonly=False):
             readonly: Forced readonly mode
         """
     logger = logging.getLogger(__name__)
-    if ','.join([n.name.upper() for n in [t for t in threading.enumerate()]]).count('HCSYNC') > 1:
+    if ','.join([n.name.upper() for n in list(threading.enumerate())]).count('HCSYNC') > 1:
         msg = 'Another HardCover Sync is already running'
         logger.warning(msg)
         return json.dumps({
@@ -508,10 +509,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 self.cachelogger.debug(f"Expiring {myhash}")
                 os.remove(syspath(hashfilename))
                 return False
-            else:
-                return True
-        else:
-            return False
+            return True
+        return False
 
     @staticmethod
     def read_from_cache(hashfilename: str) -> (str, bool):
@@ -724,10 +723,8 @@ query FindAuthor { authors_by_pk(id: [authorid])
                 results, in_cache = self.result_from_cache(searchcmd, refresh=refresh)
                 api_hits += not in_cache
                 cache_hits += in_cache
-                try:
+                with contextlib.suppress(IndexError, KeyError):
                     resultbooks = results['data']['books']
-                except (IndexError, KeyError):
-                    pass
 
             if not searchcmd:  # not isbn search, could be author, title, both
                 if '<ll>' in searchterm:  # special token separates title from author
@@ -1232,16 +1229,16 @@ query FindAuthor { authors_by_pk(id: [authorid])
             resultlist = []
             for book_data in results['data']['books']:
                 bookdict = self.build_bookdict(book_data)
-                if bookdict['authorname'] != authorname:
+                if (bookdict['authorname'] != authorname and 'contributions' in book_data
+                        and len(book_data['contributions'])):
                     # not our author, might be a contributor to an anthology?
                     # Check all contributions (already filtered in build_bookdict) for name match
-                    if 'contributions' in book_data and len(book_data['contributions']):
-                        for contrib in book_data['contributions']:
-                            if (fuzz.token_set_ratio(contrib['author']['name'], authorname) >=
-                                    CONFIG.get_int('NAME_RATIO')):
-                                bookdict['authorname'] = " ".join(contrib['author']['name'].split())
-                                bookdict['authorid'] = str(contrib['author']['id'])
-                                break
+                    for contrib in book_data['contributions']:
+                        if (fuzz.token_set_ratio(contrib['author']['name'], authorname) >=
+                                CONFIG.get_int('NAME_RATIO')):
+                            bookdict['authorname'] = " ".join(contrib['author']['name'].split())
+                            bookdict['authorid'] = str(contrib['author']['id'])
+                            break
 
                 bookdict['status'] = bookstatus
                 bookdict['audiostatus'] = audiostatus
@@ -1325,10 +1322,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
             db = database.DBConnection()
             try:
                 res = db.match("SELECT hc_token FROM users WHERE UserID=?", (userid,))
-                if res and res['hc_token']:
-                    if self.apikey != res['hc_token']:
-                        logger.debug(f"Incorrect token fetched. Updating token for whoami request for user: {userid}")
-                        self.apikey = res['hc_token']
+                if res and res['hc_token'] and self.apikey != res['hc_token']:
+                    logger.debug(f"Incorrect token fetched. Updating token for whoami request for user: {userid}")
+                    self.apikey = res['hc_token']
             finally:
                 db.close()
 
@@ -2149,9 +2145,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
             self.logger.warning(warnmsg)
             return 'block'  # Block auto-sync
 
-        if thread_name() == 'WEB-HCSYNC' and (deleted_count > sync_limit or update_count > sync_limit):
+        if (thread_name() == 'WEB-HCSYNC' and (deleted_count > sync_limit or update_count > sync_limit)
+                and not confirmed):
             # Manual sync with too many changes - require confirmation
-            if not confirmed:
-                return 'confirm'  # Require confirmation
+            return 'confirm'  # Require confirmation
 
         return 'proceed'  # Normal sync can proceed

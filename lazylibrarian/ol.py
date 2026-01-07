@@ -10,6 +10,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import contextlib
 import logging
 import time
 import traceback
@@ -300,9 +301,8 @@ class OpenLibrary:
         if "," in author_name:
             postfix = get_list(CONFIG.get_csv('NAME_POSTFIX'))
             words = author_name.split(',')
-            if len(words) == 2:
-                if words[0].strip().strip('.').lower in postfix:
-                    author_name = f"{words[1].strip()} {words[0].strip()}"
+            if len(words) == 2 and words[0].strip().strip('.').lower in postfix:
+                author_name = f"{words[1].strip()} {words[0].strip()}"
 
         if not author_name:
             self.logger.warning(f"Rejecting authorid {authorid}, no authorname")
@@ -667,21 +667,20 @@ class OpenLibrary:
                                 rejected.append(['publisher', bookpub])
                                 break
 
-                    if not isbn and CONFIG.get_bool('ISBN_LOOKUP'):
+                    if not isbn and CONFIG.get_bool('ISBN_LOOKUP') and title:
                         # try lookup by name
-                        if title:
-                            try:
-                                start = time.time()
-                                res = isbn_from_words(
-                                    f"{unaccented(title, only_ascii=False)} {unaccented(auth_name, only_ascii=False)}")
-                                isbn_time += (time.time() - start)
-                                isbn_count += 1
-                            except Exception as e:
-                                res = None
-                                self.logger.warning(f"Error from isbn: {e}")
-                            if res:
-                                self.logger.debug(f"isbn found {res} for {key}")
-                                isbn = res
+                        try:
+                            start = time.time()
+                            res = isbn_from_words(
+                                f"{unaccented(title, only_ascii=False)} {unaccented(auth_name, only_ascii=False)}")
+                            isbn_time += (time.time() - start)
+                            isbn_count += 1
+                        except Exception as e:
+                            res = None
+                            self.logger.warning(f"Error from isbn: {e}")
+                        if res:
+                            self.logger.debug(f"isbn found {res} for {key}")
+                            isbn = res
 
                     if not isbn and CONFIG.get_bool('NO_ISBN'):
                         rejected.append(['isbn', 'No ISBN'])
@@ -705,13 +704,11 @@ class OpenLibrary:
                         if is_set:
                             rejected.append(['set', set_msg])
 
-                    if CONFIG.get_bool('NO_FUTURE'):
-                        if publish_date > today()[:len(publish_date)]:
-                            rejected.append(['future', f'Future publication date [{publish_date}]'])
+                    if CONFIG.get_bool('NO_FUTURE') and publish_date > today()[:len(publish_date)]:
+                        rejected.append(['future', f'Future publication date [{publish_date}]'])
 
-                    if CONFIG.get_bool('NO_PUBDATE'):
-                        if not publish_date or publish_date == '0000':
-                            rejected.append(['date', 'No publication date'])
+                    if CONFIG.get_bool('NO_PUBDATE') and (not publish_date or publish_date == '0000'):
+                        rejected.append(['date', 'No publication date'])
 
                     fatal = False
                     reason = ''
@@ -792,10 +789,8 @@ class OpenLibrary:
                                 bookdate = publish_date
                                 bookrate = rating
                                 if 'Invalid language [' in reason:
-                                    try:
+                                    with contextlib.suppress(IndexError):
                                         lang = reason.split('Invalid language [')[1].split("'")[1]
-                                    except IndexError:
-                                        pass
                                 infodict = get_gb_info(isbn=isbn, author=auth_name, title=title, expire=False)
                                 if infodict:
                                     gbupdate = []
@@ -842,27 +837,25 @@ class OpenLibrary:
                                     cover_link = 'images/nocover.png'
 
                                 rejected = False
-                                if CONFIG.get_bool('NO_FUTURE'):
-                                    if publish_date > today()[:len(publish_date)]:
-                                        rejected = True
-                                        reason = f'Future publication date [{publish_date}]'
+                                if CONFIG.get_bool('NO_FUTURE') and publish_date > today()[:len(publish_date)]:
+                                    rejected = True
+                                    reason = f'Future publication date [{publish_date}]'
 
-                                if CONFIG.get_bool('NO_PUBDATE'):
-                                    if not publish_date or publish_date == '0000':
-                                        rejected = True
-                                        reason = 'No publication date'
+                                if CONFIG.get_bool('NO_PUBDATE') and (not publish_date or publish_date == '0000'):
+                                    rejected = True
+                                    reason = 'No publication date'
 
                                 if not rejected:
                                     wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
-                                    if wantedlanguages and 'All' not in wantedlanguages:
-                                        if not lang or lang not in wantedlanguages:
-                                            reason = f"Invalid language {lang}"
-                                            if 'lang' not in ignorable:
-                                                bad_lang += 1
-                                                rejected = True
-                                            else:
-                                                book_status = 'Ignored'
-                                                audio_status = 'Ignored'
+                                    if (wantedlanguages and 'All' not in wantedlanguages and
+                                            (not lang or lang not in wantedlanguages)):
+                                        reason = f"Invalid language {lang}"
+                                        if 'lang' not in ignorable:
+                                            bad_lang += 1
+                                            rejected = True
+                                        else:
+                                            book_status = 'Ignored'
+                                            audio_status = 'Ignored'
                                 if not rejected:
                                     db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, '
                                               'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, '
@@ -1117,16 +1110,16 @@ class OpenLibrary:
                                                                 added_count += 1
                                                                 if not lang:
                                                                     lang = 'Unknown'
-                                                                if wantedlanguages and 'All' not in wantedlanguages:
-                                                                    if lang not in wantedlanguages:
-                                                                        self.logger.debug(
-                                                                            f"Invalid language {lang}")
-                                                                        if 'lang' not in ignorable:
-                                                                            bad_lang += 1
-                                                                            rejected = True
-                                                                        else:
-                                                                            book_status = 'Ignored'
-                                                                            audio_status = 'Ignored'
+                                                                if (wantedlanguages and 'All' not in wantedlanguages
+                                                                        and lang not in wantedlanguages):
+                                                                    self.logger.debug(
+                                                                        f"Invalid language {lang}")
+                                                                    if 'lang' not in ignorable:
+                                                                        bad_lang += 1
+                                                                        rejected = True
+                                                                    else:
+                                                                        book_status = 'Ignored'
+                                                                        audio_status = 'Ignored'
                                                                 if not rejected:
                                                                     if 'nocover' in cover or 'nophoto' in cover:
                                                                         start = time.time()
@@ -1200,15 +1193,14 @@ class OpenLibrary:
                         rejected = False
                         if not lang:
                             lang = 'Unknown'
-                        if wantedlanguages and 'All' not in wantedlanguages:
-                            if lang not in wantedlanguages:
-                                self.logger.debug(f"Invalid language {lang} {ignorable}")
-                                if 'lang' not in ignorable:
-                                    bad_lang += 1
-                                    rejected = True
-                                else:
-                                    book_status = 'Ignored'
-                                    audio_status = 'Ignored'
+                        if wantedlanguages and 'All' not in wantedlanguages and lang not in wantedlanguages:
+                            self.logger.debug(f"Invalid language {lang} {ignorable}")
+                            if 'lang' not in ignorable:
+                                bad_lang += 1
+                                rejected = True
+                            else:
+                                book_status = 'Ignored'
+                                audio_status = 'Ignored'
                         if not rejected:
                             added_count += 1
                             if 'nocover' in cover or 'nophoto' in cover:

@@ -24,87 +24,86 @@ import time
 import traceback
 import uuid
 import zipfile
-
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
+
 from rapidfuzz import fuzz
-from typing import List, Optional, Union, Final
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.archive_utils import unpack_multipart, unpack_archive
-from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces
-from lazylibrarian.postprocess_metadata import (
-    BookType,
-    BookMetadata,
-    EbookMetadata,
-    MagazineMetadata,
-    ComicMetadata,
-    prepare_book_metadata,
-    prepare_magazine_metadata,
-    prepare_comic_metadata,
-)
-from lazylibrarian.postprocess_utils import enforce_str, enforce_bytes
-from lazylibrarian.cache import cache_img, ImageType
+from lazylibrarian.archive_utils import unpack_archive, unpack_multipart
+from lazylibrarian.bookrename import audio_rename, name_vars, stripspaces
+from lazylibrarian.cache import ImageType, cache_img
 from lazylibrarian.calibre_integration import send_to_calibre
-from lazylibrarian.common import run_script, multibook
+from lazylibrarian.common import multibook, run_script
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.download_client import (
     check_contents,
     delete_task,
-    get_download_progress,
-    get_download_name,
     get_download_folder,
+    get_download_name,
+    get_download_progress,
 )
 from lazylibrarian.filesystem import (
     DIRS,
-    path_isfile,
-    path_isdir,
-    syspath,
-    path_exists,
-    remove_file,
-    listdir,
-    setperm,
-    make_dirs,
-    safe_move,
-    safe_copy,
-    bts_file,
-    jpg_file,
     book_file,
-    get_directory,
-    walk,
+    bts_file,
     copy_tree,
+    get_directory,
+    jpg_file,
+    listdir,
+    make_dirs,
+    path_exists,
+    path_isdir,
+    path_isfile,
+    remove_file,
+    safe_copy,
+    safe_move,
+    setperm,
+    syspath,
+    walk,
 )
 from lazylibrarian.formatter import (
-    unaccented,
-    plural,
-    now,
-    today,
-    get_list,
-    make_unicode,
     check_int,
+    get_list,
     is_valid_type,
+    make_unicode,
+    now,
+    plural,
     sanitize,
     thread_name,
+    today,
+    unaccented,
 )
-from lazylibrarian.images import create_mag_cover
-from lazylibrarian.images import createthumbs
+from lazylibrarian.images import create_mag_cover, createthumbs
 from lazylibrarian.importer import update_totals
 from lazylibrarian.magazinescan import create_id
 from lazylibrarian.mailinglist import mailing_list
-from lazylibrarian.metadata_opf import create_opf, create_mag_opf, create_comic_opf
+from lazylibrarian.metadata_opf import create_comic_opf, create_mag_opf, create_opf
 from lazylibrarian.notifiers import (
-    notify_download,
     custom_notify_download,
-    notify_snatch,
     custom_notify_snatch,
+    notify_download,
+    notify_snatch,
 )
+from lazylibrarian.postprocess_metadata import (
+    BookMetadata,
+    BookType,
+    ComicMetadata,
+    EbookMetadata,
+    MagazineMetadata,
+    prepare_book_metadata,
+    prepare_comic_metadata,
+    prepare_magazine_metadata,
+)
+from lazylibrarian.postprocess_utils import enforce_bytes, enforce_str
 from lazylibrarian.preprocessor import (
-    preprocess_ebook,
     preprocess_audio,
+    preprocess_ebook,
     preprocess_magazine,
 )
-from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+from lazylibrarian.scheduling import SchedulerCommand, schedule_job
 from lazylibrarian.telemetry import TELEMETRY
 
 
@@ -154,8 +153,8 @@ class BookState:
     snatched_date: str = ""  # When snatched (for timeout calculations)
 
     # Processing state - mutable as we search for matches
-    candidate_ptr: Optional[str] = None
-    skipped_reason: Optional[str] = None
+    candidate_ptr: str | None = None
+    skipped_reason: str | None = None
 
     # Failure tracking - populated during processing
     failure_reason: str = ""
@@ -170,7 +169,7 @@ class BookState:
     # Runtime state (for unprocessed download tracking)
     aborted: bool = False
     finished: bool = False
-    progress: Union[int, str] = "Unknown"
+    progress: int | str = "Unknown"
 
     @classmethod
     def from_db_row(cls, book_row: dict, config) -> "BookState":
@@ -621,26 +620,25 @@ def _update_download_status(
             f"Download complete, continuing to seed"
         )
         return "Seeding"
-    else:
-        # Mark as Processed - download complete
-        if not dlresult:
-            dlresult = "Download complete"
-        cmd = "UPDATE wanted SET Status='Processed', DLResult=? WHERE NZBurl=? and Status='Snatched'"
-        db.action(cmd, (dlresult, book_state.download_url))
-        logger.info(
-            f"STATUS: {book_state.download_title} [{book_state.status} -> Processed] {dlresult}"
+    # Mark as Processed - download complete
+    if not dlresult:
+        dlresult = "Download complete"
+    cmd = "UPDATE wanted SET Status='Processed', DLResult=? WHERE NZBurl=? and Status='Snatched'"
+    db.action(cmd, (dlresult, book_state.download_url))
+    logger.info(
+        f"STATUS: {book_state.download_title} [{book_state.status} -> Processed] {dlresult}"
+    )
+
+    # Optionally delete from client if configured
+    if book_state.finished and CONFIG.get_bool("DEL_COMPLETED"):
+        logger.debug(
+            f"Deleting {book_state.download_title} from {book_state.source} (DEL_COMPLETED=True)"
         )
-
-        # Optionally delete from client if configured
-        if book_state.finished and CONFIG.get_bool("DEL_COMPLETED"):
-            logger.debug(
-                f"Deleting {book_state.download_title} from {book_state.source} (DEL_COMPLETED=True)"
-            )
-            delete_task(book_state.source, book_state.download_id, False)
-        return "Processed"
+        delete_task(book_state.source, book_state.download_id, False)
+    return "Processed"
 
 
-def _get_ready_from_snatched(db, snatched_list: List[dict]):
+def _get_ready_from_snatched(db, snatched_list: list[dict]):
     """
     Filter snatched books to find those ready for processing.
 
@@ -1148,7 +1146,7 @@ def _find_matching_file_in_directory(
 
 def _create_and_cache_cover(
     dest_file: str, media_type: BookType, pagenum=1
-) -> Optional[str]:
+) -> str | None:
     """
     Create and cache a cover image for comics/magazines.
 
@@ -1635,13 +1633,12 @@ def _process_matched_directory(
                 book_state.update_candidate(targetdir)
                 logger.debug(f"Isolated {cnt} file(s) to {targetdir}")
                 return True, ""  # Success - file isolated to .unpack folder
-            else:
-                # No files transferred - cleanup empty directory
-                try:
-                    os.rmdir(targetdir)
-                except OSError:
-                    contextlib.suppress(OSError)
-                return False, "Failed to isolate file to subdirectory"
+            # No files transferred - cleanup empty directory
+            try:
+                os.rmdir(targetdir)
+            except OSError:
+                contextlib.suppress(OSError)
+            return False, "Failed to isolate file to subdirectory"
 
         # File not in root - update candidate_ptr to parent directory
         # process_destination expects a directory, not a file
@@ -1758,6 +1755,8 @@ def _find_best_match_in_downloads(
         Updates book_state.candidate_ptr to best match location
     """
     matches = []
+    if not all_downloads:
+        return 0, "No downloads found"
 
     book_type = book_state.get_book_type_str()
     logger.debug(f"Fuzzy searching for {book_type} across all downloads")
@@ -1810,13 +1809,12 @@ def _find_best_match_in_downloads(
             f"for {book_state} {book_state.download_title}"
         )
         return best_match_percent, ""
-    else:
-        logger.debug(
-            f"Closest match ({round(best_match_percent, 2)}%): {best_candidate_ptr}"
-        )
-        for match in matches:
-            fuzzlogger.debug(f"Match: {round(match[0], 2)}%  {match[1]}")
-        return best_match_percent, "No match above threshold"
+    logger.debug(
+        f"Closest match ({round(best_match_percent, 2)}%): {best_candidate_ptr}"
+    )
+    for match in matches:
+        fuzzlogger.debug(f"Match: {round(match[0], 2)}%  {match[1]}")
+    return best_match_percent, "No match above threshold"
 
 
 def _process_book_post(
@@ -2137,12 +2135,11 @@ def _process_book_after_matching(
             db,
             logger,
         )
-    else:
-        # Handle failed processing
-        _handle_failed_processing(
-            book_state, book_path, metadata, dest_file, db, logger
-        )
-        return 0
+    # Handle failed processing
+    _handle_failed_processing(
+        book_state, book_path, metadata, dest_file, db, logger
+    )
+    return 0
 
 
 def _process_snatched_book(
@@ -2273,7 +2270,7 @@ def _handle_seeding_status(
         return True  # Skip to next item
 
     # Handle normal seeding completion
-    elif not keep_seeding and (book_state.finished or not wait_for_seeding):
+    if not keep_seeding and (book_state.finished or not wait_for_seeding):
         if book_state.finished:
             logger.debug(
                 f"{book_state.download_title} finished seeding at {book_state.source}"
@@ -2317,11 +2314,10 @@ def _handle_seeding_status(
                 f"Deleted {book_path} for {book_state.download_title}, {book_state.mode_type} from {book_state.source}"
             )
         return True  # Skip to next item
-    else:
-        logger.debug(
-            f"{book_state.download_title} still seeding at {book_state.source}"
-        )
-        return True  # Skip to next item
+    logger.debug(
+        f"{book_state.download_title} still seeding at {book_state.source}"
+    )
+    return True  # Skip to next item
 
 
 def _handle_snatched_timeout(
@@ -3211,59 +3207,58 @@ def process_book(book_path: str, book_id: str, logger=None, library=""):
                 else:
                     _update_downloads_provider_count("manually added")
                 return True
-            else:
+            logger.error(
+                f"Postprocessing for {global_name!r} has failed: {dest_file!r}"
+            )
+            shutil.rmtree(f"{book_path}.fail", ignore_errors=True)
+            try:
+                _ = safe_move(book_path, f"{book_path}.fail")
+                logger.warning(f"Residual files remain in {book_path}.fail")
+            except Exception as e:
                 logger.error(
-                    f"Postprocessing for {global_name!r} has failed: {dest_file!r}"
+                    f"Unable to rename {book_path!r}, {type(e).__name__} {e!s}"
                 )
-                shutil.rmtree(f"{book_path}.fail", ignore_errors=True)
+                if not os.access(syspath(book_path), os.R_OK):
+                    logger.error(f"{book_path!r} is not readable")
+                if not os.access(syspath(book_path), os.W_OK):
+                    logger.error(f"{book_path!r} is not writeable")
+                parent = os.path.dirname(book_path)
                 try:
-                    _ = safe_move(book_path, f"{book_path}.fail")
-                    logger.warning(f"Residual files remain in {book_path}.fail")
-                except Exception as e:
-                    logger.error(
-                        f"Unable to rename {book_path!r}, {type(e).__name__} {e!s}"
-                    )
-                    if not os.access(syspath(book_path), os.R_OK):
-                        logger.error(f"{book_path!r} is not readable")
-                    if not os.access(syspath(book_path), os.W_OK):
-                        logger.error(f"{book_path!r} is not writeable")
-                    parent = os.path.dirname(book_path)
-                    try:
-                        with open(
-                            syspath(os.path.join(parent, "ll_temp")),
-                            "w",
-                            encoding="utf-8",
-                        ) as f:
-                            f.write("test")
-                        remove_file(os.path.join(parent, "ll_temp"))
-                    except Exception as why:
-                        logger.error(f"Directory {parent} is not writeable: {why}")
-                    logger.warning(f"Residual files remain in {book_path}")
+                    with open(
+                        syspath(os.path.join(parent, "ll_temp")),
+                        "w",
+                        encoding="utf-8",
+                    ) as f:
+                        f.write("test")
+                    remove_file(os.path.join(parent, "ll_temp"))
+                except Exception as why:
+                    logger.error(f"Directory {parent} is not writeable: {why}")
+                logger.warning(f"Residual files remain in {book_path}")
 
-                was_snatched = dict(
-                    db.match(
-                        "SELECT NZBurl FROM wanted WHERE BookID=? and Status='Snatched'",
-                        (book_id,),
-                    )
+            was_snatched = dict(
+                db.match(
+                    "SELECT NZBurl FROM wanted WHERE BookID=? and Status='Snatched'",
+                    (book_id,),
                 )
-                if was_snatched:
-                    control_value_dict = {"NZBurl": was_snatched["NZBurl"]}
-                    new_value_dict = {
-                        "Status": "Failed",
-                        "NZBDate": now(),
-                        "DLResult": dest_file,
-                    }
-                    db.upsert("wanted", new_value_dict, control_value_dict)
-                # reset status so we try for a different version
-                if book_type_enum == BookType.AUDIOBOOK:
-                    db.action(
-                        "UPDATE books SET audiostatus='Wanted' WHERE BookID=?",
-                        (book_id,),
-                    )
-                else:
-                    db.action(
-                        "UPDATE books SET status='Wanted' WHERE BookID=?", (book_id,)
-                    )
+            )
+            if was_snatched:
+                control_value_dict = {"NZBurl": was_snatched["NZBurl"]}
+                new_value_dict = {
+                    "Status": "Failed",
+                    "NZBDate": now(),
+                    "DLResult": dest_file,
+                }
+                db.upsert("wanted", new_value_dict, control_value_dict)
+            # reset status so we try for a different version
+            if book_type_enum == BookType.AUDIOBOOK:
+                db.action(
+                    "UPDATE books SET audiostatus='Wanted' WHERE BookID=?",
+                    (book_id,),
+                )
+            else:
+                db.action(
+                    "UPDATE books SET status='Wanted' WHERE BookID=?", (book_id,)
+                )
         return False
     except Exception:
         logger.error(f"Unhandled exception in process_book: {traceback.format_exc()}")
@@ -3479,12 +3474,10 @@ def _get_dest_filename(
         # For audiobooks and comics, only rename metadata files
         if _is_metadata_file(fname):
             return os.path.join(dest_dir, global_name + os.path.splitext(fname)[1])
-        else:
-            # Keep original filename for audio/comic files
-            return os.path.join(dest_dir, fname)
-    else:
-        # For ebooks and magazines, rename all files
-        return os.path.join(dest_dir, global_name + os.path.splitext(fname)[1])
+        # Keep original filename for audio/comic files
+        return os.path.join(dest_dir, fname)
+    # For ebooks and magazines, rename all files
+    return os.path.join(dest_dir, global_name + os.path.splitext(fname)[1])
 
 
 def _find_preferred_book_file(
@@ -3526,7 +3519,7 @@ def _find_preferred_book_file(
                 return preferred_type
         return ""
 
-    elif book_type == BookType.AUDIOBOOK.value:
+    if book_type == BookType.AUDIOBOOK.value:
         firstfile = ""
         tokmatch = ""
 

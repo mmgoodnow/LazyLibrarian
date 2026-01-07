@@ -12,11 +12,10 @@ import shutil
 import sys
 import traceback
 from datetime import datetime
-from typing import Optional
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, get_list
+from lazylibrarian.formatter import get_list, make_bytestr, make_unicode, replace_all, unaccented
 from lazylibrarian.processcontrol import get_info_on_caller
 
 
@@ -80,8 +79,7 @@ class DirectoryHolder:
             self.logger.error(msg)
             self.logger.warning(f'Falling back to {self.DATADIR} for {subdir}')
             return self.DATADIR
-        else:
-            return dirname
+        return dirname
 
     def ensure_cache_dir(self):
         """ Make sure the CACHEDIR is not empty """
@@ -112,7 +110,7 @@ class DirectoryHolder:
         """ Return the full name of filename in the LOG directory """
         return os.path.join(self.config['LOGDIR'], filename)
 
-    def get_tmpfilename(self, base: Optional[str] = None) -> str:
+    def get_tmpfilename(self, base: str | None = None) -> str:
         """ Get a file named base in the tmp directory.
         If base is not specified, return a unique filename """
         if not base:
@@ -137,10 +135,10 @@ class DirectoryHolder:
         return os.path.join(self.PROG_DIR, 'testdata', filename)
 
 
-""" Global access to directories """
+# Global access to directories
 DIRS = DirectoryHolder()
 
-""" Global to suppress repeat warnings """
+# Global to suppress repeat warnings
 _OPFWARN = ''
 
 
@@ -169,7 +167,7 @@ def splitext(name: str) -> tuple[str, str]:
     return base, extn
 
 
-WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
+WINDOWS_MAGIC_PREFIX = '\\\\?\\'
 
 
 def syspath(path: [str, bytes], prefix: bool = True) -> str:
@@ -207,14 +205,14 @@ def syspath(path: [str, bytes], prefix: bool = True) -> str:
         path = path.replace('/', '\\')
         # logger.debug("cache path changed [%s] to [%s]" % (opath, path))
 
-    if not path.startswith('.'):  # Don't affect relative paths
+    if not path.startswith('.') and prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
+        # Don't affect relative paths
         # Add the magic prefix if it isn't already there.
         # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
-        if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
-            if path.startswith(u'\\\\'):
-                # UNC path. Final path should look like \\?\UNC\...
-                path = f"UNC{path[1:]}"
-            path = WINDOWS_MAGIC_PREFIX + path
+        if path.startswith('\\\\'):
+            # UNC path. Final path should look like \\?\UNC\...
+            path = f"UNC{path[1:]}"
+        path = WINDOWS_MAGIC_PREFIX + path
 
     return path
 
@@ -291,7 +289,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
             names = [make_unicode(name) for name in names]
         else:
             names = os.listdir(top)
-    except (os.error, TypeError) as err:  # Windows can return TypeError if path is too long
+    except (OSError, TypeError) as err:  # Windows can return TypeError if path is too long
         if onerror is not None:
             onerror(err)
         return
@@ -311,8 +309,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
     for name in dirs:
         new_path = join(top, name)
         if followlinks or not islink(new_path):
-            for x in walk(new_path, topdown, onerror, followlinks):
-                yield x
+            yield from walk(new_path, topdown, onerror, followlinks)
     if not topdown:
         yield top, dirs, nondirs
 
@@ -353,12 +350,10 @@ def setperm(file_or_dir) -> bool:
     if new_perm == want_perm:
         DIRS.permlogger.debug(f"Set permission {want_perm} for {file_or_dir}, was {old_perm}")
         return True
-    else:
-        if os.name == 'nt':
-            logger.debug(f"Windows can't set permission {want_perm} for {file_or_dir}; this is expected")
-            return True
-        else:
-            logger.debug(f"Failed to set permission {want_perm} for {file_or_dir}, got {new_perm}")
+    if os.name == 'nt':
+        logger.debug(f"Windows can't set permission {want_perm} for {file_or_dir}; this is expected")
+        return True
+    logger.debug(f"Failed to set permission {want_perm} for {file_or_dir}, got {new_perm}")
     return False
 
 
@@ -394,8 +389,7 @@ def make_dirs(dest_path, new=False) -> bool:
         if parent == dest_path:
             to_make.pop(0)
             break
-        else:
-            dest_path = parent
+        dest_path = parent
 
     for entry in to_make:
         DIRS.permlogger.debug(f"mkdir: [{repr(entry)}]")
@@ -449,7 +443,7 @@ def safe_move(src, dst, action='move'):
             else:
                 raise
 
-        except (IOError, OSError) as err:  # both needed for different python versions
+        except OSError as err:  # both needed for different python versions
             if err.errno == 22:  # bad mode or filename
                 drive, path = os.path.splitdrive(dst)
                 logger.debug(f"drive=[{drive}] path=[{path}]")
@@ -509,7 +503,7 @@ def opf_file(search_dir: str) -> str:
             logger = logging.getLogger(__name__)
             program, method, lineno = get_info_on_caller(depth=1)
             warn = f"{program}:{method}:{lineno} Found {cnt} conflicting opf in {search_dir}"
-            if _OPFWARN != warn:
+            if warn != _OPFWARN:
                 logger.debug(warn)
                 _OPFWARN = warn
         elif res:  # prefer bookname.opf over metadata.opf
@@ -533,9 +527,8 @@ def csv_file(search_dir: str, library: str) -> str:
     if search_dir and path_isdir(search_dir):
         try:
             for fname in listdir(search_dir):
-                if fname.endswith('.csv'):
-                    if not library or library.lower() in fname.lower():
-                        return os.path.join(search_dir, fname)
+                if fname.endswith('.csv') and (not library or library.lower() in fname.lower()):
+                    return os.path.join(search_dir, fname)
         except Exception as err:
             logger = logging.getLogger(__name__)
             logger.warning(f'Listdir error [{search_dir}]: {type(err).__name__} {str(err)}')
@@ -596,11 +589,10 @@ def get_directory(dirname):
         return usedir
     # ./ and .\ denotes relative to program path, useful for testing
     logger = logging.getLogger(__name__)
-    if usedir and len(usedir) >= 2 and usedir[0] == ".":
-        if usedir[1] == "/" or usedir[1] == "\\":
-            usedir = f"{DIRS.PROG_DIR}/{usedir[2:]}"
-            if os.path.__name__ == 'ntpath':
-                usedir = usedir.replace('/', '\\')
+    if usedir and len(usedir) >= 2 and usedir[0] == "." and (usedir[1] == "/" or usedir[1] == "\\"):
+        usedir = f"{DIRS.PROG_DIR}/{usedir[2:]}"
+        if os.path.__name__ == 'ntpath':
+            usedir = usedir.replace('/', '\\')
     if usedir and not path_isdir(usedir):
         try:
             os.makedirs(syspath(usedir))
@@ -633,7 +625,7 @@ def copy_tree(src_dir, dest_dir):
     failed = 0
     err = []
     logger = logging.getLogger(__name__)
-    for rootdir, dirnames, filenames in walk(src_dir):
+    for rootdir, _dirnames, filenames in walk(src_dir):
         for f in filenames:
             src = os.path.join(rootdir, f)
             dst = src.replace(src_dir, dest_dir, 1)

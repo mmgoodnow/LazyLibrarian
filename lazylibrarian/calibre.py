@@ -52,10 +52,9 @@ def calibre_list(col_read, col_toread):
         if res:
             return res
         return err
-    else:
-        logger = logging.getLogger(__name__)
-        logger.debug(f"{res}")
-        return json.loads(res)
+    logger = logging.getLogger(__name__)
+    logger.debug(f"{res}")
+    return json.loads(res)
 
 
 def sync_calibre_list(col_read=None, col_toread=None, userid=None):
@@ -488,8 +487,7 @@ def calibredb(cmd=None, prelib=None, postlib=None):
 
     if rc:
         return res, err, rc
-    else:
-        return res, dest_url, 0
+    return res, dest_url, 0
 
 
 def delete_from_calibre(calibre_id):
@@ -498,9 +496,8 @@ def delete_from_calibre(calibre_id):
         res, err, rc = calibredb('remove', [calibre_id])
         logger.debug(f"Delete result: {res} [{err}] {rc}")
         return rc == 0
-    else:
-        logger.debug("Missing calibre ID")
-        return False
+    logger.debug("Missing calibre ID")
+    return False
 
 
 def get_calibre_id(data, try_filename=True):

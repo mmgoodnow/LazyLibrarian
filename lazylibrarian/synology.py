@@ -14,12 +14,12 @@
 import json
 import logging
 import re
+from urllib.parse import urlencode
 
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import check_int, make_unicode
 from lazylibrarian.telemetry import TELEMETRY
-from urllib.parse import urlencode
 
 
 def _get_json(url, params):
@@ -118,12 +118,10 @@ def _login(hosturl):
             errnum = result['error']['code']
             logger.debug(f"Synology v{params['version']} Login Error: {_error_msg(errnum, 'login')}")
             return "", "", ""
-        else:
-            TELEMETRY.record_usage_data(f"Synology/Login/v{params['version']}")
-            return hosturl + auth_cgi, hosturl + task_cgi, result['data']['sid']
-    else:
-        logger.debug(f"Synology v{params['version']} Failed to login: {repr(result)}")
-        return "", "", ""
+        TELEMETRY.record_usage_data(f"Synology/Login/v{params['version']}")
+        return hosturl + auth_cgi, hosturl + task_cgi, result['data']['sid']
+    logger.debug(f"Synology v{params['version']} Failed to login: {repr(result)}")
+    return "", "", ""
 
 
 def _logout(auth_cgi, sid):
@@ -418,10 +416,7 @@ def get_progress(download_id):
             result = _get_info(task_cgi, sid, download_id)  # type: dict
             _logout(auth_cgi, sid)
             if result:
-                if 'status' in result:
-                    status = result['status']
-                else:
-                    status = ''
+                status = result.get("status", "")
                 # can't see how to get a % from synology, so have to work it out ourselves...
                 if 'additional' in result:
                     try:

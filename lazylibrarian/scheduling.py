@@ -21,17 +21,16 @@ import threading
 import time
 import traceback
 from enum import Enum
-from typing import Optional
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers import SchedulerNotRunningError
+from apscheduler.schedulers.background import BackgroundScheduler
 
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookwork import add_series_members
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configtypes import ConfigScheduler
-from lazylibrarian.formatter import plural, check_int
+from lazylibrarian.formatter import check_int, plural
 from lazylibrarian.importer import add_author_to_db
 
 # Notification Types
@@ -39,7 +38,9 @@ NOTIFY_SNATCH = 1
 NOTIFY_DOWNLOAD = 2
 NOTIFY_FAIL = 3
 
-notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to Library", NOTIFY_FAIL: "Download failed"}
+notify_strings = {NOTIFY_SNATCH: "Started Download",
+                  NOTIFY_DOWNLOAD: "Added to Library",
+                  NOTIFY_FAIL: "Download failed"}
 
 # Scheduler
 SCHED: BackgroundScheduler
@@ -77,7 +78,7 @@ def shutdownscheduler():
         pass
 
 
-def next_run_time(when_run: str, test_now: Optional[datetime.datetime] = None):
+def next_run_time(when_run: str, test_now: datetime.datetime | None = None):
     """
     Returns a readable approximation of how long until a job will be run,
     given a string representing the last time it was run
@@ -88,7 +89,7 @@ def next_run_time(when_run: str, test_now: Optional[datetime.datetime] = None):
         # and now() doesn't include timezone, so assume both times are local timezone
         when_run = ' '.join(when_run.split()[:2])
         when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S')
-        timenow = datetime.datetime.now() if not test_now else test_now
+        timenow = test_now if test_now else datetime.datetime.now()
         td = when_run - timenow
         diff = td.total_seconds()  # time difference in seconds
     except ValueError as e:
@@ -99,21 +100,20 @@ def next_run_time(when_run: str, test_now: Optional[datetime.datetime] = None):
     td = str(td)
     if 'days,' in td:  # > 1 day, just return days
         return f"{td.split('s,')[0]}s"
-    elif 'day,' in td and "0:00:00" not in td:  # 1 day and change, or 1 day?
+    if 'day,' in td and "0:00:00" not in td:  # 1 day and change, or 1 day?
         diff += 86400
 
     days, hours, minutes, seconds = get_whole_timediff_from_seconds(diff)
 
     if days > 1:
         return f"{days} days"
-    elif hours > 1:
+    if hours > 1:
         return f"{hours} hours"
-    elif minutes > 1:
+    if minutes > 1:
         return f"{minutes} minutes"
-    elif seconds == 1:
+    if seconds == 1:
         return "1 second"
-    else:
-        return f"{seconds} seconds"
+    return f"{seconds} seconds"
 
 
 def get_whole_timediff_from_seconds(diff):
@@ -385,7 +385,7 @@ def all_author_update(refresh=False):
 
 def restart_jobs(command=SchedulerCommand.RESTART):
     lazylibrarian.STOPTHREADS = command == SchedulerCommand.STOP
-    for name, scheduler in CONFIG.get_schedulers():
+    for _name, scheduler in CONFIG.get_schedulers():
         schedule_job(command, scheduler.get_schedule_name())
 
 
@@ -503,14 +503,13 @@ def ago(when):
 
     if days > 1:
         return f"{days} days ago"
-    elif hours > 1:
+    if hours > 1:
         return f"{hours} hours ago"
-    elif minutes > 1:
+    if minutes > 1:
         return f"{minutes} minutes ago"
-    elif seconds > 1:
+    if seconds > 1:
         return f"{seconds} seconds ago"
-    else:
-        return "just now"
+    return "just now"
 
 
 def show_jobs(json=False):
@@ -521,7 +520,7 @@ def show_jobs(json=False):
         job = str(job)
         jobname = ''
         threadname = ''
-        for key, scheduler in CONFIG.get_schedulers():
+        for _key, scheduler in CONFIG.get_schedulers():
             method_name = scheduler.method_name.split('.')[-1]
             if method_name in job:
                 jobname = scheduler.friendly_name
@@ -742,8 +741,8 @@ def show_stats(json=False):
             header = ''
             data = ''
             for item in stats:
-                header += "%8s" % item[0]
-                data += "%8i" % item[1]
+                header += f"{item[0]:<8s}"
+                data += f"{item[1]:<8d}"
             result.append('')
             result.append(header)
             result.append(data)

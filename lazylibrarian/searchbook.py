@@ -20,25 +20,28 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import plural, check_int, thread_name
-from lazylibrarian.providers import iterate_over_znab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
-    iterate_over_direct_sites, iterate_over_irc_sites
-from lazylibrarian.resultlist import find_best_result, download_result
+from lazylibrarian.formatter import check_int, plural, thread_name
+from lazylibrarian.providers import (
+    iterate_over_direct_sites,
+    iterate_over_irc_sites,
+    iterate_over_rss_sites,
+    iterate_over_torrent_sites,
+    iterate_over_znab_sites,
+)
+from lazylibrarian.resultlist import download_result, find_best_result
 from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_book():
     logger = logging.getLogger(__name__)
-    if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
+    if 'SEARCHALLBOOKS' not in [n.name for n in list(threading.enumerate())]:
         search_book()
     else:
         logger.debug("SEARCHALLBOOKS is already running")
 
 
 def good_enough(match):
-    if match and int(match[0]) >= CONFIG.get_int('MATCH_RATIO'):
-        return True
-    return False
+    return bool(match and int(match[0]) >= CONFIG.get_int('MATCH_RATIO'))
 
 
 def warn_mode(mode):

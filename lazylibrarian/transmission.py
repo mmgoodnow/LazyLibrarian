@@ -11,12 +11,13 @@
 #  along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import requests
 import time
-
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.common import proxy_list
 from urllib.parse import urlparse, urlunparse
+
+import requests
+
+from lazylibrarian.common import proxy_list
+from lazylibrarian.config2 import CONFIG
 
 # This is just a simple script to send torrents to transmission. The
 # intention is to turn this into a class where we can check the state
@@ -216,18 +217,14 @@ def set_seed_ratio(torrentid, ratio):
         arguments = {'seedRatioMode': 2, 'ids': [torrentid]}
 
     response, _ = torrent_action(method, arguments)  # type: dict
-    if not response:
-        return False
-    return True
+    return bool(response)
 
 
 def set_label(torrentid, label):
     method = 'torrent-set'
     arguments = {'labels': [label], 'ids': [torrentid]}
     response, _ = torrent_action(method, arguments)  # type: dict
-    if not response:
-        return False
-    return True
+    return bool(response)
 
 # Pre RPC v14 status codes
 #   {
@@ -281,8 +278,7 @@ def remove_torrent(torrentid, remove_data=False):
                 arguments = {'ids': [torrentid]}
             _, _ = torrent_action(method, arguments)
             return True
-        else:
-            logger.debug(f'{name} has not finished seeding, torrent will not be removed')
+        logger.debug(f'{name} has not finished seeding, torrent will not be removed')
     except IndexError:
         # no torrents, already removed?
         return True
@@ -385,7 +381,7 @@ def torrent_action(method, arguments):
                 res = "Transmission authorization required"
             logger.error(res)
             return False, res
-        elif response.status_code == 409:
+        if response.status_code == 409:
             session_id = response.headers['x-transmission-session-id']
 
         if not session_id:

@@ -24,11 +24,34 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.bookrename import stripspaces
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
-    safe_move, get_directory, remove_dir, book_file, splitext
-from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year, sanitize, \
-    replacevars, month2num, two_months, check_int
-from lazylibrarian.images import create_mag_cover, write_pdf_tags, read_pdf_tags
+from lazylibrarian.filesystem import (
+    DIRS,
+    book_file,
+    get_directory,
+    make_dirs,
+    path_exists,
+    path_isdir,
+    path_isfile,
+    remove_dir,
+    safe_move,
+    setperm,
+    splitext,
+    syspath,
+    walk,
+)
+from lazylibrarian.formatter import (
+    check_int,
+    check_year,
+    get_list,
+    make_bytestr,
+    month2num,
+    plural,
+    replace_all,
+    replacevars,
+    sanitize,
+    two_months,
+)
+from lazylibrarian.images import create_mag_cover, read_pdf_tags, write_pdf_tags
 from lazylibrarian.librarysync import get_book_info
 
 
@@ -338,16 +361,16 @@ def magazine_scan(title=None):
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         try:
                             with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
-                                f.write(u"magazine")
-                        except IOError as e:
+                                f.write("magazine")
+                        except OSError as e:
                             logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
                         if not CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')
                         else:
                             lazylibrarian.metadata_opf.create_mag_opf(issuefile, title, issuedate,
-                                                                     issue_id, language=maglanguage,
-                                                                     overwrite=new_entry)
+                                                                      issue_id, language=maglanguage,
+                                                                      overwrite=new_entry)
                         # see if this issues date values are useful
                         control_value_dict = {"Title": title}
                         if not mag_entry:  # new magazine, this is the only issue
@@ -439,22 +462,18 @@ def format_issue_filename(base, mag_title, dateparts):
         valid_format = False
         if '$IssueDate' in base:
             valid_format = True
-        if '$IssueYear' in base and '$IssueNum' in base:
-            if mydict['IssueYear'] and mydict['IssueNum']:
-                valid_format = True
-                if mydict['IssueDay'] and mydict['IssueDay'] != '01' and '$IssueDay' not in base:
-                    valid_format = False
-        if '$Title' in base and '$IssueNum' in base:
-            if mydict['Title'] and mydict['IssueNum']:
-                valid_format = True
-        if '$IssueVol' in base and '$IssueNum' in base:
-            if mydict['IssueVol'] and mydict['IssueNum']:
-                valid_format = True
-        if '$IssueYear' in base and '$IssueMonth' in base:
-            if mydict['IssueYear'] and mydict['IssueMonth']:
-                valid_format = True
-                if mydict['IssueDay'] and mydict['IssueDay'] != '01' and '$IssueDay' not in base:
-                    valid_format = False
+        if '$IssueYear' in base and '$IssueNum' in base and mydict['IssueYear'] and mydict['IssueNum']:
+            valid_format = True
+            if mydict['IssueDay'] and mydict['IssueDay'] != '01' and '$IssueDay' not in base:
+                valid_format = False
+        if '$Title' in base and '$IssueNum' in base and mydict['Title'] and mydict['IssueNum']:
+            valid_format = True
+        if '$IssueVol' in base and '$IssueNum' in base and mydict['IssueVol'] and mydict['IssueNum']:
+            valid_format = True
+        if '$IssueYear' in base and '$IssueMonth' in base and mydict['IssueYear'] and mydict['IssueMonth']:
+            valid_format = True
+            if mydict['IssueDay'] and mydict['IssueDay'] != '01' and '$IssueDay' not in base:
+                valid_format = False
 
     if valid_format:
         issue_name = replacevars(base, mydict)
@@ -523,11 +542,10 @@ def get_dateparts(title_or_issue, datetype=''):
                 inoun = words[pos]
                 pos += 1
                 issue = check_int(words[pos], 0)
-        elif words[pos].lower().strip('.') in volumenouns:
-            if pos + 1 < len(words):
-                vnoun = words[pos]
-                pos += 1
-                volume = check_int(words[pos], 0)
+        elif words[pos].lower().strip('.') in volumenouns and pos + 1 < len(words):
+            vnoun = words[pos]
+            pos += 1
+            volume = check_int(words[pos], 0)
         pos += 1
 
     months = sorted(set(months))
@@ -625,36 +643,33 @@ def get_dateparts(title_or_issue, datetype=''):
                             dateparts['inoun'] = words[pos - 3]
                             dateparts['style'] = 10
                             break
-                        elif pos > 2 and words[pos - 3].lower().strip('.') in volumenouns:
+                        if pos > 2 and words[pos - 3].lower().strip('.') in volumenouns:
                             dateparts['volume'] = day
                             dateparts['vnoun'] = words[pos - 3]
                             dateparts['style'] = 10
                             break
-                        elif day > 31:  # probably issue/volume number nn
+                        if day > 31:  # probably issue/volume number nn
                             if 'I' in datetype:
                                 dateparts['issue'] = day
                                 dateparts['style'] = 10
                                 break
-                            elif 'V' in datetype:
+                            if 'V' in datetype:
                                 dateparts['volume'] = day
                                 dateparts['style'] = 10
                                 break
-                            else:
-                                dateparts['issue'] = day
-                                dateparts['style'] = 2
-                                break
-                        elif day:
+                            dateparts['issue'] = day
+                            dateparts['style'] = 2
+                            break
+                        if day:
                             dateparts['style'] = 3
                             dateparts['day'] = day
                             break
-                        else:
-                            dateparts['style'] = 4
-                            dateparts['day'] = 1
-                            break
-                    else:
                         dateparts['style'] = 4
                         dateparts['day'] = 1
                         break
+                    dateparts['style'] = 4
+                    dateparts['day'] = 1
+                    break
             pos += 1
 
         # MonthName DD YYYY or MonthName DD, YYYY
@@ -781,7 +796,7 @@ def get_dateparts(title_or_issue, datetype=''):
                             dateparts['issue'] = int(words[pos - 1])
                             dateparts['style'] = 12
                         break
-                    elif pos + 1 < len(words) and words[pos + 1].isdigit():
+                    if pos + 1 < len(words) and words[pos + 1].isdigit():
                         dateparts['issue'] = int(words[pos + 1])
                         dateparts['style'] = 12
                         break
@@ -883,20 +898,19 @@ def rename_issue(issueid, tags=None):
         return match['IssueFile'], ''
 
     # create dest folder if required
-    if old_folder != new_folder:
-        if not path_isdir(new_folder):
-            if not make_dirs(new_folder):
-                msg = f"Unable to create target folder {new_folder}"
-                logger.error(msg)
-                db.close()
-                return '', msg
+    if old_folder != new_folder and not path_isdir(new_folder):
+        if not make_dirs(new_folder):
+            msg = f"Unable to create target folder {new_folder}"
+            logger.error(msg)
+            db.close()
+            return '', msg
 
-            ignorefile = os.path.join(new_folder, '.ll_ignore')
-            try:
-                with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
-                    f.write(u"magazine")
-            except IOError as e:
-                logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
+        ignorefile = os.path.join(new_folder, '.ll_ignore')
+        try:
+            with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
+                f.write("magazine")
+        except OSError as e:
+            logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
     # rename opf, jpg, then issue
     for extension in ['.jpg', '.opf', extn]:
@@ -927,8 +941,8 @@ def rename_issue(issueid, tags=None):
         logger.debug(f"Writing opf for {new_filename}")
         entry = db.match('SELECT Language FROM magazines where Title=?', (match['Title'],))
         _, _ = lazylibrarian.metadata_opf.create_mag_opf(new_filename, match['Title'],
-                                                        match['IssueDate'], issueid, language=entry[0],
-                                                        overwrite=True)
+                                                         match['IssueDate'], issueid, language=entry[0],
+                                                         overwrite=True)
     db.close()
     return new_filename, ''
 

@@ -11,19 +11,39 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import os
 import re
 import shutil
-import logging
 import traceback
+
 from rapidfuzz import fuzz
-from lazylibrarian.config2 import CONFIG
+
 from lazylibrarian import database
 from lazylibrarian.common import multibook, only_punctuation
-from lazylibrarian.filesystem import syspath, remove_file, listdir, safe_move, opf_file, get_directory, copy_tree, \
-    path_isdir, path_isfile, splitext
-from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, \
-    sanitize, replacevars
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import (
+    copy_tree,
+    get_directory,
+    listdir,
+    opf_file,
+    path_isdir,
+    path_isfile,
+    remove_file,
+    safe_move,
+    splitext,
+    syspath,
+)
+from lazylibrarian.formatter import (
+    check_int,
+    get_list,
+    make_unicode,
+    plural,
+    replacevars,
+    sanitize,
+    sort_definite,
+    surname_first,
+)
 from lazylibrarian.opfedit import opf_read
 
 try:
@@ -146,7 +166,7 @@ def id3read(filename):
             logger.debug(str(e))
 
         db.close()
-        if author and type(author) is list:
+        if author and isinstance(author, list):
             lst = ', '.join(author)
             logger.debug(f"id3reader author list [{lst}]")
             author = author[0]  # if multiple authors, just use the first one
@@ -195,13 +215,11 @@ def audio_parts(folder, bookname, authorname):
                 prt = entry[-1]
                 partlist.append([chap, prt, f])
                 parts.append(prt)
-                if not abridged:
+                if not abridged and 'unabr' in f.lower():
                     # unabridged is sometimes shortened to unabr.
-                    if 'unabr' in f.lower():
-                        abridged = 'Unabridged'
-                if not abridged:
-                    if 'abridged' in f.lower():
-                        abridged = 'Abridged'
+                    abridged = 'Unabridged'
+                if not abridged and 'abridged' in f.lower():
+                    abridged = 'Abridged'
 
     parts = list(set(parts))
     if len(parts) > 1:
@@ -246,14 +264,12 @@ def audio_parts(folder, bookname, authorname):
                         if not book:
                             book = id3r['title']
 
-                        if author and book:
+                        if author and book and track != 0 and not (track == 1 and total == 1):
                             # ignore part0 and part1of1
-                            if track != 0 and not (track == 1 and total == 1):
-                                parts.append([track, book, author, f])
+                            parts.append([track, book, author, f])
 
                     except Exception as e:
                         logger.error(f"id3tag {type(e).__name__} {str(e)}")
-                        pass
         logger.debug(f"ID3read found {len(parts)}")
         total_parts = cnt
 
@@ -262,7 +278,7 @@ def audio_parts(folder, bookname, authorname):
         chapters = []
         for part in partlist:
             chapters.append(int(part[0]))
-        chapters = sorted(list(set(chapters)))
+        chapters = sorted(set(chapters))
         num_chapters = len(chapters)
         cnt = 1
         while cnt <= num_chapters:
@@ -335,41 +351,40 @@ def audio_parts(folder, bookname, authorname):
             logger.debug("No usable track info from id3")
             if len(parts) == 1:
                 return parts, failed, '', abridged
-            else:
-                # try to extract part information from filename. Search for token style of part 1 in this order...
-                for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
-                    if tokmatch:
+            # try to extract part information from filename. Search for token style of part 1 in this order...
+            for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
+                if tokmatch:
+                    break
+                for part in parts:
+                    if token in part[3]:
+                        logger.debug(f"Using token '{token}' from {part[3]}")
+                        tokmatch = token
                         break
+            if tokmatch:  # we know the numbering style, get numbers for the other parts
+                cnt = 0
+                while cnt < len(parts):
+                    cnt += 1
+                    if tokmatch == ' 001.':
+                        pattern = f' {str(cnt).zfill(3)}.'
+                    elif tokmatch == ' 01.':
+                        pattern = f' {str(cnt).zfill(2)}.'
+                    elif tokmatch == ' 1.':
+                        pattern = f' {str(cnt)}.'
+                    elif tokmatch == ' 001 ':
+                        pattern = f' {str(cnt).zfill(3)} '
+                    elif tokmatch == ' 01 ':
+                        pattern = f' {str(cnt).zfill(2)} '
+                    elif tokmatch == ' 1 ':
+                        pattern = f' {str(cnt)} '
+                    elif tokmatch == '001':
+                        pattern = f'{str(cnt).zfill(3)}'
+                    else:
+                        pattern = f'{str(cnt).zfill(2)}'
+                    # standardise numbering of the parts
                     for part in parts:
-                        if token in part[3]:
-                            logger.debug(f"Using token '{token}' from {part[3]}")
-                            tokmatch = token
+                        if pattern in part[3]:
+                            part[0] = cnt
                             break
-                if tokmatch:  # we know the numbering style, get numbers for the other parts
-                    cnt = 0
-                    while cnt < len(parts):
-                        cnt += 1
-                        if tokmatch == ' 001.':
-                            pattern = f' {str(cnt).zfill(3)}.'
-                        elif tokmatch == ' 01.':
-                            pattern = f' {str(cnt).zfill(2)}.'
-                        elif tokmatch == ' 1.':
-                            pattern = f' {str(cnt)}.'
-                        elif tokmatch == ' 001 ':
-                            pattern = f' {str(cnt).zfill(3)} '
-                        elif tokmatch == ' 01 ':
-                            pattern = f' {str(cnt).zfill(2)} '
-                        elif tokmatch == ' 1 ':
-                            pattern = f' {str(cnt)} '
-                        elif tokmatch == '001':
-                            pattern = f'{str(cnt).zfill(3)}'
-                        else:
-                            pattern = f'{str(cnt).zfill(2)}'
-                        # standardise numbering of the parts
-                        for part in parts:
-                            if pattern in part[3]:
-                                part[0] = cnt
-                                break
 
     except Exception as e:
         logger.error(str(e))
@@ -467,8 +482,7 @@ def audio_rename(bookid, rename=False, playlist=False, overwrite=False):
                     logger.error(f"Failed to copy {failed} files to {dest_path}")
                     logger.debug(f"{err}")
                     return ''
-                else:
-                    shutil.rmtree(old_path)
+                shutil.rmtree(old_path)
             else:
                 if path_isdir(dest_path) and not overwrite:
                     logger.debug(f"Not moving folder {old_path} as {dest_path} exists")
@@ -654,9 +668,9 @@ def book_rename(bookid, overwrite=False):
         extn = ''
         if CONFIG.is_valid_booktype(fname, booktype='ebook'):
             extn = splitext(fname)[1]
-        elif fname.endswith('.opf') and not fname == 'metadata.opf':
+        elif fname.endswith('.opf') and fname != 'metadata.opf':
             extn = '.opf'
-        elif fname.endswith('.jpg') and not fname == 'cover.jpg':
+        elif fname.endswith('.jpg') and fname != 'cover.jpg':
             extn = '.jpg'
         if extn:
             ofname = os.path.join(old_path, fname)
@@ -799,7 +813,6 @@ def name_vars(bookid, abridged=''):
                 break
             except ValueError:
                 seriesnum = ''
-                pass
 
         padnum = ''
         if res and seriesnum == '':
@@ -820,10 +833,9 @@ def name_vars(bookid, abridged=''):
             res = db.match(cmd, (seriesid,))
             if res:
                 seriesname = res['SeriesName']
-                if seriesnum == '':
+                if seriesnum == '' and seriesname and serieslist:
                     # add what we got back to end of series name
-                    if seriesname and serieslist:
-                        seriesname = f"{seriesname} {serieslist}"
+                    seriesname = f"{seriesname} {serieslist}"
 
         seriesname = ' '.join(seriesname.split())  # strip extra spaces
         if only_punctuation(seriesname):  # but don't return just whitespace or punctuation
@@ -910,4 +922,3 @@ def name_vars(bookid, abridged=''):
     if bookid != 'test':
         matchinglogger.debug(str(mydict))
     return mydict
-

@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, remove_file, splitext
-from lazylibrarian.formatter import md5_utf8, plural, check_int, get_list
+from lazylibrarian.formatter import check_int, get_list, md5_utf8, plural
 
 try:
     import slskd_api
@@ -92,7 +92,7 @@ def slsk_search(book=None, searchtype='ebook', test=False):
             return 0
         return [], "Not connected to slskd"
 
-    with open(hashfilename, 'r') as f:
+    with open(hashfilename) as f:
         searchresults = json.load(f)
 
     logger.debug(f"{provider} returned {len(searchresults)}")

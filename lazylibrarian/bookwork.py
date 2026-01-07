@@ -16,7 +16,7 @@ import re
 import threading
 import time
 import traceback
-from urllib.parse import quote_plus, quote, urlencode
+from urllib.parse import quote, quote_plus, urlencode
 
 from rapidfuzz import fuzz
 
@@ -24,9 +24,19 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import plural, clean_name, format_author_name, \
-    check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, \
-    split_title
+from lazylibrarian.formatter import (
+    check_int,
+    check_year,
+    clean_name,
+    format_author_name,
+    get_list,
+    make_utf8bytes,
+    plural,
+    replace_all,
+    split_title,
+    thread_name,
+    unaccented,
+)
 
 
 def set_all_book_authors():
@@ -154,9 +164,9 @@ def set_series(serieslist=None, bookid=None, reason=""):
             db.action('DELETE from member WHERE BookID=?', (bookid,))
             for item in serieslist:
                 item = list(item)  # change tuple to list so we can modify it
-                if not item[0] and item[2]:
-                    if item[2][0].isdigit and ')' in item[2]:  # incorrect split
-                        item[2] = item[2].rsplit(')', 1)[1].strip().strip('-').strip()
+                if not item[0] and item[2] and item[2][0].isdigit and ')' in item[2]:
+                    # incorrect split
+                    item[2] = item[2].rsplit(')', 1)[1].strip().strip('-').strip()
                 if item[0]:
                     cmd = 'SELECT SeriesID,SeriesName,Status from series where SeriesID=?'
                     key = 0
@@ -204,15 +214,14 @@ def set_series(serieslist=None, bookid=None, reason=""):
 
                     if workid:
                         for member in members:
-                            if member[3] == workid:
-                                if check_year(member[5], past=1800, future=0):
-                                    bookdate = member[5]
-                                    if check_int(member[6], 0) and check_int(member[7], 0):
-                                        bookdate = f"{member[5]}-{member[6]}-{member[7]}"
-                                    control_value_dict = {"BookID": bookid}
-                                    new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
-                                    db.upsert("books", new_value_dict, control_value_dict)
-                                    originalpubdate = bookdate
+                            if member[3] == workid and check_year(member[5], past=1800, future=0):
+                                bookdate = member[5]
+                                if check_int(member[6], 0) and check_int(member[7], 0):
+                                    bookdate = f"{member[5]}-{member[6]}-{member[7]}"
+                                control_value_dict = {"BookID": bookid}
+                                new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
+                                db.upsert("books", new_value_dict, control_value_dict)
+                                originalpubdate = bookdate
 
                     db.action("INSERT INTO seriesauthors ('SeriesID', 'AuthorID') VALUES (?, ?)",
                               (seriesid, authorid), suppress='UNIQUE')
@@ -255,21 +264,20 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
                     db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
                     break
 
-        if not new_status and not new_astatus:
+        if not new_status and not new_astatus and authstatus in ['Paused', 'Ignored', 'Wanted']:
             # Author we want or don't want?
-            if authstatus in ['Paused', 'Ignored', 'Wanted']:
-                wanted_status = 'Skipped'
-                if authstatus == 'Wanted':
-                    wanted_status = authstatus
-                if CONFIG.get_bool('EBOOK_TAB'):
-                    new_status = wanted_status
-                if CONFIG.get_bool('AUDIO_TAB'):
-                    new_astatus = wanted_status
-                if new_status or new_astatus:
-                    logger.debug(f'Marking {bookname} as {wanted_status}, author {authstatus}')
-                    match = db.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
-                    msg = f"[{threadname}] Author ({match['AuthorName']}) is {authstatus}"
-                    db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
+            wanted_status = 'Skipped'
+            if authstatus == 'Wanted':
+                wanted_status = authstatus
+            if CONFIG.get_bool('EBOOK_TAB'):
+                new_status = wanted_status
+            if CONFIG.get_bool('AUDIO_TAB'):
+                new_astatus = wanted_status
+            if new_status or new_astatus:
+                logger.debug(f'Marking {bookname} as {wanted_status}, author {authstatus}')
+                match = db.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
+                msg = f"[{threadname}] Author ({match['AuthorName']}) is {authstatus}"
+                db.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
     except Exception as e:
         logger.error(str(e))
     db.close()
@@ -349,8 +357,7 @@ def set_work_id(books=None):
                     if len(resultxml):
                         ids = resultxml.iter('item')
                         books = get_list(page)
-                        cnt = 0
-                        for item in ids:
+                        for cnt, item in enumerate(ids):
                             workid = item.text
                             if not workid:
                                 logger.debug(f"No workid returned for {books[cnt]}")
@@ -359,7 +366,6 @@ def set_work_id(books=None):
                                 control_value_dict = {"BookID": books[cnt]}
                                 new_value_dict = {"WorkID": workid}
                                 db.upsert("books", new_value_dict, control_value_dict)
-                            cnt += 1
 
             except Exception as e:
                 logger.error(f"{type(e).__name__} parsing id_to_work_id page: {str(e)}")
@@ -697,10 +703,7 @@ def is_set_or_part(title):
             rejected = True
             msg = f'Set or Part {m.group(0)}'
     if re.search(r'\d+ of \d+', title) or \
-            re.search(r'\d+/\d+', title) and not re.search(r'\d+/\d+/\d+', title):
-        rejected = True
-        msg = 'Set or Part'
-    elif re.search(r'\w+\s*/\s*\w+', title):
+            re.search(r'\d+/\d+', title) and not re.search(r'\d+/\d+/\d+', title) or re.search(r'\w+\s*/\s*\w+', title):
         rejected = True
         msg = 'Set or Part'
     return rejected, msg
@@ -1254,7 +1257,7 @@ def get_book_pubdate(bookid, refresh=False):
                     dy = check_int(rootxml.find(
                         './book/work/original_publication_day').text, 0)
                     if mn and dy:
-                        bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                        bookdate = f"{bookdate}-{mn:02d}-{dy:02d}"
                 except (KeyError, AttributeError):
                     pass
             else:
@@ -1264,21 +1267,20 @@ def get_book_pubdate(bookid, refresh=False):
 
         logger.debug(f"GoodReads bookid {bookid} pubdate [{bookdate}] cached={in_cache}")
         return bookdate, in_cache
-    else:
-        if not CONFIG['GB_API']:
-            logger.warning('No GoogleBooks API key, check config')
-            return bookdate, False
+    if not CONFIG['GB_API']:
+        logger.warning('No GoogleBooks API key, check config')
+        return bookdate, False
 
-        url = '/'.join([CONFIG['GB_URL'],
-                        f"books/v1/volumes/{bookid}?key={CONFIG['GB_API']}"])
-        jsonresults, in_cache = json_request(url)
-        if not jsonresults:
-            logger.debug(f'No results found for {bookid}')
-        else:
-            book = google_book_dict(jsonresults)
-            if book['date']:
-                bookdate = book['date']
-        return bookdate, in_cache
+    url = '/'.join([CONFIG['GB_URL'],
+                    f"books/v1/volumes/{bookid}?key={CONFIG['GB_API']}"])
+    jsonresults, in_cache = json_request(url)
+    if not jsonresults:
+        logger.debug(f'No results found for {bookid}')
+    else:
+        book = google_book_dict(jsonresults)
+        if book['date']:
+            bookdate = book['date']
+    return bookdate, in_cache
 
 
 def isbnlang(isbn):

@@ -21,7 +21,7 @@ import time
 from abc import ABC
 from enum import Enum
 from http.client import responses
-from typing import Any, Optional, Dict, Union
+from typing import Any
 from xml.etree import ElementTree
 
 import requests
@@ -31,9 +31,24 @@ from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir, splitext
-from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
-    thread_name
+from lazylibrarian.filesystem import (
+    DIRS,
+    listdir,
+    path_isdir,
+    path_isfile,
+    remove_file,
+    splitext,
+    syspath,
+)
+from lazylibrarian.formatter import (
+    check_int,
+    make_bytestr,
+    make_unicode,
+    md5_utf8,
+    plural,
+    seconds_to_midnight,
+    thread_name,
+)
 
 
 class ImageType(Enum):
@@ -81,8 +96,8 @@ def init_hex_caches() -> bool:
     return ok
 
 
-def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True,
-              raw: bool = False) -> (Union[str, bytes], bool):
+def fetch_url(url: str, headers: dict | None = None, retry=True, timeout=True,
+              raw: bool = False) -> (str | bytes, bool):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False
         Return data as raw/bytes, if raw == True
@@ -122,11 +137,10 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True
     if proxies:
         payload["proxies"] = proxies
     verify = False
-    if url.startswith('https'):
-        if CONFIG.get_bool('SSL_VERIFY'):
-            verify = True
-            if CONFIG['SSL_CERTS']:
-                verify = CONFIG['SSL_CERTS']
+    if url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
+        verify = True
+        if CONFIG['SSL_CERTS']:
+            verify = CONFIG['SSL_CERTS']
     try:
         r = requests.get(url, verify=verify, params=payload, headers=headers)
     except requests.exceptions.TooManyRedirects as e:
@@ -200,10 +214,7 @@ def fetch_url(url: str, headers: Optional[Dict] = None, retry=True, timeout=True
     else:
         logger.debug(f"Error {r.status_code} url={url}")
 
-    if r.status_code in responses:
-        msg = responses[r.status_code]
-    else:
-        msg = r.text
+    msg = responses.get(r.status_code, r.text)
     return f"Response status {r.status_code}: {msg}", False
 
 
@@ -223,8 +234,7 @@ def cache_img(img_type: ImageType, img_id: str, img_url: str, refresh=False) -> 
             cachelogger = logging.getLogger('special.cache')
             cachelogger.debug(f"Cached {img_type.name} image exists {cachefile}")
             return link, True, True
-        else:
-            had_cache = True
+        had_cache = True
 
     if img_url.startswith('http'):
         result, success = fetch_url(img_url, raw=True)
@@ -284,7 +294,6 @@ class CacheRequest(ABC):
     @abc.abstractmethod
     def name(cls) -> str:
         """ Return the name of the cache, such as XML, HTML or JSON """
-        pass
 
     @classmethod
     def cachedir_name(cls) -> str:
@@ -293,7 +302,6 @@ class CacheRequest(ABC):
     @abc.abstractmethod
     def read_from_cache(self, hashfilename: str) -> (str, bool):
         """ Read the source from cache """
-        pass
 
     def fetch_data(self) -> (str, bool):
         """ Fetch the data; called if it's not in the cache """
@@ -302,7 +310,6 @@ class CacheRequest(ABC):
     @abc.abstractmethod
     def load_from_result_and_cache(self, result: str, filename: str, docache: bool) -> (str, bool):
         """ Load the value from result and store it in cache if docache is True """
-        pass
 
     def get_cached_request(self) -> (Any, bool):
         # hashfilename = hash of url
@@ -359,10 +366,8 @@ class CacheRequest(ABC):
                 cachelogger.debug(f"Expiring {myhash}")
                 os.remove(syspath(hashfilename))
                 return False
-            else:
-                return True
-        else:
-            return False
+            return True
+        return False
 
     def get_hashed_filename(self, cache_location: str) -> (str, str):
         myhash = md5_utf8(self.url)
@@ -490,7 +495,8 @@ class JSONCacheRequest(CacheRequest):
             self.logger.error(f"{type(e).__name__} decoding json from {self.url}")
             self.logger.debug(f"{e} : {result}")
             return None, False
-        json.dump(source, open(filename, "w"))
+        with open(filename, "w") as outfile:
+            json.dump(source, outfile)
         return source, True
 
 
@@ -673,10 +679,9 @@ class OrphanCleaner(FileCleaner):
         name = os.path.basename(filename)
         if self.dotsplit:
             return name.split('.')[0]
-        else:
-            # Magazines use a different encoding scheme in the file name.
-            fname, extn = splitext(name)
-            return fname.split('_')[0] + extn
+        # Magazines use a different encoding scheme in the file name.
+        fname, extn = splitext(name)
+        return fname.split('_')[0] + extn
 
     def clean_file(self, filename):
         try:
@@ -734,7 +739,7 @@ class DBCleaner(CacheCleaner):
             imgfile = ''
             if item[self.fimg] is None or item[self.fimg] == '':
                 keep = False
-            if keep and not item[self.fimg].startswith('http') and not item[self.fimg] == self.fallback:
+            if keep and not item[self.fimg].startswith('http') and item[self.fimg] != self.fallback:
                 # html uses '/' as separator, but os might not
                 imgname = item[self.fimg].rsplit('/')[-1]
                 imgfile = os.path.join(self.cache, imgname)

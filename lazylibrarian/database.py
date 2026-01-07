@@ -13,14 +13,13 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import with_statement
 
+import logging
 import os
 import sqlite3
 import threading
 import time
 import traceback
-import logging
 
 # DO NOT import from common in this module, circular import
 from lazylibrarian.filesystem import DIRS
@@ -63,9 +62,9 @@ class DBConnection:
             raise e
 
     def __del__(self):
-        if hasattr(self, 'opened'):  # If not, the DB object was partially initialised and isn't valud
-            if self.opened > 0:
-                self.close()
+        if hasattr(self, 'opened') and self.opened > 0:
+            # If not, the DB object was partially initialised and isn't valud
+            self.close()
 
     def close(self):
         self.dbcommslogger.debug('close')
@@ -166,14 +165,13 @@ class DBConnection:
                     self.dbcommslogger.debug(f'Suppressed {msg}')
                     self.connection.commit()
                     break
-                else:
-                    self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
-                    self.dbcommslogger.debug(f'IntegrityError: {msg}')
+                self.dbcommslogger.debug(f'#{attempt} {elapsed:.4f} {query} [{args}]')
+                self.dbcommslogger.debug(f'IntegrityError: {msg}')
 
-                    self.logger.error(f'Database IntegrityError: {e}')
-                    self.logger.error(f"Failed query: [{query}]")
-                    self.logger.error(f"Failed args: [{str(args)}]")
-                    raise
+                self.logger.error(f'Database IntegrityError: {e}')
+                self.logger.error(f"Failed query: [{query}]")
+                self.logger.error(f"Failed args: [{str(args)}]")
+                raise
 
             except sqlite3.DatabaseError as e:
                 elapsed = time.time() - start

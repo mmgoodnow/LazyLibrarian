@@ -19,15 +19,42 @@ from urllib.parse import quote, quote_plus, urlencode
 from rapidfuzz import fuzz
 
 import lazylibrarian
-from lazylibrarian import database, ROLE
-from lazylibrarian.bookwork import get_work_series, delete_empty_series, \
-    set_series, get_status, isbn_from_words, isbnlang, get_book_pubdate, get_gb_info, \
-    get_gr_genres, set_genres, genre_filter, is_set_or_part
+from lazylibrarian import ROLE, database
+from lazylibrarian.bookwork import (
+    delete_empty_series,
+    genre_filter,
+    get_book_pubdate,
+    get_gb_info,
+    get_gr_genres,
+    get_status,
+    get_work_series,
+    is_set_or_part,
+    isbn_from_words,
+    isbnlang,
+    set_genres,
+    set_series,
+)
 from lazylibrarian.cache import gr_xml_request, html_request
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
-    clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
-    make_utf8bytes, thread_name, date_format
+from lazylibrarian.formatter import (
+    book_series,
+    check_float,
+    check_int,
+    check_year,
+    clean_name,
+    date_format,
+    format_author_name,
+    get_list,
+    is_valid_isbn,
+    make_unicode,
+    make_utf8bytes,
+    plural,
+    replace_all,
+    split_title,
+    thread_name,
+    today,
+    unaccented,
+)
 from lazylibrarian.images import cache_bookimg, get_book_cover
 
 
@@ -91,7 +118,7 @@ class GoodReads:
                                     bookmonth = check_int(author.find('original_publication_month').text, 0)
                                     bookday = check_int(author.find('original_publication_day').text, 0)
                                     if bookmonth and bookday:
-                                        bookdate = "%s-%02d-%02d" % (bookdate, bookmonth, bookday)
+                                        bookdate = f"{bookdate}-{bookmonth:02d}-{bookday:02d}"
                                 except (KeyError, AttributeError):
                                     pass
                             else:
@@ -238,9 +265,8 @@ class GoodReads:
                             resultxml = None
                             self.logger.error(f"{type(e).__name__} finding page {loop_count} of results: {str(e)}")
 
-                    if resultxml:
-                        if all(False for _ in resultxml):  # returns True if iterator is empty
-                            resultxml = None
+                    if resultxml and all(False for _ in resultxml):  # returns True if iterator is empty
+                        resultxml = None
 
             except Exception as err:
                 # noinspection PyUnresolvedReferences
@@ -491,16 +517,15 @@ class GoodReads:
                             mn = check_int(bookdict['pub_month'], 0)
                             dy = check_int(bookdict['pub_day'], 0)
                             if mn and dy:
-                                bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                                bookdate = f"{bookdate}-{mn:02d}-{dy:02d}"
 
                         if not bookname:
                             self.logger.debug(f'Rejecting bookid {bookid} for {author_name_result}, no bookname')
                             rejected.append(['name', 'No bookname'])
 
-                        if bookpub:
-                            if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
-                                self.logger.warning(f"Ignoring {bookname}: Publisher {bookpub}")
-                                rejected.append(['publisher', bookpub])
+                        if bookpub and bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
+                            self.logger.warning(f"Ignoring {bookname}: Publisher {bookpub}")
+                            rejected.append(['publisher', bookpub])
 
                         if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
                             bookimg = 'images/nocover.png'
@@ -570,10 +595,9 @@ class GoodReads:
                                                         dy = check_int(book_rootxml.find(
                                                             './book/work/original_publication_day').text, 0)
                                                         if mn and dy:
-                                                            bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                                                            bookdate = f"{bookdate}-{mn:02d}-{dy:02d}"
                                                     except (KeyError, AttributeError):
                                                         self.logger.debug("No extended date info")
-                                                        pass
                                             except Exception:
                                                 pass
 
@@ -603,30 +627,29 @@ class GoodReads:
                             except Exception as e:
                                 self.logger.error(f"Goodreads language search failed: {type(e).__name__} {str(e)}")
 
-                        if not isbnhead and CONFIG.get_bool('ISBN_LOOKUP'):
+                        if not isbnhead and CONFIG.get_bool('ISBN_LOOKUP') and bookname or shortname:
                             # try lookup by name
-                            if bookname or shortname:
-                                if shortname:
-                                    name = replace_all(shortname, {':': ' ', '"': '', '\'': ''}).strip()
+                            if shortname:
+                                name = replace_all(shortname, {':': ' ', '"': '', '\'': ''}).strip()
+                            else:
+                                name = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
+                            try:
+                                isbn_count += 1
+                                start = time.time()
+                                res = isbn_from_words(
+                                    f"{unaccented(name, only_ascii=False)} "
+                                    f"{unaccented(author_name_result, only_ascii=False)}")
+                                isbn_time += (time.time() - start)
+                            except Exception as e:
+                                res = None
+                                self.logger.warning(f"Error from isbn: {e}")
+                            if res:
+                                self.logger.debug(f"isbn found {res} for {bookid}")
+                                bookisbn = res
+                                if len(res) == 13:
+                                    isbnhead = res[3:6]
                                 else:
-                                    name = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
-                                try:
-                                    isbn_count += 1
-                                    start = time.time()
-                                    res = isbn_from_words(
-                                        f"{unaccented(name, only_ascii=False)} "
-                                        f"{unaccented(author_name_result, only_ascii=False)}")
-                                    isbn_time += (time.time() - start)
-                                except Exception as e:
-                                    res = None
-                                    self.logger.warning(f"Error from isbn: {e}")
-                                if res:
-                                    self.logger.debug(f"isbn found {res} for {bookid}")
-                                    bookisbn = res
-                                    if len(res) == 13:
-                                        isbnhead = res[3:6]
-                                    else:
-                                        isbnhead = res[0:3]
+                                    isbnhead = res[0:3]
 
                         if not isbnhead and CONFIG.get_bool('NO_ISBN'):
                             rejected.append(['isbn', 'No ISBN'])
@@ -634,17 +657,14 @@ class GoodReads:
                         if not book_language:
                             book_language = 'Unknown'
 
-                        if "All" not in valid_langs:  # do we care about language
-                            if book_language not in valid_langs:
-                                rejected.append(['lang', f'Invalid language [{book_language}]'])
+                        if "All" not in valid_langs and book_language not in valid_langs:
+                            rejected.append(['lang', f'Invalid language [{book_language}]'])
 
-                        if CONFIG.get_bool('NO_FUTURE'):
-                            if bookdate and bookdate > today()[:len(bookdate)]:
-                                rejected.append(['future', f'Future publication date [{bookdate}]'])
+                        if CONFIG.get_bool('NO_FUTURE') and bookdate and bookdate > today()[:len(bookdate)]:
+                            rejected.append(['future', f'Future publication date [{bookdate}]'])
 
-                        if CONFIG.get_bool('NO_PUBDATE'):
-                            if not bookdate or bookdate == '0000':
-                                rejected.append(['date', 'No publication date'])
+                        if CONFIG.get_bool('NO_PUBDATE') and (not bookdate or bookdate == '0000'):
+                            rejected.append(['date', 'No publication date'])
 
                         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
                                '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
@@ -773,20 +793,19 @@ class GoodReads:
                                            "ScanResult,books.gr_id FROM books,authors WHERE "
                                            "authors.AuthorID = books.AuthorID AND BookID=?")
                                     match = db.match(cmd, (in_db[0],))
-                            if match:
-                                if match['BookID'] != bookid:
-                                    # we have a different bookid for this author/title already
-                                    if not_rejectable:
-                                        self.logger.debug(
-                                            f"Not rejecting duplicate title {bookname} ({bookid}/{match['BookID']}) "
-                                            f"as {not_rejectable}")
-                                    else:
-                                        duplicates += 1
-                                        if not match['gr_id']:
-                                            cmd = "UPDATE books SET gr_id=? WHERE BookID=?"
-                                            db.action(cmd, (bookid, match['BookID']))
-                                        rejected.append(['bookid', f"Duplicate title {bookname} "
-                                                                   f"({bookid}/{match['BookID']})"])
+                            if match and match['BookID'] != bookid:
+                                # we have a different bookid for this author/title already
+                                if not_rejectable:
+                                    self.logger.debug(
+                                        f"Not rejecting duplicate title {bookname} ({bookid}/{match['BookID']}) "
+                                        f"as {not_rejectable}")
+                                else:
+                                    duplicates += 1
+                                    if not match['gr_id']:
+                                        cmd = "UPDATE books SET gr_id=? WHERE BookID=?"
+                                        db.action(cmd, (bookid, match['BookID']))
+                                    rejected.append(['bookid', f"Duplicate title {bookname} "
+                                                               f"({bookid}/{match['BookID']})"])
                         fatal = False
                         reason = ''
                         ignore_book = False
@@ -1062,9 +1081,8 @@ class GoodReads:
                             resultxml = None
                             self.logger.error(f"{type(e).__name__} finding next page of results: {str(e)}")
 
-                    if resultxml:
-                        if all(False for _ in resultxml):  # returns True if iterator is empty
-                            resultxml = None
+                    if resultxml and all(False for _ in resultxml):  # returns True if iterator is empty
+                        resultxml = None
 
             self.verify_ids(authorid)
             delete_empty_series()
@@ -1170,9 +1188,7 @@ class GoodReads:
             found = 0
             differ = 0
             notfound = []
-            pagecount = 0
             for page in pages:
-                pagecount += 1
                 url = '/'.join([CONFIG['GR_URL'], f"book/id_to_work_id/{page}?{urlencode(self.params)}"])
                 try:
                     self.searchinglogger.debug(url)
@@ -1184,8 +1200,7 @@ class GoodReads:
                         if len(resultxml):
                             ids = resultxml.iter('item')
                             books = get_list(page)
-                            cnt = 0
-                            for item in ids:
+                            for cnt, item in enumerate(ids):
                                 workid = item.text
                                 if not workid:
                                     notfound.append(books[cnt])
@@ -1193,16 +1208,14 @@ class GoodReads:
                                 else:
                                     found += 1
                                     res = db.match("SELECT WorkID from books WHERE bookid=?", (books[cnt],))
-                                    if res:
-                                        if res['WorkID'] != workid:
-                                            differ += 1
-                                            self.logger.debug(
-                                                f"Updating workid for {books[cnt]} from [{res['WorkID']}] "
-                                                f"to [{workid}]")
-                                            control_value_dict = {"gr_id": books[cnt]}
-                                            new_value_dict = {"WorkID": workid}
-                                            db.upsert("books", new_value_dict, control_value_dict)
-                                cnt += 1
+                                    if res and res['WorkID'] != workid:
+                                        differ += 1
+                                        self.logger.debug(
+                                            f"Updating workid for {books[cnt]} from [{res['WorkID']}] "
+                                            f"to [{workid}]")
+                                        control_value_dict = {"gr_id": books[cnt]}
+                                        new_value_dict = {"WorkID": workid}
+                                        db.upsert("books", new_value_dict, control_value_dict)
 
                 except Exception as e:
                     self.logger.error(f"{type(e).__name__} parsing id_to_work_id page: {str(e)}")
@@ -1279,7 +1292,7 @@ class GoodReads:
                         mn = check_int(rootxml.find('./book/publication_month').text, 0)
                         dy = check_int(rootxml.find('./book/publication_day').text, 0)
                         if mn and dy:
-                            bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                            bookdate = f"{bookdate}-{mn:02d}-{dy:02d}"
                     except (KeyError, AttributeError):
                         pass
         else:
@@ -1289,25 +1302,23 @@ class GoodReads:
                     mn = check_int(rootxml.find('./book/work/original_publication_month').text, 0)
                     dy = check_int(rootxml.find('./book/work/original_publication_day').text, 0)
                     if mn and dy:
-                        originalpubdate = "%s-%02d-%02d" % (originalpubdate, mn, dy)
+                        originalpubdate = f"{originalpubdate}-{mn:02d}-{dy:02d}"
                 except (KeyError, AttributeError):
                     pass
             bookdate = originalpubdate
 
-        if CONFIG.get_bool('NO_PUBDATE'):
-            if not bookdate or bookdate == '0000':
-                msg = f'Book {bookname} Publication date [{bookdate}] does not match preference'
-                self.logger.warning(msg)
-                if reason.startswith("Series:") or threadname.startswith('SERIES'):
-                    return
+        if CONFIG.get_bool('NO_PUBDATE') and (not bookdate or bookdate == '0000'):
+            msg = f'Book {bookname} Publication date [{bookdate}] does not match preference'
+            self.logger.warning(msg)
+            if reason.startswith("Series:") or threadname.startswith('SERIES'):
+                return
 
-        if CONFIG.get_bool('NO_FUTURE'):
+        if CONFIG.get_bool('NO_FUTURE') and bookdate > today()[:len(bookdate)]:
             # may have yyyy or yyyy-mm-dd
-            if bookdate > today()[:len(bookdate)]:
-                msg = f'Book {bookname} Future publication date [{bookdate}] does not match preference'
-                self.logger.warning(msg)
-                if reason.startswith("Series:") or threadname.startswith('SERIES'):
-                    return
+            msg = f'Book {bookname} Future publication date [{bookdate}] does not match preference'
+            self.logger.warning(msg)
+            if reason.startswith("Series:") or threadname.startswith('SERIES'):
+                return
 
         if CONFIG.get_bool('NO_SETS'):
             is_set, set_msg = is_set_or_part(bookname)

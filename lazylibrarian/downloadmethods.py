@@ -14,8 +14,8 @@
 import json
 import os
 import re
-import time
 import threading
+import time
 import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
@@ -26,29 +26,57 @@ try:
 except Exception:  # magic might fail for multiple reasons
     magic = None
 
-from lazylibrarian import database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
-    deluge, rtorrent, synology, TIMERS
-from lazylibrarian.config2 import CONFIG
+import logging
+
+import requests
+from bs4 import BeautifulSoup
+from deluge_client import DelugeRPCClient
+
+from lazylibrarian import (
+    TIMERS,
+    classes,
+    database,
+    deluge,
+    nzbget,
+    qbittorrent,
+    rtorrent,
+    sabnzbd,
+    synology,
+    transmission,
+    utorrent,
+)
+from lazylibrarian.annas import annas_download, block_annas
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import get_user_agent, proxy_list
-from lazylibrarian.filesystem import DIRS, path_isdir, path_isfile, syspath, remove_file, setperm, \
-    make_dirs, get_directory, splitext
-from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, sanitize
-from lazylibrarian.download_client import delete_task, check_contents
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.directparser import bok_grabs, bok_login, session_get
+from lazylibrarian.download_client import check_contents, delete_task
+from lazylibrarian.filesystem import (
+    DIRS,
+    get_directory,
+    make_dirs,
+    path_isdir,
+    path_isfile,
+    remove_file,
+    setperm,
+    splitext,
+    syspath,
+)
+from lazylibrarian.formatter import (
+    clean_name,
+    get_list,
+    make_unicode,
+    md5_utf8,
+    sanitize,
+    unaccented,
+)
 from lazylibrarian.ircbot import irc_query
-from lazylibrarian.directparser import bok_login, session_get, bok_grabs
 from lazylibrarian.soulseek import SLSKD
-from lazylibrarian.annas import annas_download, block_annas
+from lazylibrarian.telemetry import record_usage_data
+from lib.bencode import bdecode, bencode
 
-from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
-from lib.bencode import bencode, bdecode
-
-from bs4 import BeautifulSoup
-import requests
-import logging
 
 
 def use_label(source, library):
@@ -120,9 +148,8 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
             destfile = os.path.join(destdir, fname)
 
             try:
-                with open(destfile, 'wb') as bookfile:
-                    with open(resultfile, 'rb') as sourcefile:
-                        bookfile.write(sourcefile.read())
+                with open(destfile, 'wb') as bookfile, open(resultfile, 'rb') as sourcefile:
+                    bookfile.write(sourcefile.read())
                 setperm(destfile)
                 remove_file(resultfile)
             except Exception as e:
@@ -141,12 +168,11 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
             record_usage_data(f'Download/IRC/{source}/Success')
             db.close()
             return True, ''
-        else:
-            cmd = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
-            cmd += 'WHERE NZBurl=? and NZBtitle=?'
-            db.action(cmd, (source, download_id, msg, dl_url, dl_title))
-            db.close()
-            return False, msg
+        cmd = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
+        cmd += 'WHERE NZBurl=? and NZBtitle=?'
+        db.action(cmd, (source, download_id, msg, dl_url, dl_title))
+        db.close()
+        return False, msg
     except Exception as e:
         logger.debug(str(e))
         db.close()
@@ -257,11 +283,10 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
         db.close()
         record_usage_data(f'Download/NZB/{source}/Success')
         return True, ''
-    else:
-        res = f'Failed to send nzb to @ <a href="{nzburl}">{source}</a>'
-        logger.error(res)
-        record_usage_data(f'Download/NZB/{source}/Failed')
-        return False, res
+    res = f'Failed to send nzb to @ <a href="{nzburl}">{source}</a>'
+    logger.error(res)
+    record_usage_data(f'Download/NZB/{source}/Failed')
+    return False, res
 
 
 def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=''):
@@ -619,12 +644,11 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     res = f"Got empty response for {tor_url}"
                     logger.warning(res)
                     return False, res
-                elif len(torrent) < 100:
+                if len(torrent) < 100:
                     res = f"Only got {len(torrent)} bytes for {tor_url}"
                     logger.warning(res)
                     return False, res
-                else:
-                    logger.debug(f"Got {len(torrent)} bytes for {tor_url}")
+                logger.debug(f"Got {len(torrent)} bytes for {tor_url}")
             else:
                 res = f"Got a {r.status_code} response for {tor_url}"
                 logger.warning(res)
@@ -941,9 +965,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                         if CONFIG.get_bool('DEL_FAILED'):
                             delete_task(source, download_id, True)
                         return False, rejected
-                    else:
-                        logger.debug(f"{source} setting torrent name to [{tor_title}]")
-                        db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
+                    logger.debug(f"{source} setting torrent name to [{tor_title}]")
+                    db.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))
 
             if library == 'eBook':
                 db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))

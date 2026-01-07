@@ -13,18 +13,18 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
 import datetime
 import logging
+import time
 import traceback
-
-from lazylibrarian import database
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian.common import mime_type, path_exists
-from lazylibrarian.filesystem import splitext
 from urllib.parse import unquote_plus
 
-from lib.rfeed import Item, Guid, Feed, iTunes, iTunesItem, iTunesOwner, iTunesCategory, Enclosure
+from lazylibrarian import database
+from lazylibrarian.common import mime_type, path_exists
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import splitext
+from lib.rfeed import Enclosure, Feed, Guid, Item, iTunes, iTunesCategory, iTunesItem, iTunesOwner
+
 try:
     from lib.tinytag import TinyTag
 except ImportError:

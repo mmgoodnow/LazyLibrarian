@@ -21,12 +21,16 @@ from rapidfuzz import fuzz
 from lazylibrarian import database
 from lazylibrarian.common import only_punctuation
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, \
-    direct_dl_method, irc_dl_method
-from lazylibrarian.formatter import unaccented, replace_all, get_list, now, check_int
-from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
+from lazylibrarian.downloadmethods import (
+    direct_dl_method,
+    irc_dl_method,
+    nzb_dl_method,
+    tor_dl_method,
+)
+from lazylibrarian.formatter import check_int, get_list, now, replace_all, unaccented
+from lazylibrarian.notifiers import custom_notify_snatch, notify_snatch
 from lazylibrarian.providers import get_searchterm
-from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+from lazylibrarian.scheduling import SchedulerCommand, schedule_job
 
 
 def process_result_list(resultlist, book, searchtype, source):
@@ -386,9 +390,8 @@ def download_result(match, book):
             # either sleep for a while, or unblock the one with the lowest counter.
             schedule_job(SchedulerCommand.START, target='PostProcessor')
             return 2  # we found it
-        else:
-            db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?",
-                      (res, control_value_dict["NZBurl"]))
+        db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?",
+                  (res, control_value_dict["NZBurl"]))
         return 0
     except Exception:
         logger.error(f'Unhandled exception in download_result: {traceback.format_exc()}')

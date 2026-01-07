@@ -15,6 +15,7 @@
 # Purpose:
 #   Common, basic functions for LazyLibrary
 
+import contextlib
 import importlib
 import logging
 import os
@@ -64,8 +65,7 @@ def get_user_agent() -> str:
     # Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36
     if CONFIG['USER_AGENT']:
         return CONFIG['USER_AGENT']
-    else:
-        return f"LazyLibrarian ({platform.system()} {platform.release()})"
+    return f"LazyLibrarian ({platform.system()} {platform.release()})"
 
 
 def get_readinglist(table, user):
@@ -121,7 +121,7 @@ def multibook(foldername, recurse=False):
 
     if recurse:
         for _, _, f in walk(foldername):
-            flist = [item for item in f]
+            flist = list(f)
             for item in filetypes:
                 counter = 0
                 for fname in flist:
@@ -154,7 +154,7 @@ def proxy_list():
 def is_valid_email(emails):
     if not emails:
         return False
-    elif ',' in emails:
+    if ',' in emails:
         emails = get_list(emails)
     else:
         emails = [emails]
@@ -180,38 +180,34 @@ def pwd_check(password):
     #    return False
     # if not any(char.isalpha() for char in password):
     #    return False
-    if any(char.isspace() for char in password):
-        return False
-    return True
+    return not any(char.isspace() for char in password)
 
 
 def mime_type(filename):
     name = make_unicode(filename).lower()
     if name.endswith('.epub'):
         return 'application/epub+zip'
-    elif name.endswith('.mobi') or name.endswith('.azw'):
+    if name.endswith(('.mobi', '.azw')):
         return 'application/x-mobipocket-ebook'
-    elif name.endswith('.azw3'):
+    if name.endswith('.azw3'):
         return 'application/x-mobi8-ebook'
-    elif name.endswith('.pdf'):
+    if name.endswith('.pdf'):
         return 'application/pdf'
-    elif name.endswith('.mp3'):
+    if name.endswith('.mp3'):
         return 'audio/mpeg3'
-    elif name.endswith('.m4a'):
+    if name.endswith(('.m4a', '.m4b')):
         return 'audio/mp4'
-    elif name.endswith('.m4b'):
-        return 'audio/mp4'
-    elif name.endswith('.flac'):
+    if name.endswith('.flac'):
         return 'audio/flac'
-    elif name.endswith('.ogg'):
+    if name.endswith('.ogg'):
         return 'audio/ogg'
-    elif name.endswith('.zip'):
+    if name.endswith('.zip'):
         return 'application/x-zip-compressed'
-    elif name.endswith('.xml'):
+    if name.endswith('.xml'):
         return 'application/rss+xml'
-    elif name.endswith('.cbz'):
+    if name.endswith('.cbz'):
         return 'application/x-cbz'
-    elif name.endswith('.cbr'):
+    if name.endswith('.cbr'):
         return 'application/x-cbr'
     return "application/x-download"
 
@@ -273,9 +269,7 @@ def docker():
     if os.environ.get("DOCKER", "").lower() in ("yes", "y", "on", "true", "1"):
         return True
     # or value read from version.py during startup
-    if 'DOCKER' in CONFIG['INSTALL_TYPE'].upper():
-        return True
-    return False
+    return 'DOCKER' in CONFIG['INSTALL_TYPE'].upper()
 
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
@@ -294,14 +288,10 @@ def log_header(online=True) -> str:
             header += f'{item.lower()}: {time.ctime(timestamp)}\n'
         else:
             header += f'{item.lower()}: {CONFIG[item]}\n'
-    try:
+    with contextlib.suppress(AttributeError):
         header += f'package version: {lazylibrarian.version.PACKAGE_VERSION}\n'
-    except AttributeError:
-        pass
-    try:
+    with contextlib.suppress(AttributeError):
         header += f'packaged by: {lazylibrarian.version.PACKAGED_BY}\n'
-    except AttributeError:
-        pass
 
     db_version = 0
     db = database.DBConnection()
@@ -315,7 +305,7 @@ def log_header(online=True) -> str:
             db_version = int(value)
     uname = platform.uname()
     header += f"db version: {db_version}\n"
-    header += "Python version: %s\n" % sys.version.split('\n')
+    header += "Python version: {}\n".format(sys.version.split('\n'))
     header += f"uname: {str(uname)}\n"
     header += f"Platform: {platform.platform(aliased=True)}\n"
     if uname[0] == 'Darwin':
@@ -560,10 +550,7 @@ def calibre_prg(prgname):
 
 
 def only_punctuation(value):
-    for c in value:
-        if c not in string.punctuation and c not in string.whitespace:
-            return False
-    return True
+    return all(not (c not in string.punctuation and c not in string.whitespace) for c in value)
 
 
 def cron_dbbackup():
@@ -584,11 +571,11 @@ def dbbackup(source='lazylibrarian'):
     if fname:
         backup_file = f"{source}_{time.asctime().replace(' ', '_').replace(':', '_')}.tgz"
         backup_file = os.path.join(DIRS.DATADIR, backup_file)
-        zf = tarfile.open(backup_file, mode='w:gz')
-        zf.add(fname, arcname=DIRS.DBFILENAME)
-        remove_file(fname)
-        for f in ['config.ini', 'dicts.json', 'genres.json', 'filetemplate.text', 'logintemplate.text']:
-            target = os.path.join(DIRS.DATADIR, f)
-            if path_isfile(target):
-                zf.add(target, arcname=f)
+        with tarfile.open(backup_file, mode='w:gz') as zf:
+            zf.add(fname, arcname=DIRS.DBFILENAME)
+            remove_file(fname)
+            for f in ['config.ini', 'dicts.json', 'genres.json', 'filetemplate.text', 'logintemplate.text']:
+                target = os.path.join(DIRS.DATADIR, f)
+                if path_isfile(target):
+                    zf.add(target, arcname=f)
     return backup_file, err

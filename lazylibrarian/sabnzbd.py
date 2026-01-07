@@ -11,13 +11,14 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from urllib.parse import urlencode
+
 import requests
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import proxy_list
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import make_utf8bytes, versiontuple
-from urllib.parse import urlencode
 
 
 def check_link():
@@ -219,15 +220,13 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
     if result['status'] is True:
         logger.info(f"{title} sent to SAB successfully.")
         # sab versions earlier than 0.8.0 don't return nzo_ids
-        if 'nzo_ids' in result:
-            if result['nzo_ids']:  # check its not empty
-                return result['nzo_ids'][0], ''
+        if 'nzo_ids' in result and result['nzo_ids']:  # check its not empty
+            return result['nzo_ids'][0], ''
         return 'unknown', ''
-    elif result['status'] is False:
+    if result['status'] is False:
         res = f"SAB returned Error: {result['error']}"
         logger.error(res)
         return False, res
-    else:
-        res = f"Unknown error: {str(result)}"
-        logger.error(res)
-        return False, res
+    res = f"Unknown error: {str(result)}"
+    logger.error(res)
+    return False, res

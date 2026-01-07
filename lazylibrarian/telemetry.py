@@ -25,7 +25,6 @@ import sys
 import time
 from collections import defaultdict
 from http.client import responses
-from typing import Optional
 
 import requests
 
@@ -60,7 +59,7 @@ class LazyTelemetry:
     # Singleton; no __init__ method
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(LazyTelemetry, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             # More initialization goes initialization here
             cls._boottime = datetime.datetime.now()
         return cls._instance
@@ -162,7 +161,7 @@ class LazyTelemetry:
         # Count how many Apprise notifications are configured
         cfg_telemetry["APPRISE"] = _config.count_in_use('APPRISE')
 
-    def record_usage_data(self, counter: Optional[str] = None):
+    def record_usage_data(self, counter: str | None = None):
         usg = self.get_usage_telemetry()
         if not counter:
             # Use the module/name of the caller
@@ -171,7 +170,7 @@ class LazyTelemetry:
                 # We were called via the helper function, find the real caller:
                 caller_module, caller_function, _ = get_info_on_caller(depth=2)
             counter = f'{caller_module}/{caller_function}'
-        assert not any([c in counter for c in ' "=']), "Counter must be plain text"
+        assert not any(c in counter for c in ' "='), "Counter must be plain text"
         usg[counter] += 1
 
     def clear_usage_data(self):
@@ -231,10 +230,7 @@ class LazyTelemetry:
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             return r.text, True  # Success
-        if r.status_code in responses:
-            msg = responses[r.status_code]
-        else:
-            msg = r.text
+        msg = responses.get(r.status_code, r.text)
         return f"Response status {r.status_code}: {msg}", False
 
     def submit_data(self, server: str, send_config: bool, send_usage: bool):
@@ -256,8 +252,7 @@ class LazyTelemetry:
                 id1 = serverid.split('\n')[0]
                 status1 = status.split('\n')[0] if status else ''
                 return f"Server ID: {id1}\n\nStatus:\n{status1}"
-            else:
-                return f"Error connecting to server: {serverid}"
+            return f"Error connecting to server: {serverid}"
         except requests.exceptions.RequestException:
             return "Error connecting to server"
 
@@ -267,7 +262,7 @@ class LazyTelemetry:
 TELEMETRY = LazyTelemetry()
 
 
-def record_usage_data(counter: Optional[str] = None):
+def record_usage_data(counter: str | None = None):
     """ Convenience function for recording usage """
     TELEMETRY.record_usage_data(counter)
 

@@ -42,29 +42,32 @@ import uuid
 
 import lazylibrarian
 from lazylibrarian import database, searchmag
+from lazylibrarian.archive_utils import unpack_archive as _unpack_archive
 from lazylibrarian.bookrename import id3read, stripspaces
-from lazylibrarian.common import multibook
+from lazylibrarian.common import multibook, remove_file, setperm
 from lazylibrarian.config2 import CONFIG, DIRS
 from lazylibrarian.filesystem import (
     book_file,
     get_directory,
     listdir,
+    make_dirs,
     opf_file,
     path_isdir,
     path_isfile,
+    remove_dir,
+    safe_copy,
 )
 from lazylibrarian.formatter import (
+    check_int,
     get_list,
+    make_utf8bytes,
     replace_all,
     restore_thread_name,
     sanitize,
-    unaccented,
-    today,
-    check_int,
     split_title,
-    make_utf8bytes
+    today,
+    unaccented,
 )
-from lazylibrarian.magazinescan import format_issue_filename
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.hc import HardCover
 from lazylibrarian.images import create_mag_cover, createthumbs
@@ -75,29 +78,24 @@ from lazylibrarian.importer import (
     search_for,
     update_totals,
 )
-from lazylibrarian.postprocess_metadata import BookType
-from lazylibrarian.librarysync import find_book_in_db, get_book_info
-from lazylibrarian.magazinescan import get_dateparts, create_id
+from lazylibrarian.librarysync import find_book_in_db, get_book_info, get_book_meta
+from lazylibrarian.magazinescan import create_id, format_issue_filename, get_dateparts
 from lazylibrarian.metadata_opf import create_mag_opf
 from lazylibrarian.ol import OpenLibrary
-from lazylibrarian.archive_utils import unpack_archive as _unpack_archive
+from lazylibrarian.postprocess import (
+    _process_auto_add as process_auto_add,
+)
+from lazylibrarian.postprocess import (
+    _process_destination as process_destination,
+)
 
 # Import from postprocess for core processing function
 from lazylibrarian.postprocess import (
-    process_book,
-    _process_destination as process_destination,
-    is_valid_type,
     _process_ll_bookid_folders_from_list,
-    _process_auto_add as process_auto_add,
+    is_valid_type,
+    process_book,
 )
-
-from lazylibrarian.common import (
-    setperm,
-    remove_file
-)
-from lazylibrarian.filesystem import safe_copy, remove_dir, make_dirs
-from lazylibrarian.librarysync import get_book_meta
-
+from lazylibrarian.postprocess_metadata import BookType
 from lazylibrarian.telemetry import TELEMETRY
 
 
@@ -368,40 +366,39 @@ def process_issues(source_dir=None, title=""):
                         found_title = False
                         break
 
-            if found_title:
-                if "*" in rejects:  # strict rejection mode, no extraneous words
-                    nouns = get_list(CONFIG["ISSUE_NOUNS"])
-                    nouns.extend(get_list(CONFIG["VOLUME_NOUNS"]))
-                    nouns.extend(get_list(CONFIG["MAG_NOUNS"]))
-                    nouns.extend(get_list(CONFIG["MAG_TYPE"]))
-                    # this unusual construct is because if we just extend(lazylibrarian.SEASONS)
-                    # we get reports that docker complains about unhashable type
-                    # but it works fine with python in a terminal.
-                    # Some docker quirk, or the python version in the docker ???
-                    # nouns.extend(lazylibrarian.SEASONS)
-                    nouns.extend(list(lazylibrarian.SEASONS.keys()))
-                    nouns = set(nouns)
-                    valid = True
-                    for word in filename_words:
-                        if (
-                            word not in title_words
-                            and word not in nouns
-                            and not word.isdigit()
-                        ):
-                            cleanword = unaccented(word).lower()
-                            valid = False
-                            for month in range(1, 13):
-                                if (
-                                    word in lazylibrarian.MONTHNAMES[0][month]
-                                    or cleanword in lazylibrarian.MONTHNAMES[1][month]
-                                ):
-                                    valid = True
-                                    break
-                            if not valid:
-                                logger.debug(f"Rejecting {f}, strict, contains {word}")
+            if found_title and "*" in rejects:  # strict rejection mode, no extraneous words
+                nouns = get_list(CONFIG["ISSUE_NOUNS"])
+                nouns.extend(get_list(CONFIG["VOLUME_NOUNS"]))
+                nouns.extend(get_list(CONFIG["MAG_NOUNS"]))
+                nouns.extend(get_list(CONFIG["MAG_TYPE"]))
+                # this unusual construct is because if we just extend(lazylibrarian.SEASONS)
+                # we get reports that docker complains about unhashable type
+                # but it works fine with python in a terminal.
+                # Some docker quirk, or the python version in the docker ???
+                # nouns.extend(lazylibrarian.SEASONS)
+                nouns.extend(list(lazylibrarian.SEASONS.keys()))
+                nouns = set(nouns)
+                valid = True
+                for word in filename_words:
+                    if (
+                        word not in title_words
+                        and word not in nouns
+                        and not word.isdigit()
+                    ):
+                        cleanword = unaccented(word).lower()
+                        valid = False
+                        for month in range(1, 13):
+                            if (
+                                word in lazylibrarian.MONTHNAMES[0][month]
+                                or cleanword in lazylibrarian.MONTHNAMES[1][month]
+                            ):
+                                valid = True
                                 break
-                    if not valid:
-                        found_title = False
+                        if not valid:
+                            logger.debug(f"Rejecting {f}, strict, contains {word}")
+                            break
+                if not valid:
+                    found_title = False
 
             if found_title:
                 dateparts = get_dateparts(f, res["DateType"])
@@ -738,14 +735,13 @@ def process_alternate(source_dir=None, library="eBook"):
             db.close()
             return process_book(source_dir, bookid, library)
 
-        else:
-            logger.warning(f"{library} {new_book} has no metadata")
-            db = database.DBConnection()
-            res = _process_ll_bookid_folders_from_list(source_dir, db, logger)
-            db.close()
-            if not res:
-                logger.warning(f"{source_dir} has no book with LL.number")
-                return False
+        logger.warning(f"{library} {new_book} has no metadata")
+        db = database.DBConnection()
+        res = _process_ll_bookid_folders_from_list(source_dir, db, logger)
+        db.close()
+        if not res:
+            logger.warning(f"{source_dir} has no book with LL.number")
+            return False
     except Exception:
         logger.error(
             f"Unhandled exception in process_alternate: {traceback.format_exc()}"

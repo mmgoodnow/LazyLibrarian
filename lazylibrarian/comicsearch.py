@@ -22,13 +22,26 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.comicid import cv_identify, cx_identify
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
-from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
-    now, thread_name
-from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_znab_sites, \
-    iterate_over_direct_sites, iterate_over_irc_sites
-from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+from lazylibrarian.downloadmethods import direct_dl_method, nzb_dl_method, tor_dl_method
+from lazylibrarian.formatter import (
+    check_int,
+    date_format,
+    get_list,
+    now,
+    plural,
+    replace_all,
+    thread_name,
+    unaccented,
+)
+from lazylibrarian.notifiers import custom_notify_snatch, notify_snatch
+from lazylibrarian.providers import (
+    iterate_over_direct_sites,
+    iterate_over_irc_sites,
+    iterate_over_rss_sites,
+    iterate_over_torrent_sites,
+    iterate_over_znab_sites,
+)
+from lazylibrarian.scheduling import SchedulerCommand, schedule_job
 
 # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',
 dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
@@ -133,10 +146,8 @@ def search_item(comicid=None):
             if date:
                 date = date_format(date, context=title, datelang=CONFIG['DATE_LANG'])
             url = url.encode('utf-8')
-            if mode == 'torznab':
-                # noinspection PyTypeChecker
-                if url.startswith(b'magnet'):
-                    mode = 'magnet'
+            if mode == 'torznab' and url.startswith(b'magnet'):
+                mode = 'magnet'
 
             # calculate match percentage - torrents might have words_with_underscore_separator
             part_title = title.replace('_', ' ').split('(')[0]
@@ -191,7 +202,7 @@ def search_item(comicid=None):
 
 def cron_search_comics():
     logger = logging.getLogger(__name__)
-    if 'SEARCHALLCOMICS' not in [n.name for n in [t for t in threading.enumerate()]]:
+    if 'SEARCHALLCOMICS' not in [n.name for n in list(threading.enumerate())]:
         search_comics()
     else:
         logger.debug("SEARCHALLCOMICS is already running")
@@ -245,9 +256,8 @@ def search_comics(comicid=None):
                 if match:
                     if match[3]['seriesid'] == comicid or match[3]['seriesid'] in aka:
                         found += 1
-                        if match[4]:
-                            if match[4] not in foundissues:
-                                foundissues[match[4]] = item
+                        if match[4] and match[4] not in foundissues:
+                            foundissues[match[4]] = item
                     else:
                         searchinglogger.debug(f"No match ({match[3]['seriesid']}) want {id_list}: {item['title']}")
                         notfound += 1
@@ -261,7 +271,7 @@ def search_comics(comicid=None):
             located = []
             for item in haveissues:
                 have.append(int(item['IssueID']))
-            for item in foundissues.keys():
+            for item in foundissues:
                 located.append(item)
             for item in located:
                 if item in have:

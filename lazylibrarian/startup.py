@@ -14,6 +14,7 @@
 #   Contains global startup and initialization code for LL
 
 import calendar
+import contextlib
 import json
 import locale
 import logging
@@ -172,9 +173,8 @@ class StartupLazyLibrarian:
         else:
             configfile = os.path.join(DIRS.DATADIR, "config.ini")
 
-        if options.pidfile:
-            if lazylibrarian.DAEMON:
-                lazylibrarian.PIDFILE = str(options.pidfile)
+        if options.pidfile and lazylibrarian.DAEMON:
+            lazylibrarian.PIDFILE = str(options.pidfile)
 
         if options.update:
             lazylibrarian.SIGNAL = 'update'
@@ -253,10 +253,8 @@ class StartupLazyLibrarian:
         _ = init_hex_caches()
         makocache = DIRS.get_mako_cachedir()
         self.logger.debug("Clearing mako cache")
-        try:
+        with contextlib.suppress(FileNotFoundError):
             rmtree(makocache)
-        except FileNotFoundError:
-            pass
         os.makedirs(makocache)
         remove_file(os.path.join(DIRS.CACHEDIR, 'alive.png'))
         # keep track of last api calls so we don't call more than once per second
@@ -307,10 +305,9 @@ class StartupLazyLibrarian:
         try:
             sqlv = getattr(sqlite3, 'sqlite_version', None)
             parts = sqlv.split('.')
-            if int(parts[0]) == 3:
-                if int(parts[1]) < 6 or int(parts[1]) == 6 and int(parts[2]) < 19:
-                    self.logger.error("Your version of sqlite3 is too old, please upgrade to at least v3.6.19")
-                    sys.exit(0)
+            if int(parts[0]) == 3 and int(parts[1]) < 6 or int(parts[1]) == 6 and int(parts[2]) < 19:
+                self.logger.error("Your version of sqlite3 is too old, please upgrade to at least v3.6.19")
+                sys.exit(0)
         except Exception as e:
             self.logger.warning(f"Unable to parse sqlite3 version: {type(e).__name__} {str(e)}")
 
@@ -667,16 +664,12 @@ class StartupLazyLibrarian:
         if path_isfile(old_file):
             if not path_isfile(version_file):
                 try:
-                    with open(syspath(old_file)) as s:
-                        with open(syspath(version_file), 'w') as d:
-                            d.write(s.read())
+                    with open(syspath(old_file)) as s, open(syspath(version_file), 'w') as d:
+                        d.write(s.read())
                 except OSError:
                     self.logger.warning(f"Unable to copy {filename}")
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(old_file)
-            except OSError:
-                pass
-
         return version_file
 
     def init_version_checks(self, version_file):
@@ -695,13 +688,12 @@ class StartupLazyLibrarian:
                 f"Current Version [{CONFIG['CURRENT_VERSION']}] - Latest remote version "
                 f"[{CONFIG['LATEST_VERSION']}] - Install type [{CONFIG['INSTALL_TYPE']}]")
 
-            if CONFIG.get_int('GIT_UPDATED') == 0:
+            if CONFIG.get_int('GIT_UPDATED') == 0 and CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']):
                 # we don't know when the last update was
                 # (docker doesn't set timestamp or it's a first time install)
                 # allow comparison of long and short hashes
-                if CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']):
-                    CONFIG.set_int('GIT_UPDATED', int(time.time()))
-                    self.logger.debug('Setting update timestamp to now')
+                CONFIG.set_int('GIT_UPDATED', int(time.time()))
+                self.logger.debug('Setting update timestamp to now')
 
         # if gitlab doesn't recognise a hash it returns 0 commits
         if not CONFIG['LATEST_VERSION'].startswith(CONFIG['CURRENT_VERSION']) \
@@ -763,12 +755,11 @@ class StartupLazyLibrarian:
 
     def shutdown(self, restart=False, update=False, doquit=False, testing=False):
         shutdownscheduler()
-        if not testing:
-            if not (update and doquit):  # commandline update, don't save config as no filename
-                if self.logger.isEnabledFor(logging.DEBUG):  # TODO add a separate setting
-                    CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
-                CONFIG.add_access_errors_to_log()
-                CONFIG.save_config_and_backup_old(restart_jobs=False)
+        if not testing and not (update and doquit):  # commandline update, don't save config as no filename
+            if self.logger.isEnabledFor(logging.DEBUG):  # TODO add a separate setting
+                CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
+            CONFIG.add_access_errors_to_log()
+            CONFIG.save_config_and_backup_old(restart_jobs=False)
 
         if not restart and not update:
             self.logger.info(f'LazyLibrarian (pid {os.getpid()}) is shutting down...')
@@ -786,10 +777,8 @@ class StartupLazyLibrarian:
                 if updated:
                     self.logger.info('Lazylibrarian version updated')
                     makocache = os.path.join(DIRS.CACHEDIR, 'mako')
-                    try:
+                    with contextlib.suppress(FileNotFoundError):
                         rmtree(makocache)
-                    except FileNotFoundError:
-                        pass
                     os.makedirs(makocache)
                     if CONFIG.configfilename:
                         # won't have one if  --update

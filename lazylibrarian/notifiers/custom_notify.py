@@ -15,10 +15,10 @@
 
 import logging
 
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import run_script
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.scheduling import NOTIFY_DOWNLOAD, NOTIFY_FAIL, NOTIFY_SNATCH, notify_strings
 
 
 class CustomNotifier:
@@ -107,12 +107,10 @@ class CustomNotifier:
                 if rc:
                     logger.error(f"Custom notifier returned {rc}: res[{res}] err[{err}]")
                     return False
-                else:
-                    logger.debug(res)
-                    return True
-            else:
-                logger.warning('Error sending custom notification: Check config')
-                return False
+                logger.debug(res)
+                return True
+            logger.warning('Error sending custom notification: Check config')
+            return False
 
         except Exception as e:
             logger.warning(f'Error sending custom notification: {e}')
@@ -125,13 +123,13 @@ class CustomNotifier:
     def notify_snatch(self, title, fail=False):
         if CONFIG.get_bool('CUSTOM_NOTIFY_ONSNATCH'):
             if fail:
-                self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
+                self._notify(message=title, event=notify_strings[NOTIFY_FAIL])
             else:
-                self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
+                self._notify(message=title, event=notify_strings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
         if CONFIG.get_bool('CUSTOM_NOTIFY_ONDOWNLOAD'):
-            self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD])
+            self._notify(message=title, event=notify_strings[NOTIFY_DOWNLOAD])
 
     def test_notify(self, title="Test"):
         return self._notify(message=title, event="Test", force=True)

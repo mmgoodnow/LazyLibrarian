@@ -21,10 +21,18 @@ from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
+from lazylibrarian.comicid import comic_metadata, cv_identify, cv_issue, cx_identify, cx_issue
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory, splitext
-from lazylibrarian.formatter import plural, check_int, now, get_list, sanitize
+from lazylibrarian.filesystem import (
+    DIRS,
+    get_directory,
+    path_isfile,
+    setperm,
+    splitext,
+    syspath,
+    walk,
+)
+from lazylibrarian.formatter import check_int, get_list, now, plural, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.metadata_opf import create_comic_opf
 
@@ -266,8 +274,8 @@ def comic_scan(comicid=None):
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         try:
                             with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
-                                f.write(u'comic')
-                        except IOError as e:
+                                f.write('comic')
+                        except OSError as e:
                             logger.warning(f"Unable to create/write to ignorefile: {str(e)}")
 
                         # see if this issues date values are useful

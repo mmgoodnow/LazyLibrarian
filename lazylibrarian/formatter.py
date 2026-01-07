@@ -1,5 +1,4 @@
 #  This file is part of Lazylibrarian.
-# coding: utf-8
 #  Lazylibrarian is free software, you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
@@ -14,18 +13,17 @@
 
 # import chardet
 import datetime
-from functools import wraps
-from hashlib import md5
+import logging
 import os
 import re
-import unicodedata
 import threading
-import logging
-from typing import List, Optional, Union
+import unicodedata
+from functools import wraps
+from hashlib import md5
+from urllib.parse import quote, quote_plus, urlsplit, urlunsplit
 
 import lazylibrarian
 from lazylibrarian.configenums import OnChangeReason
-from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
 
 class ImportPrefs:
@@ -68,8 +66,7 @@ def thread_name(name=None) -> str:
     if name:
         threading.current_thread().name = name
         return name
-    else:
-        return threading.current_thread().name
+    return threading.current_thread().name
 
 
 def restore_thread_name(thread_prefix, restore_to='WEBSERVER'):
@@ -140,11 +137,10 @@ def split_author_names(namelist, splitlist):
                 # don't know whether to join to preceding or following part
                 # location = names.index(name)
                 continue
-            else:
+            if name not in authornames:
+                name, _ = lazylibrarian.importer.get_preferred_author(name)
                 if name not in authornames:
-                    name, _ = lazylibrarian.importer.get_preferred_author(name)
-                    if name not in authornames:
-                        authornames.append(name)
+                    authornames.append(name)
     return authornames
 
 
@@ -164,7 +160,7 @@ def sanitize(name, is_folder_or_file=False):
         dic.pop(':')
     filename = replace_all(filename, dic)
     # Remove all characters below code point 32
-    filename = u"".join(c for c in filename if 31 < ord(c))
+    filename = "".join(c for c in filename if ord(c) > 31)
     filename = unicodedata.normalize('NFC', filename)
     # windows filenames can't end in space or dot
     while filename and filename[-1] in '. ':
@@ -236,12 +232,11 @@ def book_series(bookname):
     seriesnum = ""
 
     # First handle things like "(Book 3: series name)"
-    if ':' in bookname:
+    if ':' in bookname and bookname[0] == "(" and bookname[-1] == ")":
         # change to "(series name, Book 3)"
-        if bookname[0] == "(" and bookname[-1] == ")":
-            parts = bookname[1:-1].split(':', 1)
-            if parts[0][-1].isdigit():
-                bookname = f'({parts[1]}, {parts[0]})'
+        parts = bookname[1:-1].split(':', 1)
+        if parts[0][-1].isdigit():
+            bookname = f'({parts[1]}, {parts[0]})'
 
     # These are words that don't indicate a following series name/number eg "FIRST 3 chapters"
     non_series_words = ['series', 'unabridged', 'volume', 'phrase', 'from', 'chapters', 'season',
@@ -333,7 +328,7 @@ def nzbdate2format(nzbdate):
         if month == 0:
             month = 1  # hopefully won't hit this, but return a default value rather than error
         year = nzbdate.split()[3]
-        return "%s-%02d-%s" % (year, month, day)
+        return f"{year}-{month:02d}-{day}"
     except IndexError:
         return "1970-01-01"
 
@@ -373,9 +368,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         word = ''
         digits = True
         for c in datestr:
-            if digits and c.isdigit():
-                word += c
-            elif not digits and not c.isdigit():
+            if digits and c.isdigit() or not digits and not c.isdigit():
                 word += c
             elif word:
                 dateparts.append(word)
@@ -433,7 +426,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context='', datelang=''):
         _ = int(m)
     except ValueError:
         try:
-            m = "%02d" % month2num(m)
+            m = f"{month2num(m):02d}"
         except IndexError:
             m = 0
     if not m or m == "00":
@@ -685,7 +678,7 @@ def make_utf8bytes(txt):
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-def make_unicode(txt: Union[str, bytes]) -> Optional[Union[str, bytes]]:
+def make_unicode(txt: str | bytes) -> str | bytes | None:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     # return is unicode if possible, else bytestring
@@ -755,7 +748,7 @@ def is_valid_isbn(isbn):
     return False
 
 
-def is_valid_type(filename: str, extensions: List[str], extras='jpg, opf') -> bool:
+def is_valid_type(filename: str, extensions: list[str], extras='jpg, opf') -> bool:
     """
     Check if filename has an extension we can process.
     returns True or False
@@ -849,7 +842,7 @@ def split_title(author, book):
     return bookname, booksub, bookseries
 
 
-def format_author_name(author: str, postfix: List[str]) -> str:
+def format_author_name(author: str, postfix: list[str]) -> str:
     """ get authorname in a consistent format """
     fuzzlogger = logging.getLogger('special.fuzz')
     author = make_unicode(author)
@@ -898,7 +891,7 @@ def format_author_name(author: str, postfix: List[str]) -> str:
     return res
 
 
-def sort_definite(title: str, articles=List[str]) -> str:
+def sort_definite(title: str, articles=list[str]) -> str:
     """
     Return the sort string for a title, moving prefixes
     we want to ignore to the end, like The or A
@@ -912,7 +905,7 @@ def sort_definite(title: str, articles=List[str]) -> str:
     return title
 
 
-def surname_first(authorname: str, postfixes: List[str]) -> str:
+def surname_first(authorname: str, postfixes: list[str]) -> str:
     """ Swap authorname round into surname, forenames for display and sorting"""
     words = get_list(authorname)
     if len(words) < 2:
@@ -926,13 +919,13 @@ def surname_first(authorname: str, postfixes: List[str]) -> str:
 
 def clean_name(name, extras=None):
     if not name:
-        return u''
+        return ''
 
     if extras and "'" in extras:
         name = replace_all(name, lazylibrarian.DICTS.get('apostrophe_dict', {}))
 
     valid_name_chars = f"-_.() {extras}"
-    cleaned = u''.join(c for c in name if c in valid_name_chars or c.isalnum())
+    cleaned = ''.join(c for c in name if c in valid_name_chars or c.isalnum())
     cleaned = cleaned.strip()
     if cleaned:
         return cleaned
@@ -941,7 +934,7 @@ def clean_name(name, extras=None):
 
 def unaccented(str_or_unicode, only_ascii=True):
     if not str_or_unicode:
-        return u''
+        return ''
     return make_unicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii))
 
 
@@ -955,15 +948,15 @@ def unaccented_bytes(str_or_unicode, only_ascii=True):
         cleaned = unicodedata.normalize('NFKD', str_or_unicode.decode('utf-8', 'replace'))
 
     # turn accented chars into non-accented
-    stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])
+    stripped = ''.join([c for c in cleaned if not unicodedata.combining(c)])
     # replace all non-ascii quotes/apostrophes with ascii ones eg "Collector's"
     stripped = replace_all(stripped, lazylibrarian.DICTS.get('apostrophe_dict', {}))
     # Other characters not converted by unicodedata.combining
     # c6 Ae, d0 Eth, d7 multiply, d8 Ostroke, de Thorn, df sharpS
-    dic = {u'\xc6': 'A', u'\xd0': 'D', u'\xd7': '*', u'\xd8': 'O', u'\xde': 'P', u'\xdf': 's'}
+    dic = {'\xc6': 'A', '\xd0': 'D', '\xd7': '*', '\xd8': 'O', '\xde': 'P', '\xdf': 's'}
     stripped = replace_all(stripped, dic)
     # e6 ae, f0 eth, f7 divide, f8 ostroke, fe thorn
-    dic = {u'\xe6': 'a', u'\xf0': 'o', u'\xf7': '/', u'\xf8': 'o', u'\xfe': 'p'}
+    dic = {'\xe6': 'a', '\xf0': 'o', '\xf7': '/', '\xf8': 'o', '\xfe': 'p'}
     stripped = replace_all(stripped, dic)
     if not only_ascii:
         # now get rid of any other non-ascii
@@ -1033,5 +1026,3 @@ def replacevars(base, mydict, is_folder=False):
     base = base.replace('$$', ' ')
     matchinglogger.debug(base)
     return base
-
-

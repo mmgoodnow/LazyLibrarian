@@ -15,18 +15,22 @@ import json
 import logging
 import re
 import time
-
 from http.cookiejar import CookieJar
-from urllib.parse import urljoin, urlencode
-from urllib.request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
-    build_opener, install_opener, Request
+from urllib.parse import urlencode, urljoin
+from urllib.request import (
+    HTTPBasicAuthHandler,
+    HTTPCookieProcessor,
+    Request,
+    build_opener,
+    install_opener,
+)
 
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import get_user_agent
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import check_int, get_list
 
 
-class UtorrentClient(object):
+class UtorrentClient:
     TOKEN_REGEX = b"<div id='token' style='display:none;'>([^<>]+)</div>"
 
     # noinspection PyUnusedLocal

@@ -25,11 +25,11 @@ Created on Apr 19, 2012
     check if libtorrent available (it's architecture specific)
 """
 
+import logging
 import os
 import shutil
 import tempfile
 from time import sleep
-import logging
 
 from lazylibrarian.config2 import CONFIG
 

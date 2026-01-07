@@ -185,7 +185,7 @@ def daemonize():
         if pid != 0:
             sys.exit(0)
     except OSError as e:
-        raise RuntimeError(f"1st fork failed: {e.strerror} [{e.errno}]")
+        raise RuntimeError(f"1st fork failed: {e.strerror} [{e.errno}]") from e
 
     os.setsid()  # @UndefinedVariable - only available in UNIX
 
@@ -199,18 +199,15 @@ def daemonize():
         if pid != 0:
             sys.exit(0)
     except OSError as e:
-        raise RuntimeError(f"2nd fork failed: {e.strerror} [{e.errno}]")
+        raise RuntimeError(f"2nd fork failed: {e.strerror} [{e.errno}]") from e
 
-    dev_null = open('/dev/null')
-    os.dup2(dev_null.fileno(), sys.stdin.fileno())
+    with open('/dev/null') as dev_null:
+        os.dup2(dev_null.fileno(), sys.stdin.fileno())
 
-    si = open('/dev/null')
-    so = open('/dev/null', "a+")
-    se = open('/dev/null', "a+")
-
-    os.dup2(si.fileno(), sys.stdin.fileno())
-    os.dup2(so.fileno(), sys.stdout.fileno())
-    os.dup2(se.fileno(), sys.stderr.fileno())
+    with open('/dev/null') as si, open('/dev/null', "a+") as so, open('/dev/null', "a+") as se:
+        os.dup2(si.fileno(), sys.stdin.fileno())
+        os.dup2(so.fileno(), sys.stdout.fileno())
+        os.dup2(se.fileno(), sys.stderr.fileno())
 
     pid = os.getpid()
     logger.debug(f"Daemonized to PID {pid}")

@@ -4,16 +4,28 @@
 #    Contain all the config settings and defaults used across LazyLibrarian
 
 from copy import deepcopy
-from typing import List, Dict, Tuple
 
-from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, \
-    ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFloat, ConfigFolder, \
-    ConfigScheduler, ConfigDownloadTypes, ConfigConnection, TimeUnit
+from lazylibrarian.configtypes import (
+    ConfigBool,
+    ConfigConnection,
+    ConfigCSV,
+    ConfigDownloadTypes,
+    ConfigEmail,
+    ConfigFloat,
+    ConfigFolder,
+    ConfigInt,
+    ConfigItem,
+    ConfigPerm,
+    ConfigRangedInt,
+    ConfigScheduler,
+    ConfigStr,
+    ConfigURL,
+    TimeUnit,
+)
 from lazylibrarian.formatter import ImportPrefs
 from lazylibrarian.logconfig import LogConfig
 
-
-BASE_DEFAULTS: List[ConfigItem] = [
+BASE_DEFAULTS: list[ConfigItem] = [
     ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),
     ConfigURL('General', 'GR_URL', 'https://www.goodreads.com'),
     ConfigURL('General', 'GB_URL', 'https://www.googleapis.com'),
@@ -547,9 +559,9 @@ BASE_DEFAULTS: List[ConfigItem] = [
 ]
 
 # (Sectionname, SectionNameTemplate, [Items])
-DefaultArrayDef = Tuple[str, str, List[ConfigItem]]
+DefaultArrayDef = tuple[str, str, list[ConfigItem]]
 
-ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
+ARRAY_DEFS: dict[str, DefaultArrayDef] = {
     'NEWZNAB': ('HOST', 'Newznab_%s', [
         ConfigStr('', 'NAME', 'Newznab', persist=False),
         ConfigStr('', "DISPNAME", ''),

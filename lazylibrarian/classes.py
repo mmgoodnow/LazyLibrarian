@@ -53,7 +53,7 @@ class NZBSearchResult(SearchResult):
     """
     Regular NZB result with an URL to the NZB
     """
-    resultType = "nzb"
+    result_type = "nzb"
 
 
 class NZBDataSearchResult(SearchResult):
@@ -61,7 +61,7 @@ class NZBDataSearchResult(SearchResult):
     """
     NZB result where the actual NZB XML data is stored in the extraInfo
     """
-    resultType = "nzbdata"
+    result_type = "nzbdata"
 
 
 class TorrentSearchResult(SearchResult):
@@ -69,4 +69,4 @@ class TorrentSearchResult(SearchResult):
     """
     Torrent result with an URL to the torrent
     """
-    resultType = "torrent"
+    result_type = "torrent"

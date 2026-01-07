@@ -10,6 +10,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import contextlib
 import logging
 import re
 import sqlite3
@@ -24,10 +25,17 @@ from rapidfuzz import fuzz
 
 import lazylibrarian
 from lazylibrarian import database
-from lazylibrarian.cache import cache_img, ImageType
+from lazylibrarian.cache import ImageType, cache_img
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import today, unaccented, format_author_name, \
-    get_list, check_int, thread_name, plural
+from lazylibrarian.formatter import (
+    check_int,
+    format_author_name,
+    get_list,
+    plural,
+    thread_name,
+    today,
+    unaccented,
+)
 from lazylibrarian.grsync import grfollow
 from lazylibrarian.images import get_author_image, img_id
 from lazylibrarian.processcontrol import get_info_on_caller
@@ -47,9 +55,7 @@ def is_valid_authorid(authorid: str, api=None) -> bool:
 
     if authorid.startswith('OL') and (api == 'OpenLibrary' or api not in has_authorkey):
         return True
-    if authorid.isdigit() and api != 'OpenLibrary':
-        return True
-    return False
+    return bool(authorid.isdigit() and api != 'OpenLibrary')
 
 
 def get_preferred_author(author):
@@ -109,9 +115,8 @@ def available_author_sources():
                     source_dict[CONFIG['BOOK_API']][0] != 'OL'):
                 pref = item
                 break
-        if not pref:
-            if source_dict['OpenLibrary'][3]:
-                pref = 'OpenLibrary'
+        if not pref and source_dict['OpenLibrary'][3]:
+            pref = 'OpenLibrary'
     if not pref:
         logger = logging.getLogger(__name__)
         logger.warning("No suitable source for authorid, using OpenLibrary")
@@ -120,9 +125,8 @@ def available_author_sources():
     author_sources.append(source_dict[pref])
     if CONFIG.get_bool('MULTI_SOURCE'):
         for item in source_dict:
-            if item != pref and source_dict[item][1]:
-                if source_dict[item][2] and source_dict[item][2] != 'authorid':
-                    author_sources.append(source_dict[item])
+            if item != pref and source_dict[item][1] and source_dict[item][2] and source_dict[item][2] != 'authorid':
+                author_sources.append(source_dict[item])
     return author_sources
 
 
@@ -192,9 +196,8 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                     match_fuzz = fuzz.partial_ratio(match_auth.lower(), match_name.lower())
                     if match_fuzz >= CONFIG.get_int('NAME_PARTNAME'):
                         break
-                    else:
-                        logger.debug(
-                            f"Failed to match author [{author}] to authorname [{match_name}] fuzz [{match_fuzz}]")
+                    logger.debug(
+                        f"Failed to match author [{author}] to authorname [{match_name}] fuzz [{match_fuzz}]")
 
             if not author_info:
                 return "", "", new
@@ -581,15 +584,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
                     current_sources = [current_sources[0]]
                 for api_source in current_sources:
                     current_id = current_author.get(api_source[3], '')
-                    if not current_id:
-                        if api_source[3] and api_source[3] != 'authorid':
-                            logger.debug(f"Finding {api_source[0]} author ID for {current_author['authorname']}")
-                            book_api = api_source[2]
-                            res = book_api.find_author_id(authorname=authorname, title='', refresh=True)
-                            if res and res.get('authorid'):
-                                current_id = res.get('authorid')
-                                cmd = f"UPDATE authors SET {api_source[3]}=? WHERE AuthorName=? COLLATE NOCASE"
-                                db.action(cmd, (current_id, current_author['authorname']))
+                    if not current_id and api_source[3] and api_source[3] != 'authorid':
+                        logger.debug(f"Finding {api_source[0]} author ID for {current_author['authorname']}")
+                        book_api = api_source[2]
+                        res = book_api.find_author_id(authorname=authorname, title='', refresh=True)
+                        if res and res.get('authorid'):
+                            current_id = res.get('authorid')
+                            cmd = f"UPDATE authors SET {api_source[3]}=? WHERE AuthorName=? COLLATE NOCASE"
+                            db.action(cmd, (current_id, current_author['authorname']))
                     if current_id:
                         logger.debug(f"Book query {api_source[0]} for {current_id}:{current_author['authorname']}")
                         book_api = api_source[2]
@@ -660,7 +662,7 @@ def collate_nopunctuation(string1, string2):
     str2 = string2.translate(str.maketrans('', '', string.punctuation))
     if str1 < str2:
         return -1
-    elif str1 > str2:
+    if str1 > str2:
         return 1
     return 0
 
@@ -701,19 +703,15 @@ def collate_fuzzy(string1, string2):
             try:
                 num1.append(float(re.findall(r'\d+\.\d+', word)[0]))
             except IndexError:
-                try:
+                with contextlib.suppress(IndexError):
                     num1.append(int(re.findall(r'\d+', word)[0]))
-                except IndexError:
-                    pass
         for word in set2:
             word = word.replace('-', '')
             try:
                 num2.append(float(re.findall(r'\d+\.\d+', word)[0]))
             except IndexError:
-                try:
+                with contextlib.suppress(IndexError):
                     num2.append(int(re.findall(r'\d+', word)[0]))
-                except IndexError:
-                    pass
         fuzzlogger.debug(f"[{string1}][{string2}]{num1}:{num2}")
         if num1 == num2:
             return 0

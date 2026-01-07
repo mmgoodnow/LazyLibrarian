@@ -20,19 +20,18 @@
 # URL: https://gitlab.com/philborman
 #
 
-from __future__ import unicode_literals
 
 import logging
 import re
 import time
 import traceback
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 
 import requests
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import path_isdir, syspath, make_dirs
+from lazylibrarian.filesystem import make_dirs, path_isdir, syspath
 from lazylibrarian.formatter import make_unicode
 
 delugeweb_authtime = 0
@@ -557,9 +556,8 @@ def set_torrent_label(retid, label):
             dlcommslogger.debug(response.text)
             logger.debug(f'Deluge: {label} label added to torrent')
             return not response.json()['error']
-        else:
-            logger.debug('Deluge: Label plugin not detected')
-            return False
+        logger.debug('Deluge: Label plugin not detected')
+        return False
     except Exception as err:
         logger.error(f'Deluge {type(err).__name__}: Adding label failed: {str(err)}')
         return False

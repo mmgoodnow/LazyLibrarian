@@ -19,23 +19,31 @@ import traceback
 import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.downloadmethods import tor_dl_method
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import (plural, unaccented, format_author_name, split_title, thread_name,
-                                     get_list, now, split_author_names)
+from lazylibrarian.downloadmethods import tor_dl_method
+from lazylibrarian.formatter import (
+    format_author_name,
+    get_list,
+    now,
+    plural,
+    split_author_names,
+    split_title,
+    thread_name,
+    unaccented,
+)
 from lazylibrarian.images import get_book_cover
-from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
+from lazylibrarian.importer import add_author_name_to_db, import_book, search_for
 from lazylibrarian.librarysync import find_book_in_db
-from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
+from lazylibrarian.notifiers import custom_notify_snatch, notify_snatch
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_wishlists
 from lazylibrarian.resultlist import process_result_list
-from lazylibrarian.scheduling import schedule_job, SchedulerCommand
+from lazylibrarian.scheduling import SchedulerCommand, schedule_job
 from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_rss_book():
     logger = logging.getLogger(__name__)
-    if 'SEARCHALLRSS' not in [n.name for n in [t for t in threading.enumerate()]]:
+    if 'SEARCHALLRSS' not in [n.name for n in list(threading.enumerate())]:
         search_rss_book()
     else:
         logger.debug("SEARCHALLRSS is already running")
@@ -43,7 +51,7 @@ def cron_search_rss_book():
 
 def cron_search_wishlist():
     logger = logging.getLogger(__name__)
-    if 'SEARCHWISHLIST' not in [n.name for n in [t for t in threading.enumerate()]]:
+    if 'SEARCHWISHLIST' not in [n.name for n in list(threading.enumerate())]:
         search_wishlist()
     else:
         logger.debug("SEARCHWISHLIST is already running")
@@ -492,39 +500,37 @@ def search_rss_book(books=None, library=None):
             if searchbook['BookSub']:
                 searchterm = f"{searchterm}: {searchbook['BookSub']}"
 
-            if library is None or library == 'eBook':
-                if searchbook['Status'] == "Wanted":
-                    cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='eBook' and Status='Snatched'"
-                    snatched = db.match(cmd, (searchbook["BookID"],))
-                    if snatched:
-                        logger.warning(
-                            f"eBook {searchbook['AuthorName']} {searchbook['BookName']} already marked "
-                            f"snatched in wanted table")
-                    else:
-                        searchlist.append(
-                            {"bookid": searchbook['BookID'],
-                             "bookName": searchbook['BookName'],
-                             "bookSub": searchbook['BookSub'],
-                             "authorName": searchbook['AuthorName'],
-                             "library": "eBook",
-                             "searchterm": searchterm})
+            if library is None or library == 'eBook' and searchbook['Status'] == "Wanted":
+                cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='eBook' and Status='Snatched'"
+                snatched = db.match(cmd, (searchbook["BookID"],))
+                if snatched:
+                    logger.warning(
+                        f"eBook {searchbook['AuthorName']} {searchbook['BookName']} already marked "
+                        f"snatched in wanted table")
+                else:
+                    searchlist.append(
+                        {"bookid": searchbook['BookID'],
+                         "bookName": searchbook['BookName'],
+                         "bookSub": searchbook['BookSub'],
+                         "authorName": searchbook['AuthorName'],
+                         "library": "eBook",
+                         "searchterm": searchterm})
 
-            if library is None or library == 'AudioBook':
-                if searchbook['AudioStatus'] == "Wanted":
-                    cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='AudioBook' and Status='Snatched'"
-                    snatched = db.match(cmd, (searchbook["BookID"],))
-                    if snatched:
-                        logger.warning(
-                            f"AudioBook {searchbook['AuthorName']} {searchbook['BookName']} already marked "
-                            f"snatched in wanted table")
-                    else:
-                        searchlist.append(
-                            {"bookid": searchbook['BookID'],
-                             "bookName": searchbook['BookName'],
-                             "bookSub": searchbook['BookSub'],
-                             "authorName": searchbook['AuthorName'],
-                             "library": "AudioBook",
-                             "searchterm": searchterm})
+            if library is None or library == 'AudioBook' and searchbook['AudioStatus'] == "Wanted":
+                cmd = "SELECT BookID from wanted WHERE BookID=? and AuxInfo='AudioBook' and Status='Snatched'"
+                snatched = db.match(cmd, (searchbook["BookID"],))
+                if snatched:
+                    logger.warning(
+                        f"AudioBook {searchbook['AuthorName']} {searchbook['BookName']} already marked "
+                        f"snatched in wanted table")
+                else:
+                    searchlist.append(
+                        {"bookid": searchbook['BookID'],
+                         "bookName": searchbook['BookName'],
+                         "bookSub": searchbook['BookSub'],
+                         "authorName": searchbook['AuthorName'],
+                         "library": "AudioBook",
+                         "searchterm": searchterm})
 
         rss_count = 0
         for book in searchlist:

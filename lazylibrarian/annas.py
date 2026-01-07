@@ -23,7 +23,7 @@ from enum import Enum
 from html import unescape as html_unescape
 from urllib.parse import urljoin
 
-from bs4 import Tag, BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from requests import get
 
 import lazylibrarian
@@ -31,8 +31,7 @@ from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
-from lazylibrarian.formatter import md5_utf8, plural, check_int, size_in_bytes, get_list, sanitize
-
+from lazylibrarian.formatter import check_int, get_list, md5_utf8, plural, sanitize, size_in_bytes
 
 py310 = sys.version_info >= (3, 10)
 
@@ -130,7 +129,7 @@ class Language(Enum):
     ZH = "zh"
 
 
-class HTTPFailed(Exception):
+class HTTPFailedError(Exception):
     pass
 
 
@@ -187,11 +186,13 @@ def extract_publish_info(raw: str) -> tuple[str, str]:
 
 
 # noinspection PyDefaultArgument
-def html_parser(url: str, params: dict = {}) -> BeautifulSoup:
+def html_parser(url: str, params: dict = None) -> BeautifulSoup:
+    if not params:
+        params = {}
     params = dict(filter(lambda i: i[1], params.items()))
     response = get(url, params=params)
     if response.status_code >= 400:
-        raise HTTPFailed(f"server returned http status {response.status_code}")
+        raise HTTPFailedError(f"server returned http status {response.status_code}")
     html = response.text.replace("<!--", "").replace("-->", "")
     return BeautifulSoup(html, "html5lib")
 
@@ -376,21 +377,21 @@ def annas_download(md5, folder, title, extn):
                 logger.info(f"Anna {lazylibrarian.TIMERS['ANNA_REMAINING']} remaining "
                             f"of {counters['downloads_per_day']}")
             return True, dest_filename
-        else:
-            errmsg = f"Invalid url: {url} {res['error']}"
-            logger.error(errmsg)
-            return False, errmsg
+        errmsg = f"Invalid url: {url} {res['error']}"
+        logger.error(errmsg)
+        return False, errmsg
+    if response.status_code == 409:
+        errmsg = (f"Error Status: {response.status_code} Over your daily limit.")
     else:
         errmsg = (f"Error Status: {response.status_code} Check your ANNAS key, "
                   f"and make sure you have a PAID subscription")
-        logger.error(errmsg)
-        return False, errmsg
+    logger.error(errmsg)
+    return False, errmsg
 
 
-def anna_search(book=None, test=False):
+def anna_search(book=None, searchtype='ebook', test=False):
     logger = logging.getLogger(__name__)
     provider = "annas"
-    # searchtype = 'eBook'
     lang = CONFIG['ANNA_SEARCH_LANG'].split(',')[0].strip().upper()
     if lang and lang in Language.__members__:
         language = Language[lang]
@@ -441,7 +442,7 @@ def anna_search(book=None, test=False):
     if not hashfilename:
         return [], ''
 
-    with open(hashfilename, 'r') as f:
+    with open(hashfilename) as f:
         searchresults = json.load(f)
 
     logger.debug(f"{provider} returned {len(searchresults)}")
@@ -456,9 +457,11 @@ def anna_search(book=None, test=False):
         dl = item['id']
         title = title.split('\n')[0]
 
+        if searchtype == 'mag':  # magazines don't have an author
+            author = title
         if not author or not title or not size or not dl:
             removed += 1
-            logger.debug("Rejecting Author:{author}, Title:{title}, Size:{size}, DL:{dl}")
+            logger.debug(f"Rejecting Author:{author}, Title:{title}, Size:{size}, DL:{dl}")
         else:
             if author and author not in title:
                 title = f"{author.strip()} {title.strip()}"

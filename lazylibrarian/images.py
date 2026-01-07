@@ -11,27 +11,44 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import io
+import json
+import logging
 import os
 import string
-import traceback
 import subprocess
-import json
-import io
-import zipfile
-import logging
 import tempfile
+import traceback
+import zipfile
+from secrets import choice
+from shutil import rmtree
+from urllib.parse import quote_plus
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database
-from lazylibrarian.formatter import plural, make_unicode, safe_unicode, check_int, make_utf8bytes, \
-    sort_definite, get_list, is_valid_type
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file, safe_move, splitext
-from lazylibrarian.cache import cache_img, fetch_url, ImageType
 from lazylibrarian.blockhandler import BLOCKHANDLER
-from urllib.parse import quote_plus
-from shutil import rmtree
-from secrets import choice
+from lazylibrarian.cache import ImageType, cache_img, fetch_url
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.filesystem import (
+    DIRS,
+    jpg_file,
+    path_isfile,
+    safe_copy,
+    safe_move,
+    setperm,
+    splitext,
+    syspath,
+)
+from lazylibrarian.formatter import (
+    check_int,
+    get_list,
+    is_valid_type,
+    make_unicode,
+    make_utf8bytes,
+    plural,
+    safe_unicode,
+    sort_definite,
+)
 
 try:
     import PIL
@@ -40,7 +57,13 @@ except ImportError:
 if PIL:
     # noinspection PyUnresolvedReferences
     from PIL import Image as PILImage
-    from lib.icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
+
+    from lib.icrawler.builtin import (
+        BaiduImageCrawler,
+        BingImageCrawler,
+        FlickrImageCrawler,
+        GoogleImageCrawler,
+    )
 else:
     GoogleImageCrawler = None
     BingImageCrawler = None
@@ -49,7 +72,7 @@ else:
     PILImage = None
 
 # noinspection PyProtectedMember
-from pypdf import PdfWriter, PdfReader
+from pypdf import PdfReader, PdfWriter
 
 # noinspection PyBroadException
 try:
@@ -101,7 +124,7 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
         return ''
 
     wpercent = (bwidth / float(img.size[0]))
-    hsize = int((float(img.size[1]) * float(wpercent)))
+    hsize = int(float(img.size[1]) * float(wpercent))
     try:
         # noinspection PyUnresolvedReferences
         img = img.resize((bwidth, hsize), PIL.Image.Resampling.LANCZOS)
@@ -341,7 +364,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
             if path_isfile(coverfile):  # use cached image if there is one
                 lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
                 return coverlink, 'cache'
-            elif src:
+            if src:
                 lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
                 return None, src
 
@@ -367,8 +390,7 @@ def get_book_cover(bookid=None, src=None, ignore=''):
                         except Exception as e:
                             logger.warning(f"Failed to copy cover file: {str(e)}")
                         return coverlink, src
-                    else:
-                        logger.debug(f"No cover found for {bookid} in {bookdir}")
+                    logger.debug(f"No cover found for {bookid} in {bookdir}")
                 else:
                     if bookfile:
                         logger.debug(f"File {bookfile} not found")
@@ -799,14 +821,13 @@ def shrink_mag(issuefile, dpi=0):
 def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
     logger = logging.getLogger(__name__)
-    if is_valid_type(issuefile, extensions=get_list(CONFIG['MAG_TYPE'])):
-        if not CONFIG.get_bool('IMP_MAGCOVER') or not pagenum:
-            logger.warning(f'No cover required for {issuefile}')
-            return ''
-    if is_valid_type(issuefile, extensions=get_list(CONFIG['COMIC_TYPE'])):
-        if not CONFIG.get_bool('IMP_COMICCOVER'):
-            logger.warning(f'No cover required for {issuefile}')
-            return ''
+    if is_valid_type(issuefile, extensions=get_list(CONFIG['MAG_TYPE'])) and (not CONFIG.get_bool('IMP_MAGCOVER')
+                                                                              or not pagenum):
+        logger.warning(f'No cover required for {issuefile}')
+        return ''
+    if is_valid_type(issuefile, extensions=get_list(CONFIG['COMIC_TYPE'])) and not CONFIG.get_bool('IMP_COMICCOVER'):
+        logger.warning(f'No cover required for {issuefile}')
+        return ''
     if not issuefile or not path_isfile(issuefile):
         logger.warning(f'No issuefile {issuefile}')
         return ''
@@ -834,16 +855,15 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
         except Exception as why:
             logger.error(f"Failed to read zip file {issuefile}, {type(why).__name__} {str(why)}")
             data = ''
-    elif extn in ['.cbr']:
-        if lazylibrarian.UNRARLIB:
-            try:
-                if lazylibrarian.UNRARLIB == 1:
-                    data = lazylibrarian.RARFILE.RarFile(issuefile)
-                elif lazylibrarian.UNRARLIB == 2:
-                    data = lazylibrarian.RARFILE(issuefile)
-            except Exception as why:
-                logger.error(f"Failed to read rar file {issuefile}, {type(why).__name__} {str(why)}")
-                data = ''
+    elif extn in ['.cbr'] and lazylibrarian.UNRARLIB:
+        try:
+            if lazylibrarian.UNRARLIB == 1:
+                data = lazylibrarian.RARFILE.RarFile(issuefile)
+            elif lazylibrarian.UNRARLIB == 2:
+                data = lazylibrarian.RARFILE(issuefile)
+        except Exception as why:
+            logger.error(f"Failed to read rar file {issuefile}, {type(why).__name__} {str(why)}")
+            data = ''
     if data:
         img = None
         fextn = ''
@@ -877,8 +897,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                     with open(syspath(coverfile), 'wb') as f:
                         f.write(img)
                 return coverfile
-            else:
-                logger.debug(f"Failed to find image in {issuefile}")
+            logger.debug(f"Failed to find image in {issuefile}")
         except Exception as why:
             logger.error(f"Failed to extract image from {issuefile}, {type(why).__name__} {str(why)}")
 
@@ -934,16 +953,16 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
         else:  # not windows
             try:
                 # noinspection PyUnresolvedReferences,PyPep8Naming
-                from wand.image import Image as wand_image
+                from wand.image import Image as wand_Image
                 interface = "wand"
             except ImportError:
-                wand_image = None
+                wand_Image = None
                 interface = ""
             try:
-                if interface == 'wand' and wand_image:
+                if interface == 'wand' and wand_Image:
                     generator = "wand interface"
                     # noinspection PyCallingNonCallable
-                    with wand_image(filename=f"{issuefile}[{str(check_int(pagenum, 1) - 1)}]") as img:
+                    with wand_Image(filename=f"{issuefile}[{str(check_int(pagenum, 1) - 1)}]") as img:
                         img.save(filename=coverfile)
                 else:
                     if not GS:

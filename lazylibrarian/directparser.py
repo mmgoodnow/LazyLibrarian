@@ -13,7 +13,7 @@
 import logging
 import time
 import traceback
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -22,8 +22,15 @@ from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
-    make_utf8bytes, get_list
+from lazylibrarian.formatter import (
+    format_author_name,
+    get_list,
+    make_unicode,
+    make_utf8bytes,
+    plural,
+    size_in_bytes,
+    url_fix,
+)
 from lazylibrarian.telemetry import TELEMETRY
 from lib.zlibrary import Zlibrary
 
@@ -45,13 +52,12 @@ def redirect_url(genhost, url):
     if host.netloc:
         if host.netloc.lower() != 'libgen.io':
             # noinspection PyArgumentList,PyProtectedMember
-            myurl = myurl._replace(**{"netloc": host.netloc})
+            myurl = myurl._replace(netloc=host.netloc)
             logger.debug(f'Redirected libgen.io to [{host.netloc}]')
-    elif host.path:
-        if host.path.lower() != 'libgen.io':
-            # noinspection PyArgumentList,PyProtectedMember
-            myurl = myurl._replace(**{"netloc": host.netloc})
-            logger.debug(f'Redirected libgen.io to [{host.netloc}]')
+    elif host.path and host.path.lower() != 'libgen.io':
+        # noinspection PyArgumentList,PyProtectedMember
+        myurl = myurl._replace(netloc=host.netloc)
+        logger.debug(f'Redirected libgen.io to [{host.netloc}]')
     return myurl.geturl()
 
 
@@ -349,17 +355,15 @@ def direct_gen(book=None, prov=None, test=False):
                                         publisher = td[f].text.split('Publisher: ')[1].strip()
                                     elif 'Language: ' in td[f].text:
                                         language = td[f].text.split('Language: ')[1].strip()
-                                    elif not size:
-                                        if '<br' in str(td[f]) and td[f].text[0].isdigit():
-                                            size = str(td[f]).split('>')[1].split('<br')[0]
-                                            extn = str(td[f]).split('<br')[1].split('>')[1].split('<')[0]
+                                    elif not size and '<br' in str(td[f]) and td[f].text[0].isdigit():
+                                        size = str(td[f]).split('>')[1].split('<br')[0]
+                                        extn = str(td[f]).split('<br')[1].split('>')[1].split('<')[0]
                                     logger.debug(
                                         f"Title: {title} Issue:{issue} Year:{year} Pub:{publisher} "
                                         f"Lang:{language} Size: {size}")
                         except Exception as e:
                             logger.debug(f'Error parsing libgen comic results: {str(e)}')
                             TELEMETRY.record_usage_data("libgenComicError")
-                            pass
 
                     elif td and tabletype == 'libgen':
                         try:
@@ -377,7 +381,6 @@ def direct_gen(book=None, prov=None, test=False):
                         except Exception as e:
                             logger.debug(f'Error parsing libgen results: {str(e)}')
                             TELEMETRY.record_usage_data("libgenError")
-                            pass
 
                     elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
                         try:
@@ -405,7 +408,6 @@ def direct_gen(book=None, prov=None, test=False):
                         except IndexError as e:
                             logger.debug(f'Error parsing libgen fiction results: {str(e)}')
                             TELEMETRY.record_usage_data("libgenFictionError")
-                            pass
 
                     elif 'search.php' in search and len(td) > 8:
                         # Non-fiction
@@ -428,7 +430,6 @@ def direct_gen(book=None, prov=None, test=False):
                         except IndexError as e:
                             logger.debug(f'Error parsing libgen search.php results; {str(e)}')
                             TELEMETRY.record_usage_data("libgenSearchError")
-                            pass
 
                     size = size_in_bytes(size)
 
@@ -478,21 +479,19 @@ def direct_gen(book=None, prov=None, test=False):
                                 for link in new_soup.find_all('a'):
                                     output = link.get('href')
                                     if output:
-                                        if '/get.php' in output or '/download/' in output or \
-                                                '/book/' in output or '/fiction/' in output or \
-                                                '/main/' in output:
-                                            if output.startswith('http'):
-                                                url = output
-                                                break
-                                            else:
-                                                nhost = urlparse(url)
-                                                nurl = urlparse(output)
-                                                # noinspection PyProtectedMember
-                                                nurl = nurl._replace(**{"scheme": nhost.scheme})
-                                                # noinspection PyProtectedMember
-                                                nurl = nurl._replace(**{"netloc": nhost.netloc})
-                                                url = nurl.geturl()
-                                                break
+                                        if ('/get.php' in output or '/download/' in output
+                                                or '/book/' in output or '/fiction/' in output
+                                                or '/main/' in output) and output.startswith('http'):
+                                            url = output
+                                            break
+                                        nhost = urlparse(url)
+                                        nurl = urlparse(output)
+                                        # noinspection PyProtectedMember
+                                        nurl = nurl._replace(scheme=nhost.scheme)
+                                        # noinspection PyProtectedMember
+                                        nurl = nurl._replace(netloc=nhost.netloc)
+                                        url = nurl.geturl()
+                                        break
                                 if url:
                                     url = make_unicode(url)
                                     if not url.startswith('http'):

@@ -23,18 +23,18 @@ from email.mime.application import MIMEApplication
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formatdate, formataddr
+from email.utils import formataddr, formatdate
 
 import cherrypy
 
 import lazylibrarian
 from lazylibrarian import database, ebook_convert
-from lazylibrarian.common import is_valid_email, run_script, mime_type
+from lazylibrarian.common import is_valid_email, mime_type, run_script
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, splitext
+from lazylibrarian.filesystem import DIRS, path_isfile, splitext, syspath
 from lazylibrarian.formatter import check_int, get_list, unaccented
 from lazylibrarian.librarysync import get_book_info
-from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
+from lazylibrarian.scheduling import NOTIFY_DOWNLOAD, NOTIFY_FAIL, NOTIFY_SNATCH, notify_strings
 
 
 class EmailNotifier:
@@ -195,9 +195,8 @@ class EmailNotifier:
     def notify_snatch(self, title, fail=False):
         if CONFIG.get_bool('EMAIL_NOTIFY_ONSNATCH'):
             if fail:
-                return self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
-            else:
-                return self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
+                return self._notify(message=title, event=notify_strings[NOTIFY_FAIL])
+            return self._notify(message=title, event=notify_strings[NOTIFY_SNATCH])
         return False
 
     def notify_download(self, title, bookid=None, force=False):
@@ -208,7 +207,7 @@ class EmailNotifier:
         logger = logging.getLogger(__name__)
         if CONFIG.get_bool('EMAIL_NOTIFY_ONDOWNLOAD') or force:
             files = None
-            event = notifyStrings[NOTIFY_DOWNLOAD]
+            event = notify_strings[NOTIFY_DOWNLOAD]
             logger.debug(f"Email send attachment is {CONFIG['EMAIL_SENDFILE_ONDOWNLOAD']}")
             if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
                 if not bookid:

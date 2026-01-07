@@ -11,6 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import contextlib
 import logging
 import re
 import string
@@ -25,7 +26,14 @@ import lazylibrarian
 from lazylibrarian.cache import html_request, json_request
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import path_isfile
-from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, strip_quotes
+from lazylibrarian.formatter import (
+    check_int,
+    check_year,
+    make_unicode,
+    make_utf8bytes,
+    plural,
+    strip_quotes,
+)
 
 
 def get_issue_num(words, skipped):
@@ -389,14 +397,10 @@ def get_series_detail_from_search(page_content):
         series_detail['title'] = soup.find('h1', itemprop='name').text
     except AttributeError:
         series_detail['title'] = ''
-    try:
+    with contextlib.suppress(AttributeError):
         series_detail['publisher'] = soup.find('h3', class_="name").text.strip('\n').strip()
-    except AttributeError:
-        pass
-    try:
+    with contextlib.suppress(AttributeError):
         series_detail['description'] = soup.find('div', itemprop='description').text
-    except AttributeError:
-        pass
     issues = soup.find('div', class_="list Issues")
     if issues:
         series_detail['issues'] = issues.find_all('h6')
@@ -476,10 +480,8 @@ def cx_identify(fname, best=True):
                         last = max(last, num)
                     except Exception:
                         pass
-                try:
+                with contextlib.suppress(IndexError):
                     start = series_detail['title'].rsplit('(', 1)[1].split('-')[0].rstrip(')')
-                except IndexError:
-                    pass
 
                 series_detail['seriesid'] = f"CX{link.rsplit('/', 1)[1]}"
                 series_detail['start'] = start
@@ -535,17 +537,15 @@ def cx_identify(fname, best=True):
                             matchinglogger.debug(f"Match {item['title']} ({year} is between {y1}-{y2})")
                             rejected = False
                             break
-                        elif y1 and not y2 and int(year) >= int(y1):
+                        if y1 and not y2 and int(year) >= int(y1):
                             matchinglogger.debug(f"Accept {item['title']} ({year} is in {y1}-)")
                             rejected = False
                             break
-                        else:
-                            matchinglogger.debug(f"Rejecting {item['title']}, need {year}")
-                            rejected = True
-                            noise += 1
-                            break
-                    else:
+                        matchinglogger.debug(f"Rejecting {item['title']}, need {year}")
+                        rejected = True
                         noise += 1
+                        break
+                    noise += 1
 
             for w in titlewords:
                 if w not in name_words(item['title']):

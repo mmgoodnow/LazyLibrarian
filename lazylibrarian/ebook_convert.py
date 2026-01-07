@@ -1,6 +1,6 @@
 #!/usr/bin/python
-import sys
 import subprocess
+import sys
 
 from lazylibrarian.common import calibre_prg
 from lazylibrarian.config2 import CONFIG
@@ -68,4 +68,4 @@ def convert(input_file, output_format):
         return f"{basename}.{output_format}"
     except Exception as e:
         sys.stderr.write(f"{e}\n")
-        raise Exception(e)
+        raise

@@ -49,19 +49,19 @@ from deluge_client import DelugeRPCClient
 import lazylibrarian
 from lazylibrarian import (
     database,
-    utorrent,
-    transmission,
-    qbittorrent,
     deluge,
-    rtorrent,
-    synology,
-    sabnzbd,
     nzbget,
+    qbittorrent,
+    rtorrent,
+    sabnzbd,
+    synology,
+    transmission,
+    utorrent,
 )
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.formatter import unaccented, get_list, check_int
-from lazylibrarian.telemetry import TELEMETRY
 from lazylibrarian.filesystem import path_isfile
+from lazylibrarian.formatter import check_int, get_list, unaccented
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def check_contents(source, downloadid, booktype, title):
@@ -147,30 +147,29 @@ def check_contents(source, downloadid, booktype, title):
             # e.g. don't reject cos jpg is smaller than min file size for a book
             # need to check if we have a size in K M G or just a number. If K M G could be a float.
             unit = ""
-            if not rejected and filetypes:
-                if extn in filetypes and fsize:
-                    try:
-                        if "G" in str(fsize):
-                            fsize = int(float(fsize.split("G")[0].strip()) * 1073741824)
-                        elif "M" in str(fsize):
-                            fsize = int(float(fsize.split("M")[0].strip()) * 1048576)
-                        elif "K" in str(fsize):
-                            fsize = int(float(fsize.split("K")[0].strip() * 1024))
-                        fsize = round(
-                            check_int(fsize, 0) / 1048576.0, 2
-                        )  # float to 2dp in Mb
-                        unit = "Mb"
-                    except ValueError:
-                        fsize = 0
-                    if fsize:
-                        if maxsize and fsize > maxsize:
-                            rejected = f"{fname} is too large ({fsize}{unit})"
-                            logger.warning(f"{rejected}. Rejecting download")
-                            break
-                        if minsize and fsize < minsize:
-                            rejected = f"{fname} is too small ({fsize}{unit})"
-                            logger.warning(f"{rejected}. Rejecting download")
-                            break
+            if not rejected and filetypes and extn in filetypes and fsize:
+                try:
+                    if "G" in str(fsize):
+                        fsize = int(float(fsize.split("G")[0].strip()) * 1073741824)
+                    elif "M" in str(fsize):
+                        fsize = int(float(fsize.split("M")[0].strip()) * 1048576)
+                    elif "K" in str(fsize):
+                        fsize = int(float(fsize.split("K")[0].strip() * 1024))
+                    fsize = round(
+                        check_int(fsize, 0) / 1048576.0, 2
+                    )  # float to 2dp in Mb
+                    unit = "Mb"
+                except ValueError:
+                    fsize = 0
+                if fsize:
+                    if maxsize and fsize > maxsize:
+                        rejected = f"{fname} is too large ({fsize}{unit})"
+                        logger.warning(f"{rejected}. Rejecting download")
+                        break
+                    if minsize and fsize < minsize:
+                        rejected = f"{fname} is too small ({fsize}{unit})"
+                        logger.warning(f"{rejected}. Rejecting download")
+                        break
             if not rejected:
                 logger.debug(f"{fname}: ({fsize}{unit}) is wanted")
     if not rejected:
@@ -441,16 +440,7 @@ def get_download_progress(source, downloadid):
                 db.action(cmd, (errorstring, downloadid, source))
                 progress = -1
 
-        elif source == "DIRECT":
-            cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
-            data = db.match(cmd, (downloadid, source))
-            if data:
-                progress = 100
-                finished = True
-            else:
-                progress = 0
-
-        elif str(source).startswith("IRC"):
+        elif source == "DIRECT" or str(source).startswith("IRC"):
             cmd = "SELECT * from wanted WHERE DownloadID=? and Source=?"
             data = db.match(cmd, (downloadid, source))
             if data:
