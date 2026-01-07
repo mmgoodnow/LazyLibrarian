@@ -286,7 +286,7 @@ def process_book_from_dir(source_dir=None, library="eBook", bookid=None):
         if not book:
             logger.debug(f"Unable to add bookid {bookid} to database")
             return False
-        return process_book(source_dir, bookid, library)
+        return process_book(source_dir, bookid, library=library)
     except Exception:
         logger.error(f"Unhandled exception in book_from_dir: {traceback.format_exc()}")
         db.close()
@@ -733,7 +733,7 @@ def process_alternate(source_dir=None, library="eBook"):
                         f"{library} {bookname} by {authorname} is marked Ignored in database, importing anyway"
                     )
             db.close()
-            return process_book(source_dir, bookid, library)
+            return process_book(source_dir, bookid, library=library)
 
         logger.warning(f"{library} {new_book} has no metadata")
         db = database.DBConnection()
