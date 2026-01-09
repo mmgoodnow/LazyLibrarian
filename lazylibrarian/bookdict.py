@@ -316,7 +316,7 @@ def add_bookdict_to_db(book, reason, source):
     if locked:
         logger.warning(f"Not updating {book['bookid']} as locked")
         db.close()
-        return
+        return False
 
     control_value_dict = {"BookID": book['bookid']}
     new_value_dict = {
@@ -415,6 +415,7 @@ def add_bookdict_to_db(book, reason, source):
         added = 'added'
     logger.info(f"{book['bookname']} by {book['authorname']} {added}, {book['status']}/{book['audiostatus']}")
     db.close()
+    return True
 
 
 def add_author_books_to_db(resultqueue, bookstatus, audiostatus, entrystatus, entryreason, authorid,

@@ -491,7 +491,7 @@ def sync_to_gr():
             user = db.match("SELECT * from users WHERE UserID=?", (CONFIG['GR_USER'],))
 
             if not user:
-                msg = 'Unable to sync user to goodreads, invalid userid'
+                msg = f"Sync failed: userid [{CONFIG['GR_USER']}] not in database"
             else:
                 to_shelf, to_ll = grsync('Read', 'read', user=user)
                 msg += f"{to_shelf} {plural(to_shelf, 'change')} to Read shelf\n"
@@ -807,7 +807,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list
                 logger.debug(f'Adding new {library} {book} to database')
                 if not gr:
                     gr = GoodReads()
-                gr.add_bookid_to_db(book, None, None, "Added by grsync")
+                _ = gr.add_bookid_to_db(book, None, None, "Added by grsync")
                 res = db.match(cmd, (book,))
             if not res:
                 logger.warning(f'{library} {book} not found in database')
@@ -887,7 +887,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None) -> (int, list
                 logger.debug(f'Adding new book {book} to database')
                 if not gr:
                     gr = GoodReads()
-                gr.add_bookid_to_db(book, None, None, "Added by grsync")
+                _ = gr.add_bookid_to_db(book, None, None, "Added by grsync")
                 res = db.match(cmd, (book,))
             if not res:
                 logger.warning(f'Book {book} not found in database')

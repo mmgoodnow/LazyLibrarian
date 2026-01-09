@@ -2373,7 +2373,7 @@ class Api:
         this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
         api = this_source['api']
         if 'wait' in kwargs:
-            api.add_bookid_to_db(kwargs['id'], None, None, "Added by API")
+            self.data = api.add_bookid_to_db(kwargs['id'], None, None, "Added by API")
         else:
             threading.Thread(target=api.add_bookid_to_db,
                              name=f"API-{this_source['src']}RESULTS",

@@ -144,7 +144,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             reason = 'Unknown reason in add_author_name_to_db'
 
     if addbooks is None:  # we get passed True/False or None
-        addbooks = CONFIG.get_bool('NEWAUTHOR_BOOKS')
+        addbooks = bool(CONFIG('NEWAUTHOR_BOOKS') != 'Ignored')
 
     new = False
     author_info = {}
@@ -913,7 +913,7 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
         threading.Thread(target=api.add_bookid_to_db, name=f"{lazylibrarian.INFOSOURCES[source]['src']}-IMPORT",
                          args=[bookid, ebook, audio, reason]).start()
     else:
-        api.add_bookid_to_db(bookid, ebook, audio, reason)
+        _ = api.add_bookid_to_db(bookid, ebook, audio, reason)
 
 
 def search_for(searchterm, source=None):

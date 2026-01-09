@@ -1281,10 +1281,10 @@ query FindAuthor { authors_by_pk(id: [authorid])
 
         if rejected:
             if reason.startswith("Series:") or 'bookname' not in bookdict or 'authorname' not in bookdict:
-                return
+                return False
             for reject in rejected:
                 if reject[0] == 'name':
-                    return
+                    return False
         # show any non-fatal warnings
         warn_about_bookdict(bookdict)
 
@@ -1292,8 +1292,9 @@ query FindAuthor { authors_by_pk(id: [authorid])
         bookdict['status'] = bookstatus
         bookdict['audiostatus'] = audiostatus
         reason = f"[{thread_name()}] {reason}"
-        add_bookdict_to_db(bookdict, reason, bookdict['source'])
+        res = add_bookdict_to_db(bookdict, reason, bookdict['source'])
         lazylibrarian.importer.update_totals(bookdict['authorid'])
+        return res
 
     def hc_whoami(self, userid=None, token=None):
         """Get the HardCover user ID for the current token."""

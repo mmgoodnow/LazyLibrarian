@@ -106,7 +106,7 @@ def get_book_meta(fdir, reason="get_book_meta"):
                 logger.debug(f"Searching {CONFIG['BOOK_API']} for {bookid}")
                 this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
                 api = this_source['api']
-                api.add_bookid_to_db(bookid, None, None, reason)
+                _ = api.add_bookid_to_db(bookid, None, None, reason)
                 existing_book = db.match(cmd, (bookid,))
             db.close()
             if existing_book:
@@ -1042,8 +1042,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         book_id = eval(this_source['book_key'])
                                         if book_id:
                                             src = this_source['src']
-                                            api.add_bookid_to_db(book_id, None, None, f"Added by {src}"
-                                                                 f" librarysync")
+                                            _ = api.add_bookid_to_db(book_id, None, None, f"Added by {src}"
+                                                                     f" librarysync")
                                     if bookid:
                                         # see if it's there now...
                                         match = db.match('SELECT AuthorID,BookName,Status from books where BookID=?',
@@ -1160,8 +1160,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             logger.debug(f"Adding {bookid} [{bookauthor}] on rescan for {booktitle}")
                                             this_source = lazylibrarian.INFOSOURCES[source]
                                             api = this_source['api']
-                                            api.add_bookid_to_db(bookid, reason=f"Librarysync {source} "
-                                                                                f"rescan {bookauthor}")
+                                            _ = api.add_bookid_to_db(bookid, reason=f"Librarysync {source} "
+                                                                     f"rescan {bookauthor}")
                                             if language and language != "Unknown":
                                                 # set language from book metadata
                                                 logger.debug(f"Setting language from metadata {booktitle} : {language}")

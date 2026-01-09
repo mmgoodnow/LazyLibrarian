@@ -690,13 +690,13 @@ class GoogleBooks:
     def add_bookid_to_db(self, bookid=None, bookstatus=None, audiostatus=None, reason='gb.add_bookid'):
         if not CONFIG['GB_API']:
             self.logger.warning('No GoogleBooks API key, check config')
-            return
+            return False
         url = '/'.join([CONFIG['GB_URL'], f"books/v1/volumes/{str(bookid)}?key={CONFIG['GB_API']}"])
         jsonresults, _ = json_request(url)
 
         if not jsonresults:
             self.logger.debug(f'No results found for {bookid}')
-            return
+            return False
 
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
@@ -710,26 +710,26 @@ class GoogleBooks:
 
         if not book['author']:
             self.logger.debug(f'Book {bookname} does not contain author field, skipping')
-            return
+            return False
         # warn if language is in ignore list, but user said they wanted this book
         valid_langs = get_list(CONFIG['IMP_PREFLANG'])
         if book['lang'] not in valid_langs and 'All' not in valid_langs:
             msg = f"Book {bookname} googlebooks language does not match preference, {book['lang']}"
             self.logger.warning(msg)
             if reason.startswith("Series:"):
-                return
+                return False
 
         if CONFIG.get_bool('NO_PUBDATE') and (not book['date'] or book['date'] == '0000'):
             msg = f"Book {bookname} Publication date does not match preference, {book['date']}"
             self.logger.warning(msg)
             if reason.startswith("Series:"):
-                return
+                return False
 
         if CONFIG.get_bool('NO_FUTURE') and book['date'] > today()[:4]:
             msg = f"Book {bookname} Future publication date does not match preference, {book['date']}"
             self.logger.warning(msg)
             if reason.startswith("Series:"):
-                return
+                return False
 
         if CONFIG.get_bool('NO_SETS'):
             is_set, set_msg = is_set_or_part(bookname)
@@ -737,7 +737,7 @@ class GoogleBooks:
                 msg = f"Book {bookname} {set_msg}"
                 self.logger.warning(msg)
                 if reason.startswith("Series:"):
-                    return
+                    return False
 
         db = database.DBConnection()
         try:
@@ -788,7 +788,7 @@ class GoogleBooks:
                                                   reason=reason)
             else:
                 self.logger.warning(f"No AuthorID for {book['author']}, unable to add book {bookname}")
-                return
+                return False
 
             reason = f"[{thread_name()}] {reason}"
             control_value_dict = {"BookID": bookid}
@@ -835,6 +835,6 @@ class GoogleBooks:
                     serieslist = newserieslist
                     self.logger.debug(f'Updated series: {bookid} [{serieslist}]')
                 set_series(serieslist, bookid, reason=reason)
-
+            return True
         finally:
             db.close()

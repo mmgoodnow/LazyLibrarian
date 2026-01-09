@@ -4377,6 +4377,59 @@ class WebInterface:
     @cherrypy.expose
     @require_auth()
     @cherrypy.tools.json_out()
+    def mark_results_ajax(self, **args):
+        action = args.get('action', 'unknown action')
+        redirect = args.get('redirect', '')
+        passed = 0
+        failed = 0
+
+        for arg in ['action']:
+            args.pop(arg, None)
+
+        this_source = lazylibrarian.INFOSOURCES[CONFIG['BOOK_API']]
+        api = this_source['api']
+        ids = set(args.keys())
+        if action in ['AddBook', 'AddAudio', 'AddBoth']:
+            wantbook = "Wanted" if action in ['AddBook', 'AddBoth'] else 'Skipped'
+            wantaudio = "Wanted" if action in ['AddAudio', 'AddBoth'] else 'Skipped'
+            for item in ids:
+                if api.add_bookid_to_db(item, wantbook, wantaudio,
+                                        f"Added by User from resultlist {wantbook}:{wantaudio}"):
+                    passed += 1
+                else:
+                    failed += 1
+        elif action in ['AddAuthor']:
+            books = bool(CONFIG('NEWAUTHOR_STATUS') != 'Ignored') or bool(CONFIG('NEWAUTHOR_AUDIO') != 'Ignored')
+            for item in ids:
+                if add_author_to_db(refresh=False, authorid=item, addbooks=books,
+                                    reason=f"User add_author_id {item}"):
+                    passed += 1
+                else:
+                    failed += 1
+
+        total = passed + failed
+        summary = f"Mark Results '{action}' completed."
+        if total > 0:
+            summary += f" {passed} successful"
+            if failed > 0:
+                summary += f", {failed} failed"
+            summary += f" out of {total} total items."
+        else:
+            summary += " No items were processed."
+
+        return {
+            'success': True,
+            'action': action,
+            'passed': passed,
+            'failed': failed,
+            'total': total,
+            'summary': summary,
+            'redirect': redirect
+        }
+
+    @cherrypy.expose
+    @require_auth()
+    @cherrypy.tools.json_out()
     def mark_books_ajax(self, authorid=None, seriesid=None, action=None, redirect=None, **args):
         book_filter = None
         if 'bookfilter' in args:

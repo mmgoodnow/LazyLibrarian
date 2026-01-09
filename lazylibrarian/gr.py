@@ -1252,10 +1252,10 @@ class GoodReads:
             rootxml, _ = gr_xml_request(url)
             if rootxml is None:
                 self.logger.debug(f"Failed to get book info for {bookid}")
-                return
+                return False
         except Exception as e:
             self.logger.error(f"{type(e).__name__} finding book: {str(e)}")
-            return
+            return False
 
         threadname = thread_name()
         if not bookstatus:
@@ -1279,7 +1279,7 @@ class GoodReads:
             msg = f'Book {bookname} Language [{book_language}] does not match preference'
             self.logger.warning(msg)
             if reason.startswith("Series:") or threadname.startswith('SERIES'):
-                return
+                return False
 
         if rootxml.find('./book/work/original_publication_year').text is None:
             originalpubdate = ''
@@ -1311,14 +1311,14 @@ class GoodReads:
             msg = f'Book {bookname} Publication date [{bookdate}] does not match preference'
             self.logger.warning(msg)
             if reason.startswith("Series:") or threadname.startswith('SERIES'):
-                return
+                return False
 
         if CONFIG.get_bool('NO_FUTURE') and bookdate > today()[:len(bookdate)]:
             # may have yyyy or yyyy-mm-dd
             msg = f'Book {bookname} Future publication date [{bookdate}] does not match preference'
             self.logger.warning(msg)
             if reason.startswith("Series:") or threadname.startswith('SERIES'):
-                return
+                return False
 
         if CONFIG.get_bool('NO_SETS'):
             is_set, set_msg = is_set_or_part(bookname)
@@ -1326,7 +1326,7 @@ class GoodReads:
                 msg = f'Book {bookname} {set_msg}'
                 self.logger.warning(msg)
                 if reason.startswith("Series:") or threadname.startswith('SERIES'):
-                    return
+                    return False
         try:
             bookimg = rootxml.find('./book/img_url').text
             if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
@@ -1359,6 +1359,7 @@ class GoodReads:
         workid = rootxml.find('.book/work/id').text
 
         db = database.DBConnection()
+        added = False
         try:
             match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
             if match:
@@ -1405,7 +1406,7 @@ class GoodReads:
                                               reason=reason)
             else:
                 self.logger.warning(f"No AuthorID for {authorname}, unable to add book {bookname}")
-                return
+                return False
 
             # bookname = unaccented(bookname, only_ascii=False)
             bookname, booksub, bookseries = split_title(authorname, bookname)
@@ -1451,6 +1452,7 @@ class GoodReads:
             match = db.match("SELECT * from authors where AuthorID=?", (author_id,))
             if not match:
                 self.logger.warning(f"Authorid {author_id} not found in database, unable to add {bookname}")
+                added = False
             else:
                 control_value_dict = {"BookID": bookid}
                 new_value_dict = {
@@ -1476,7 +1478,7 @@ class GoodReads:
                     "OriginalPubDate": originalpubdate
                 }
                 db.upsert("books", new_value_dict, control_value_dict)
-
+                added = True
                 # get_book_cover needs the bookid to already exist in db
                 if 'nocover' in bookimg or 'nophoto' in bookimg:
                     # try to get a cover from another source
@@ -1521,6 +1523,6 @@ class GoodReads:
                             lazylibrarian.importer.update_totals(auth_id)
                         else:
                             self.logger.debug(f"Unable to add {auth_id}")
-
+                return added
         finally:
             db.close()

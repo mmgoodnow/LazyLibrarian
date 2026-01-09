@@ -1394,11 +1394,11 @@ class OpenLibrary:
         authorname = bookdict.get('authorname')
         if not authorname:
             self.logger.warning(f"No AuthorName for {bookid}, unable to add book")
-            return
+            return False
         title = bookdict.get('bookname')
         if not title:
             self.logger.warning(f"No title for {bookid}, unable to add book")
-            return
+            return False
 
         db = database.DBConnection()
         auth_name, exists = lazylibrarian.importer.get_preferred_author(authorname)
@@ -1420,17 +1420,17 @@ class OpenLibrary:
             else:
                 self.logger.warning(f"No match for {auth_id}, unable to add book {title}")
                 db.close()
-                return
+                return False
         db.close()
 
         # validate bookdict, reject if unwanted or incomplete
         bookdict, rejected = validate_bookdict(bookdict)
         if rejected:
             if reason.startswith("Series:") or 'bookname' not in bookdict or 'authorname' not in bookdict:
-                return
+                return False
             for reject in rejected:
                 if reject[0] == 'name':
-                    return
+                    return False
         # show any non-fatal warnings
         warn_about_bookdict(bookdict)
 
@@ -1438,5 +1438,6 @@ class OpenLibrary:
         bookdict['status'] = bookstatus
         bookdict['audiostatus'] = audiostatus
         reason = f"[{thread_name()}] {reason}"
-        add_bookdict_to_db(bookdict, reason, bookdict['source'])
+        res = add_bookdict_to_db(bookdict, reason, bookdict['source'])
         lazylibrarian.importer.update_totals(bookdict['authorid'])
+        return res

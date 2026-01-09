@@ -861,10 +861,10 @@ class DNB:
         # Ensure author in database, add book to database using provided or default statuses and reason
         if not CONFIG['DNB_API']:
             self.logger.warning('DNB API not enabled, check config')
-            return
+            return False
         if not etree or not languages:
             self.logger.warning('Required modules missing, lxml and/or iso639')
-            return
+            return False
         if not bookstatus:
             bookstatus = CONFIG['NEWBOOK_STATUS']
         if not audiostatus:
@@ -873,16 +873,16 @@ class DNB:
         bookdict, _ = self.get_bookdict_for_bookid(bookid)
         if not bookdict or bookdict['bookid'] != bookid:
             self.logger.debug(f'BookID {bookid} not found at dnb')
-            return
+            return False
 
         # validate bookdict, reject if unwanted or incomplete
         bookdict, rejected = validate_bookdict(bookdict)
         if rejected:
             if reason.startswith("Series:") or 'bookname' not in bookdict or 'authorname' not in bookdict:
-                return
+                return False
             for reject in rejected:
                 if reject[0] == 'name':
-                    return
+                    return False
         # show any non-fatal warnings
         warn_about_bookdict(bookdict)
 
@@ -895,8 +895,10 @@ class DNB:
             bookdict['status'] = bookstatus
             bookdict['audiostatus'] = audiostatus
             reason = f"[{thread_name()}] {reason}"
-            add_bookdict_to_db(bookdict, reason, bookdict['source'])
+            res = add_bookdict_to_db(bookdict, reason, bookdict['source'])
             lazylibrarian.importer.update_totals(authorid)
+            return res
+        return False
 
     def find_results(self, searchterm=None, queue=None):
         if not CONFIG['DNB_API']:
