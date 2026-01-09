@@ -1019,7 +1019,7 @@ def _extract_archives_in_directory(
     return candidate_ptr, content_changed
 
 
-def _calculate_fuzzy_match(title1: str, title2: str) -> float:
+def _calculate_fuzzy_match(title1: str, title2: str, fuzzlogger: logging.Logger) -> float:
     """
     Calculate fuzzy match percentage between two titles.
 
@@ -1030,7 +1030,36 @@ def _calculate_fuzzy_match(title1: str, title2: str) -> float:
     Returns:
         Match percentage (0-100)
     """
-    return fuzz.token_set_ratio(title1, title2)
+    match_fuzz = fuzz.token_set_ratio(title1, title2)
+    if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
+        # if it's a close enough match, check for purely number differences
+        # This is in case we have multiple issues of a magazine in the folder
+        # where the only difference is the date
+        # magazine issue No 1.pdf magazine issue No 2.pdf etc.  where the fuzzy match is too close
+        num1 = []
+        num2 = []
+        set1 = set(title1.split())
+        set2 = set(title2.split())
+
+        for word in set1:
+            # see if word coerces to an integer or a float
+            word = word.replace('-', '')
+            try:
+                num1.append(float(re.findall(r'\d+\.\d+', word)[0]))
+            except IndexError:
+                with contextlib.suppress(IndexError):
+                    num1.append(int(re.findall(r'\d+', word)[0]))
+        for word in set2:
+            word = word.replace('-', '')
+            try:
+                num2.append(float(re.findall(r'\d+\.\d+', word)[0]))
+            except IndexError:
+                with contextlib.suppress(IndexError):
+                    num2.append(int(re.findall(r'\d+', word)[0]))
+        fuzzlogger.debug(f"[{title1}][{title2}]{num1}:{num2}")
+        if num1 != num2:
+            return match_fuzz - 10  # only difference is a number, not the same
+    return match_fuzz
 
 
 def _find_matching_subdir(
@@ -1085,7 +1114,7 @@ def _find_matching_subdir(
                     # _normalize_title now handles stripping known extensions intelligently
                     normalized_dirname = _normalize_title(item)
                     match_percent = _calculate_fuzzy_match(
-                        target_title, normalized_dirname
+                        target_title, normalized_dirname, logger
                     )
 
                     logger.debug(
@@ -1131,7 +1160,7 @@ def _find_matching_file_in_directory(
         if _is_valid_media_file(f, book_type="ebook", include_archives=True):
             filename_stem, _ = _tokenize_file(f)
             normalized_filename = _normalize_title(filename_stem)
-            match_percent = _calculate_fuzzy_match(target_title, normalized_filename)
+            match_percent = _calculate_fuzzy_match(target_title, normalized_filename, fuzzlogger)
             is_match = match_percent >= match_threshold
 
             fuzzlogger.debug(
@@ -1502,7 +1531,7 @@ def _try_match_candidate_file(
     # Fuzzy match the candidate filename
     normalized_candidate = _normalize_title(filename_stem)
     match_percent = _calculate_fuzzy_match(
-        book_state.download_title, normalized_candidate
+        book_state.download_title, normalized_candidate, fuzzlogger
     )
     is_match = match_percent >= match_threshold
 
