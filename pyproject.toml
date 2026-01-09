@@ -40,6 +40,7 @@ dependencies = [
     'slskd_api',
     'lxml',
     'iso639',
+    'xmltodict',
 ]
 
 [project.urls]

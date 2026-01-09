@@ -20,6 +20,11 @@ from copy import deepcopy
 from urllib.parse import urlencode, urlparse
 from xml.etree import ElementTree
 
+try:
+    import xmltodict
+except ImportError:
+    xmltodict = None
+
 from bs4 import BeautifulSoup
 
 import lazylibrarian
@@ -451,7 +456,10 @@ def get_capabilities(provider: ConfigDict, force=False):
                 # CONFIG.save_config_and_backup_old(section=provider['NAME'])
         elif data is not None:
             logger.debug(f"Parsing xml for capabilities of {url}")
-            #
+            if xmltodict:
+                dlcommslogger = logging.getLogger('special.dlcomms')
+                data_dict = xmltodict.parse(source_xml)
+                dlcommslogger.debug(data_dict)
             # book search isn't mentioned in the caps xml returned by
             # nzbplanet,jackett,oznzb,usenet-crawler, so we can't use it as a test
             # but the newznab+ ones usually support t=book and categories in 7000 range
