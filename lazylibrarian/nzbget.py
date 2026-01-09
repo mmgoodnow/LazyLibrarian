@@ -140,7 +140,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
         return False, res
 
     nzbcontent64 = None
-    if nzb.result_ype == "nzbdata":
+    if nzb.result_type == "nzbdata":
         data = nzb.extraInfo[0]
         nzbcontent64 = make_unicode(standard_b64encode(data))
 
