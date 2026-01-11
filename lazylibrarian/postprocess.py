@@ -62,7 +62,6 @@ from lazylibrarian.filesystem import (
     safe_move,
     setperm,
     syspath,
-    walk,
 )
 from lazylibrarian.formatter import (
     check_int,
@@ -462,7 +461,7 @@ def process_img(
     bookid,
     bookimg,
     global_name,
-    cache=ImageType.BOOK,
+    cache: ImageType = ImageType.BOOK,
     overwrite=False,
 ):
     """cache the bookimg from url or filename, and optionally copy it to bookdir"""
@@ -702,9 +701,10 @@ def _get_ready_from_snatched(db, snatched_list: list[dict]):
                     cmd = "UPDATE books SET audiostatus='Wanted' WHERE audiostatus='Snatched' and BookID=?"
                 if cmd:
                     db.action(cmd, (book_id,))
+                # use downloadid as identifier as bookid is not unique for magazine issues
                 db.action(
-                    "UPDATE wanted SET Status='Failed',DLResult=? WHERE BookID=?",
-                    (rejected, book_id),
+                    "UPDATE wanted SET Status='Failed',DLResult=? WHERE DownloadID=?",
+                    (rejected, download_id),
                 )
                 logger.info(
                     f"STATUS: {title} [Snatched -> Failed] Content rejected: {rejected}"
@@ -844,7 +844,7 @@ def _find_valid_file_in_directory(
         Path to first valid file found, or empty string if none found
     """
     if recurse:
-        for _dirpath, _, files in walk(directory_path):
+        for _dirpath, _, files in os.walk(directory_path):
             dirpath = enforce_str(_dirpath)  # Ensure string for path operations
             for _item in files:
                 item = enforce_str(_item)  # Ensure string for path operations
@@ -1002,7 +1002,7 @@ def _extract_archives_in_directory(
             candidate_ptr = unpacked_path
 
     # Extract remaining archives
-    for _dirpath, _, files in walk(candidate_ptr):
+    for _dirpath, _, files in os.walk(candidate_ptr):
         dirpath = enforce_str(_dirpath)  # Ensure string for path operations
         for item in files:
             _, extn = _tokenize_file(item)
@@ -1019,7 +1019,7 @@ def _extract_archives_in_directory(
     return candidate_ptr, content_changed
 
 
-def _calculate_fuzzy_match(title1: str, title2: str, fuzzlogger: logging.Logger) -> float:
+def _calculate_fuzzy_match(title1: str, title2: str, fuzzlogger: logging.Logger=None) -> float:
     """
     Calculate fuzzy match percentage between two titles.
 
@@ -1031,6 +1031,7 @@ def _calculate_fuzzy_match(title1: str, title2: str, fuzzlogger: logging.Logger)
         Match percentage (0-100)
     """
     match_fuzz = fuzz.token_set_ratio(title1, title2)
+
     if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
         # if it's a close enough match, check for purely number differences
         # This is in case we have multiple issues of a magazine in the folder
@@ -1040,7 +1041,6 @@ def _calculate_fuzzy_match(title1: str, title2: str, fuzzlogger: logging.Logger)
         num2 = []
         set1 = set(title1.split())
         set2 = set(title2.split())
-
         for word in set1:
             # see if word coerces to an integer or a float
             word = word.replace('-', '')
@@ -1056,9 +1056,10 @@ def _calculate_fuzzy_match(title1: str, title2: str, fuzzlogger: logging.Logger)
             except IndexError:
                 with contextlib.suppress(IndexError):
                     num2.append(int(re.findall(r'\d+', word)[0]))
-        fuzzlogger.debug(f"[{title1}][{title2}]{num1}:{num2}")
-        if num1 != num2:
-            return match_fuzz - 10  # only difference is a number, not the same
+        if fuzzlogger:
+            fuzzlogger.debug(f"[{title1}][{title2}]{num1}:{num2}")
+        if num1 and num2 and num1 != num2:
+            return CONFIG.get_int('NAME_RATIO') - 1  # only difference is a number, not the same
     return match_fuzz
 
 
@@ -2293,8 +2294,8 @@ def _handle_seeding_status(
             f"torrent was removed, changing status to Snatched to process files from download directory"
         )
         if book_state.book_id != "unknown":
-            cmd = "UPDATE wanted SET status='Snatched' WHERE status='Seeding' and BookID=?"
-            db.action(cmd, (book_state.book_id,))
+            cmd = "UPDATE wanted SET status='Snatched' WHERE status='Seeding' and DownloadID=?"
+            db.action(cmd, (book_state.download_id,))
         # File matching will process it next cycle
         return True  # Skip to next item
 
@@ -2322,8 +2323,8 @@ def _handle_seeding_status(
             )
 
         if book_state.book_id != "unknown":
-            cmd = "UPDATE wanted SET status='Processed',NZBDate=? WHERE status='Seeding' and BookID=?"
-            db.action(cmd, (now(), book_state.book_id))
+            cmd = "UPDATE wanted SET status='Processed',NZBDate=? WHERE status='Seeding' and DownloadID=?"
+            db.action(cmd, (now(), book_state.download_id))
             logger.info(
                 f"STATUS: {book_state.download_title} [Seeding -> Processed] Seeding complete"
             )

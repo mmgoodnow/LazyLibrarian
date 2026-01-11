@@ -102,7 +102,6 @@ from lazylibrarian.filesystem import (
     setperm,
     splitext,
     syspath,
-    walk,
 )
 from lazylibrarian.formatter import (
     check_float,
@@ -3637,7 +3636,7 @@ class WebInterface:
                 # count the audiobook parts
                 if myfile and path_isfile(myfile):
                     parentdir = os.path.dirname(myfile)
-                    for _, _, filenames in walk(parentdir):
+                    for _, _, filenames in os.walk(parentdir):
                         for filename in filenames:
                             if CONFIG.is_valid_booktype(filename, 'audiobook'):
                                 cnt += 1
@@ -3781,7 +3780,7 @@ class WebInterface:
                                                                          f"part{idx}{splitext(bookfile)[1]}",
                                                           email=email)
                             with open(index) as fp:
-                                cnt = sum(1 for lyne in fp)
+                                cnt = sum(1 for _ in fp)
                             if cnt <= 1:
                                 if email:
                                     logger.debug(f'Emailing {library} {bookfile}')
@@ -4392,17 +4391,17 @@ class WebInterface:
         if action in ['AddBook', 'AddAudio', 'AddBoth']:
             wantbook = "Wanted" if action in ['AddBook', 'AddBoth'] else 'Skipped'
             wantaudio = "Wanted" if action in ['AddAudio', 'AddBoth'] else 'Skipped'
-            for item in ids:
-                if api.add_bookid_to_db(item, wantbook, wantaudio,
+            for itm in ids:
+                if api.add_bookid_to_db(itm, wantbook, wantaudio,
                                         f"Added by User from resultlist {wantbook}:{wantaudio}"):
                     passed += 1
                 else:
                     failed += 1
         elif action in ['AddAuthor']:
-            books = bool(CONFIG('NEWAUTHOR_STATUS') != 'Ignored') or bool(CONFIG('NEWAUTHOR_AUDIO') != 'Ignored')
-            for item in ids:
-                if add_author_to_db(refresh=False, authorid=item, addbooks=books,
-                                    reason=f"User add_author_id {item}"):
+            books = bool(CONFIG['NEWAUTHOR_STATUS'] != 'Ignored') or bool(CONFIG['NEWAUTHOR_AUDIO'] != 'Ignored')
+            for itm in ids:
+                if add_author_to_db(refresh=False, authorid=itm, addbooks=books,
+                                    reason=f"User add_author_id {itm}"):
                     passed += 1
                 else:
                     failed += 1

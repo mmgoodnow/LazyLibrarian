@@ -30,7 +30,6 @@ from lazylibrarian.filesystem import (
     setperm,
     splitext,
     syspath,
-    walk,
 )
 from lazylibrarian.formatter import check_int, get_list, now, plural, sanitize
 from lazylibrarian.images import create_mag_cover
@@ -102,7 +101,7 @@ def comic_scan(comicid=None):
 
         logger.info(f" Checking [{mag_path}] for {CONFIG['COMIC_TYPE']}")
 
-        for rootdir, _, filenames in walk(mag_path):
+        for rootdir, _, filenames in os.walk(mag_path):
             for fname in filenames:
                 if CONFIG.is_valid_booktype(fname, booktype='comic'):
                     title = ''

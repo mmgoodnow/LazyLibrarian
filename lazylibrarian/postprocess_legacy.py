@@ -68,7 +68,6 @@ from lazylibrarian.filesystem import (
     setperm,
     splitext,
     syspath,
-    walk,
 )
 from lazylibrarian.formatter import (
     check_int,
@@ -1232,7 +1231,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                                 # folder name matches, look in subdirectories for a filename of a valid type
                                 file_match = False
-                                for r, _, f in walk(pp_path):
+                                for r, _, f in os.walk(pp_path):
                                     for item in f:
                                         if is_valid_type(item, extensions=CONFIG.get_all_types_list(),
                                                          extras='cbr, cbz'):
@@ -1241,7 +1240,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             break
                                 if not file_match:
                                     # maybe it's in an archive...
-                                    for r, _, f in walk(pp_path):
+                                    for r, _, f in os.walk(pp_path):
                                         for item in f:
                                             xtn = splitext(item)[1].lower()
                                             if xtn not in ['.epub', '.cbr', '.cbz']:

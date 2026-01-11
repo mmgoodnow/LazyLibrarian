@@ -37,7 +37,6 @@ from lazylibrarian.filesystem import (
     setperm,
     splitext,
     syspath,
-    walk,
 )
 from lazylibrarian.formatter import (
     check_int,
@@ -114,7 +113,7 @@ def magazine_scan(title=None):
         logger.info(f" Checking [{mag_path}] for {CONFIG['MAG_TYPE']}")
 
         issue_cnt = 0
-        for _, _, filenames in walk(mag_path):
+        for _, _, filenames in os.walk(mag_path):
             for fname in filenames:
                 if CONFIG.is_valid_booktype(fname, booktype='mag'):
                     issue_cnt += 1
@@ -158,7 +157,7 @@ def magazine_scan(title=None):
         if pattern:
             total_items = issue_cnt
             current_item = 0
-            for rootdir, _, filenames in walk(mag_path):
+            for rootdir, _, filenames in os.walk(mag_path):
                 for fname in filenames:
                     # maybe not all magazines will be pdf?
                     if CONFIG.is_valid_booktype(fname, booktype='mag'):

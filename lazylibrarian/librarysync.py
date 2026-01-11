@@ -41,7 +41,6 @@ from lazylibrarian.filesystem import (
     path_isdir,
     path_isfile,
     splitext,
-    walk,
 )
 from lazylibrarian.formatter import (
     get_list,
@@ -606,7 +605,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         lazylibrarian.AUTHORS_UPDATE = 1
     logger.debug(f"Counting directories: {startdir}")
     dir_cnt = 0
-    for rootdir, dirnames, _filenames in walk(startdir):
+    for rootdir, dirnames, _filenames in os.walk(startdir):
         for directory in dirnames:
             lazylibrarian.libraryscan_data = f"Counting directories: {dir_cnt}"
             # prevent magazine being scanned
@@ -767,7 +766,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
             pattern = None
 
         last_authorid = None
-        for rootdir, dirnames, filenames in walk(startdir):
+        for rootdir, dirnames, filenames in os.walk(startdir):
             for directory in dirnames:
                 # prevent magazine being scanned
                 c = directory[0]
@@ -1286,7 +1285,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                       (book_filename, bookid))
 
                                             if CONFIG['AUDIOBOOK_DEST_FILE']:
-                                                rename = bool(CONFIG.get_bool('IMP_RENAME'))
+                                                rename = CONFIG.get_bool('IMP_RENAME')
                                                 new_filename = audio_rename(bookid, rename=rename, playlist=True)
                                                 if new_filename and new_filename != book_filename:
                                                     book_filename = new_filename

@@ -60,7 +60,7 @@ class DirectoryHolder:
         self.TMPDIR = self.ensure_data_subdir('tmp')
 
     @staticmethod
-    def ensure_dir_is_writeable(dirname: str) -> (bool, str):
+    def ensure_dir_is_writeable(dirname: str) -> tuple[bool, str]:
         if not path_isdir(dirname):
             try:
                 os.makedirs(dirname)
@@ -170,7 +170,7 @@ def splitext(name: str) -> tuple[str, str]:
 WINDOWS_MAGIC_PREFIX = '\\\\?\\'
 
 
-def syspath(path: [str, bytes], prefix: bool = True) -> str:
+def syspath(path: str | bytes, prefix: bool = True) -> str:
     """Convert a path for use by the operating system. In particular,
     paths on Windows must receive a magic prefix and must be converted
     to Unicode before they are sent to the OS. To disable the magic
@@ -273,45 +273,6 @@ def listdir(name: str):
             return []
 
     return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
-
-
-def walk(top, topdown=True, onerror=None, followlinks=False):
-    """
-    Duplicate of os.walk, except that in unix we use bytestrings for listdir
-    return top, dirs, nondirs as unicode
-    """
-    islink, join, isdir = path_islink, os.path.join, path_isdir
-
-    try:
-        top = make_unicode(top)
-        if os.path.__name__ != 'ntpath':
-            names = os.listdir(make_bytestr(top))
-            names = [make_unicode(name) for name in names]
-        else:
-            names = os.listdir(top)
-    except (OSError, TypeError) as err:  # Windows can return TypeError if path is too long
-        if onerror is not None:
-            onerror(err)
-        return
-
-    dirs, nondirs = [], []
-    for name in names:
-        try:
-            if isdir(join(top, name)):
-                dirs.append(name)
-            else:
-                nondirs.append(name)
-        except Exception as err:
-            logger = logging.getLogger(__name__)
-            logger.error(f"[{repr(top)}][{repr(name)}] {str(err)}")
-    if topdown:
-        yield top, dirs, nondirs
-    for name in dirs:
-        new_path = join(top, name)
-        if followlinks or not islink(new_path):
-            yield from walk(new_path, topdown, onerror, followlinks)
-    if not topdown:
-        yield top, dirs, nondirs
 
 
 def setperm(file_or_dir) -> bool:
@@ -552,8 +513,7 @@ def book_file(search_dir: str, booktype: str, config: ConfigDict, recurse=False)
         if recurse:
             # noinspection PyBroadException
             try:
-                for r, _, f in walk(search_dir):
-                    # our walk returns unicode
+                for r, _, f in os.walk(search_dir):
                     for item in f:
                         if config.is_valid_booktype(item, booktype=booktype):
                             return os.path.join(r, item)
@@ -625,7 +585,7 @@ def copy_tree(src_dir, dest_dir):
     failed = 0
     err = []
     logger = logging.getLogger(__name__)
-    for rootdir, _dirnames, filenames in walk(src_dir):
+    for rootdir, _dirnames, filenames in os.walk(src_dir):
         for f in filenames:
             src = os.path.join(rootdir, f)
             dst = src.replace(src_dir, dest_dir, 1)

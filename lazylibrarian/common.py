@@ -55,7 +55,6 @@ from lazylibrarian.filesystem import (
     remove_file,
     setperm,
     splitext,
-    walk,
 )
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.logconfig import LOGCONFIG
@@ -120,7 +119,7 @@ def multibook(foldername, recurse=False):
     filetypes = get_list(CONFIG['EBOOK_TYPE'])
 
     if recurse:
-        for _, _, f in walk(foldername):
+        for _, _, f in os.walk(foldername):
             flist = list(f)
             for item in filetypes:
                 counter = 0
@@ -218,7 +217,7 @@ def module_available(module_name):
     return loader is not None
 
 
-def create_support_zip() -> (str, str):
+def create_support_zip() -> tuple[str, str]:
     """ Create a zip file for support purposes.
     Returns a status message and the full name of the zip file """
     outfile = DIRS.get_tmpfilename('support.zip')
@@ -467,7 +466,7 @@ def zip_audio(source, zipname, bookid):
 
         cnt = 0
         with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as myzip:
-            for rootdir, _, filenames in walk(source):
+            for rootdir, _, filenames in os.walk(source):
                 for filename in filenames:
                     # don't include self or our special index file
                     if not filename.endswith('.zip') and not filename.endswith('.ll'):

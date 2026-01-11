@@ -27,7 +27,7 @@ import lazylibrarian
 from lazylibrarian import database, version
 from lazylibrarian.common import dbbackup, docker, get_user_agent, proxy_list
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, listdir, path_isdir, syspath, walk
+from lazylibrarian.filesystem import DIRS, listdir, path_isdir, syspath
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 from lazylibrarian.telemetry import TELEMETRY
 
@@ -379,7 +379,7 @@ def get_latest_version_from_git():
     return latest_version, created_at
 
 
-def get_commit_difference_from_git() -> (int, str):
+def get_commit_difference_from_git() -> tuple[int, str]:
     """ See how many commits behind we are.
     Takes current latest version value and tries to diff it with the latest version in the current branch.
     Returns # of commits behind, and the list of commits as a string """
@@ -516,7 +516,7 @@ def update():
                 prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 'unittests']
                 for folder in prog_folders:
                     path = os.path.join(DIRS.PROG_DIR, folder)
-                    for root, _, files in walk(path):
+                    for root, _, files in os.walk(path):
                         for item in files:
                             if not item.endswith('.pyc'):
                                 base = root[len(DIRS.PROG_DIR) + 1:]
@@ -651,7 +651,7 @@ def update():
             logger.debug(f"update_dir_contents [{str(update_dir_contents)}]")
             logger.debug(f"Walking {content_dir}")
             # walk temp folder and move files to main folder
-            for rootdir, _, filenames in walk(content_dir):
+            for rootdir, _, filenames in os.walk(content_dir):
                 rootdir = rootdir[len(content_dir) + 1:]
                 for curfile in filenames:
                     old_path = os.path.join(content_dir, rootdir, curfile)
