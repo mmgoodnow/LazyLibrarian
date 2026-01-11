@@ -16,12 +16,6 @@ from unittest import mock
 
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.database import DBConnection
-from lazylibrarian.postprocess_metadata import (
-    BookType,
-    prepare_book_metadata,
-    prepare_comic_metadata,
-    prepare_magazine_metadata,
-)
 from lazylibrarian.postprocess import (
     BookState,
     _calculate_download_age,
@@ -39,9 +33,15 @@ from lazylibrarian.postprocess import (
     _validate_candidate_directory,
     process_dir,
 )
+from lazylibrarian.postprocess_metadata import (
+    BookType,
+    prepare_book_metadata,
+    prepare_comic_metadata,
+    prepare_magazine_metadata,
+)
 from lazylibrarian.postprocess_utils import (
-        enforce_str,
-        enforce_bytes,
+    enforce_bytes,
+    enforce_str,
 )
 from lazylibrarian.scheduling import SchedulerCommand
 from unittests.unittesthelpers import LLTestCaseWithStartup
@@ -439,19 +439,19 @@ class PostprocessHelperTest(LLTestCaseWithStartup):
     def test_calculate_fuzzy_match(self):
         """Test fuzzy matching calculation"""
         # Perfect match
-        match = _calculate_fuzzy_match("test book", "test book")
+        match = _calculate_fuzzy_match("test book", "test book", None)
         self.assertEqual(match, 100)
 
         # Partial match (token_set_ratio matches all tokens, so "test" matches "test book" 100%)
-        match = _calculate_fuzzy_match("test book", "test")
+        match = _calculate_fuzzy_match("test book", "test", None)
         self.assertEqual(match, 100)  # token_set_ratio behavior
 
         # Different tokens
-        match = _calculate_fuzzy_match("test book", "other")
+        match = _calculate_fuzzy_match("test book", "other", None)
         self.assertLess(match, 100)
 
         # No match
-        match = _calculate_fuzzy_match("completely different", "nothing alike")
+        match = _calculate_fuzzy_match("completely different", "nothing alike", None)
         self.assertLess(match, 35)
 
     def test_should_delete_processed_files(self):
@@ -598,7 +598,7 @@ class PostprocessIntegrationTest(LLTestCaseWithStartup):
 
         # Should match even with different formatting
         match_percent = _calculate_fuzzy_match(
-            normalized, _normalize_title(expected_name)
+            normalized, _normalize_title(expected_name), None
         )
         self.assertEqual(match_percent, 100)
 
@@ -705,7 +705,7 @@ class UnprocessedDownloadsTest(LLTestCaseWithStartup):
         mock_db.action.assert_called_once()
         call_args = mock_db.action.call_args[0]
         self.assertIn("Snatched", call_args[0])
-        self.assertEqual(call_args[1], ("book123",))
+        self.assertEqual(call_args[1], ("dl123",))
 
         # Should skip to next item
         self.assertTrue(result)
@@ -1306,7 +1306,7 @@ class ProcessDirEndToEndTest(LLTestCaseWithStartup):
         def get_bool_side_effect(key):
             if key == "DESTINATION_COPY":
                 return True
-            elif key == "KEEP_SEEDING":
+            if key == "KEEP_SEEDING":
                 return False
             return False
         mock_get_bool.side_effect = get_bool_side_effect
