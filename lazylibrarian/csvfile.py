@@ -113,42 +113,42 @@ def restore_table(table, savedir=None, status=None):
         csvfile = os.path.join(savedir, f"{label}.csv")
 
         logger.debug(f'Reading file {csvfile}')
-        with reader(open(csvfile, encoding='utf-8', newline='')) as csvreader:
-            count = 0
-            for row in csvreader:
-                if csvreader.line_num == 1:
-                    headers = row
+        csvreader = reader(open(csvfile, encoding='utf-8', newline=''))
+        count = 0
+        for row in csvreader:
+            if csvreader.line_num == 1:
+                headers = row
+            else:
+                item = dict(list(zip(headers, row, strict=True)))
+
+                if table == 'magazines':
+                    control_value_dict = {"Title": make_unicode(item['Title'])}
+                    new_value_dict = {"Regex": make_unicode(item['Regex']),
+                                      "Reject": make_unicode(item['Reject']),
+                                      "Status": item['Status'],
+                                      "MagazineAdded": item['MagazineAdded'],
+                                      "IssueStatus": item['IssueStatus'],
+                                      "CoverPage": item['CoverPage'],
+                                      "Language": item['Language']}
+                    db.upsert("magazines", new_value_dict, control_value_dict)
+                    count += 1
+
+                elif table == 'users':
+                    control_value_dict = {"UserID": item['UserID']}
+                    new_value_dict = {"UserName": item['UserName'],
+                                      "Password": item['Password'],
+                                      "Email": item['Email'],
+                                      "Name": item['Name'],
+                                      "Perms": item['Perms'],
+                                      "CalibreRead": item['CalibreRead'],
+                                      "CalibreToRead": item['CalibreToRead'],
+                                      "BookType": item['BookType']
+                                      }
+                    db.upsert("users", new_value_dict, control_value_dict)
+                    count += 1
                 else:
-                    item = dict(list(zip(headers, row, strict=True)))
-
-                    if table == 'magazines':
-                        control_value_dict = {"Title": make_unicode(item['Title'])}
-                        new_value_dict = {"Regex": make_unicode(item['Regex']),
-                                          "Reject": make_unicode(item['Reject']),
-                                          "Status": item['Status'],
-                                          "MagazineAdded": item['MagazineAdded'],
-                                          "IssueStatus": item['IssueStatus'],
-                                          "CoverPage": item['CoverPage'],
-                                          "Language": item['Language']}
-                        db.upsert("magazines", new_value_dict, control_value_dict)
-                        count += 1
-
-                    elif table == 'users':
-                        control_value_dict = {"UserID": item['UserID']}
-                        new_value_dict = {"UserName": item['UserName'],
-                                          "Password": item['Password'],
-                                          "Email": item['Email'],
-                                          "Name": item['Name'],
-                                          "Perms": item['Perms'],
-                                          "CalibreRead": item['CalibreRead'],
-                                          "CalibreToRead": item['CalibreToRead'],
-                                          "BookType": item['BookType']
-                                          }
-                        db.upsert("users", new_value_dict, control_value_dict)
-                        count += 1
-                    else:
-                        logger.error(f"Invalid table [{table}]")
-                        return 0
+                    logger.error(f"Invalid table [{table}]")
+                    return 0
         msg = f"Imported {count} {plural(count, 'item')} from {csvfile}"
         logger.info(msg)
         return count
@@ -308,38 +308,38 @@ def import_csv(search_dir: str, status: str = 'Wanted', library: str = '', confi
             return msg
 
         logger.debug(f'Reading file {csvfile}')
-        with reader(open(csvfile, encoding='utf-8', newline='')) as csvreader:
-            for row in csvreader:
-                if csvreader.line_num == 1:
-                    # If we are on the first line, create the headers list from the first row
-                    headers = row
-                    if 'Author' not in headers or 'Title' not in headers:
-                        msg = f'Invalid CSV file found {csvfile}'
-                        logger.warning(msg)
-                        return msg
-                elif row:
-                    total += 1
-                    item = dict(list(zip(headers, row, strict=True)))
-                    authorname = format_author_name(item['Author'], postfix=get_list(config.get_csv('NAME_POSTFIX')))
-                    title = make_unicode(item['Title'])
+        csvreader = reader(open(csvfile, encoding='utf-8', newline=''))
+        for row in csvreader:
+            if csvreader.line_num == 1:
+                # If we are on the first line, create the headers list from the first row
+                headers = row
+                if 'Author' not in headers or 'Title' not in headers:
+                    msg = f'Invalid CSV file found {csvfile}'
+                    logger.warning(msg)
+                    return msg
+            elif row:
+                total += 1
+                item = dict(list(zip(headers, row, strict=True)))
+                authorname = format_author_name(item['Author'], postfix=get_list(config.get_csv('NAME_POSTFIX')))
+                title = make_unicode(item['Title'])
 
-                    authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
+                authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
-                    if authmatch:
-                        logger.debug(f"CSV: Author {authorname} found in database")
-                        authorid = authmatch['authorid']
-                    else:
-                        logger.debug(f"CSV: Author {authorname} not found")
-                        newauthor, authorid, new = add_author_name_to_db(author=authorname, addbooks=False,
-                                                                         reason=f"import_csv {csvfile}",
-                                                                         title=title)
-                        if newauthor and newauthor != authorname:
-                            logger.debug(f"Preferred authorname changed from [{authorname}] to [{newauthor}]")
-                            authorname = newauthor
-                        if new:
-                            authcount += 1
-                        if not authorid:
-                            logger.warning(f"Authorname {authorname} not added to database")
+                if authmatch:
+                    logger.debug(f"CSV: Author {authorname} found in database")
+                    authorid = authmatch['authorid']
+                else:
+                    logger.debug(f"CSV: Author {authorname} not found")
+                    newauthor, authorid, new = add_author_name_to_db(author=authorname, addbooks=False,
+                                                                     reason=f"import_csv {csvfile}",
+                                                                     title=title)
+                    if newauthor and newauthor != authorname:
+                        logger.debug(f"Preferred authorname changed from [{authorname}] to [{newauthor}]")
+                        authorname = newauthor
+                    if new:
+                        authcount += 1
+                    if not authorid:
+                        logger.warning(f"Authorname {authorname} not added to database")
 
                     if authorid:
                         bookmatch = finditem(item, authorname, library=library, reason=f'import_csv: {csvfile}')
