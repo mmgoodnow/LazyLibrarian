@@ -335,7 +335,7 @@ def search_wishlist():
                                 f"{round(results[0]['book_fuzz'], 2)}%) "
                                 f"{results[0]['authorname']}: {results[0]['bookname']}")
                 if bookmatch:
-                    new_value_dict = {}
+                    new_value_dict = {'AuthorID': bookmatch['AuthorID'], 'BookName': bookmatch['BookName']}
                     try:
                         if want_book:
                             requester = bookmatch.get('Requester', '')
