@@ -127,6 +127,7 @@ ignore = [
 "bookrename.py" = ["SIM115"]  # open without context manager as file is optional
 "ircbot.py" = ["SIM115"]  # open without context manager as file preserved between functions
 "dbupgrade.py" = ["SIM115"]  # open without context manager as needed for tests
+"csvfile.py" = ["SIM115"]  # csv.reader does not support context manager protocol
 
 [tool.ruff.lint.isort]
 known-first-party = ["lazylibrarian"]
