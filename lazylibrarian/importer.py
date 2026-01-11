@@ -144,8 +144,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             reason = 'Unknown reason in add_author_name_to_db'
 
     if addbooks is None:  # we get passed True/False or None
-        addbooks = bool(CONFIG('NEWAUTHOR_BOOKS') != 'Ignored')
-
+        addbooks = CONFIG.get_bool('NEWAUTHOR_BOOKS')
     new = False
     author_info = {}
     if not author or len(author) < 2 or 'unknown' in author.lower() or 'anonymous' in author.lower():
