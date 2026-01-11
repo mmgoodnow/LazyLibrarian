@@ -369,8 +369,8 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
             if auxinfo:  # magazine issue
                 cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
-                       "WHERE BookID=? and NZBProv=? and AuxInfo=?")
-                db.action(cmd, (source, dl_url, int(time.time()), bookid, provider, auxinfo))
+                       "WHERE NZBUrl=?")
+                db.action(cmd, (source, dl_url, int(time.time()), dl_url))
             else:
                 cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
                        "WHERE BookID=? and NZBProv=?")
@@ -382,8 +382,8 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
         if auxinfo:  # magazine issue
             cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
-                   "WHERE BookID=? and NZBProv=? and AuxInfo=?")
-            db.action(cmd, (fname, source, dl_url, int(time.time()), bookid, provider, auxinfo))
+                   "WHERE NZBUrl=?")
+            db.action(cmd, (fname, source, dl_url, int(time.time()), dl_url))
         else:
             cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
                    "WHERE BookID=? and NZBProv=?")
