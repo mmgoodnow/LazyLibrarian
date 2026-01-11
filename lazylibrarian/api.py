@@ -68,7 +68,7 @@ from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import dump_table, export_csv, import_csv
 from lazylibrarian.download_client import get_download_progress
-from lazylibrarian.filesystem import DIRS, path_isfile, setperm, splitext, syspath, walk
+from lazylibrarian.filesystem import DIRS, path_isfile, setperm, splitext, syspath
 from lazylibrarian.formatter import (
     check_int,
     format_author_name,
@@ -1303,7 +1303,7 @@ class Api:
             cnt = 0
             if path_isfile(myfile):
                 parentdir = os.path.dirname(myfile)
-                for _, _, filenames in walk(parentdir):
+                for _, _, filenames in os.walk(parentdir):
                     for filename in filenames:
                         if CONFIG.is_valid_booktype(filename, 'audiobook'):
                             cnt += 1
@@ -1487,7 +1487,7 @@ class Api:
         dest_path = os.path.dirname(res['BookFile'])
         global_name = splitext(os.path.basename(res['BookFile']))[0]
         refresh = 'refresh' in kwargs
-        process_img(dest_path, kwargs['id'], res['BookImg'], global_name, refresh)
+        process_img(dest_path, kwargs['id'], res['BookImg'], global_name, overwrite=refresh)
         self.data = create_opf(dest_path, res, global_name, refresh)
 
     @staticmethod
