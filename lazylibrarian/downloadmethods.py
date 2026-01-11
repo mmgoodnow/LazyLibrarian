@@ -294,7 +294,10 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     logging.getLogger('urllib3.connectionpool').setLevel(logging.CRITICAL)
     source = "DIRECT"
     logger.debug(f"Starting Direct Download from {provider} for [{dl_title}]")
-
+    # is library actually auxinfo magazine date
+    auxinfo = library if library not in ['eBook', 'AudioBook', 'Comic'] else ''
+    if auxinfo:
+        library = 'magazine'
     if provider == 'soulseek':
         slsk = SLSKD()
         if not slsk.slskd:
@@ -320,16 +323,26 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
             elif library == 'AudioBook':
                 db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
-            cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
-                   "WHERE BookID=? and NZBProv=?")
-            db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
+            if auxinfo:  # magazine issue
+                cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+                db.action(cmd, (source, hashid, int(time.time()), bookid, provider, auxinfo))
+            else:
+                cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=?")
+                db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
             db.close()
             record_usage_data(f'Download/Direct/{provider}/Success')
             return True, ''
 
-        cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
-               "WHERE BookID=? and NZBProv=?")
-        db.action(cmd, ('SLSK download failed', source, hashid, int(time.time()), bookid, provider))
+        if auxinfo:  # magazine issue
+            cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                   "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+            db.action(cmd, ('SLSK download failed', source, hashid, int(time.time()), bookid, provider, auxinfo))
+        else:
+            cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                   "WHERE BookID=? and NZBProv=?")
+            db.action(cmd, ('SLSK download failed', source, hashid, int(time.time()), bookid, provider))
         db.close()
         record_usage_data(f'Download/Direct/{provider}/Failed')
         return False, ''
@@ -354,16 +367,27 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
             elif library == 'AudioBook':
                 db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
-            cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
-                   "WHERE BookID=? and NZBProv=?")
-            db.action(cmd, (source, dl_url, int(time.time()), bookid, provider))
+            if auxinfo:  # magazine issue
+                cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+                db.action(cmd, (source, dl_url, int(time.time()), bookid, provider, auxinfo))
+            else:
+                cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=?")
+                db.action(cmd, (source, dl_url, int(time.time()), bookid, provider))
+
             record_usage_data(f'Download/Direct/{provider}/Success')
             db.close()
             return True, ''
 
-        cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
-               "WHERE BookID=? and NZBProv=?")
-        db.action(cmd, (fname, source, dl_url, int(time.time()), bookid, provider))
+        if auxinfo:  # magazine issue
+            cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                   "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+            db.action(cmd, (fname, source, dl_url, int(time.time()), bookid, provider, auxinfo))
+        else:
+            cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                   "WHERE BookID=? and NZBProv=?")
+            db.action(cmd, (fname, source, dl_url, int(time.time()), bookid, provider))
         record_usage_data(f'Download/Direct/{provider}/Failed')
         db.close()
         return False, fname
@@ -394,9 +418,14 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         filename, filecontent = zlib.downloadBook({"id": zlib_bookid, "hash": zlib_hash})
         if not filename:
             logger.error(filecontent)
-            cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
-                   "WHERE BookID=? and NZBProv=?")
-            db.action(cmd, (filecontent, source, hashid, int(time.time()), bookid, provider))
+            if auxinfo:  # magazine issue
+                cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+                db.action(cmd, (filecontent, source, hashid, int(time.time()), bookid, provider, auxinfo))
+            else:
+                cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=?")
+                db.action(cmd, (filecontent, source, hashid, int(time.time()), bookid, provider))
             db.close()
             record_usage_data(f'Download/Direct/{provider}/Failed')
             return False, filecontent
@@ -419,9 +448,14 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 bookfile.write(filecontent)
         except Exception as e:
             res = f"{type(e).__name__} writing book to {destfile}, {e}"
-            cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
-                   "WHERE BookID=? and NZBProv=?")
-            db.action(cmd, (res, source, hashid, int(time.time()), bookid, provider))
+            if auxinfo:
+                cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+                db.action(cmd, (res, source, hashid, int(time.time()), bookid, provider, auxinfo))
+            else:
+                cmd = ("UPDATE wanted SET status='Failed', dlresult=?, Source=?, DownloadID=?, completed=? "
+                       "WHERE BookID=? and NZBProv=?")
+                db.action(cmd, (res, source, hashid, int(time.time()), bookid, provider))
             db.close()
             record_usage_data(f'Download/Direct/{provider}/Failed')
             logger.error(res)
@@ -433,9 +467,14 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
         elif library == 'AudioBook':
             db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
-        cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
-               "WHERE BookID=? and NZBProv=?")
-        db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
+        if auxinfo:
+            cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                   "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+            db.action(cmd, (source, hashid, int(time.time()), bookid, provider, auxinfo))
+        else:
+            cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                   "WHERE BookID=? and NZBProv=?")
+            db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
         db.close()
         record_usage_data(f'Download/Direct/{provider}/Success')
         return True, ''
@@ -542,18 +581,28 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     db.action("UPDATE books SET status='Snatched' WHERE BookID=?", (bookid,))
                 elif library == 'AudioBook':
                     db.action("UPDATE books SET audiostatus='Snatched' WHERE BookID=?", (bookid,))
-                cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
-                       "WHERE BookID=? and NZBProv=?")
-                db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
+                if auxinfo:  # magazine issue
+                    cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                           "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+                    db.action(cmd, (source, hashid, int(time.time()), bookid, provider, auxinfo))
+                else:
+                    cmd = ("UPDATE wanted SET status='Snatched', Source=?, DownloadID=?, completed=? "
+                           "WHERE BookID=? and NZBProv=?")
+                    db.action(cmd, (source, hashid, int(time.time()), bookid, provider))
                 db.close()
                 record_usage_data(f'Download/Direct/{provider}/Success')
                 return True, ''
             except Exception as e:
                 res = f"{type(e).__name__} writing book to {destfile}, {e}"
                 logger.error(res)
-                cmd = ("UPDATE wanted SET status='Snatched', dlresult=?, Source=?, DownloadID=?, completed=? "
-                       "WHERE BookID=? and NZBProv=?")
-                db.action(cmd, (res, source, hashid, int(time.time()), bookid, provider))
+                if auxinfo:
+                    cmd = ("UPDATE wanted SET status='Snatched', dlresult=?, Source=?, DownloadID=?, completed=? "
+                           "WHERE BookID=? and NZBProv=? and AuxInfo=?")
+                    db.action(cmd, (res, source, hashid, int(time.time()), bookid, provider, auxinfo))
+                else:
+                    cmd = ("UPDATE wanted SET status='Snatched', dlresult=?, Source=?, DownloadID=?, completed=? "
+                           "WHERE BookID=? and NZBProv=?")
+                    db.action(cmd, (res, source, hashid, int(time.time()), bookid, provider))
                 db.close()
                 record_usage_data(f'Download/Direct/{provider}/Failed')
                 return False, res
