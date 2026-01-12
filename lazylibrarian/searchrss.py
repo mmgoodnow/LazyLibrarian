@@ -338,12 +338,16 @@ def search_wishlist():
                     new_value_dict = {'AuthorID': bookmatch['AuthorID'], 'BookName': bookmatch['BookName']}
                     try:
                         if want_book:
-                            requester = bookmatch.get('Requester', '')
+                            requester = bookmatch.get('Requester')
+                            if not requester:
+                                requester = ''
                             if wishlist and wishlist not in requester:
                                 new_value_dict["Requester"] = f"{' '.join([requester, wishlist]).strip()}"
                             new_value_dict['Status'] = "Wanted"
                         if want_audio:
-                            audiorequester = bookmatch.get('AudioRequester', '')
+                            audiorequester = bookmatch.get('AudioRequester')
+                            if not audiorequester:
+                                audiorequester = ''
                             if wishlist and wishlist not in audiorequester:
                                 new_value_dict["AudioRequester"] = f"{' '.join([audiorequester, wishlist]).strip()}"
                             new_value_dict['AudioStatus'] = "Wanted"
