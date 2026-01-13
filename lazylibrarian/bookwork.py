@@ -1111,9 +1111,9 @@ def set_genres(genrelist=None, bookid=None):
                           (match['GenreID'], bookid), suppress='UNIQUE')
             if CONFIG.get_bool('WISHLIST_GENRES'):
                 book = db.match('SELECT Requester,AudioRequester from books WHERE BookID=?', (bookid,))
-                if book['Requester'] is not None and book['Requester'] not in genrelist:
+                if book['Requester'] and book['Requester'] not in genrelist:
                     genrelist.insert(0, book['Requester'])
-                if book['AudioRequester'] is not None and book['AudioRequester'] not in genrelist:
+                if book['AudioRequester'] and book['AudioRequester'] not in genrelist:
                     genrelist.insert(0, book['AudioRequester'])
             db.action('UPDATE books set BookGenre=? WHERE BookID=?', (', '.join(genrelist), bookid))
         finally:

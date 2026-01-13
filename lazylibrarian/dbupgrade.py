@@ -770,6 +770,21 @@ def check_db(upgradelog=None):
                 logger.warning(msg)
                 db.action("UPDATE books SET BookDate='0000' WHERE BookDate is NULL or BookDate=''")
 
+            # update Requester and AudioRequester from NULL to ''
+            lazylibrarian.UPDATE_MSG = 'Updating Requester/AudioRequester'
+            books = db.select("SELECT * FROM books WHERE Requester is NULL")
+            if books:
+                cnt += len(books)
+                msg = f"Found {len(books)} {plural(len(books), 'book')} with Requester as NULL"
+                logger.warning(msg)
+                db.action("UPDATE books SET Requester='' WHERE Requester is NULL")
+            books = db.select("SELECT * FROM books WHERE AudioRequester is NULL")
+            if books:
+                cnt += len(books)
+                msg = f"Found {len(books)} {plural(len(books), 'book')} with AudioRequester as NULL"
+                logger.warning(msg)
+                db.action("UPDATE books SET AudioRequester='' WHERE AudioRequester is NULL")
+
             # delete any duplicate entries in member table and add a unique constraint if not already done
             cmd = "SELECT * from sqlite_master WHERE type= 'index' and tbl_name = 'member' and name = 'unq'"
             match = db.match(cmd)
