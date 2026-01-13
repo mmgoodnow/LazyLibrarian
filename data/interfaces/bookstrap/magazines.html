@@ -125,7 +125,7 @@
         var selected = [];
         var intjob = 0;
         $('#magfilter').val(getUrlVars()['mag_filter']);
-
+        $('#w_width').val(window.innerWidth);
         var oTable = $('#book_table').DataTable(
             {
                 "dom": "<'row'<'col-xs-6'l><'col-xs-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>",
@@ -144,7 +144,7 @@
                     { targets: [1],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                        return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
+                        return '<a href="' + row[9] + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2],
                         'class': 'text-center',
                         'render': function(data, type, row) {
@@ -254,7 +254,6 @@
                 var column = oTable.column( $(this).attr('data-column') );
                 column.visible( ! column.visible() );
             } );
-        $('#w_width').val(window.innerWidth);
     });
 
     function validateForm() {
@@ -380,4 +379,3 @@
     }
   </script>
 </%def>
-
