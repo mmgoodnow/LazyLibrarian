@@ -121,7 +121,6 @@ def test_provider(name: str, host=None, api=None):
                 return direct_gen(book, prov=provider['NAME'].lower(), test=True), name
 
     if name == 'BOK':
-        logger.debug(f"Testing provider {name}")
         if host:
             CONFIG.set_str('BOK_HOST', host)
         if api:
@@ -129,6 +128,7 @@ def test_provider(name: str, host=None, api=None):
             CONFIG.set_str('BOK_EMAIL', email)
             CONFIG.set_str('BOK_PASS', pwd)
             CONFIG.set_str('BOK_SEARCH_LANG', langs)
+        logger.debug(f"Testing provider {name}:{CONFIG['BOK_HOST']}")
         return direct_bok(book, prov=name, test=True), "ZLibrary"
 
     if name.startswith('rss_'):
@@ -436,7 +436,6 @@ def get_capabilities(provider: ConfigDict, force=False):
                         success = False
             else:
                 logger.debug(f'Unable to retry capabilities, no apikey for {url}')
-
         if not success:
             logger.warning(f"Unable to get capabilities for {url}: No data returned")
             # might be a temporary error
@@ -492,22 +491,31 @@ def get_capabilities(provider: ConfigDict, force=False):
                     logger.debug(f"Error getting apilimit from {provider['HOST']}: {type(e).__name__} {str(e)}")
 
             categories = data.iter('category')
+            ebooksubs = ''
+            magsubs = ''
+            comicsubs = ''
+            audiosubs = ''
             for cat in categories:
                 if 'name' in cat.attrib:
-                    if cat.attrib['name'].lower() == 'audio':
-                        provider['AUDIOCAT'] = cat.attrib['id']
+                    if cat.attrib['name'].lower().startswith('audio'):
+                        if not provider['AUDIOCAT']:
+                            provider['AUDIOCAT'] = cat.attrib['id']
                         subcats = cat.iter('subcat')
                         if not subcats:
                             subcats = cat.iter('subCategories')
                         for subcat in subcats:
                             if 'audiobook' in subcat.attrib['name'].lower():
-                                provider['AUDIOCAT'] = subcat.attrib['id']
-
-                    elif cat.attrib['name'].lower() == 'books':
-                        provider['BOOKCAT'] = cat.attrib['id']
+                                if audiosubs:
+                                    audiosubs += ','
+                                audiosubs += subcat.attrib['id']
+                    elif cat.attrib['name'].lower().startswith('books'):
+                        if not provider['BOOKCAT']:
+                            provider['BOOKCAT'] = cat.attrib['id']
                         # if no specific magazine/comic subcategory, use books
-                        provider['MAGCAT'] = cat.attrib['id']
-                        provider['COMICCAT'] = cat.attrib['id']
+                        if not provider['MAGCAT']:
+                            provider['MAGCAT'] = cat.attrib['id']
+                        if not provider['COMICCAT']:
+                            provider['COMICCAT'] = cat.attrib['id']
                         # set default booksearch
                         if provider['BOOKCAT'] == '7000':
                             # looks like newznab+, should support book-search
@@ -532,9 +540,6 @@ def get_capabilities(provider: ConfigDict, force=False):
                         subcats = cat.iter('subcat')
                         if not subcats:
                             subcats = cat.iter('subCategories')
-                        ebooksubs = ''
-                        magsubs = ''
-                        comicsubs = ''
                         for subcat in subcats:
                             if 'ebook' in subcat.attrib['name'].lower():
                                 if ebooksubs:
@@ -548,12 +553,14 @@ def get_capabilities(provider: ConfigDict, force=False):
                                 if comicsubs:
                                     comicsubs += ','
                                 comicsubs += subcat.attrib['id']
-                        if ebooksubs:
-                            provider['BOOKCAT'] = ebooksubs
-                        if magsubs:
-                            provider['MAGCAT'] = magsubs
-                        if comicsubs:
-                            provider['COMICCAT'] = comicsubs
+            if ebooksubs:
+                provider['BOOKCAT'] = ebooksubs
+            if magsubs:
+                provider['MAGCAT'] = magsubs
+            if comicsubs:
+                provider['COMICCAT'] = comicsubs
+            if audiosubs:
+                provider['AUDIOCAT'] = audiosubs
             logger.info(
                 f"Categories: Books {provider['BOOKCAT']} : Mags {provider['MAGCAT']} : Audio "
                 f"{provider['AUDIOCAT']} : Comic {provider['COMICCAT']} : BookSearch '{provider['BOOKSEARCH']}'")
