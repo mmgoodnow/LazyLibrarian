@@ -7,8 +7,6 @@ For more information, see:
 https://github.com/bipinkrish/Zlibrary-API/
 """
 
-# annotations needed for python3.8
-from __future__ import annotations
 import requests
 
 
@@ -19,6 +17,7 @@ class Zlibrary:
         password: str = None,
         remix_userid: [int, str] = None,
         remix_userkey: str = None,
+        domain: str =None,
     ):
         self.__email: str
         self.__name: str
@@ -39,7 +38,8 @@ class Zlibrary:
         self.__cookies = {
             "siteLanguageV2": "en",
         }
-
+        if domain is not None:
+            self.__domain = domain
         if email is not None and password is not None:
             self.login(email, password)
         elif remix_userid is not None and remix_userkey is not None:
@@ -105,10 +105,8 @@ class Zlibrary:
         if 'languages' in data:
             languages = data['languages'].split(',')
             data.pop('languages')
-            cnt = 0
-            for item in languages:
+            for cnt,item in enumerate(languages):
                 data[f'languages[{cnt}]'] = item.lower().strip()
-                cnt += 1
         return requests.post(
             "https://" + self.__domain + url,
             data=data,

@@ -94,10 +94,15 @@ def session_get(sess, url, headers):
 def bok_login():
     logger = logging.getLogger(__name__)
     try:
+        domain = CONFIG['BOK_HOST']
+        if '//' in domain:
+            domain = domain.split('//')[1]
+        if not domain:
+            domain = None
         if CONFIG['BOK_REMIX_USERID'] and CONFIG['BOK_REMIX_USERKEY']:
-            zlib = Zlibrary(remix_userid=CONFIG['BOK_REMIX_USERID'], remix_userkey=CONFIG['BOK_REMIX_USERKEY'])
+            zlib = Zlibrary(domain=domain, remix_userid=CONFIG['BOK_REMIX_USERID'], remix_userkey=CONFIG['BOK_REMIX_USERKEY'])
         elif CONFIG['BOK_EMAIL'] and CONFIG['BOK_PASS']:
-            zlib = Zlibrary(email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
+            zlib = Zlibrary(domain=domain, email=CONFIG['BOK_EMAIL'], password=CONFIG['BOK_PASS'])
         else:
             # logger.error("Zlibrary check credentials")
             return None
