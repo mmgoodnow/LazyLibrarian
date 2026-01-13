@@ -6677,6 +6677,7 @@ class WebInterface:
                 new_value_dict = {"Status": action}
                 db.upsert("magazines", new_value_dict, control_value_dict)
                 logger.info(f'Status of magazine {title} changed to {action}')
+                passed += 1
 
             if action == "Delete":
                 issues = db.select('SELECT * from issues WHERE Title=?', (title,))
@@ -6685,11 +6686,13 @@ class WebInterface:
                 for issue in issues:  # delete all issues of this magazine
                     result = self.delete_issue(issue['IssueFile'])
                     if result:
+                        passed += 1
                         logger.debug(f'Issue {issue["IssueFile"]} deleted from disc')
                         if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                             self.delete_from_calibre(issue)
                         issuedir = os.path.dirname(issue['IssueFile'])
                     else:
+                        failed += 1
                         logger.debug(f'Failed to delete {issue["IssueFile"]}')
 
                 # if the directory is now empty, delete that too
@@ -6700,6 +6703,7 @@ class WebInterface:
                         logger.debug(f'Magazine directory {magdir} deleted from disc')
                     except OSError:
                         logger.debug(f'Magazine directory {magdir} is not empty')
+                        failed += 1
                     logger.info(f'Magazine {title} deleted from disc')
 
             if action == 'tag':
