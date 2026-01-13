@@ -181,7 +181,8 @@ def search_wishlist():
                 want_book = want_audio = False
                 if bookid:  # it's in the database
                     bookmatch = db.match('SELECT * from books WHERE bookid=?', (bookid,))
-                    authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (bookmatch['AuthorID'], ))
+                    authorid = bookmatch['AuthorID']
+                    authormatch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid, ))
                     bookmatch = dict(bookmatch)
                     authormatch = dict(authormatch)
                     logger.debug(f"Found in database, {authormatch['AuthorName']}:{bookmatch['BookName']} "
@@ -335,7 +336,9 @@ def search_wishlist():
                                 f"{round(results[0]['book_fuzz'], 2)}%) "
                                 f"{results[0]['authorname']}: {results[0]['bookname']}")
                 if bookmatch:
-                    new_value_dict = {'AuthorID': bookmatch['AuthorID'], 'BookName': bookmatch['BookName']}
+                    if not authorid and bookmatch.get('AuthorID'):
+                        authorid = bookmatch.get('AuthorID')
+                    new_value_dict = {'AuthorID': authorid, 'BookName': bookmatch['BookName']}
                     try:
                         if want_book:
                             requester = bookmatch.get('Requester')
