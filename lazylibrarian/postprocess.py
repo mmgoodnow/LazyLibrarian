@@ -68,6 +68,7 @@ from lazylibrarian.formatter import (
     get_list,
     is_valid_type,
     make_unicode,
+    md5_utf8,
     now,
     plural,
     sanitize,
@@ -911,7 +912,8 @@ def _extract_best_match_from_collection(
         return "", True, "Multiple books found with no good match"
 
     # Create isolated directory for the best match
-    target_dir = os.path.join(download_dir, f"{target_title}.unpack")
+    # use md5 to handle enormously long titles overflowing windows directory name limit
+    target_dir = os.path.join(download_dir, f"{md5_utf8(target_title)[-8:]}.unpack")
     if not make_dirs(target_dir, new=True):
         logger.error(f"Failed to create target dir {target_dir}")
         return "", True, "Failed to create extraction directory"
@@ -1649,7 +1651,7 @@ def _process_matched_directory(
                 copy_files = False
 
             # Create isolated .unpack directory
-            targetdir = os.path.join(download_dir, f"{fname_prefix}.unpack")
+            targetdir = os.path.join(download_dir, f"{md5_utf8(fname_prefix)[-8:]}.unpack")
             if not make_dirs(targetdir, new=True):
                 return False, f"Failed to create isolation directory {targetdir}"
 
