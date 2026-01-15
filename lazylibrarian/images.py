@@ -937,7 +937,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 GS, GS_VER, generator = find_gs()
             if GS_VER:
                 issuefile = issuefile.split('[')[0]
-                params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                params = [GS, "-sDEVICE=jpeg", "-dJPEGQ=100", "-dNOPAUSE", "-dBATCH", "-dSAFER",
                           f"-dFirstPage={check_int(pagenum, 1):d}",
                           f"-dLastPage={check_int(pagenum, 1):d}",
                           "-dUseCropBox", f"-sOutputFile={coverfile}", issuefile]
@@ -969,7 +969,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                         GS, GS_VER, generator = find_gs()
                     if GS_VER:
                         issuefile = issuefile.split('[')[0]
-                        params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                        params = [GS, "-sDEVICE=jpeg", "-dJPEGQ=100", "-dNOPAUSE", "-dBATCH", "-dSAFER",
                                   f"-dFirstPage={check_int(pagenum, 1):d}",
                                   f"-dLastPage={check_int(pagenum, 1):d}",
                                   "-dUseCropBox", f"-sOutputFile={coverfile}", issuefile]
