@@ -152,7 +152,7 @@ class Zlibrary:
     def unsaveUserBook(self, bookid: [int, str]) -> dict[str, str]:
         return self.__makeGetRequest(f"/eapi/user/book/{bookid}/unsave")
 
-    def getBookForamt(self, bookid: [int, str], hashid: str) -> dict[str, str]:
+    def getBookFormat(self, bookid: [int, str], hashid: str) -> dict[str, str]:
         return self.__makeGetRequest(f"/eapi/book/{bookid}/{hashid}/formats")
 
     def getDonations(self) -> dict[str, str]:

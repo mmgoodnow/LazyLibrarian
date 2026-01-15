@@ -30,8 +30,8 @@ import lazylibrarian
 from lazylibrarian import database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian.filesystem import DIRS, path_isfile, remove_file
-from lazylibrarian.formatter import check_int, get_list, md5_utf8, plural, sanitize, size_in_bytes
+from lazylibrarian.filesystem import DIRS, get_directory, path_isfile, remove_file
+from lazylibrarian.formatter import check_int, md5_utf8, plural, sanitize, size_in_bytes
 
 py310 = sys.version_info >= (3, 10)
 
@@ -360,7 +360,7 @@ def annas_download(md5, folder, title, extn):
                 logger.warning(msg)
                 return False, msg
             logger.debug(f"Got {len(filedata)} bytes for {url}")
-            download_dir = get_list(CONFIG['DOWNLOAD_DIR'])[0]
+            download_dir = get_directory('Download')
             if folder:
                 parent = os.path.join(download_dir, folder)
                 if not os.path.isdir(parent):

@@ -394,9 +394,12 @@ class BookState:
 
         if self.source and self.download_id:
             general_folder = get_download_folder(self.source, self.download_id)
-            download_name = get_download_name(
-                self.download_title, self.source, self.download_id
-            )
+            download_name = get_download_name(self.download_title, self.source, self.download_id)
+            if general_folder is None and self.source == 'DIRECT':
+                res = db.match("SELECT NZBprov,NZBtitle from wanted where source='DIRECT' and DownloadID=?", (self.download_id, ))
+                # These download into first download_dir
+                if res and res['NZBprov'] in ['annas', 'zlibrary'] or res['NZBprov'].startswith('libgen'):
+                    general_folder = get_directory('Download')
 
             # For usenet clients (SABnzbd, NZBGet), the storage field already contains
             # the complete download path including the folder name, so we don't join
