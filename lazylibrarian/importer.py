@@ -817,7 +817,7 @@ def de_duplicate(authorid):
                                 logger.debug(f"Delete {copy['BookID']} keeping {favourite['BookID']}")
                                 db.action('DELETE from books WHERE BookID=?', (copy['BookID'],))
                                 db.action("UPDATE readinglists SET Bookid=? WHERE BookID=?",
-                                          (favourite['BookID'], copy['BookID']))
+                                          (favourite['BookID'], copy['BookID']), suppress='UNIQUE')
                                 total += 1
     except Exception:
         msg = f'Unhandled exception in de_duplicate: {traceback.format_exc()}'
