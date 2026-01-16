@@ -5902,11 +5902,11 @@ class WebInterface:
                     if len(row[2]) == 8:
                         # Year/Issue or Volume/Issue with no year
                         if check_year(row[2][:4]):
-                            row[2] = f'Issue {int(row[2][4:])} {row[2][:4]}'
+                            row[2] = f'{row[2][:4]} Issue {int(row[2][4:])}'
                         else:
                             row[2] = f'Vol {int(row[2][:4])} #{int(row[2][4:])}'
                     elif len(row[2]) == 12:
-                        row[2] = f'Vol {int(row[2][4:8])} #{int(row[2][8:])} {row[2][:4]}'
+                        row[2] = f'{row[2][:4]} Vol {int(row[2][4:8])} #{int(row[2][8:])}'
                 else:
                     row[2] = date_format(row[2], CONFIG['ISS_FORMAT'], context=row[0], datelang=CONFIG['DATE_LANG'])
                 if perm & lazylibrarian.perm_edit:
@@ -6742,6 +6742,14 @@ class WebInterface:
             if action == 'Scan':
                 magazine_scan(title)
 
+            if action == 'Search':
+                if CONFIG.use_any():
+                    logger.debug(f"Searching for magazine: {title}")
+                    search_magazines({"bookid": title}, False, False)
+                    passed += 1
+                else:
+                    logger.warning("Not searching for magazine, no download methods set, check config")
+
             if action == "Remove" or action == "Delete":
                 db.action('DELETE from magazines WHERE Title=? COLLATE NOCASE', (title,))
                 db.action('DELETE from pastissues WHERE BookID=? COLLATE NOCASE', (title,))
@@ -6785,9 +6793,9 @@ class WebInterface:
                                   (userid, 'magazine', iss['issueid']))
                     logger.debug(f"Unsubscribe {userid} to magazine {title}")
                 passed += 1
-        db.close()
 
-        logger.debug(f"{action.title()}: Pass {passed}, Fail {failed}")
+        logger.debug(f"{action}:{title}: Pass {passed}, Fail {failed}")
+        db.close()
 
         # Return JSON response instead of redirect
         total = passed + failed
