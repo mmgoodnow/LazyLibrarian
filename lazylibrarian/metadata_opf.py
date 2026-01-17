@@ -119,7 +119,7 @@ def create_mag_opf(
     mtime = os.path.getmtime(issuefile)
     iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
-    data = {
+    opf_dict = {
         "AuthorName": authors,
         "BookID": issue_id,
         "BookName": iname,
@@ -136,7 +136,7 @@ def create_mag_opf(
         "BookGenre": genres,
     }  # type: dict
     # noinspection PyTypeChecker
-    return create_opf(dest_path, data, global_name, overwrite=overwrite)
+    return create_opf(dest_path, opf_dict, global_name, overwrite=overwrite)
 
 
 def create_opf(dest_path, data_row, global_name=None, overwrite=False):

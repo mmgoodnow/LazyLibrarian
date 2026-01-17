@@ -434,7 +434,7 @@ class BookState:
             if result:
                 data = dict(result)
                 self.book_title = _normalize_title(data.get("Title", ""))
-        logger.debug(f"IsBook:{self.is_book} IsMag:{self.is_magazine} Title:{self.book_title}")
+        logger.debug(f"IsBook:{self.is_book()} IsMag:{self.is_magazine()} Title:{self.book_title}")
 
     def __repr__(self) -> str:
         """String representation for debugging."""
@@ -3592,6 +3592,7 @@ def _find_preferred_book_file(
 def _handle_magazine_comic_metadata(
     book_type: str,
     book_path: str,
+    book_file: str,
     bookid: str,
     issueid: str,
     title: str,
@@ -3658,7 +3659,7 @@ def _handle_magazine_comic_metadata(
             )
             if entry:
                 _, _ = create_mag_opf(
-                    book_path,
+                    book_file,
                     title,
                     issuedate,
                     issueid,
@@ -3912,6 +3913,7 @@ def _process_destination(
         _handle_magazine_comic_metadata(
             book_type,
             book_path,
+            newbookfile,
             book_id,
             issueid,
             title,
