@@ -30,7 +30,7 @@ BASE_DEFAULTS: list[ConfigItem] = [
     ConfigURL('General', 'GR_URL', 'https://www.goodreads.com'),
     ConfigURL('General', 'GB_URL', 'https://www.googleapis.com'),
     ConfigURL('General', 'LT_URL', 'https://www.librarything.com'),
-    ConfigURL('General', 'CV_URL', 'https://www.comicvine.gamespot.com'),
+    ConfigURL('General', 'CV_URL', 'https://comicvine.gamespot.com'),
     ConfigURL('General', 'CX_URL', 'https://www.comixology.com'),
     ConfigBool('General', 'SHOW_NEWZ_PROV', 1),
     ConfigBool('General', 'SHOW_TORZ_PROV', 1),

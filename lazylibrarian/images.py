@@ -937,6 +937,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 GS, GS_VER, generator = find_gs()
             if GS_VER:
                 issuefile = issuefile.split('[')[0]
+                # could use "-sDEVICE=png16m" here instead?
                 params = [GS, "-sDEVICE=jpeg", "-dJPEGQ=100", "-dNOPAUSE", "-dBATCH", "-dSAFER",
                           f"-dFirstPage={check_int(pagenum, 1):d}",
                           f"-dLastPage={check_int(pagenum, 1):d}",

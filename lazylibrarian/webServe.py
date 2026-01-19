@@ -3341,6 +3341,7 @@ class WebInterface:
     @require_auth()
     def add_book(self, bookid=None, authorid=None, library=None):
         self.check_permitted(lazylibrarian.perm_search)
+        TELEMETRY.record_usage_data()
         if library == 'eBook':
             ebook_status = "Wanted"
             audio_status = "Skipped"
@@ -3418,6 +3419,7 @@ class WebInterface:
     @cherrypy.expose
     @require_auth()
     def search_for_book(self, bookid=None, library=None):
+        TELEMETRY.record_usage_data()
         author_id = ''
         db = database.DBConnection()
         try:
@@ -4977,6 +4979,7 @@ class WebInterface:
     @require_auth()
     def search_for_comic(self, comicid=None):
         self.check_permitted(lazylibrarian.perm_search)
+        TELEMETRY.record_usage_data()
         db = database.DBConnection()
         try:
             bookdata = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
@@ -5135,6 +5138,7 @@ class WebInterface:
     @require_auth()
     def comic_scan(self, **kwargs):
         self.check_permitted(lazylibrarian.perm_force)
+        TELEMETRY.record_usage_data()
         logger = logging.getLogger(__name__)
         comicid = kwargs.get('comicid')
 
@@ -5336,6 +5340,7 @@ class WebInterface:
         global comicresults
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_search)
+        TELEMETRY.record_usage_data()
         comicresults = []
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("comics")
@@ -5380,6 +5385,7 @@ class WebInterface:
         global comicresults
         logger = logging.getLogger(__name__)
         self.check_permitted(lazylibrarian.perm_comics)
+        TELEMETRY.record_usage_data()
         apikey = CONFIG['CV_APIKEY']
         if not comicid or comicid == 'None':
             raise cherrypy.HTTPRedirect("comics")
@@ -6821,6 +6827,7 @@ class WebInterface:
     @require_auth()
     def search_for_mag(self, bookid=None):
         self.check_permitted(lazylibrarian.perm_search)
+        TELEMETRY.record_usage_data()
         logger = logging.getLogger(__name__)
         db = database.DBConnection()
         bookdata = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
@@ -6851,6 +6858,7 @@ class WebInterface:
     @require_auth()
     def add_magazine(self, title=None, **kwargs):
         self.check_permitted(lazylibrarian.perm_magazines)
+        TELEMETRY.record_usage_data()
         logger = logging.getLogger(__name__)
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("magazines")
