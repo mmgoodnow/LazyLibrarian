@@ -60,7 +60,8 @@ class ImageType(Enum):
     TEST = 'test'
 
 
-service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary', 'hardcover', 'dnb.de']
+service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary', 'hardcover', 'dnb.de',
+                   'google.com/search?q=ISBN']
 
 
 def gr_api_sleep():
@@ -196,7 +197,8 @@ def fetch_url(url: str, headers: dict | None = None, retry=True, timeout=True,
         else:
             logger.debug(f"Error {r.status_code} url={url}")
 
-    elif 'googleapis' in url:
+    elif 'googleapis' in url or 'google.com/search?q=ISBN' in url:
+        prov = 'googleapis' if 'googleapis' in url else 'google.com/search?q=ISBN'
         if 'Limit Exceeded' in msg:
             # how long until midnight Pacific Time when google reset the quotas
             delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
@@ -209,8 +211,8 @@ def fetch_url(url: str, headers: dict | None = None, retry=True, timeout=True,
             # eg "Cannot determine user location for geographically restricted operation"
             delay = 3600
 
-        logger.debug(f'Request denied, {r.status_code}, blocking googleapis for {delay} seconds: {msg}')
-        BLOCKHANDLER.replace_provider_entry('googleapis', delay, msg)
+        logger.debug(f'Request denied, {r.status_code}, blocking {prov} for {delay} seconds: {msg}')
+        BLOCKHANDLER.replace_provider_entry(prov, delay, msg)
     else:
         logger.debug(f"Error {r.status_code} url={url}")
 
