@@ -693,7 +693,7 @@ def _get_ready_from_snatched(db, snatched_list: list[dict]):
 
         rejected = check_contents(source, download_id, book_type_str, title)
         if rejected:
-            logger.debug(f"Rejected: {title}")
+            logger.debug(f"Rejected: {title} BookID: {book_id} DownloadID: {download_id}")
 
             # change status to "Failed", and ask downloader to delete task and files
             # Only reset book status to wanted if still snatched in case another download task succeeded

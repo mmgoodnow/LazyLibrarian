@@ -72,6 +72,7 @@ def check_contents(source, downloadid, booktype, title):
     """
     logger = logging.getLogger(__name__)
     rejected = ""
+    matched = False
     banned_extensions = get_list(CONFIG["BANNED_EXT"])
     if booktype.lower() == "ebook":
         maxsize = CONFIG.get_int("REJECT_MAXSIZE")
@@ -170,9 +171,10 @@ def check_contents(source, downloadid, booktype, title):
                         rejected = f"{fname} is too small ({fsize}{unit})"
                         logger.warning(f"{rejected}. Rejecting download")
                         break
-            if not rejected:
-                logger.debug(f"{fname}: ({fsize}{unit}) is wanted")
-    if not rejected:
+                if not rejected:
+                    logger.debug(f"{fname}: ({fsize}{unit}) is wanted")
+                    matched = True
+    if matched and not rejected:
         logger.debug(f"{title} accepted")
     else:
         logger.debug(f"{title}: {rejected}")
