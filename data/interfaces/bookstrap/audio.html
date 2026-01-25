@@ -30,10 +30,10 @@
         %if len(languages) > 1:
         <div class="form-group">
           <label for="chooselanguage"><small>Language</small></label>
-          <select class="form-control input-sm" name="chooselanguage" id="chooselanguage" onchange="window.location = 'audio?BookLang=' + this.options[this.selectedIndex].value">
+          <select class="form-control input-sm" name="chooselanguage" id="chooselanguage" onchange="window.location = 'audio?booklang=' + this.options[this.selectedIndex].value">
             <option value="">All</option>
             %for language in languages:
-            <option value="${language['BookLang']}">${language['BookLang']}</option>
+            <option value="${language['booklang']}">${language['booklang']}</option>
             %endfor
           </select>
         </div>
