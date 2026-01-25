@@ -2933,25 +2933,6 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
         postprocesslogger.debug("Snatched Processing Stage Complete")
 
-        # Optional: Mark unprocessed books as Failed
-        # Currently disabled - books at 100% that fail to process will retry next cycle.
-        # This will result in a snatched book stuck if it can never be processed.
-        # Uncomment to mark failures immediately:
-        #
-        # for book_row, book_state in books_needing_scan:
-        #     if not book_state.was_processed and book_state.has_failed():
-        #         logger.warning(
-        #             f"Marking {book_state.download_title} as Failed: "
-        #             f"{book_state.processing_stage} - {book_state.failure_reason}"
-        #         )
-        #         control_value_dict = {"BookID": book_state.book_id, "Status": "Snatched"}
-        #         new_value_dict = {
-        #             "Status": "Failed",
-        #             "NZBDate": now(),
-        #             "DLResult": f"{book_state.processing_stage}: {book_state.failure_reason}"
-        #         }
-        #         db.upsert("wanted", new_value_dict, control_value_dict)
-
         # ==========================================================================
         #  Supplemental Search: Look for and process books in LL.(bookid) Folders
         # ==========================================================================
@@ -2960,6 +2941,41 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             ppcount += _process_ll_bookid_folders_from_list(
                 all_downloads, db, postprocesslogger
             )
+
+        # Mark unprocessed books as Failed to force a retry on next search
+        failed = [0, 0, 0, 0]  # ebook, audio, mag, comic
+        for book_row in books_to_process:
+            book_state = BookState.from_db_row(book_row, CONFIG)
+            if not book_state.was_processed and book_state.has_failed():
+                logger.warning(
+                    f"Marking {book_state.download_title} as Failed: "
+                    f"{book_state.processing_stage} - {book_state.failure_reason}"
+                )
+                control_value_dict = {"DownloadID": book_state.download_id, "Status": "Snatched"}
+                new_value_dict = {
+                    "Status": "Failed",
+                    "NZBDate": now(),
+                    "DLResult": f"{book_state.processing_stage}: {book_state.failure_reason}"
+                }
+                db.upsert("wanted", new_value_dict, control_value_dict)
+                book_type_str = book_state.get_book_type_str()
+                cmd = ''
+                if book_type_str == BookType.EBOOK.value:
+                    cmd = "UPDATE books SET status='Wanted' WHERE status='Snatched' and BookID=?"
+                    failed[0] += 1
+                elif book_type_str == BookType.AUDIOBOOK.value:
+                    cmd = "UPDATE books SET audiostatus='Wanted' WHERE audiostatus='Snatched' and BookID=?"
+                    failed[1] += 1
+                elif book_type_str == BookType.MAGAZINE.value():
+                    failed[2] += 1
+                elif book_type_str == BookType.COMIC.value():
+                    failed[3] += 1
+                if cmd:
+                    db.action(cmd, (book_state.book_id,))
+                if CONFIG.get_bool("DEL_FAILED"):
+                    delete_task(book_state.source, book_state.download_id, True)
+        if any(failed):
+            logger.debug(f"Failed to process {failed[0]} ebook, {failed[1]} audio, {failed[2]} magazine, {failed[3]} comic")
 
         postprocesslogger.info(f"{ppcount} {plural(ppcount, 'download')} processed.")
 
