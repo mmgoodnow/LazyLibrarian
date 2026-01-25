@@ -3388,9 +3388,9 @@ class WebInterface:
 
         if author_id:
             raise cherrypy.HTTPRedirect(f"author_page?authorid={author_id}")
-        if CONFIG.get_bool('EBOOK_TAB'):
+        if ebook_status == 'Wanted':
             raise cherrypy.HTTPRedirect("books")
-        if CONFIG.get_bool('AUDIO_TAB'):
+        if audio_status == 'Wanted':
             raise cherrypy.HTTPRedirect("audio")
         raise cherrypy.HTTPRedirect("authors")
 
