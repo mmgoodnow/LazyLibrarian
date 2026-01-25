@@ -60,8 +60,7 @@ class ImageType(Enum):
     TEST = 'test'
 
 
-service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary', 'hardcover', 'dnb.de',
-                   'google.com/search?q=ISBN']
+service_blocked = ['goodreads', 'librarything', 'googleapis', 'openlibrary', 'hardcover', 'dnb', 'ISBN']
 
 
 def gr_api_sleep():
@@ -198,7 +197,7 @@ def fetch_url(url: str, headers: dict | None = None, retry=True, timeout=True,
             logger.debug(f"Error {r.status_code} url={url}")
 
     elif 'googleapis' in url or 'google.com/search?q=ISBN' in url:
-        prov = 'googleapis' if 'googleapis' in url else 'google.com/search?q=ISBN'
+        prov = 'googleapis' if 'googleapis' in url else 'ISBN'
         if 'Limit Exceeded' in msg:
             # how long until midnight Pacific Time when google reset the quotas
             delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
