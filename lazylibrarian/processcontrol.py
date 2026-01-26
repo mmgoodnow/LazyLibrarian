@@ -19,6 +19,7 @@
 import inspect
 import logging
 import os
+import threading
 import time
 from datetime import timedelta
 
@@ -63,7 +64,6 @@ def get_process_memory() -> (bool, int):
 
 
 def get_threads_cpu_percent(p, interval=0.1):
-    import threading
     total_percent = p.cpu_percent(interval)
     total_time = sum(p.cpu_times())
     names = [n.name for n in list(threading.enumerate())]

@@ -750,6 +750,12 @@ class StartupLazyLibrarian:
         # Crons and scheduled jobs started here
         # noinspection PyUnresolvedReferences
         startscheduler()
+        # wipe any aborted entries if running when shutdown
+        db = database.DBConnection()
+        columns = db.select('PRAGMA table_info(jobs)')
+        if columns:  # check for no such table
+            db.action("UPDATE jobs SET Finish=Start WHERE Finish<Start")
+        db.close()
         if not lazylibrarian.STOPTHREADS:
             restart_jobs(command=SchedulerCommand.START)
 

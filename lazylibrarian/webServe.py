@@ -7470,6 +7470,14 @@ class WebInterface:
         serversidelogger.debug(str(mydict))
         return mydict
 
+
+    @cherrypy.expose
+    @require_auth()
+    def show_running():
+        """ return a list of currently running tasks """
+        return lazylibrarian.scheduling.show_running()
+
+
     @cherrypy.expose
     @require_auth()
     def bookdesc(self, bookid=None):

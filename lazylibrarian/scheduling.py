@@ -396,6 +396,18 @@ def ensure_running(jobname: str):
         schedule_job(SchedulerCommand.START, jobname)
 
 
+def show_running():
+    """ return a list of currently running tasks """
+    db = database.DBConnection()
+    running = []
+    jobs = db.select("SELECT Name from jobs WHERE Start>Finish")
+    db.close()
+    for entry in jobs:
+        if 'Thread' not in entry['Name']:
+            running.append(entry['Name'])
+    return running
+
+
 def check_running_jobs():
     # make sure the relevant jobs are running
     # search jobs start when something gets marked "wanted" but are
