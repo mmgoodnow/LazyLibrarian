@@ -1345,6 +1345,9 @@ class OpenLibrary:
         bookdict['authorid'] = authorid
         bookdict['bookid'] = bookid
         auth = self.get_author_info(authorid)
+        if not auth or not auth.get('authorname'):
+            self.logger.debug(f"OL no authorname for {bookid}")
+            return None, False
         bookdict['authorname'] = auth['authorname']
         bookdict['bookname'] = workinfo.get('title', '')
         bookdict['booksub'] = ''
