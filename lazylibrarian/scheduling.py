@@ -307,7 +307,6 @@ def author_update(restart=True, only_overdue=True):
                 if lazylibrarian.STOPTHREADS:
                     return ''
                 msg = f'Updated author {name}'
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": "AUTHORUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "author_update")
         return msg
@@ -317,6 +316,7 @@ def author_update(restart=True, only_overdue=True):
         return "Unhandled exception in AuthorUpdate"
 
     finally:
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": "AUTHORUPDATE"})
         db.close()
 
 
@@ -339,8 +339,6 @@ def series_update(restart=True, only_overdue=True):
                 add_series_members(ident)
                 msg = f'Updated series {name}'
             logger.debug(msg)
-
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": "SERIESUPDATE"})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job(SchedulerCommand.RESTART, "series_update")
         return msg
@@ -350,6 +348,7 @@ def series_update(restart=True, only_overdue=True):
         return "Unhandled exception in series_update"
 
     finally:
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": "SERIESUPDATE"})
         db.close()
 
 

@@ -2167,7 +2167,7 @@ class WebInterface:
                           or key.lower().endswith('_file')):
                         tokens = ['<', '&', '>', '=', '"', "'", '+']
                     elif '_pass' in key.lower():
-                        tokens = ['<', '>']
+                        tokens = []  # passwords can contain any char as they are not displayed
                     else:
                         tokens = ['<', '&', '>', '=', '"', "'", '+', '(', ')']
                     if not self.validate_param(key.lower(), value, tokens, None):
@@ -8154,11 +8154,11 @@ class WebInterface:
                 CONFIG.set_str('GROWL_HOST', kwargs['host'])
             else:
                 fail += 'host '
-        if 'password' in kwargs:
-            if self.validate_param("growl password", kwargs['password'], ['<', '>'], None):
-                CONFIG.set_str('GROWL_PASSWORD', kwargs['password'])
-            else:
-                fail += 'password'
+        # if 'password' in kwargs:
+        #    if self.validate_param("growl password", kwargs['password'], ['<', '>'], None):
+        #        CONFIG.set_str('GROWL_PASSWORD', kwargs['password'])
+        #    else:
+        #        fail += 'password'
         if fail:
             result = ''
         else:
@@ -8260,11 +8260,11 @@ class WebInterface:
                 CONFIG.set_str('EMAIL_SMTP_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'password' in kwargs:
-            if self.validate_param("email password", kwargs['password'], ['<', '>'], None):
-                CONFIG.set_str('EMAIL_SMTP_PASSWORD', kwargs['password'])
-            else:
-                fail += 'password '
+        # if 'password' in kwargs:
+        #    if self.validate_param("email password", kwargs['password'], ['<', '>'], None):
+        #        CONFIG.set_str('EMAIL_SMTP_PASSWORD', kwargs['password'])
+        #    else:
+        #        fail += 'password '
         if 'port' in kwargs:
             if self.validate_param("email port", kwargs['port'], ['<', '>', '='], None):
                 CONFIG.set_int('EMAIL_SMTP_PORT', check_int(kwargs['port'], 0))
@@ -8432,11 +8432,11 @@ class WebInterface:
                 fail += 'cert '
         if 'port' in kwargs:
             CONFIG.set_int('DELUGE_PORT', check_int(kwargs['port'], 0))
-        if 'pwd' in kwargs:
-            if self.validate_param("deluge pass", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('DELUGE_PASS', kwargs['pwd'])
-            else:
-                fail += 'password '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("deluge pass", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('DELUGE_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'password '
         if 'label' in kwargs:
             if self.validate_param("deluge label", kwargs['label'], ['<', '>', '='], None):
                 CONFIG.set_str('DELUGE_LABEL', kwargs['label'])
@@ -8523,11 +8523,11 @@ class WebInterface:
                 CONFIG.set_str('SAB_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'pwd' in kwargs:
-            if self.validate_param("sab pass", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('SAB_PASS', kwargs['pwd'])
-            else:
-                fail += 'password '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("sab pass", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('SAB_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'password '
         if 'api' in kwargs:
             if self.validate_param("sab api", kwargs['api'], ['<', '>', '='], None):
                 CONFIG.set_str('SAB_API', kwargs['api'])
@@ -8569,11 +8569,11 @@ class WebInterface:
                 CONFIG.set_str('NZBGET_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'pwd' in kwargs:
-            if self.validate_param("nzbget pass", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
-            else:
-                fail += 'password '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("nzbget pass", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'password '
         if 'cat' in kwargs:
             if self.validate_param("nzbget category", kwargs['cat'], ['<', '>', '='], None):
                 CONFIG.set_str('NZBGET_CATEGORY', kwargs['cat'])
@@ -8612,11 +8612,11 @@ class WebInterface:
                 CONFIG.set_str('TRANSMISSION_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'pwd' in kwargs:
-            if self.validate_param("transmission pass", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('TRANSMISSION_PASS', kwargs['pwd'])
-            else:
-                fail += 'password '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("transmission pass", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('TRANSMISSION_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'password '
         if fail:
             msg = f'Transmission failed, bad parameter: {fail}'
         else:
@@ -8648,11 +8648,11 @@ class WebInterface:
                 CONFIG.set_str('QBITTORRENT_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'pwd' in kwargs:
-            if self.validate_param("qbit password", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('QBITTORRENT_PASS', kwargs['pwd'])
-            else:
-                fail += 'password '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("qbit password", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('QBITTORRENT_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'password '
         if 'label' in kwargs:
             if self.validate_param("qbit label", kwargs['label'], ['<', '>', '='], None):
                 CONFIG.set_str('QBITTORRENT_LABEL', kwargs['label'])
@@ -8689,11 +8689,11 @@ class WebInterface:
                 CONFIG.set_str('UTORRENT_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'pwd' in kwargs:
-            if self.validate_param("utorrent password", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('UTORRENT_PASS', kwargs['pwd'])
-            else:
-                fail += 'password '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("utorrent password", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('UTORRENT_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'password '
         if 'label' in kwargs:
             if self.validate_param("utorrent label", kwargs['label'], ['<', '>', '='], None):
                 CONFIG.set_str('UTORRENT_LABEL', kwargs['label'])
@@ -8728,11 +8728,11 @@ class WebInterface:
                 CONFIG.set_str('RTORRENT_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'pwd' in kwargs:
-            if self.validate_param("rtorrent password", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('RTORRENT_PASS', kwargs['pwd'])
-            else:
-                fail += 'psaaword '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("rtorrent password", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('RTORRENT_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'psaaword '
         if 'label' in kwargs:
             if self.validate_param("rtorrent label", kwargs['label'], ['<', '>', '='], None):
                 CONFIG.set_str('RTORRENT_LABEL', kwargs['label'])
@@ -8764,11 +8764,11 @@ class WebInterface:
                 CONFIG.set_str('SYNOLOGY_USER', kwargs['user'])
             else:
                 fail += 'user '
-        if 'pwd' in kwargs:
-            if self.validate_param("synology password", kwargs['pwd'], ['<', '>'], None):
-                CONFIG.set_str('SYNOLOGY_PASS', kwargs['pwd'])
-            else:
-                fail += 'password '
+        # if 'pwd' in kwargs:
+        #    if self.validate_param("synology password", kwargs['pwd'], ['<', '>'], None):
+        #        CONFIG.set_str('SYNOLOGY_PASS', kwargs['pwd'])
+        #    else:
+        #        fail += 'password '
         if 'dir' in kwargs:
             if self.validate_param("synology dir", kwargs['dir'], ['<', '>', '='], None):
                 CONFIG.set_str('SYNOLOGY_DIR', kwargs['dir'])
