@@ -7473,7 +7473,7 @@ class WebInterface:
 
     @cherrypy.expose
     @require_auth()
-    def show_running():
+    def show_running(self):
         """ return a list of currently running tasks """
         return lazylibrarian.scheduling.show_running()
 

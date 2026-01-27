@@ -2,6 +2,7 @@
     import lazylibrarian
     from lazylibrarian.common import docker
     from lazylibrarian.config2 import CONFIG
+    from lazylibrarian.scheduling import show_running
 %>
 <!doctype html>
 <html>
@@ -185,7 +186,16 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
               </button>
-              <a class="navbar-brand" href="home"><i class="fa fa-home"></i> LazyLibrarian</a>
+              <div id="brand">
+                <a class="navbar-brand" href="home"><i class="fa fa-home"></i> LazyLibrarian
+                  <i class="fa fa-spin fa-spinner" id="spinner" title="${'\n'.join(show_running())}"></i>
+                % if not show_running():
+                  <script type="text/javascript">
+                    $('#spinner').addClass("hidden");
+                  </script>
+                % endif
+                </a>
+              </div>
             </div>
             <div class="collapse navbar-collapse" id="MainNav">
               <ul class="nav navbar-nav">
@@ -504,6 +514,20 @@
         }
         return vars;
     }
+
+    setInterval("refresh_spinner();",2000);
+    function refresh_spinner(){
+        $.get('show_running', {},
+          function(data) {
+              if ( data )  {
+                $("#spinner").removeClass('hidden');
+            }
+            else {
+                    $("#s").addClass('hidden');
+            }
+          });
+    }
+
     </script>
   </body>
 </html>

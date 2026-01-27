@@ -141,8 +141,8 @@
     </div>
     %if perm&lazylibrarian.perm_status or CONFIG['USER_ACCOUNTS']:
     <div class="form-group">
-      <label for="mark_books" class="control-label">Mark selected ${library}s as</label>
-      <select id="mark_books" class="mark_books form-control input-sm" name="action">
+      <label for="mark_as" class="control-label">Mark selected ${library}s as</label>
+      <select id="mark_as" class="mark_as form-control input-sm" name="action">
         %if whichStatus != 'Wanted':
           %if CONFIG.get_int('EBOOK_TAB') > 0:
             <option value="WantEbook">eBook Wanted</option>
