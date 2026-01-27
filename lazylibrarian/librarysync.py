@@ -18,7 +18,7 @@ import logging
 import os
 import re
 import shutil
-import threading
+import time
 import traceback
 import zipfile
 from xml.etree import ElementTree
@@ -52,6 +52,7 @@ from lazylibrarian.formatter import (
     split_author_names,
     split_title,
     strip_quotes,
+    thread_name,
     unaccented,
 )
 from lazylibrarian.images import img_id
@@ -601,6 +602,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         logger.warning(f'Cannot find directory: {startdir}. Not scanning')
         return 0
 
+    db = database.DBConnection()
+    db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
     if startdir == destdir:
         lazylibrarian.AUTHORS_UPDATE = 1
     logger.debug(f"Counting directories: {startdir}")
@@ -624,7 +627,6 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
     logger.debug(msg)
     lazylibrarian.libraryscan_data = msg
 
-    db = database.DBConnection()
     processed_subdirectories = []
     rehit = []
     remiss = []
@@ -1467,6 +1469,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
     finally:
         logger.debug(f"Processed folders: {len(processed_subdirectories)}, "
                      f"matched books: {len(rehit)}, unmatched: {len(remiss)}")
-        if '_SCAN' in threading.current_thread().name:
-            threading.current_thread().name = 'WEBSERVER'
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        if '_SCAN' in thread_name():
+            thread_name('WEBSERVER')
         db.close()

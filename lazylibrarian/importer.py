@@ -390,6 +390,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
 
     # noinspection PyBroadException
     try:
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         authorkeys = []
         for item in lazylibrarian.INFOSOURCES.keys():
             this_source = lazylibrarian.INFOSOURCES[item]
@@ -637,6 +638,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid='', addbooks=True,
         logger.debug(msg)
         return None
     finally:
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         db.close()
 
 
