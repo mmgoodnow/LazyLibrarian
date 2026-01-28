@@ -306,11 +306,14 @@ def get_all_author_details(authorid='', authorname=None):
         authorid = match['authorid']
 
     merged_info = {}
-    for source in sources:
-        cl = source[1]
+    for src in sources:
+        cl = src[1]
         auth_id = ''
         if match:
-            auth_id = match[source[2]]  # authorid for this source, eg hc_id
+            auth_id = match[src[2]]  # authorid for this source, eg hc_id
+        elif authorid and CONFIG['BOOK_API'] in str(src[1]):
+            # no match in db but we already have an authorid for default api
+            auth_id = authorid
         if not auth_id and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
             book = db.match('SELECT bookname from books WHERE authorid=?', (authorid,))
             title = ''
@@ -318,7 +321,7 @@ def get_all_author_details(authorid='', authorname=None):
                 title = book['bookname']
             aid = cl.find_author_id(authorname=authorname, title=title)
             if aid:
-                db.action(f"UPDATE authors SET {source[2]}=? WHERE authorid=?",
+                db.action(f"UPDATE authors SET {src[2]}=? WHERE authorid=?",
                           (aid['authorid'], authorid))
                 auth_id = aid['authorid']
         if not auth_id and authorid:
@@ -326,10 +329,10 @@ def get_all_author_details(authorid='', authorname=None):
         if auth_id:
             res = cl.get_author_info(authorid=auth_id, authorname=authorname)
             if res:
-                author_info[source[0]] = res
-                author_info[source[0]][source[2]] = auth_id
+                author_info[src[0]] = res
+                author_info[src[0]][src[2]] = auth_id
                 if not merged_info:
-                    pref = source[0]
+                    pref = src[0]
                     merged_info = author_info[pref]
     akas = []
     if merged_info.get('AKA'):
