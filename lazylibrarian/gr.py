@@ -1401,9 +1401,9 @@ class GoodReads:
                     db.upsert("authors", new_value_dict, control_value_dict)
                     db.commit()  # shouldn't really be necessary as context manager commits?
                     authorname = author['authorname']
-                    if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
-                        self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
-                                              reason=reason)
+                    # if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
+                    #     self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
+                    #                          reason=reason)
             else:
                 self.logger.warning(f"No AuthorID for {authorname}, unable to add book {bookname}")
                 return False

@@ -783,9 +783,9 @@ class GoogleBooks:
                             new_value_dict['ol_id'] = author_id
                         authorname = author['authorname']
                         db.upsert("authors", new_value_dict, control_value_dict)
-                        if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
-                            self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
-                                                  reason=reason)
+                        # if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
+                        #    self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
+                        #                          reason=reason)
             else:
                 self.logger.warning(f"No AuthorID for {book['author']}, unable to add book {bookname}")
                 return False
