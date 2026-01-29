@@ -100,9 +100,10 @@ class CustomNotifier:
                     params.append(item)
                     if isinstance(dictionary[item], bytes):
                         params.append(dictionary[item].decode('utf-8'))
+                    elif isinstance(dictionary[item], (int | float | type(None))):
+                        params.append(str(dictionary[item]))
                     else:
                         params.append(dictionary[item])
-
                 rc, res, err = run_script(params)
                 if rc:
                     logger.error(f"Custom notifier returned {rc}: res[{res}] err[{err}]")
