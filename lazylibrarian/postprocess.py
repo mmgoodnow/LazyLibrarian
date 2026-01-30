@@ -15,6 +15,7 @@
 
 import contextlib
 import datetime
+import json
 import logging
 import os
 import re
@@ -395,16 +396,25 @@ class BookState:
         if self.source and self.download_id:
             general_folder = get_download_folder(self.source, self.download_id)
             download_name = get_download_name(self.download_title, self.source, self.download_id)
+            res = None
             if general_folder is None and self.source == 'DIRECT':
-                res = db.match("SELECT NZBprov,NZBtitle from wanted where source='DIRECT' and DownloadID=?", (self.download_id, ))
+                res = db.match("SELECT NZBprov,NZBtitle,NZBurl from wanted where source='DIRECT' and DownloadID=?", (self.download_id, ))
                 # These download into first download_dir
-                if res and res['NZBprov'] in ['annas', 'zlibrary'] or res['NZBprov'].startswith('libgen'):
+                if res and res['NZBprov'] in ['annas', 'zlibrary', 'soulseek'] or res['NZBprov'].startswith('libgen'):
                     general_folder = get_directory('Download')
-
             # For usenet clients (SABnzbd, NZBGet), the storage field already contains
-            # the complete download path including the folder name, so we don't join
+            # the complete download path including the folder name
             if self.source in ("SABNZBD", "NZBGET") and general_folder:
-                self.download_folder = general_folder
+                if os.path.isdir(general_folder):
+                    self.download_folder = general_folder
+                else:
+                    self.download_folder = os.path.dirname(general_folder)
+            elif res and res['NZBprov'] == 'soulseek':
+                try:
+                    soulseek = json.loads(res['NZBurl'].split('^')[1].replace('\\','/'))
+                    self.download_folder = os.path.join(general_folder, soulseek.get("name", '').rsplit('/', 1)[1])
+                except (KeyError, IndexError):
+                    self.download_folder = general_folder
             # For torrent clients, combine base folder with download name
             elif general_folder and download_name:
                 self.download_folder = os.path.join(general_folder, download_name)
@@ -2054,7 +2064,7 @@ def _process_successful_download(
                 )
         elif not book_state.source:
             logger.warning(f"Unable to remove {book_state.download_title}, no source")
-        else:
+        elif book_state.source != 'DIRECT':  # direct sources don't have anything to remove
             logger.warning(
                 f"Unable to remove {book_state.download_title} from {book_state.source}, no DownloadID"
             )
