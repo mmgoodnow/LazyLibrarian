@@ -331,6 +331,7 @@ BASE_DEFAULTS: list[ConfigItem] = [
     ConfigBool('ANNA', 'ANNA', 0),
     ConfigInt('ANNA', 'ANNA_DLPRIORITY', 0),
     ConfigInt('ANNA', 'ANNA_DLLIMIT', 0),
+    ConfigInt('ANNA', 'ANNA_MAX_SERVERS', 1),
     ConfigStr('ANNA', 'ANNA_SEARCH_LANG', 'ANY'),  # upper case 2 letter language code or ANY
     ConfigDownloadTypes('ANNA', 'ANNA_DLTYPES', 'E'),
     ConfigStr('LIME', 'LIME_HOST', 'https://www.limetorrents.cc'),
