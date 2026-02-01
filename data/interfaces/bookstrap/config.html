@@ -974,6 +974,17 @@
                         </div>
                       </div>
                       <div class="row">
+                        <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                        <div class="form-group col-md-6">
+                          <label for="sab_remote">Remote Dir:</label>
+                          <input type="text" id="sab_remote" name="sab_remote" value="${CONFIG['SAB_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label for="sab_local" class="control-label">Local Dir:</label>
+                          <input type="text" id="sab_local" name="sab_local" value="${CONFIG['SAB_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
+                        </div>
+                      </div>
+                      <div class="row">
                         <div class="col-md-6">
                         <div class="input-group">
                           <span class="input-group-addon">Ext Host/Port</span>
@@ -1032,6 +1043,17 @@
                         </div>
                       </div>
                       <div class="row">
+                        <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                        <div class="form-group col-md-6">
+                          <label for="nzbget_remote">Remote Dir:</label>
+                          <input type="text" id="nzget_remote" name="nzbget_remote" value="${CONFIG['NZBGET_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label for="nzbget_local" class="control-label">Local Dir:</label>
+                          <input type="text" id="nzbget_local" name="nzbget_local" value="${CONFIG['NZBGET_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
+                        </div>
+                      </div>
+                      <div class="row">
                       <div class="col-md-6">
                         <button class="button btn btn-sm btn-primary" type="button" value="Test NZBget" id="test_nzbget"><i class="fa fa-list-ul"></i> Test NZBget</button>
                         <br>
@@ -1082,6 +1104,17 @@
                           <input type="checkbox" id="tor_downloader_synology" name="tor_downloader_synology" value="1" ${checked} />
                           Use DownloadStation for torrents</label>
                       </div>
+                      </div>
+                      <div class="row">
+                        <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                        <div class="form-group col-md-6">
+                          <label for="sab_remote">Remote Dir:</label>
+                          <input type="text" id="synology_remote" name="synology_remote" value="${CONFIG['SYNOLOGY_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label for="synology_local" class="control-label">Local Dir:</label>
+                          <input type="text" id="synology_local" name="synology_local" value="${CONFIG['SYNOLOGY_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
+                        </div>
                       </div>
                       <div class="row">
                       <div class="col-md-6">
@@ -1167,12 +1200,23 @@
                         <label for="deluge_dir" class="control-label">Download directory :</label>
                         <input type="text" id="deluge_dir" name="deluge_dir" value="${CONFIG['DELUGE_DIR']}" class="form-control" placeholder="use deluge default">
                       </div>
+                    </div>
+                      <div class="row">
+                        <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                        <div class="form-group col-md-6">
+                          <label for="deluge_remote">Remote Dir:</label>
+                          <input type="text" id="deluge_remote" name="deluge_remote" value="${CONFIG['DELUGE_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label for="deluge_local" class="control-label">Local Dir:</label>
+                          <input type="text" id="deluge_local" name="deluge_local" value="${CONFIG['DELUGE_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
+                        </div>
+                      </div>
                       <div class="col-md-6">
                         <button class="button btn btn-sm btn-primary" type="button" value="Test Deluge" id="test_deluge"><i class="fa fa-list-ul"></i> Test Deluge</button>
                         <br>
                         <br>
                       </div>
-                    </div>
                   </fieldset>
                   <div class="checkbox">
                     <% checked = 'checked="checked"' if CONFIG['TOR_DOWNLOADER_TRANSMISSION'] else '' %>
@@ -1212,6 +1256,17 @@
                         <input type="text" id="transmission_label" name="transmission_label" value="${CONFIG['TRANSMISSION_LABEL']}" class="form-control" placeholder="">
                       </div>
                     </div>
+                      <div class="row">
+                        <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                        <div class="form-group col-md-6">
+                          <label for="transmission_remote">Remote Dir:</label>
+                          <input type="text" id="transmission_remote" name="transmission_remote" value="${CONFIG['TRANSMISSION_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label for="transmission_local" class="control-label">Local Dir:</label>
+                          <input type="text" id="transmission_local" name="transmission_local" value="${CONFIG['TRANSMISSION_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
+                        </div>
+                      </div>
                     <div class="row">
                       <div class="col-md-6">
                         <button class="button btn btn-sm btn-primary" type="button" value="Test Transmission" id="test_transmission"><i class="fa fa-list-ul"></i> Test Transmission</button>
@@ -1249,12 +1304,23 @@
                         <label for="rtorrent_dir" class="control-label">rTorrent Directory:</label>
                         <input type="text" id="rtorrent_dir" name="rtorrent_dir" value="${CONFIG['RTORRENT_DIR']}" class="form-control" placeholder="use rtorrent default">
                       </div>
-                      <div>
-                        <div class="col-md-6">
-                          <button class="button btn btn-sm btn-primary" type="button" value="Test rTorrent" id="test_rtorrent"><i class="fa fa-list-ul"></i> Test rTorrent</button>
-                          <br>
-                          <br>
-                        </div>
+                    </div>
+                    <div class="row">
+                      <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                      <div class="form-group col-md-6">
+                        <label for="rtorrent_remote">Remote Dir:</label>
+                        <input type="text" id="rtorrent_remote" name="rtorrent_remote" value="${CONFIG['RTORRENT_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                      </div>
+                      <div class="form-group col-md-6">
+                        <label for="rtorrent_local" class="control-label">Local Dir:</label>
+                        <input type="text" id="rtorrent_local" name="rtorrent_local" value="${CONFIG['RTORRENT_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
+                      </div>
+                    </div>
+                    <div>
+                      <div class="col-md-6">
+                        <button class="button btn btn-sm btn-primary" type="button" value="Test rTorrent" id="test_rtorrent"><i class="fa fa-list-ul"></i> Test rTorrent</button>
+                        <br>
+                        <br>
                       </div>
                     </div>
                   </fieldset>
@@ -1292,6 +1358,17 @@
                         <input type="text" id="utorrent_base" name="utorrent_base" value="${CONFIG['UTORRENT_BASE']}" class="form-control" placeholder="URL base">
                       </div>
                     </div>
+                      <div class="row">
+                        <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                        <div class="form-group col-md-6">
+                          <label for="utorrent_remote">Remote Dir:</label>
+                          <input type="text" id="utorrent_remote" name="utorrent_remote" value="${CONFIG['UTORRENT_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label for="utorrent_local" class="control-label">Local Dir:</label>
+                          <input type="text" id="utorrent_local" name="utorrent_local" value="${CONFIG['UTORRENT_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
+                        </div>
+                      </div>
                     <div class="row">
                       <div class="col-md-6">
                         <button class="button btn btn-sm btn-primary" type="button" value="Test uTorrent" id="test_utorrent"><i class="fa fa-list-ul"></i> Test uTorrent</button>
@@ -1336,6 +1413,17 @@
                         <div class="form-group col-md-6">
                           <label for="qbittorrent_dir" class="control-label">Download directory :</label>
                           <input type="text" id="qbittorrent_dir" name="qbittorrent_dir" value="${CONFIG['QBITTORRENT_DIR']}" class="form-control" placeholder="use qbittorrent default">
+                        </div>
+                      </div>
+                      <div class="row">
+                        <span class="help-block">Remote/Local mapping for containers on different hosts</span>
+                        <div class="form-group col-md-6">
+                          <label for="qbittorrent_remote">Remote Dir:</label>
+                          <input type="text" id="qbittorrent_remote" name="qbittorrent_remote" value="${CONFIG['QBITTORRENT_REMOTE']}" class="form-control"      placeholder="Normally leave blank">
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label for="qbittorrent_local" class="control-label">Local Dir:</label>
+                          <input type="text" id="qbittorrent_local" name="qbittorrent_local" value="${CONFIG['QBITTORRENT_LOCAL']}" class="form-control"     placeholder="Normally leave blank">
                         </div>
                       </div>
                       <div class="row">

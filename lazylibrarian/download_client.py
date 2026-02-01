@@ -415,6 +415,19 @@ def get_download_folder(source, downloadid):
                         if item["NZBID"] == check_int(downloadid, 0):
                             dlfolder = item.get("DestDir")
                             break
+
+        # Remote to local mapping for docker containers
+        # Convert source to match config keys
+        if source.startswith('DELUGE'):
+            source = 'DELUGE'
+        elif source.startswith('SYNOLOGY'):
+            source = 'SYNOLOGY'
+        elif source == 'SABNZBD':
+            source = 'SAB'
+
+        if CONFIG[f"{source}_REMOTE"] and CONFIG[f"{source}_LOCAL"] and dlfolder.startswith(CONFIG[f"{source}_REMOTE"]):
+                dlfolder = dlfolder.replace(CONFIG[f"{source}_REMOTE"], CONFIG[f"{source}_LOCAL"])
+
         return dlfolder
 
     except Exception:
@@ -605,7 +618,7 @@ def get_download_progress(source, downloadid):
                 db.action(cmd, ("rTorrent returned error", downloadid, source))
                 progress = -1
 
-        elif source == "SYNOLOGY_TOR":
+        elif source.startswith("SYNOLOGY"):
             progress, status, finished = synology.get_progress(downloadid)
             if status == "finished":
                 progress = 100
@@ -712,7 +725,7 @@ def delete_task(source, download_id, remove_data):
             qbittorrent.remove_torrent(download_id, remove_data)
         elif source == "TRANSMISSION":
             transmission.remove_torrent(download_id, remove_data)
-        elif source == "SYNOLOGY_TOR" or source == "SYNOLOGY_NZB":
+        elif source.startswith("SYNOLOGY"):
             synology.remove_torrent(download_id, remove_data)
         elif source == "DELUGEWEBUI":
             deluge.remove_torrent(download_id, remove_data)
