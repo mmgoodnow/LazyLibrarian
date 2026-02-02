@@ -1922,6 +1922,12 @@
                       <span class="input-group-addon">Daily Downloads: (${lazylibrarian.TIMERS['ANNA_REMAINING']} left)</span>
                       <input type="number" placeholder="API Limit" id="anna_dllimit" name="anna_dllimit" value="${CONFIG['ANNA_DLLIMIT']}" class="form-control">
                       </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Max download servers</span>
+                        <input type="number" min="1" placeholder="Max servers" id="anna_max_servers" name="anna_max_servers" value="${CONFIG['ANNA_MAX_SERVERS']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="The maximum number of download servers to try in case of failure">
+                        </span>
+                      </div>
                     </div>
                     <% checked = 'checked="checked"' if CONFIG['BOK'] else '' %>
                     <div class="col-md-4 form-group">

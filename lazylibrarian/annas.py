@@ -326,13 +326,14 @@ def parse_result(raw_content: Tag) -> SearchResult | None:
     return res
 
 
-def annas_download(md5, folder, title, extn):
+def annas_download(md5, folder, title, extn, domain_index=0):
     logger = logging.getLogger(__name__)
     downloadlogger = logging.getLogger('special.dlcomms')
     url = urljoin(CONFIG['ANNA_HOST'], '/dyn/api/fast_download.json')
     secret_key = CONFIG['ANNA_KEY']
-    params = {'md5': md5, 'key': secret_key, 'domain_index': 0}
+    params = {'md5': md5, 'key': secret_key, 'domain_index': domain_index}
     response = get(url, params=params)
+    max_domain_index = CONFIG['ANNA_MAX_SERVERS'] - 1 # Server indexes are 0-based
     if str(response.status_code).startswith('2'):
         res = response.json()
         downloadlogger.debug(res)
@@ -345,38 +346,44 @@ def annas_download(md5, folder, title, extn):
             return False, msg
         url = res['download_url']
         if url and url.startswith('http'):
-            r = get(url)
-            if not str(r.status_code).startswith('2'):
-                msg = f"Got a {r.status_code} response for {url}"
-                logger.warning(msg)
-                return False, msg
-            filedata = r.content
-            if not len(filedata):
-                msg = f"Got empty response for {url}"
-                logger.warning(msg)
-                return False, msg
-            if len(filedata) < 100:
-                msg = f"Only got {len(filedata)} bytes for {url}"
-                logger.warning(msg)
-                return False, msg
-            logger.debug(f"Got {len(filedata)} bytes for {url}")
-            download_dir = get_directory('Download')
-            if folder:
-                parent = os.path.join(download_dir, folder)
-                if not os.path.isdir(parent):
-                    os.mkdir(parent)
-            dest_filename = os.path.join(download_dir, folder, sanitize(f"{title}{extn}"))
-            with open(dest_filename, 'wb') as f:
-                f.write(filedata)
-            logger.debug(f"Data written to file {dest_filename}")
-            if counters['downloads_left'] == 1:
-                # just used the last download
-                block_annas(counters['downloads_per_day'])
-            else:
-                lazylibrarian.TIMERS['ANNA_REMAINING'] = counters['downloads_left'] - 1
-                logger.info(f"Anna {lazylibrarian.TIMERS['ANNA_REMAINING']} remaining "
-                            f"of {counters['downloads_per_day']}")
-            return True, dest_filename
+            try:
+                r = get(url)
+                if not str(r.status_code).startswith('2'):
+                    msg = f"Got a {r.status_code} response for {url}"
+                    if domain_index < max_domain_index:
+                        return annas_download(md5, folder, title, extn, domain_index + 1)
+                    logger.warning(msg)
+                    return False, msg
+                filedata = r.content
+                if not len(filedata):
+                    msg = f"Got empty response for {url}"
+                    logger.warning(msg)
+                    return False, msg
+                if len(filedata) < 100:
+                    msg = f"Only got {len(filedata)} bytes for {url}"
+                    logger.warning(msg)
+                    return False, msg
+                logger.debug(f"Got {len(filedata)} bytes for {url}")
+                download_dir = get_directory('Download')
+                if folder:
+                    parent = os.path.join(download_dir, folder)
+                    if not os.path.isdir(parent):
+                        os.mkdir(parent)
+                dest_filename = os.path.join(download_dir, folder, sanitize(f"{title}{extn}"))
+                with open(dest_filename, 'wb') as f:
+                    f.write(filedata)
+                logger.debug(f"Data written to file {dest_filename}")
+                if counters['downloads_left'] == 1:
+                    # just used the last download
+                    block_annas(counters['downloads_per_day'])
+                else:
+                    lazylibrarian.TIMERS['ANNA_REMAINING'] = counters['downloads_left'] - 1
+                    logger.info(f"Anna {lazylibrarian.TIMERS['ANNA_REMAINING']} remaining "
+                                f"of {counters['downloads_per_day']}")
+                return True, dest_filename
+            except:
+                if domain_index < max_domain_index:
+                    return annas_download(md5, folder, title, extn, domain_index + 1)
         errmsg = f"Invalid url: {url} {res['error']}"
         logger.error(errmsg)
         return False, errmsg
