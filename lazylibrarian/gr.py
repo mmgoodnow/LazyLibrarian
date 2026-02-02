@@ -408,6 +408,11 @@ class GoodReads:
 
         return mydict
 
+    @staticmethod
+    def role_is_author(role):
+        role = role.lower()
+        return any(match in role for match in ['none', 'author', 'writer', 'creator', 'pseudonym', 'pen name'])
+
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
                          entrystatus='Active', refresh=False, reason='gr.get_author_books'):
         # noinspection PyBroadException
@@ -738,16 +743,21 @@ class GoodReads:
                             if aid == gr_id or anm == author_name_result:
                                 if aid != gr_id:
                                     self.logger.warning(f"Author {anm} has different authorid {aid}:{gr_id}")
-                                if role is None or 'author' in role.lower() or \
-                                        'writer' in role.lower() or \
-                                        'creator' in role.lower() or \
-                                        'pseudonym' in role.lower() or \
-                                        'pen name' in role.lower():
-                                    amatch = True
                                 else:
                                     self.logger.debug(f'Got {anm} for {bookname}, role is {role}')
+                                if self.role_is_author(role):
+                                    amatch = True
+
                         if not amatch:
-                            rejected.append(['author', f'Wrong Author or role (got {alist},{role})'])
+                            msg = f'Wrong Author or role (got {alist}:{role})'
+                            if not self.role_is_author(role):
+                                msg += f' Assuming {authorid}:{authorname}'
+                                contributors.insert(0, [authorid, authorname, "Author"])
+                                amatch = True
+                            self.logger.warning(msg)
+
+                        if not amatch:
+                            continue
 
                         cmd = ("SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult FROM books,authors "
                                "WHERE authors.AuthorID = books.AuthorID AND BookID=?")
