@@ -333,7 +333,7 @@ def annas_download(md5, folder, title, extn, domain_index=0):
     secret_key = CONFIG['ANNA_KEY']
     params = {'md5': md5, 'key': secret_key, 'domain_index': domain_index}
     response = get(url, params=params)
-    max_domain_index = CONFIG['ANNA_MAX_SERVERS'] - 1 # Server indexes are 0-based
+    max_domain_index = check_int(CONFIG['ANNA_MAX_SERVERS'], 0) - 1 # Server indexes are 0-based
     if str(response.status_code).startswith('2'):
         res = response.json()
         downloadlogger.debug(res)
@@ -381,7 +381,8 @@ def annas_download(md5, folder, title, extn, domain_index=0):
                     logger.info(f"Anna {lazylibrarian.TIMERS['ANNA_REMAINING']} remaining "
                                 f"of {counters['downloads_per_day']}")
                 return True, dest_filename
-            except:
+            except Exception as e:
+                logger.debug(str(e))
                 if domain_index < max_domain_index:
                     return annas_download(md5, folder, title, extn, domain_index + 1)
         errmsg = f"Invalid url: {url} {res['error']}"
