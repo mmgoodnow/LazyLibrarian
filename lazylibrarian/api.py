@@ -68,16 +68,24 @@ from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.csvfile import dump_table, export_csv, import_csv
 from lazylibrarian.download_client import get_download_progress
+from lazylibrarian.downloadmethods import (
+    direct_dl_method,
+    irc_dl_method,
+    nzb_dl_method,
+    tor_dl_method,
+)
 from lazylibrarian.filesystem import DIRS, path_isfile, setperm, splitext, syspath
 from lazylibrarian.formatter import (
     check_int,
     format_author_name,
     get_list,
     is_valid_isbn,
+    now,
     plural,
     split_author_names,
     thread_name,
     today,
+    unaccented,
 )
 from lazylibrarian.grsync import grfollow, grsync
 from lazylibrarian.hc import hc_sync
@@ -133,6 +141,7 @@ from lazylibrarian.scheduling import (
     all_author_update,
     author_update,
     check_running_jobs,
+    schedule_job,
     restart_jobs,
     series_update,
     show_jobs,
@@ -142,6 +151,7 @@ from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
 from lazylibrarian.telemetry import TELEMETRY, telemetry_send
+from lazylibrarian.notifiers import custom_notify_snatch, notify_snatch
 
 # dict of known commands. 0 = any valid api key, 1 = not available with the read-only key
 cmd_dict = {'help': (0, 'list available commands. Time consuming commands take an optional &wait parameter '
@@ -241,6 +251,8 @@ cmd_dict = {'help': (0, 'list available commands. Time consuming commands take a
             'listIgnoredSeries': (0, 'list all series in the database marked ignored'),
             'searchBook': (1, '&id= [&wait] [&type=eBook/AudioBook] search for one book by BookID'),
             'searchItem': (1, '&item= get search results for an item (author, title, isbn)'),
+            'snatchResult': (1, '&bookid= &library= &mode= &provider= &url= [&size=] [&title=] '
+                                'snatch a specific search result'),
             'showStats': (0, '[&json] show database statistics'),
             'showJobs': (0, '[&json] show status of running jobs'),
             'restartJobs': (1, 'restart background jobs'),
@@ -2644,6 +2656,84 @@ class Api:
             self.data = 'Missing parameter: item'
             return
         self.data = search_item(kwargs['item'])
+
+    def _snatchresult(self, **kwargs):
+        TELEMETRY.record_usage_data()
+        required = ['bookid', 'library', 'mode', 'provider', 'url']
+        for item in required:
+            if item not in kwargs:
+                self.data = f"Missing parameter: {item}"
+                return
+
+        bookid = kwargs['bookid']
+        library = kwargs['library']
+        mode = kwargs['mode']
+        provider = kwargs['provider']
+        url = kwargs['url']
+        title = kwargs.get('title', '')
+        size_temp = check_int(kwargs.get('size'), 1000)
+        size = round(float(size_temp) / 1048576, 2)
+
+        db = database.DBConnection()
+        try:
+            bookdata = db.match('SELECT AuthorID, BookName from books WHERE BookID=?', (bookid,))
+            if not bookdata:
+                self.data = f"BookID {bookid} not found"
+                return
+
+            control_value_dict = {"NZBurl": url}
+            nzbtitle = title if title else bookdata["BookName"]
+            new_value_dict = {
+                "NZBprov": provider,
+                "BookID": bookid,
+                "NZBdate": now(),
+                "NZBsize": size,
+                "NZBtitle": nzbtitle,
+                "NZBmode": mode,
+                "AuxInfo": library,
+                "Status": "Snatched",
+            }
+            db.upsert("wanted", new_value_dict, control_value_dict)
+
+            dl_title = bookdata["BookName"]
+            if provider in ['soulseek', 'annas'] and title:
+                dl_title = title
+
+            if mode == 'direct':
+                snatch, res = direct_dl_method(bookid, dl_title, url, library, provider)
+            elif mode in ["torznab", "torrent", "magnet"]:
+                snatch, res = tor_dl_method(bookid, bookdata["BookName"], url, library, provider=provider)
+            elif mode == 'nzb':
+                snatch, res = nzb_dl_method(bookid, bookdata["BookName"], url, library)
+            elif mode == 'irc':
+                if title:
+                    snatch, res = irc_dl_method(bookid, title, url, library, provider)
+                else:
+                    snatch, res = irc_dl_method(bookid, bookdata["BookName"], url, library, provider)
+            else:
+                res = f'Unhandled NZBmode [{mode}] for {url}'
+                self.logger.error(res)
+                snatch = False
+
+            if snatch:
+                self.logger.info(f"Requested {library} {bookdata['BookName']} from {provider}")
+                custom_notify_snatch(f"{bookid} {library}")
+                notify_snatch(
+                    f"{unaccented(bookdata['BookName'], only_ascii=False)} from "
+                    f"{CONFIG.disp_name(provider)} at {now()}"
+                )
+                schedule_job(action=SchedulerCommand.START, target='PostProcessor')
+                self.data = {
+                    'Success': True,
+                    'Data': {'BookID': bookid, 'Library': library, 'Provider': provider},
+                    'Error': {'Code': 200, 'Message': res if res else 'OK'},
+                }
+            else:
+                db.action("UPDATE wanted SET status='Failed',DLResult=? WHERE NZBurl=?", (res, url))
+                self.data = {'Success': False, 'Data': '', 'Error': {'Code': 500, 'Message': res}}
+        finally:
+            db.close()
+        return
 
     def _searchbook(self, **kwargs):
         TELEMETRY.record_usage_data()
