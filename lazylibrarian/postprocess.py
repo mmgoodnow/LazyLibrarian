@@ -947,8 +947,11 @@ def _extract_best_match_from_collection(
             f, booktype=BookType.EBOOK.value
         ) or _is_metadata_file(f)):
             source = os.path.join(candidate_dir, f)
-            dest = os.path.join(target_dir, f)
-            shutil.copyfile(source, dest)
+            if path_isdir(source):
+                shutil.copytree(source, target_dir)
+            else:
+                dest = os.path.join(target_dir, f)
+                shutil.copyfile(source, dest)
 
     return target_dir, False, ""
 
